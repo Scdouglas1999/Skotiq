@@ -43,10 +43,9 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
       } on FormatException catch (e) {
         // One bad entry must not torpedo the whole list. We log and
         // skip; the UI gets the remaining entries.
-        developer.log(
+        Log.warning(
           '[NetworkBackend] fetchRecentServerLogs: dropped malformed entry: $e',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
       }
     }
@@ -198,19 +197,17 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
               },
               onError: (Object e, _) {
                 if (closed) return;
-                developer.log(
+                Log.warning(
                   '[NetworkBackend] /api/logs/tail stream error: $e',
-                  name: 'NetworkBackend',
-                  level: 900,
+                  source: 'NetworkBackend',
                 );
                 scheduleReconnect();
               },
               onDone: () {
                 if (closed) return;
-                developer.log(
+                Log.debug(
                   '[NetworkBackend] /api/logs/tail stream closed by server',
-                  name: 'NetworkBackend',
-                  level: 700,
+                  source: 'NetworkBackend',
                 );
                 scheduleReconnect();
               },
@@ -218,10 +215,9 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
             );
       } catch (e) {
         if (closed) return;
-        developer.log(
+        Log.warning(
           '[NetworkBackend] /api/logs/tail connect failed: $e',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
         scheduleReconnect();
       }
@@ -298,16 +294,14 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
       );
       if (!controller.isClosed) controller.add(entry);
     } on FormatException catch (e) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] /api/logs/tail: dropped malformed entry: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] /api/logs/tail: decode error: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
     }
   }

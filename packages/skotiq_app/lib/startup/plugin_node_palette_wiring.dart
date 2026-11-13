@@ -12,11 +12,11 @@
 // helper installed by the desktop / mobile entry point's ProviderScope.
 
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Build the Riverpod override that swaps the default empty blueprint
 /// list for one backed by the live `PluginNodeRegistry`.
@@ -66,12 +66,11 @@ List<PluginNodeBlueprint> _toBlueprints(
     if (reg.pluginId.isEmpty ||
         definition.id.isEmpty ||
         definition.name.isEmpty) {
-      developer.log(
+      Log.warning(
         'Skipping malformed plugin sequence node registration: '
         'pluginId=${reg.pluginId}, nodeTypeId=${definition.id}, '
         'name=${definition.name}',
-        name: 'PluginNodePalette',
-        level: 900, // warning
+        source: 'PluginNodePalette',
       );
       continue;
     }
@@ -94,11 +93,10 @@ List<PluginNodeBlueprint> _toBlueprints(
     try {
       jsonDecode(configJson);
     } catch (error, stackTrace) {
-      developer.log(
+      Log.warning(
         'Plugin ${reg.pluginId}/${definition.id} default config JSON is '
         'unparseable; falling back to "{}"',
-        name: 'PluginNodePalette',
-        level: 900,
+        source: 'PluginNodePalette',
         error: error,
         stackTrace: stackTrace,
       );

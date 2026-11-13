@@ -24,7 +24,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as backend_events;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -113,7 +114,7 @@ void main() {
       expect(result, isNotNull);
       expect(
         result!.runStatus,
-        'paused-stopped',
+        SequenceRunStatus.stoppedResumable,
         reason:
             'the operator pressed Stop; the instruction that happened to be in '
             'flight must not change the verdict on their action',
@@ -143,7 +144,7 @@ void main() {
     await executor.terminalCleanupSettledForTest;
     expect(
       container.read(sequenceTerminalRunResultProvider)!.runStatus,
-      'paused-stopped',
+      SequenceRunStatus.stoppedResumable,
     );
 
     // ...and the node tree's own failure lands afterwards, once the stop's
@@ -156,7 +157,7 @@ void main() {
 
     expect(
       container.read(sequenceTerminalRunResultProvider)!.runStatus,
-      'paused-stopped',
+      SequenceRunStatus.stoppedResumable,
       reason:
           'the run is over and its verdict was the operator\'s stop — a late '
           'terminal for that same run must not re-open finalization and '
@@ -179,7 +180,7 @@ void main() {
     await executor.terminalCleanupSettledForTest;
 
     final result = container.read(sequenceTerminalRunResultProvider);
-    expect(result!.runStatus, 'failed');
+    expect(result!.runStatus, SequenceRunStatus.failed);
     expect(result.outcome, SequenceExecutionState.failed);
     expect(
       container.read(liveSequenceStatsProvider)!.errorMessages,

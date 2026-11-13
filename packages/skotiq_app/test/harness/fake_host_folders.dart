@@ -1,67 +1,57 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/services/host_folders.dart';
-import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 
-typedef FolderPick = Future<String?> Function({
-  required HostFiles? host,
-  required String? initialPath,
-});
+typedef FolderPick = Future<String?> Function({required String? initialPath});
 
-typedef FolderCheckAnswer = Future<FolderCheck> Function(
-  String path,
-  HostFiles? host,
-);
+typedef FolderCheckAnswer = Future<FolderCheck> Function(String path);
 
-/// [HostFolders] without a file picker, a disk or a file manager: picks
+/// [LocalFolders] without a file picker, a disk or a file manager: picks
 /// answer [onPick], checks [onCheck] (every folder takes files by default),
-/// and reveals and creations are recorded.
-class FakeHostFolders extends HostFolders {
+/// and making or opening a folder does nothing.
+class FakeHostFolders extends LocalFolders {
   FakeHostFolders({this.onPick, this.onCheck});
 
   FolderPick? onPick;
   FolderCheckAnswer? onCheck;
 
-  final List<({HostFiles? host, String? initialPath})> picks = [];
-  final List<String> checked = [];
-  final List<String> created = [];
-  final List<String> revealed = [];
-
   @override
   Future<String?> pick(
     BuildContext context, {
-    required HostFiles? host,
     required String title,
     String? initialPath,
     String confirmLabel = 'Select',
-  }) {
-    picks.add((host: host, initialPath: initialPath));
-    return onPick?.call(host: host, initialPath: initialPath) ??
-        Future<String?>.value();
-  }
+  }) =>
+      onPick?.call(initialPath: initialPath) ?? Future<String?>.value();
 
   @override
-  Future<FolderCheck> check(String path, {required HostFiles? host}) {
-    checked.add(path);
-    return onCheck?.call(path, host) ??
-        Future<FolderCheck>.value(const FolderUsable());
-  }
+  Future<FolderCheck> check(String path) =>
+      onCheck?.call(path) ?? Future<FolderCheck>.value(const FolderUsable());
 
   @override
-  Future<void> create(String path) async => created.add(path);
+  Future<void> create(String path) async {}
 
   @override
-  Future<void> reveal(BuildContext context, String path) async =>
-      revealed.add(path);
+  Future<void> reveal(BuildContext context, String path) async {}
 }
+
+/// [hostFoldersProvider] answered by a new fake from [make] for every host,
+/// as the real role hands out new folders when the imaging host changes.
+Override fakeHostFoldersPerHost(FakeHostFolders Function() make) =>
+    hostFoldersProvider.overrideWith((ref) {
+      ref.watch(remoteHostProvider);
+      return make();
+    });
 
 /// A check that answers as [problem] does: null for a folder that takes
 /// files, otherwise the reason it does not.
 FolderCheckAnswer folderCheckFrom(
   FutureOr<String?> Function(String path) problem,
 ) =>
-    (path, host) async {
+    (path) async {
       final reason = await problem(path);
       return reason == null ? const FolderUsable() : FolderRefused(reason);
     };

@@ -91,99 +91,15 @@ extension _ProfileServiceBackends on ProfileService {
     return profile != null ? EquipmentProfileModel.fromDatabase(profile) : null;
   }
 
+  /// Save [profile] through the profile store, the one writer of a profile.
   Future<void> _persistProfileModel(
     EquipmentProfileModel profile, {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
     _requireAuthority(operation);
-    final backend = operation.value;
-    if (backend.remoteHost != null) {
-      await backend.saveProfile(profile.toRemoteProfile());
-      _requireAuthority(operation);
-      _ref.invalidate(equipmentProfilesProvider);
-      return;
-    }
-
-    if (profile.id == null) {
-      throw StateError('Cannot persist profile without id on local backend');
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-    final logger = _ref.read(loggingServiceProvider);
-    final existing = await dao.getProfileById(profile.id!);
+    await _ref.read(equipmentProfilesProvider.notifier).saveProfile(profile);
     _requireAuthority(operation);
-    if (existing == null) {
-      throw Exception('Profile not found');
-    }
-
-    await dao.updateProfile(
-      existing.copyWith(
-        name: profile.name,
-        description: Value(profile.description),
-        isActive: profile.isActive,
-        cameraId: Value(profile.cameraId),
-        mountId: Value(profile.mountId),
-        focuserId: Value(profile.focuserId),
-        filterWheelId: Value(profile.filterWheelId),
-        guiderId: Value(profile.guiderId),
-        guideCameraId: Value(profile.guideCameraId),
-        guideFocalLength: Value(profile.guideFocalLength),
-        rotatorId: Value(profile.rotatorId),
-        domeId: Value(profile.domeId),
-        weatherId: Value(profile.weatherId),
-        safetyMonitorId: Value(profile.safetyMonitorId),
-        switchId: Value(profile.switchId),
-        coverCalibratorId: Value(profile.coverCalibratorId),
-        cameraName: Value(profile.cameraName),
-        mountName: Value(profile.mountName),
-        focuserName: Value(profile.focuserName),
-        filterWheelName: Value(profile.filterWheelName),
-        guiderName: Value(profile.guiderName),
-        guideCameraName: Value(profile.guideCameraName),
-        rotatorName: Value(profile.rotatorName),
-        telescopeName: Value(profile.telescopeName),
-        telescopeFocalLength: Value(profile.telescopeFocalLength),
-        telescopeAperture: Value(profile.telescopeAperture),
-        focalLength: profile.focalLength,
-        aperture: profile.aperture,
-        focalRatio: Value(profile.focalRatio),
-        defaultGain: Value(profile.defaultGain),
-        defaultOffset: Value(profile.defaultOffset),
-        defaultBinX: profile.defaultBinX,
-        defaultBinY: profile.defaultBinY,
-        defaultCoolingTemp: Value(profile.defaultCoolingTemp),
-        coolOnConnect: profile.coolOnConnect,
-        defaultCenteringExposure: Value(profile.defaultCenteringExposure),
-        filterNames: Value(
-          profile.filterNames.isNotEmpty
-              ? jsonEncode(profile.filterNames)
-              : null,
-        ),
-        filterFocusOffsets: Value(
-          profile.filterFocusOffsets.isNotEmpty
-              ? jsonEncode(profile.filterFocusOffsets)
-              : null,
-        ),
-        profileIcon: Value(profile.profileIcon),
-        profileColor: Value(profile.profileColor),
-        sortOrder: profile.sortOrder,
-        isDefault: profile.isDefault,
-        updatedAt: DateTime.now(),
-      ),
-    );
-    _requireAuthority(operation);
-    if (existing.isActive) {
-      await writeActiveProfileThrough(
-        dao: dao,
-        backend: backend,
-        logger: logger,
-        profileId: profile.id!,
-        strict: true,
-      );
-      _requireAuthority(operation);
-    }
-    _ref.invalidate(equipmentProfilesProvider);
   }
 
   /// Connect devices from a profile model (local FFI or remote host).

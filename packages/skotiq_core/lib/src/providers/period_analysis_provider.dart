@@ -1,11 +1,11 @@
 import '../errors/error_text.dart';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/science/science_models.dart';
 import '../services/science/period_analysis_service.dart';
+import '../services/logging_service.dart';
 
 final periodAnalysisServiceProvider = Provider<PeriodAnalysisService>((ref) {
   return const PeriodAnalysisService();
@@ -114,10 +114,9 @@ class PeriodAnalysisNotifier extends Notifier<PeriodAnalysisState> {
         clearCustomPhaseFold: true,
       );
     } catch (error, stack) {
-      developer.log(
+      Log.error(
         'Period analysis failed: $error',
-        name: 'PeriodAnalysis',
-        level: 1000,
+        source: 'PeriodAnalysis',
         error: error,
         stackTrace: stack,
       );

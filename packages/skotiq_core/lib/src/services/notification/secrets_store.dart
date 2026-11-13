@@ -26,7 +26,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -36,6 +35,7 @@ import '../../settings/store_settings.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../utils/legacy_install_migration.dart'
     show migrateLegacySecretsNamespace;
+import '../logging_service.dart';
 
 /// Stable key prefix inside the secure store. Versioned so a future
 /// breaking change (e.g. encrypting per-field) can migrate again.
@@ -201,10 +201,9 @@ class SecretsStore {
       final v = await _store.read(key: _keyFor(field));
       return v ?? '';
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[SecretsStore] read($field) failed: $e',
-        name: 'SecretsStore',
-        level: 900,
+        source: 'SecretsStore',
         error: e,
       );
       // An unavailable keyring is not the same thing as an absent secret.
@@ -228,10 +227,9 @@ class SecretsStore {
     } catch (e) {
       // Errors writing to the secure store are NOT swallowed silently.
       // Re-throwing so the UI surface (Save button) reports the failure.
-      developer.log(
+      Log.error(
         '[SecretsStore] write($field) failed: $e',
-        name: 'SecretsStore',
-        level: 1000,
+        source: 'SecretsStore',
         error: e,
       );
       rethrow;
@@ -243,10 +241,9 @@ class SecretsStore {
       await _ensureLegacyNamespaceMigrated();
       await _store.delete(key: _keyFor(field));
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[SecretsStore] delete($field) failed: $e',
-        name: 'SecretsStore',
-        level: 900,
+        source: 'SecretsStore',
         error: e,
       );
       rethrow;
@@ -356,10 +353,9 @@ class SecretsStore {
       if (decoded is! Map) return false;
       blob = Map<String, dynamic>.from(decoded);
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[SecretsStore] Skipping migration of ${row.key}: bad JSON ($e)',
-        name: 'SecretsStore',
-        level: 900,
+        source: 'SecretsStore',
       );
       return false;
     }
@@ -378,10 +374,9 @@ class SecretsStore {
 
     if (changed) {
       await dao.write(row, jsonEncode(blob));
-      developer.log(
+      Log.info(
         '[SecretsStore] Migrated secrets out of ${row.key}',
-        name: 'SecretsStore',
-        level: 800,
+        source: 'SecretsStore',
       );
     }
     return true;
@@ -400,11 +395,10 @@ class SecretsStore {
       if (decoded is! Map) return false;
       blob = Map<String, dynamic>.from(decoded);
     } catch (error) {
-      developer.log(
+      Log.warning(
         '[SecretsStore] Skipping migration of ${row.key}: bad JSON '
         '($error)',
-        name: 'SecretsStore',
-        level: 900,
+        source: 'SecretsStore',
       );
       return false;
     }
@@ -436,10 +430,9 @@ class SecretsStore {
 
     if (changed) {
       await dao.write(row, jsonEncode(blob));
-      developer.log(
+      Log.info(
         '[SecretsStore] Migrated secrets out of ${row.key}',
-        name: 'SecretsStore',
-        level: 800,
+        source: 'SecretsStore',
       );
     }
     return true;

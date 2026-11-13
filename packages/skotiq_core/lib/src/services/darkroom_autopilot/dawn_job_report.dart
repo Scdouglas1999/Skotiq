@@ -793,7 +793,11 @@ class DawnJobReport {
       return '${target ?? 'Your night'} — no draft was rendered; '
           '${DurationFormat.seconds(integrationSeconds, style: DurationStyle.coarse, roundToMinute: true)} integrated';
     }
-    final time = DurationFormat.seconds(draftedIntegrationSeconds, style: DurationStyle.coarse, roundToMinute: true);
+    final time = DurationFormat.seconds(
+      draftedIntegrationSeconds,
+      style: DurationStyle.coarse,
+      roundToMinute: true,
+    );
     final color = composites
         .where((c) => c.hasDraft)
         .map((c) => c.paletteName)
@@ -947,4 +951,3 @@ class DawnJobReport {
 
 String _capitalized(String text) =>
     text.isEmpty ? text : '${text[0].toUpperCase()}${text.substring(1)}';
-

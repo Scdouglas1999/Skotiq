@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skotiq_core/providers.dart';
-
+import 'package:skotiq_core/services.dart';
 
 const String _crosshairKey = 'imaging.showCrosshair';
 const String _starOverlayKey = 'imaging.showStarOverlay';
@@ -26,8 +25,10 @@ final imagingViewPrefsBinderProvider = Provider<void>((ref) {
         viewer.toggleStarOverlay();
       }
     } catch (e) {
-      developer.log('Failed to read the view overlays: $e',
-          name: 'ImagingViewPrefs');
+      Log.debug(
+        'Failed to read the view overlays: $e',
+        source: 'ImagingViewPrefs',
+      );
     } finally {
       hydrated = true;
     }
@@ -46,8 +47,10 @@ final imagingViewPrefsBinderProvider = Provider<void>((ref) {
         await prefs.setBool(_crosshairKey, next.showCrosshair);
         await prefs.setBool(_starOverlayKey, next.showStarOverlay);
       } catch (e) {
-        developer.log('Failed to store the view overlays: $e',
-            name: 'ImagingViewPrefs');
+        Log.debug(
+          'Failed to store the view overlays: $e',
+          source: 'ImagingViewPrefs',
+        );
       }
     }());
   });

@@ -1,4 +1,3 @@
-
 import '../models/backend/backend_types.dart';
 
 /// How a Home command ended when it did not fail.

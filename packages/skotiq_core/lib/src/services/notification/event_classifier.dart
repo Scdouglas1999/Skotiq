@@ -29,8 +29,6 @@
 //
 // This classifier is intentionally pure and side-effect free.
 
-import 'dart:developer' as developer;
-
 import '../../backend/bridge_event_codec.dart';
 import '../../backend/bridge_events.dart' as typed;
 import '../../models/backend/event_types.dart';
@@ -38,6 +36,7 @@ import '../../errors/error_text.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../models/sequence/run_stop_classification.dart';
 import '../../utils/device_id.dart';
+import '../logging_service.dart';
 import 'notification_template.dart';
 
 /// The devices the native side has said it is connecting and has not yet
@@ -208,10 +207,10 @@ class NotificationEventClassifier {
         // separately). Only the exact notice is reclassified; see
         // [isSequenceCancelledNotice] for why the match is not a substring.
         if (isSequenceCancelledNotice(message)) {
-          developer.log(
+          Log.debug(
             '[$kStopClassificationLogTag] event_classifier: sequencer Error '
             'carrying the cancellation notice -> sequenceStopped',
-            name: 'NotificationEventClassifier',
+            source: 'NotificationEventClassifier',
           );
           return (NotificationCategory.sequenceStopped, _stopContext(null));
         }

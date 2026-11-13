@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/backend/sequencer_status.dart';
 import '../../../models/sequence/sequence_models.dart';
+import '../../../models/sequence/sequence_run_status.dart';
 import '../../sequence/last_ended_run.dart';
 import '../../sequence/run_record.dart';
 import '../../../models/sequence/run_stop_classification.dart';
@@ -159,7 +160,7 @@ Map<String, dynamic>? _encodeResult(SequenceTerminalRunResult? result) {
   return {
     'generation': result.generation,
     'outcome': result.outcome.name,
-    'runStatus': result.runStatus,
+    'runStatus': result.runStatus.token,
     'runId': result.runId,
     'dbSessionId': result.dbSessionId,
     'isCalibration': result.isCalibration,
@@ -171,7 +172,7 @@ SequenceTerminalRunResult? _decodeResult(Object? raw) {
   final outcome = SequenceExecutionState.values
       .where((s) => s.name == raw['outcome'])
       .firstOrNull;
-  final runStatus = jsonString(raw['runStatus']);
+  final runStatus = SequenceRunStatus.tryParse(jsonString(raw['runStatus']));
   if (outcome == null || runStatus == null) {
     throw const FormatException('Run record has no outcome or run status');
   }

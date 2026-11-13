@@ -13,7 +13,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 /// A backend whose unstubbed members answer with a completed `Future<void>`.
 ///
@@ -99,7 +100,7 @@ void main() {
         sequenceName: 'CLAUDE BIN2 GAIN TEST',
         sequenceSnapshotJson: snapshotJson,
       );
-      await runsDao.finishRun(interrupted, 'stopped', '{}');
+      await runsDao.finishRun(interrupted, SequenceRunStatus.stopped, '{}');
 
       final found = await runsDao.latestSnapshotForSequenceName(
         'CLAUDE BIN2 GAIN TEST',
@@ -125,7 +126,7 @@ void main() {
         sequenceName: 'NIGHT ONE',
         sequenceSnapshotJson: snapshotJson,
       );
-      await runsDao.finishRun(withTree, 'stopped', '{}');
+      await runsDao.finishRun(withTree, SequenceRunStatus.stopped, '{}');
       await runsDao.startRun(sequenceId: null, sequenceName: 'NIGHT ONE');
 
       final found = await runsDao.latestSnapshotForSequenceName('NIGHT ONE');

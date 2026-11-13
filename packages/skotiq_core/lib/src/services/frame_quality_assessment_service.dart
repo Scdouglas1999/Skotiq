@@ -334,7 +334,9 @@ class FrameQualityAssessmentService {
   }
 
   /// Assess all frames in a set using session medians as reference points.
-  Map<int, FrameQualityAssessment> assessBatch(Iterable<DbCapturedImage> images) {
+  Map<int, FrameQualityAssessment> assessBatch(
+    Iterable<DbCapturedImage> images,
+  ) {
     final list = images.toList();
     final medianHfr = _median(
       list.map((i) => i.hfr).whereType<double>().where((v) => v > 0),

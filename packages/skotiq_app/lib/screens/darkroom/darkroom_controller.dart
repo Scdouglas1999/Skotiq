@@ -28,7 +28,6 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart' show XTypeGroup, openFile;
@@ -256,7 +255,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       unawaited(_loadSiblings(masterId));
     } catch (error) {
       if (!mounted) return;
-      _fail('The Darkroom could not read this master or its recipes: ${userFacingError(error)}');
+      _fail(
+          'The Darkroom could not read this master or its recipes: ${userFacingError(error)}');
     }
   }
 
@@ -518,16 +518,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         masterChannels: master.channels,
         masterCalibration: DawnMasterStats.parse(master.statsJson),
       );
-      final wcs = overlayFromMasterWcs(
-        crval1: master.wcsCrval1,
-        crval2: master.wcsCrval2,
-        crpix1: master.wcsCrpix1,
-        crpix2: master.wcsCrpix2,
-        cd11: master.wcsCd1_1,
-        cd12: master.wcsCd1_2,
-        cd21: master.wcsCd2_1,
-        cd22: master.wcsCd2_2,
-      );
+      final wcs = master.solvedWcs;
       final masterPath = master.masterFitsPath;
       final photometry = await _photometry.resolve(
         master: DawnMaster(
@@ -685,7 +676,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       if (!mounted) return;
       state = state.copyWith(
         offerBusy: false,
-        offerError: 'The automatic edit could not be created: ${userFacingError(error)}',
+        offerError:
+            'The automatic edit could not be created: ${userFacingError(error)}',
       );
       return;
     }
@@ -783,7 +775,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       if (!mounted) return;
       state = state.copyWith(
         offerBusy: false,
-        offerError: 'The recipe could not be created: ${userFacingError(error)}',
+        offerError:
+            'The recipe could not be created: ${userFacingError(error)}',
       );
     }
   }
@@ -930,11 +923,10 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       // it unset rather than stopping an import the operator asked for — and
       // says so in the log, because a library read that did not work is a fact
       // about the database and not about this import.
-      developer.log(
+      Log.warning(
         'Darkroom: the target of master $masterId could not be read while '
         'importing a recipe, so the new row carries none: $error',
-        name: 'Darkroom',
-        level: 900,
+        source: 'Darkroom',
         stackTrace: stack,
       );
       return null;
@@ -1716,10 +1708,10 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
           ).then((_) {
             if (mounted) _draftRevision.state++;
           }).catchError((Object error) {
-            developer.log(
+            Log.debug(
               'The draft thumbnail for recipe $recipeId could not be saved: '
               '$error',
-              name: 'DarkroomController',
+              source: 'DarkroomController',
             );
           }),
         );
@@ -1876,7 +1868,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       if (!mounted) return;
       state = state.copyWith(
         savePending: false,
-        saveError: 'This edit could not be written to the recipe: ${userFacingError(error)}',
+        saveError:
+            'This edit could not be written to the recipe: ${userFacingError(error)}',
       );
     }
   }
@@ -1893,10 +1886,9 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         _darkroom.cancel({'op': 'cancel', 'renderId': renderId}).then(
           (_) {},
           onError: (Object error, StackTrace stack) {
-            developer.log(
+            Log.warning(
               'Darkroom: the stop request for $renderId did not land: $error',
-              name: 'Darkroom',
-              level: 900,
+              source: 'Darkroom',
               stackTrace: stack,
             );
           },
@@ -1915,11 +1907,10 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         _recipes.updateSteps(recipeId, payload).then(
           (_) {},
           onError: (Object error, StackTrace stack) {
-            developer.log(
+            Log.error(
               'Darkroom: the last edit to recipe $recipeId was not stored: '
               '$error',
-              name: 'Darkroom',
-              level: 1000,
+              source: 'Darkroom',
               stackTrace: stack,
             );
           },

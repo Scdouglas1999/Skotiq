@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -7,8 +6,11 @@ import 'package:flutter/foundation.dart';
 
 import '../database/database.dart';
 import '../database/daos/dark_library_dao.dart';
+import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
+import 'calibration/dark_selection.dart';
 import 'calibration_master_builder.dart';
+import 'logging_service.dart';
 
 /// Service for managing dark frame library operations.
 ///
@@ -63,19 +65,12 @@ class DarkLibraryService {
     );
   }
 
-  /// Find the best-matching dark or bias for a light frame's parameters.
+  /// The dark or bias to subtract from a light frame as it is, or null.
   ///
-  /// Matching rules:
-  /// - Exposure must be within [tolerances.exposureSecs] (default ±0.5s).
-  /// - Gain, offset, and binning must match exactly.
-  /// - Temperature must be within [tolerances.temperatureC] (default ±1.0°C).
-  /// - Master darks are preferred over individual raw frames.
-  /// - Among matches, the closest temperature match wins.
-  ///
-  /// The tolerances object MUST be the same one consulted by
-  /// `DarkLibraryCoverageService`. Resolve it from
-  /// `darkLibraryMatchTolerancesProvider` at the caller so the coverage UI
-  /// and the runtime matcher cannot drift apart again.
+  /// The pick is [selectDark]'s (or [rankBiases]' for a bias), the same rule
+  /// the Darkroom uses. A dark that would need exposure scaling is not
+  /// returned, because these callers subtract the file unscaled. A dark
+  /// outside the temperature tolerance is returned when none is within it.
   Future<DarkLibraryEntry?> findMatchingDark({
     required double exposureTime,
     required int? gain,
@@ -85,17 +80,28 @@ class DarkLibraryService {
     double? temperature,
     DarkLibraryMatchTolerances tolerances = DarkLibraryMatchTolerances.defaults,
     String frameType = 'dark',
-  }) {
-    return _dao.findBestMatch(
-      exposureTime: exposureTime,
+  }) async {
+    final rows = await _dao.getEntriesByFrameType(frameType);
+    final records = rows.map(darkLibraryRecord);
+    final context = LightFrameContext(
       gain: gain,
       offset: offset,
+      exposureSeconds: exposureTime,
+      temperature: temperature,
       binX: binX,
       binY: binY,
-      temperature: temperature,
-      tolerances: tolerances,
-      frameType: frameType,
     );
+    final int? id;
+    if (frameType == 'bias') {
+      id = rankBiases(records, context).firstOrNull?.id;
+    } else {
+      final selection = selectDark(records, context, tolerances);
+      id = selection == null || selection.exposureScaled
+          ? null
+          : selection.record.id;
+    }
+    if (id == null) return null;
+    return rows.firstWhere((row) => row.id == id);
   }
 
   /// Create a master dark by median-combining a list of raw dark frames.
@@ -568,7 +574,9 @@ class DarkLibraryService {
         // NaN) collapse to zero so they don't poison the median combine
         // downstream.
         final value = physicalValues[i];
-        final double physical = value.isNaN ? 0.0 : (value - black) * aduPerUnit;
+        final double physical = value.isNaN
+            ? 0.0
+            : (value - black) * aduPerUnit;
 
         if (physical <= 0.0) {
           if (physical < 0.0) saturatedLow++;
@@ -592,19 +600,18 @@ class DarkLibraryService {
       -64 => 'BITPIX=-64 (IEEE float64)',
       _ => 'BITPIX=$bitpix',
     };
-    developer.log(
+    Log.debug(
       'DarkLibraryService: parsed FITS $pathLabel ${width}x$height '
       '(BZERO=${bzeroFromHeader ?? "default"}, '
       'BSCALE=${bscaleFromHeader ?? "default"})',
-      name: 'DarkLibraryService',
+      source: 'DarkLibraryService',
     );
     if (saturatedLow > 0 || saturatedHigh > 0) {
-      developer.log(
+      Log.warning(
         'DarkLibraryService: WARNING — clamped float pixels to u16 range. '
         'Below 0: $saturatedLow, above 65535: $saturatedHigh. '
         'If this was unexpected, check BZERO/BSCALE in your master dark.',
-        name: 'DarkLibraryService',
-        level: 900, // ~warning
+        source: 'DarkLibraryService',
       );
     }
 

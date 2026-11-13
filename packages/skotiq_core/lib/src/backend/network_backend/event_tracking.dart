@@ -5,10 +5,9 @@ extension _NetworkBackendEventTracking on _NetworkBackendTransport {
     if (event.category == EventCategory.equipment &&
         event.eventType == 'PropertyChanged' &&
         event.data['property'] == 'device_change') {
-      developer.log(
+      Log.info(
         '[NetworkBackend] Device-change event invalidating discovery cache',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       invalidateDeviceCache();
     }
@@ -29,11 +28,10 @@ extension _NetworkBackendEventTracking on _NetworkBackendTransport {
   /// 3. The first serverInstanceId seen — adopted as the attachment cursor.
   void _trackEventSeq(SkotiqEvent event, {required bool isReplay}) {
     if (isReplay) {
-      developer.log(
+      Log.debug(
         '[NetworkBackend] Replayed event seq=${event.seq} '
         'type=${event.eventType}',
-        name: 'NetworkBackend',
-        level: 700,
+        source: 'NetworkBackend',
       );
     }
 
@@ -43,11 +41,10 @@ extension _NetworkBackendEventTracking on _NetworkBackendTransport {
     if (eventInstance != null && eventInstance.isNotEmpty) {
       final cached = _serverInstanceId;
       if (cached != null && cached != eventInstance) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] Server instance changed mid-stream '
           '(old=$cached, new=$eventInstance); resetting seq cursor.',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
         _lastSeenEventSeq = null;
         _serverInstanceId = eventInstance;
@@ -75,11 +72,10 @@ extension _NetworkBackendEventTracking on _NetworkBackendTransport {
       final previous = _lastSeenEventSeq;
       if (previous != null && eventSeq > previous + 1) {
         final lost = eventSeq - previous - 1;
-        developer.log(
+        Log.warning(
           '[NetworkBackend] Event seq gap: expected ${previous + 1}, '
           'got $eventSeq (lost $lost events)',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
       }
       _lastSeenEventSeq = eventSeq;

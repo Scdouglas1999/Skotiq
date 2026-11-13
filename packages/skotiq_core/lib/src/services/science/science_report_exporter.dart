@@ -411,5 +411,4 @@ class ScienceReportExporter {
     }
     return lines.toString();
   }
-
 }

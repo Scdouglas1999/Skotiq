@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +13,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'profiles_provider.dart';
+import '../services/logging_service.dart';
 
 /// The rig's raw camera-spec settings: everything under `science.` and
 /// `smart_night.`, from the host that owns the camera when paired.
@@ -136,10 +136,9 @@ Future<SensorGeometryReading?> _readLiveGeometry(
   } catch (error, stack) {
     // A camera that cannot answer right now is not a reason to withhold the
     // remembered or published values below it in the chain.
-    developer.log(
+    Log.warning(
       'Could not read live sensor geometry for $cameraId.',
-      name: 'SensorSpecs',
-      level: 900,
+      source: 'SensorSpecs',
       error: error,
       stackTrace: stack,
     );
@@ -163,10 +162,9 @@ Future<SensorGeometryReading?> _readRememberedGeometry(
       readAt: spec.recordedAt,
     );
   } catch (error, stack) {
-    developer.log(
+    Log.warning(
       'Could not read remembered sensor geometry for $cameraId.',
-      name: 'SensorSpecs',
-      level: 900,
+      source: 'SensorSpecs',
       error: error,
       stackTrace: stack,
     );
@@ -195,10 +193,9 @@ UserSensorSpecOverrides _readOverrides(
   } catch (error, stack) {
     // A malformed override blob must not take the published figures down with
     // it; the planner says so through its own caveat.
-    developer.log(
+    Log.warning(
       'Could not read camera sensor overrides.',
-      name: 'SensorSpecs',
-      level: 900,
+      source: 'SensorSpecs',
       error: error,
       stackTrace: stack,
     );

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'host_role.dart';
 import 'package:path/path.dart' as p;
 import '../backend/roles/host_data/calibration_library.dart';
+import 'dark_library_provider.dart';
 import 'database_provider.dart';
 import 'backend_provider.dart';
 import '../services/constellation/hub_credentials.dart';
@@ -28,6 +29,7 @@ final calibrationLibraryServiceProvider = Provider<CalibrationLibraryService>((
     flatLibraryDao: ref.watch(flatLibraryDaoProvider),
     tagsDao: ref.watch(calibrationTagsDaoProvider),
     ref: ref,
+    darkTolerances: () => ref.read(darkLibraryMatchTolerancesProvider),
     // Fold ranked masters shared on the configured Constellation hub into
     // the local ranking, and download-on-accept. Reuses the same settings-backed
     // hub credentials Pillar C resolves; a no-hub config simply yields no remote

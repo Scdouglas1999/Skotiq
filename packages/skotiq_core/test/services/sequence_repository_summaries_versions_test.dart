@@ -118,7 +118,7 @@ void main() {
         sequenceName: 'Orion',
         sequenceSnapshotJson: '{"marker":"first"}',
       );
-      await runsDao.finishRun(firstRun, 'completed', '{}');
+      await runsDao.finishRun(firstRun, SequenceRunStatus.completed, '{}');
 
       // Ensure the two runs land on distinct `startedAt` values so the
       // "strictly before" prior-run query is unambiguous. Drift persists
@@ -131,7 +131,7 @@ void main() {
         sequenceName: 'Orion',
         sequenceSnapshotJson: '{"marker":"second"}',
       );
-      await runsDao.finishRun(secondRun, 'completed', '{}');
+      await runsDao.finishRun(secondRun, SequenceRunStatus.completed, '{}');
 
       final prior = await repo.loadPreviousRunSnapshot(
         id,

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math';
 
@@ -9,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../../utils/skotiq_data_directory.dart';
 import '../notification/secrets_store.dart' show SecureKeyValueStore;
+import '../logging_service.dart';
 
 /// The imaging computer this desktop links to, as remembered between launches.
 ///
@@ -166,7 +166,7 @@ class LinkedRigStore {
       if (!await file.exists()) return null;
       return LinkedRig.fromJson(jsonDecode(await file.readAsString()));
     } catch (e) {
-      developer.log('linked rig record unreadable: $e', name: 'LinkedRigStore');
+      Log.debug('linked rig record unreadable: $e', source: 'LinkedRigStore');
       return null;
     }
   }
@@ -177,7 +177,7 @@ class LinkedRigStore {
       final value = await _secure.read(key: await _keyringKey());
       if (value != null && value.isNotEmpty) return value;
     } catch (e) {
-      developer.log('keyring read failed: $e', name: 'LinkedRigStore');
+      Log.debug('keyring read failed: $e', source: 'LinkedRigStore');
     }
     final file = await _file(_tokenFile);
     if (await file.exists()) {
@@ -204,10 +204,9 @@ class LinkedRigStore {
       if (await tokenFile.exists()) await tokenFile.delete();
       return LinkedRigTokenStorage.keyring;
     } catch (e) {
-      developer.log(
+      Log.warning(
         'keyring unavailable ($e); keeping the token in an owner-only file',
-        name: 'LinkedRigStore',
-        level: 900,
+        source: 'LinkedRigStore',
       );
       await _writeOwnerOnly(tokenFile, token);
       return LinkedRigTokenStorage.ownerOnlyFile;
@@ -237,7 +236,7 @@ class LinkedRigStore {
     try {
       await _secure.delete(key: await _keyringKey());
     } catch (e) {
-      developer.log('keyring delete failed: $e', name: 'LinkedRigStore');
+      Log.debug('keyring delete failed: $e', source: 'LinkedRigStore');
     }
     for (final name in [_recordFile, _tokenFile]) {
       final file = await _file(name);
@@ -257,10 +256,9 @@ class LinkedRigStore {
     } catch (e) {
       // An unreadable id file is replaced with a fresh id below; the host
       // then sees this desktop as a new device and asks to pair again.
-      developer.log(
+      Log.warning(
         'device id file unreadable, minting a new id: $e',
-        name: 'LinkedRigStore',
-        level: 900,
+        source: 'LinkedRigStore',
       );
     }
     final rng = Random.secure();
@@ -281,17 +279,15 @@ class LinkedRigStore {
       try {
         final result = await Process.run('chmod', ['600', file.path]);
         if (result.exitCode != 0) {
-          developer.log(
+          Log.warning(
             'chmod 600 ${file.path} exited ${result.exitCode}: ${result.stderr}',
-            name: 'LinkedRigStore',
-            level: 900,
+            source: 'LinkedRigStore',
           );
         }
       } on ProcessException catch (e) {
-        developer.log(
+        Log.warning(
           'chmod 600 ${file.path} failed: $e',
-          name: 'LinkedRigStore',
-          level: 900,
+          source: 'LinkedRigStore',
         );
       }
     }

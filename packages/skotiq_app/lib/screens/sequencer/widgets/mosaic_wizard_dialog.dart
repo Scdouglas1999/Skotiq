@@ -18,7 +18,6 @@
 // `_buildResumeBanner` below.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -370,8 +369,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
                         exposure.isMultiFilter ? exposure.filters!.length : 1,
                     exposureSecsPerPanel: exposureSecsPerPanel,
                     exposuresPerPanel: exposuresPerPanel,
-                    estTimeHours:
-                        _estimatedTime().inSeconds / 3600,
+                    estTimeHours: _estimatedTime().inSeconds / 3600,
                     totalExposures: _activePanelCount * exposuresPerPanel,
                   ),
                   const SizedBox(height: 16),

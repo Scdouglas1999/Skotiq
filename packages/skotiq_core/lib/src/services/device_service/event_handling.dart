@@ -78,12 +78,12 @@ extension _DeviceServiceEventHandling on DeviceService {
         }
       }
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'getConnectedDevices lookup failed for $deviceId: $e',
           source: 'DeviceService',
         ),
-        'resolve-device-name',
       );
     }
     // The model the profile slot expects at this id: after the bus enumerated
@@ -125,12 +125,12 @@ extension _DeviceServiceEventHandling on DeviceService {
         }
       }
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'discovery name lookup failed for $deviceId: $e',
           source: 'DeviceService',
         ),
-        'discovery-device-name',
       );
     }
     return null;
@@ -421,13 +421,13 @@ extension _DeviceServiceEventHandling on DeviceService {
     if (meaning == ConnectedMeaning.stale) {
       // The connect this event belongs to has failed and the device is being
       // let go of; the slot keeps showing why.
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'Ignoring Connected for $deviceType ($deviceId): its connect '
           'failed and the device is being released',
           source: 'DeviceService',
         ),
-        'device-connected-stale-$deviceType',
       );
       return;
     }
@@ -495,13 +495,13 @@ extension _DeviceServiceEventHandling on DeviceService {
           DeviceConnectionState.error;
     }
     if (tracked == eventDeviceId) return true;
-    _safeLog(
+    logSafely(
+      _ref,
       (logger) => logger.warning(
         'Ignoring stale ${type.name} Disconnected for $eventDeviceId; '
         'currently-tracked ${type.name} is $tracked',
         source: 'DeviceService',
       ),
-      'disconnect-slot-guard-${type.name}',
     );
     return false;
   }
@@ -519,27 +519,24 @@ extension _DeviceServiceEventHandling on DeviceService {
     // The app let go of a device whose connect did not come up. The connect
     // already left the slot showing why; nothing was lost.
     if (_attempts.onDisconnected(deviceId)) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'Released $deviceType ($deviceId) after a connect that did not '
           'come up',
           source: 'DeviceService',
         ),
-        'device-cleanup-disconnect-$deviceType',
       );
       return;
     }
 
-    // The disconnect is the forensic record of a lost device, so it goes
-    // through _safeLog: a logger that cannot be reached demotes the line to
-    // stderr instead of dropping it.
-    _safeLog(
+    logSafely(
+      _ref,
       (logger) => logger.warning(
         'Device disconnected: $deviceType ($deviceId) at '
         '${DateTime.now().toIso8601String()}',
         source: 'DeviceService',
       ),
-      'device-disconnected-$deviceType',
     );
 
     // The guide camera is the guider's: losing it is a guiding problem, which
@@ -568,13 +565,13 @@ extension _DeviceServiceEventHandling on DeviceService {
       if (trackedCameraId != null && trackedCameraId == deviceId) {
         _temperaturePoller.stop();
       } else if (trackedCameraId != null) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'Ignoring stale camera Disconnected for $deviceId; '
             'currently-tracked camera is $trackedCameraId',
             source: 'DeviceService',
           ),
-          'camera-disconnect-guard',
         );
       }
     } else if (type == DeviceType.filterWheel) {
@@ -635,14 +632,14 @@ extension _DeviceServiceEventHandling on DeviceService {
     final fullMessage = composedMessage.toString();
 
     // 1. Log loudly with full context.
-    _safeLog(
+    logSafely(
+      _ref,
       (logger) => logger.error(
         'Driver error: type=${deviceType ?? "unknown"} '
         'id=${deviceId ?? "unknown"} code=${errorCode ?? "none"} :: '
         '$fullMessage',
         source: 'DeviceService',
       ),
-      'device-error-log',
     );
 
     // The failure of this service's own connect. The connect call leaves the
@@ -659,13 +656,13 @@ extension _DeviceServiceEventHandling on DeviceService {
     // and that did not succeed; say that rather than only the driver's words.
     var toldMessage = fullMessage;
     if (type == null) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'Error event for unknown device type "$deviceType"; '
           'no state notifier updated. Message: $fullMessage',
           source: 'DeviceService',
         ),
-        'device-error-unknown-type',
       );
     } else if (!isGuideCamera) {
       final before = readDeviceSlot(_ref.container, type);
@@ -723,13 +720,13 @@ extension _DeviceServiceEventHandling on DeviceService {
         context: errorCode == null ? null : {'error_code': errorCode},
       );
     } on Object catch (errSvcErr) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'errorService emission for driver error failed: $errSvcErr '
           '(original: $fullMessage)',
           source: 'DeviceService',
         ),
-        'device-error-errorservice',
       );
       // Fallback: try uiNotificationProvider directly so the user
       // still sees the message even if errorService is unavailable.
@@ -742,13 +739,13 @@ extension _DeviceServiceEventHandling on DeviceService {
               duration: const Duration(seconds: 12),
             );
       } on Object catch (uiErr) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'UI notification fallback also failed: $uiErr '
             '(original: $fullMessage)',
             source: 'DeviceService',
           ),
-          'device-error-ui-fallback',
         );
       }
     }

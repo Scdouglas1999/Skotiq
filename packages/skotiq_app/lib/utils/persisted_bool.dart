@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_core/services.dart';
 
 /// An on/off view choice of this device, remembered across restarts.
 class PersistedBoolNotifier extends StateNotifier<bool> {
@@ -23,7 +23,10 @@ class PersistedBoolNotifier extends StateNotifier<bool> {
       if (!mounted || _chosen) return;
       state = prefs.getBool(prefsKey) ?? defaultValue;
     } catch (e) {
-      developer.log('Failed to read $prefsKey: $e', name: 'ImagingViewPrefs');
+      Log.debug(
+        'Failed to read $prefsKey: $e',
+        source: 'ImagingViewPrefs',
+      );
     }
   }
 
@@ -34,7 +37,10 @@ class PersistedBoolNotifier extends StateNotifier<bool> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(prefsKey, value);
     } catch (e) {
-      developer.log('Failed to store $prefsKey: $e', name: 'ImagingViewPrefs');
+      Log.debug(
+        'Failed to store $prefsKey: $e',
+        source: 'ImagingViewPrefs',
+      );
     }
   }
 }

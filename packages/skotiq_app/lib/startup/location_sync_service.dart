@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Mirrors the persisted observer location into the planetarium provider and the
 /// Rust backend. Settings is the single source of truth; this only fans changes
@@ -103,18 +103,25 @@ Future<void> _syncLocationToBackend(Ref ref, ObserverLocation? site) async {
   if (ref.read(backendProvider).remoteHost != null) return;
   try {
     final backend = ref.read(profileSettingsBackendProvider);
-    developer.log(
-        site == null
-            ? 'Clearing observer location in Rust backend: no site is set'
-            : 'Syncing observer location to Rust backend: '
-                'lat=${site.latitude}, lon=${site.longitude}, '
-                'elev=${site.elevation}',
-        name: 'LocationSync');
+    Log.debug(
+      site == null
+          ? 'Clearing observer location in Rust backend: no site is set'
+          : 'Syncing observer location to Rust backend: '
+              'lat=${site.latitude}, lon=${site.longitude}, '
+              'elev=${site.elevation}',
+      source: 'LocationSync',
+    );
     await backend.setLocation(site);
-    developer.log('Observer location synced successfully to Rust backend',
-        name: 'LocationSync');
+    Log.debug(
+      'Observer location synced successfully to Rust backend',
+      source: 'LocationSync',
+    );
   } catch (e, stackTrace) {
-    developer.log('Failed to sync observer location to Rust backend: $e',
-        name: 'LocationSync', error: e, stackTrace: stackTrace);
+    Log.warning(
+      'Failed to sync observer location to Rust backend: $e',
+      source: 'LocationSync',
+      error: e,
+      stackTrace: stackTrace,
+    );
   }
 }

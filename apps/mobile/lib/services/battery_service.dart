@@ -8,11 +8,11 @@
 // PowerService.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/services.dart';
 
 class PhoneBatteryState {
   /// Battery percentage, 0–100. -1 when the platform reports none.
@@ -111,10 +111,9 @@ class BatteryService {
       // the first 30 s tick to learn the level.
       await _sample();
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'BatteryService initial sample failed: $e',
-        name: 'BatteryService',
-        level: 1000,
+        source: 'BatteryService',
         error: e,
         stackTrace: st,
       );
@@ -127,10 +126,9 @@ class BatteryService {
         unawaited(_sample());
       },
       onError: (Object e, StackTrace st) {
-        developer.log(
+        Log.error(
           'battery_plus state stream errored: $e',
-          name: 'BatteryService',
-          level: 1000,
+          source: 'BatteryService',
           error: e,
           stackTrace: st,
         );
@@ -181,9 +179,9 @@ class BatteryService {
     } on MissingPluginException {
       _saverUnsupported = true;
     }
-    developer.log(
+    Log.debug(
       'Battery saver state is not available on this platform',
-      name: 'BatteryService',
+      source: 'BatteryService',
     );
     return false;
   }

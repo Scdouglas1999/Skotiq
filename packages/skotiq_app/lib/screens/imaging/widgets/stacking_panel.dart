@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -502,7 +501,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     if (plan == null) {
       return _isStarting ? 'Starting...' : 'Start from a file…';
     }
-    return _isStarting ? 'Adding tonight\'s frames…' : 'Stack tonight\'s frames';
+    return _isStarting
+        ? 'Adding tonight\'s frames…'
+        : 'Stack tonight\'s frames';
   }
 
   static String _sessionStackLine(SessionStackPlan? plan) {
@@ -666,22 +667,20 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
                 if (isRemoteMode || !isRunning)
                   Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    isRemoteMode
-                        ? 'Stacking runs on the imaging host. Press Start to '
-                            'arm it — the next captured frame becomes the '
-                            'reference and every frame after is stacked '
-                            'automatically, even while this device is asleep.'
-                        : _sessionStackLine(plan),
-                    style: SkotiqTypography.caption
-                        .copyWith(color: widget.colors.textMuted),
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      isRemoteMode
+                          ? 'Stacking runs on the imaging host. Press Start to '
+                              'arm it — the next captured frame becomes the '
+                              'reference and every frame after is stacked '
+                              'automatically, even while this device is asleep.'
+                          : _sessionStackLine(plan),
+                      style: SkotiqTypography.caption
+                          .copyWith(color: widget.colors.textMuted),
+                    ),
                   ),
-                ),
-
                 Wrap(
                   spacing: SkotiqTokens.spaceSm,
                   runSpacing: SkotiqTokens.spaceSm,

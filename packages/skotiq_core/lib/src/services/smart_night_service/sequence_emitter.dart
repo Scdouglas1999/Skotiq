@@ -293,7 +293,8 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     addRootChild(
       CoolCameraNode(
         id: SmartNightService._uuid.v4(),
-        name: 'Cool camera to ${formatCelsius(settings.coolDownTargetC, decimals: 0)}',
+        name:
+            'Cool camera to ${formatCelsius(settings.coolDownTargetC, decimals: 0)}',
         targetTemp: settings.coolDownTargetC,
         durationMins: 10.0,
         parentId: rootId,

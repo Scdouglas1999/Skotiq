@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:skotiq_core/models.dart';
 
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Subscribes to the backend's `SkotiqEvent` stream and converts critical
 /// events into local OS notifications via [MobileNotificationService].
@@ -62,19 +62,17 @@ class MobileEventNotifier {
         // Stream errors mean we miss critical events until the backend
         // reconnects. Log loudly; we already get a synthetic
         // `BackendReconnected` event when the WS comes back.
-        developer.log(
+        Log.error(
           '[MobileEventNotifier] Event stream error: $error',
-          name: 'MobileEventNotifier',
-          level: 1000,
+          source: 'MobileEventNotifier',
           error: error,
           stackTrace: st,
         );
       },
     );
-    developer.log(
+    Log.info(
       '[MobileEventNotifier] Subscribed to backend event stream',
-      name: 'MobileEventNotifier',
-      level: 800,
+      source: 'MobileEventNotifier',
     );
   }
 
@@ -148,10 +146,9 @@ class MobileEventNotifier {
     } catch (e, st) {
       // Catching here keeps a malformed event from killing the subscriber.
       // We log loudly because a missed notification IS a failure mode.
-      developer.log(
+      Log.error(
         '[MobileEventNotifier] Failed to dispatch ${event.eventType}: $e',
-        name: 'MobileEventNotifier',
-        level: 1000,
+        source: 'MobileEventNotifier',
         error: e,
         stackTrace: st,
       );
@@ -428,11 +425,10 @@ class MobileEventNotifier {
         // Unknown operation. Log loudly so the next time a job type is
         // added server-side, the gap is visible in mobile logs instead
         // of silently swallowed.
-        developer.log(
+        Log.warning(
           '[MobileEventNotifier] JobFailed for unhandled operation '
           '"$operation": $errorMessage',
-          name: 'MobileEventNotifier',
-          level: 900,
+          source: 'MobileEventNotifier',
         );
         break;
     }
@@ -480,10 +476,9 @@ class MobileEventNotifier {
         // The local user almost certainly triggered these. No notification.
         break;
       default:
-        developer.log(
+        Log.warning(
           '[MobileEventNotifier] Unknown session event "${event.eventType}"',
-          name: 'MobileEventNotifier',
-          level: 900,
+          source: 'MobileEventNotifier',
         );
         break;
     }

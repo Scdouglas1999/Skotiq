@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/weather/weather_models.dart';
 import '../../providers/database_provider.dart';
@@ -10,6 +9,7 @@ import 'providers/metno_cloud_provider.dart';
 import 'providers/noaa_radar_provider.dart';
 import 'providers/openmeteo_cloud_provider.dart';
 import 'providers/rainviewer_radar_provider.dart';
+import '../logging_service.dart';
 
 /// Central service for coordinating weather radar data fetching.
 ///
@@ -82,9 +82,9 @@ class WeatherRadarService {
     _providerFactory.registerProvider(MetNoCloudProvider());
 
     _initialized = true;
-    developer.log(
+    Log.debug(
       'Initialized with ${_providerFactory.providerCount} providers',
-      name: 'WeatherRadarService',
+      source: 'WeatherRadarService',
     );
   }
 
@@ -142,9 +142,9 @@ class WeatherRadarService {
 
     if (!forceRefresh && !isCacheStale(refreshInterval)) {
       if (_cachedResult != null && _cachedResult!.isSuccess) {
-        developer.log(
+        Log.debug(
           'Returning cached data (${_cachedResult!.frames.length} frames)',
-          name: 'WeatherRadarService',
+          source: 'WeatherRadarService',
         );
         return _cachedResult!;
       }
@@ -188,9 +188,9 @@ class WeatherRadarService {
 
     for (final candidate in candidates) {
       triedCount++;
-      developer.log(
+      Log.debug(
         'Fetching from ${candidate.name}',
-        name: 'WeatherRadarService',
+        source: 'WeatherRadarService',
       );
 
       RadarFetchResult fetched;
@@ -206,10 +206,9 @@ class WeatherRadarService {
         fetched = RadarFetchResult.error(
           'Unexpected error fetching radar data: $e',
         );
-        developer.log(
+        Log.error(
           'Exception during fetch from ${candidate.name} - $e',
-          name: 'WeatherRadarService',
-          level: 1000,
+          source: 'WeatherRadarService',
           error: e,
           stackTrace: stackTrace,
         );
@@ -222,19 +221,18 @@ class WeatherRadarService {
         _lastSuccessfulResult = result;
         _lastFetchTime = DateTime.now();
         _framesController.add(result.frames);
-        developer.log(
+        Log.debug(
           'Fetched ${result.frames.length} frames from ${candidate.name}',
-          name: 'WeatherRadarService',
+          source: 'WeatherRadarService',
         );
         return result;
       }
 
       firstFailure ??= fetched;
-      developer.log(
+      Log.warning(
         'Provider ${candidate.name} failed - ${fetched.errorMessage}; '
         'failing over',
-        name: 'WeatherRadarService',
-        level: 900,
+        source: 'WeatherRadarService',
       );
     }
 
@@ -247,10 +245,9 @@ class WeatherRadarService {
     );
     _cachedResult = errorResult;
     _lastFetchTime = DateTime.now();
-    developer.log(
+    Log.warning(
       'All $triedCount providers failed - $baseMessage',
-      name: 'WeatherRadarService',
-      level: 900,
+      source: 'WeatherRadarService',
     );
     return errorResult;
   }
@@ -290,7 +287,7 @@ class WeatherRadarService {
   void clearCache() {
     _cachedResult = null;
     _lastFetchTime = null;
-    developer.log('Cache cleared', name: 'WeatherRadarService');
+    Log.debug('Cache cleared', source: 'WeatherRadarService');
   }
 
   /// Stream of radar frame updates for reactive UI.
@@ -313,7 +310,7 @@ class WeatherRadarService {
       _initialized = false;
     }
 
-    developer.log('Disposed', name: 'WeatherRadarService');
+    Log.debug('Disposed', source: 'WeatherRadarService');
   }
 
   /// Ensures the service has been initialized before use.
@@ -346,10 +343,9 @@ class WeatherRadarService {
       case 'metno':
         return RadarProviderType.metno;
       default:
-        developer.log(
+        Log.warning(
           'Unknown provider type: $providerString, defaulting to auto',
-          name: 'WeatherRadarService',
-          level: 900,
+          source: 'WeatherRadarService',
         );
         return RadarProviderType.auto;
     }

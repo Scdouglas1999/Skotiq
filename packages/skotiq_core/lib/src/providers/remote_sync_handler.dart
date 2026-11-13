@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -52,6 +51,7 @@ import 'target_progress_provider.dart'
 import '../models/backend/backend_types.dart';
 import 'capture_preview_loader_provider.dart';
 import 'device_service_providers.dart';
+import '../services/logging_service.dart';
 
 part 'remote_sync/equipment_mirror.dart';
 part 'remote_sync/imaging_mirror.dart';

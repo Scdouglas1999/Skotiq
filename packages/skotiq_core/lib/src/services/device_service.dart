@@ -38,7 +38,6 @@ import 'device_reconnect_coordinator.dart';
 import 'device_exceptions.dart';
 import 'mount_home_watcher.dart';
 import 'mount_slew_watcher.dart';
-import 'logging_service.dart';
 import 'error_service.dart';
 import 'phd2_launcher.dart';
 import 'phd2_status_poll.dart';
@@ -283,21 +282,6 @@ class DeviceService {
     _initEventListening();
   }
 
-  /// Emits a diagnostic line through the logging service, but never lets a
-  /// logger-emission failure mask a higher-priority device fault. We deliberately
-  /// catch every kind of error from the logger lookup (e.g. provider mid-disposal
-  /// during shutdown) and demote to a stderr line — fail-closed for the calling
-  /// device operation, soft for the diagnostics emission itself.
-  void _safeLog(void Function(LoggingService logger) emit, String contextTag) {
-    try {
-      final logger = _ref.read(loggingServiceProvider);
-      emit(logger);
-    } on Object catch (loggerErr) {
-      // ignore: avoid_print
-      print('DeviceService[$contextTag]: logger emission failed: $loggerErr');
-    }
-  }
-
   /// Active equipment profile from [equipmentProfilesProvider] (host API or local DB).
   EquipmentProfileModel? get _activeProfile =>
       _ref.read(activeEquipmentProfileProvider);
@@ -323,12 +307,12 @@ class DeviceService {
         }
       },
       onError: (Object error, StackTrace stackTrace) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.error(
             'DeviceService equipment event stream error: $error',
             source: 'DeviceService',
           ),
-          'event-stream-error',
         );
         if (!_disposed) {
           _initEventListening();
@@ -464,6 +448,7 @@ class DeviceService {
   /// when a cooler command of your own follows immediately.
   void cancelWarmCamera({bool restorePriorSetting = true}) =>
       _cancelWarmCamera(restorePriorSetting: restorePriorSetting);
+
   /// Connect the camera the built-in guider takes its frames with. It is a
   /// second camera: it never takes the imaging camera's place, so the
   /// imaging camera stays connected and selected.

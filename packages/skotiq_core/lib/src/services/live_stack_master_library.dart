@@ -7,7 +7,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:path/path.dart' as p;
 
@@ -16,6 +15,7 @@ import '../models/imaging/integrated_master.dart';
 import 'calibration/fits_header_reader.dart';
 import 'darkroom_build_service.dart' show DarkroomHeaderReader;
 import 'live_stacking_service.dart';
+import 'logging_service.dart';
 
 /// Writes a stretched PNG of [result] to [path].
 typedef LiveStackPreviewWriter =
@@ -90,11 +90,10 @@ class LiveStackMasterLibrary {
     try {
       await _writePreview(preview, result);
     } catch (error) {
-      developer.log(
+      Log.warning(
         'Live stack: the thumbnail for ${saved.filePath} was not written: '
         '$error',
-        name: 'LiveStackMasterLibrary',
-        level: 900,
+        source: 'LiveStackMasterLibrary',
       );
       preview = null;
     }
@@ -103,11 +102,10 @@ class LiveStackMasterLibrary {
       try {
         header.addAll(await _readHeader(path));
       } catch (error) {
-        developer.log(
+        Log.warning(
           'Live stack: the header of $path could not be read, so the master '
           'may name no target or filter: $error',
-          name: 'LiveStackMasterLibrary',
-          level: 900,
+          source: 'LiveStackMasterLibrary',
         );
       }
     }

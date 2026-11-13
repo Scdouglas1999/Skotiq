@@ -610,4 +610,3 @@ String formatUsage(LlmUsage usage) {
   return '${usage.promptTokens} prompt + ${usage.completionTokens} '
       'completion = ${usage.totalTokens} tokens';
 }
-

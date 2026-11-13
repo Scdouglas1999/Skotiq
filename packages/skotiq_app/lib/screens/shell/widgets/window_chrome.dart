@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -18,6 +17,7 @@ import 'shell_help_popover.dart';
 import 'window_chrome_stub.dart'
     if (dart.library.io) 'window_chrome_desktop.dart' as window_impl;
 import '../../../router/app_routes.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The host window's maximize and full-screen flags, as the shell last heard
 /// them. The resize edges and the app-drawn hairline gate on this: an
@@ -332,10 +332,9 @@ class ShellTopBand extends StatelessWidget {
                   try {
                     context.go(AppRoutes.observingAlerts());
                   } catch (e) {
-                    developer.log(
+                    Log.warning(
                       '[ShellTopBand] Could not navigate to transients: $e',
-                      name: 'ShellTopBand',
-                      level: 900,
+                      source: 'ShellTopBand',
                       error: e,
                     );
                   }
@@ -355,10 +354,9 @@ class ShellTopBand extends StatelessWidget {
                   try {
                     openSettings(context);
                   } catch (e, stack) {
-                    developer.log(
+                    Log.warning(
                       '[ShellTopBand] Could not navigate to settings: $e',
-                      name: 'ShellTopBand',
-                      level: 900,
+                      source: 'ShellTopBand',
                       error: e,
                       stackTrace: stack,
                     );

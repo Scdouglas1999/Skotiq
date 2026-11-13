@@ -52,7 +52,7 @@ void main() {
       const SavePathDialog(),
       extraOverrides: [
         hostFoldersProvider.overrideWithValue(FakeHostFolders(
-          onPick: ({required host, required initialPath}) {
+          onPick: ({required initialPath}) {
             pickerCalls++;
             return picked.future;
           },
@@ -89,7 +89,7 @@ void main() {
           (ref) => _SwappableBackendNotifier(ref, DisconnectedBackend()),
         ),
         hostFoldersProvider.overrideWithValue(FakeHostFolders(
-          onPick: ({required host, required initialPath}) => picked.future,
+          onPick: ({required initialPath}) => picked.future,
         )),
       ],
     );

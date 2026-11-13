@@ -8,7 +8,6 @@ import '../providers/backend_provider.dart';
 import '../providers/equipment_provider.dart';
 import 'device_exceptions.dart';
 import 'error_service.dart';
-import 'logging_service.dart';
 import '../backend/remote_host.dart';
 import '../providers/error_service_provider.dart';
 import '../providers/logging_service_provider.dart';
@@ -190,13 +189,13 @@ class SwitchChannelService {
         await _refreshChannelsRemote(host, deviceId, notifier, generation);
         return;
       }
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'refreshSwitchChannels skipped: unsupported backend '
           '(device=$deviceId).',
           source: 'SwitchChannelService',
         ),
-        'switch-refresh-unsupported-backend',
       );
       return;
     }
@@ -236,13 +235,13 @@ class SwitchChannelService {
         // Some older drivers cannot produce a complete capabilities object.
         // Fall back to the boolean API so existing relay control remains
         // available, but log that the richer metadata was unavailable.
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'Switch capability read failed for $deviceId; falling back to '
             'boolean channels: $error',
             source: 'SwitchChannelService',
           ),
-          'switch-capabilities-fallback',
         );
       }
 
@@ -260,12 +259,12 @@ class SwitchChannelService {
           // Per-channel label fetch failed — fall back to a generated
           // label so the row still renders. The state below is the
           // load-bearing data; an opaque label is acceptable.
-          _safeLog(
+          logSafely(
+            _ref,
             (logger) => logger.warning(
               'Switch channel name fetch failed for $deviceId#$i: $e',
               source: 'SwitchChannelService',
             ),
-            'switch-channel-name-fetch',
           );
           name = '';
         }
@@ -279,12 +278,12 @@ class SwitchChannelService {
           // rather than fabricating OFF for a channel that may be powered ON
           // (a dew heater or flat panel left on would otherwise render OFF and
           // invite the operator to toggle it the wrong way).
-          _safeLog(
+          logSafely(
+            _ref,
             (logger) => logger.warning(
               'Switch channel state fetch failed for $deviceId#$i: $e',
               source: 'SwitchChannelService',
             ),
-            'switch-channel-state-fetch',
           );
           on = i < state.channelStates.length ? state.channelStates[i] : false;
         }
@@ -306,12 +305,12 @@ class SwitchChannelService {
       );
     } catch (e) {
       if (!_stillOwnsRefresh(generation, deviceId)) return;
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'refreshSwitchChannels failed for $deviceId: $e',
           source: 'SwitchChannelService',
         ),
-        'switch-refresh',
       );
       try {
         final errSvc = _ref.read(errorServiceProvider);
@@ -323,12 +322,12 @@ class SwitchChannelService {
           severity: ErrorSeverity.warning,
         );
       } on Object catch (errSvcErr) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'errorService emission for switch_refresh failed: $errSvcErr',
             source: 'SwitchChannelService',
           ),
-          'switch-refresh-errsvc',
         );
       }
       rethrow;
@@ -400,12 +399,12 @@ class SwitchChannelService {
       );
     } catch (e) {
       if (!_stillOwnsRefresh(generation, deviceId)) return;
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'refreshSwitchChannels (remote) failed for $deviceId: $e',
           source: 'SwitchChannelService',
         ),
-        'switch-refresh-remote',
       );
       _emitDeviceError(
         'switch_refresh',
@@ -436,12 +435,12 @@ class SwitchChannelService {
             severity: severity,
           );
     } on Object catch (errSvcErr) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'errorService emission for $operation failed: $errSvcErr',
           source: 'SwitchChannelService',
         ),
-        'switch-errsvc',
       );
     }
   }
@@ -504,13 +503,13 @@ class SwitchChannelService {
             notifier.setChannelState(channelIndex, on);
           }
         } catch (e) {
-          _safeLog(
+          logSafely(
+            _ref,
             (logger) => logger.warning(
               'setSwitchChannel (remote) failed for $deviceId#$channelIndex '
               'on=$on: $e',
               source: 'SwitchChannelService',
             ),
-            'switch-set-channel-remote',
           );
           _emitDeviceError(
             'switch_set_state',
@@ -534,12 +533,12 @@ class SwitchChannelService {
         notifier.setChannelState(channelIndex, on);
       }
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'setSwitchChannel failed for $deviceId#$channelIndex on=$on: $e',
           source: 'SwitchChannelService',
         ),
-        'switch-set-channel',
       );
       try {
         final errSvc = _ref.read(errorServiceProvider);
@@ -553,13 +552,13 @@ class SwitchChannelService {
           severity: ErrorSeverity.error,
         );
       } on Object catch (errSvcErr) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'errorService emission for switch_set_state failed: '
             '$errSvcErr',
             source: 'SwitchChannelService',
           ),
-          'switch-set-channel-errsvc',
         );
       }
       rethrow;
@@ -636,13 +635,13 @@ class SwitchChannelService {
         notifier.setChannelValue(channelIndex, value);
       }
     } catch (error) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'setSwitchChannelValue failed for $deviceId#$channelIndex '
           'value=$value: $error',
           source: 'SwitchChannelService',
         ),
-        'switch-set-channel-value',
       );
       _emitDeviceError(
         'switch_set_value',
@@ -651,24 +650,6 @@ class SwitchChannelService {
         ErrorSeverity.error,
       );
       rethrow;
-    }
-  }
-
-  /// Mirror of `DeviceService._safeLog` — emits a diagnostic line through
-  /// the logging service, but never lets a logger-emission failure mask
-  /// a higher-priority device fault. We deliberately catch every kind of
-  /// error from the logger lookup (e.g. provider mid-disposal during
-  /// shutdown) and demote to a stderr line — fail-closed for the calling
-  /// device operation, soft for the diagnostics emission itself.
-  void _safeLog(void Function(LoggingService logger) emit, String contextTag) {
-    try {
-      final logger = _ref.read(loggingServiceProvider);
-      emit(logger);
-    } on Object catch (loggerErr) {
-      // ignore: avoid_print
-      print(
-        'SwitchChannelService[$contextTag]: logger emission failed: $loggerErr',
-      );
     }
   }
 }

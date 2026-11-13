@@ -99,7 +99,9 @@ void main() {
         userFacingError(
           http.ClientException(
             'Survey returned HTTP 503 or an empty image',
-            Uri.parse('https://skyview.gsfc.nasa.gov/cgi-bin/images?Position=1,2'),
+            Uri.parse(
+              'https://skyview.gsfc.nasa.gov/cgi-bin/images?Position=1,2',
+            ),
           ),
         ),
         'Survey returned HTTP 503 or an empty image',
@@ -318,5 +320,16 @@ void main() {
       expect(text.suggestion, contains('Reconnect'));
       expect(text.isRecoverable, isFalse);
     });
+  });
+
+  test('a bridge union after the catcher\'s words keeps the words and the '
+      'reason', () {
+    expect(
+      userFacingError(
+        'Failed to start: SkotiqError.operationFailed(field0: No plate '
+        'solver (ASTAP) configured)',
+      ),
+      'Failed to start: No plate solver (ASTAP) configured',
+    );
   });
 }

@@ -85,18 +85,22 @@ void main() {
 
   /// The dawn park ends the run of [session].
   void dawnEnds(ProviderContainer container, int session, int runId) {
-    container.read(runRecordProvider.notifier).setStopEvidence(const SequenceStopDecision(
-      SequenceStopAuthor.system,
-      origin: 'dawn_approaching',
-      parked: true,
-    ));
-    container.read(runRecordProvider.notifier).publishTerminal(SequenceTerminalRunResult(
-      generation: ++generation,
-      outcome: SequenceExecutionState.idle,
-      runStatus: 'aborted',
-      runId: runId,
-      dbSessionId: session,
-    ));
+    container
+        .read(runRecordProvider.notifier)
+        .setStopEvidence(const SequenceStopDecision(
+          SequenceStopAuthor.system,
+          origin: 'dawn_approaching',
+          parked: true,
+        ));
+    container
+        .read(runRecordProvider.notifier)
+        .publishTerminal(SequenceTerminalRunResult(
+          generation: ++generation,
+          outcome: SequenceExecutionState.idle,
+          runStatus: SequenceRunStatus.aborted,
+          runId: runId,
+          dbSessionId: session,
+        ));
   }
 
   Future<NightEndRun> nightEndRun(
@@ -186,7 +190,8 @@ void main() {
 
   // UX walk 2, F31: after the target was built by hand the night-end history
   // still said "Calibration needed" and offered "Retry after calibration".
-  test('a night held for calibration is settled by a later build by hand, '
+  test(
+      'a night held for calibration is settled by a later build by hand, '
       'also across a restart', () async {
     await db.settingsDao.setSetting(
         NightEndAutomationSettings.allowIncompleteCalibrationKey, 'false');
@@ -234,7 +239,11 @@ void main() {
     await runner.nightEnded(sessionId: session, reason: 'plan completed');
     await runner.idle();
     expect(
-        app.read(nightEndRunsProvider).single.targets.single
+        app
+            .read(nightEndRunsProvider)
+            .single
+            .targets
+            .single
             .waitingForCalibration,
         isTrue);
 

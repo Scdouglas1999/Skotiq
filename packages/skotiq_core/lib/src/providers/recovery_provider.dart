@@ -23,8 +23,6 @@
 ///     learns the outcome, not just that something broke.
 library;
 
-import 'dart:developer' as developer;
-
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
@@ -39,6 +37,7 @@ import 'notification_router_provider.dart';
 import 'sequence_provider.dart';
 import 'settings_provider.dart';
 import 'logging_service_provider.dart';
+import '../services/logging_service.dart';
 
 /// State of the current in-flight recovery loop. `null` whenever the
 /// executor is not in `Recovering`.
@@ -95,9 +94,9 @@ class RecoveryControl {
     try {
       await backend.recoveryTryNow();
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         'RecoveryControl.tryNow failed: $e',
-        name: 'recovery_provider',
+        source: 'recovery_provider',
         error: e,
         stackTrace: st,
       );
@@ -111,9 +110,9 @@ class RecoveryControl {
     try {
       await backend.recoveryAbort();
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         'RecoveryControl.abort failed: $e',
-        name: 'recovery_provider',
+        source: 'recovery_provider',
         error: e,
         stackTrace: st,
       );
@@ -134,9 +133,9 @@ class RecoveryControl {
     try {
       await backend.sequencerSkip();
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         'RecoveryControl.skipNode failed: $e',
-        name: 'recovery_provider',
+        source: 'recovery_provider',
         error: e,
         stackTrace: st,
       );
@@ -198,10 +197,9 @@ final recoveryEventBridgeProvider = Provider<void>((ref) {
       },
       loading: () {},
       error: (error, _) {
-        developer.log(
+        Log.error(
           '[recoveryEventBridge] Event stream error: $error',
-          name: 'recovery_provider',
-          level: 1000,
+          source: 'recovery_provider',
         );
       },
     );
@@ -490,9 +488,9 @@ final recoveryAudibleBridgeProvider = Provider<void>((ref) {
     // Fire-and-forget; surface platform failures in developer.log.
     // ignore: discarded_futures
     player.play(sound: settings.criticalAlertSound).catchError((Object e) {
-      developer.log(
+      Log.debug(
         'Recovery audible alert failed: $e',
-        name: 'recovery_provider',
+        source: 'recovery_provider',
       );
     });
   });
@@ -538,9 +536,9 @@ final recoveryPushBridgeProvider = Provider<void>((ref) {
           );
     } catch (e, st) {
       // Fail-soft: a push failure must never break the run.
-      developer.log(
+      Log.warning(
         'Recovery push enqueue failed: $e',
-        name: 'recovery_provider',
+        source: 'recovery_provider',
         error: e,
         stackTrace: st,
       );

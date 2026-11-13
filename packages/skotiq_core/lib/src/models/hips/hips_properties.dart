@@ -1,6 +1,5 @@
-import 'dart:developer' as developer;
-
 import 'package:equatable/equatable.dart';
+import '../../services/logging_service.dart';
 
 /// Sky reference frame a HiPS survey is tiled in.
 ///
@@ -274,11 +273,10 @@ class HipsProperties extends Equatable {
     if (rawTileWidth == null) {
       tileWidth = defaultTileWidth;
       tileWidthWasDefaulted = true;
-      developer.log(
+      Log.info(
         'hips_tile_width absent in properties; applying HiPS standard default '
         'of $defaultTileWidth px',
-        name: logName,
-        level: 800, // INFO
+        source: logName,
       );
     } else {
       tileWidth = _parseIntValue(

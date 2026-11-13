@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../../models/annotation_data.dart';
+import '../logging_service.dart';
 
 class ExoplanetProvider {
   static const String _baseUrl =
@@ -41,10 +41,9 @@ class ExoplanetProvider {
         }
       }
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[EXOPLANET] Error: $e',
-        name: 'ExoplanetProvider',
-        level: 900,
+        source: 'ExoplanetProvider',
         error: e,
       );
     }

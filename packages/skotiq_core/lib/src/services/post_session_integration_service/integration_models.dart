@@ -34,7 +34,7 @@ class ResolvedCalibration {
 /// `WcsInfo::from_plate_solve` (`imaging/src/fits.rs:1094`) emit. Returned by a
 /// [MasterPlateSolver] and persisted verbatim via
 /// [IntegratedMastersDao.updateWcs] so the catalog annotation overlay and colour
-/// calibration can both reconstruct a `WcsOverlay`.
+/// calibration can both read it.
 class MasterWcsSolution {
   final double crval1;
   final double crval2;
@@ -89,7 +89,7 @@ typedef MasterColorCalibrator =
     Future<String?> Function({
       required String masterFits,
       required String outputFits,
-      required WcsOverlay wcs,
+      required SolvedWcs wcs,
       required int channels,
     });
 

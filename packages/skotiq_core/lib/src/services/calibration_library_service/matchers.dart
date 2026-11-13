@@ -12,61 +12,12 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     LightFrameContext ctx,
     CalibrationMatchTolerances tol,
   ) {
-    // Hard requirements: exact gain / offset / binning, compatible camera —
-    // for every one of those the lights actually carry.
-    final candidates = _tupleCandidates(darks, ctx);
-    if (candidates.isEmpty) return null;
-
+    final selection = selectDark(darks, ctx, tol.dark);
+    if (selection == null) return null;
+    final best = selection.record;
+    final scaled = selection.exposureScaled;
+    final tempFellBack = selection.temperatureFellBack;
     final exposureTol = tol.dark.exposureSecs;
-    final exact = candidates
-        .where(
-          (r) =>
-              r.exposureSeconds != null &&
-              (r.exposureSeconds! - ctx.exposureSeconds).abs() <= exposureTol,
-        )
-        .toList();
-    final scaled = exact.isEmpty;
-    var pool = scaled ? candidates : exact;
-
-    // Temperature gate: prefer within-tolerance; fall back (with a warning,
-    // applied at scoring) only when nothing is within tolerance.
-    var tempFellBack = false;
-    if (ctx.temperature != null) {
-      final within = pool
-          .where(
-            (r) =>
-                r.temperature == null ||
-                (r.temperature! - ctx.temperature!).abs() <=
-                    tol.dark.temperatureC,
-          )
-          .toList();
-      if (within.isNotEmpty) {
-        pool = within;
-      } else {
-        tempFellBack = true;
-      }
-    }
-
-    pool.sort((a, b) {
-      // Masters beat raw frames.
-      if (a.isMaster != b.isMaster) return a.isMaster ? -1 : 1;
-      if (scaled) {
-        // Nearest exposure first.
-        final aD = _expDelta(a, ctx);
-        final bD = _expDelta(b, ctx);
-        final byExp = aD.compareTo(bD);
-        if (byExp != 0) return byExp;
-      }
-      final aT = _tempDelta(a, ctx);
-      final bT = _tempDelta(b, ctx);
-      final byTemp = aT.compareTo(bT);
-      if (byTemp != 0) return byTemp;
-      // Conflict resolution: on an otherwise-exact tie, prefer a LOCAL master
-      // over a remote one (you already have it; no download / trust step).
-      if (a.isRemote != b.isRemote) return a.isRemote ? 1 : -1;
-      return b.createdAt.compareTo(a.createdAt);
-    });
-    final best = pool.first;
 
     final reasons = <String>[_tupleReason(ctx, best, requiredFor: 'darks')];
     final warnings = <String>[];
@@ -137,14 +88,8 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     LightFrameContext ctx,
     CalibrationMatchTolerances tol,
   ) {
-    final pool = _tupleCandidates(biases, ctx);
+    final pool = rankBiases(biases, ctx);
     if (pool.isEmpty) return null;
-
-    pool.sort((a, b) {
-      if (a.isMaster != b.isMaster) return a.isMaster ? -1 : 1;
-      if (a.isRemote != b.isRemote) return a.isRemote ? 1 : -1;
-      return b.createdAt.compareTo(a.createdAt);
-    });
     final best = pool.first;
 
     final reasons = <String>[
@@ -180,7 +125,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     CalibrationMatchTolerances tol,
   ) {
     final wantFilter = ctx.filter?.trim();
-    var pool = flats.where((r) => _tupleMatches(r, ctx)).toList();
+    var pool = flats.where((r) => calibrationTupleMatches(r, ctx)).toList();
     if (wantFilter != null && wantFilter.isNotEmpty) {
       pool = pool
           .where((r) => r.filter != null && r.filter!.trim() == wantFilter)
@@ -198,7 +143,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
           )
           .toList();
     }
-    pool = _preferExactTuple(pool, ctx);
+    pool = preferExactCalibrationTuple(pool, ctx);
     if (pool.isEmpty) return null;
 
     // Temperature gate at the flat tolerance, falling back when empty.
@@ -288,8 +233,8 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     if (pool.isEmpty) return null;
 
     pool.sort((a, b) {
-      final aT = _tempDelta(a, ctx);
-      final bT = _tempDelta(b, ctx);
+      final aT = calibrationTemperatureDelta(a, ctx);
+      final bT = calibrationTemperatureDelta(b, ctx);
       final byTemp = aT.compareTo(bT);
       if (byTemp != 0) return byTemp;
       return b.createdAt.compareTo(a.createdAt);
@@ -321,47 +266,6 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
       reasons: reasons,
       warnings: warnings,
     );
-  }
-
-  /// Whether [r] agrees with [ctx] on every capture dimension the lights
-  /// actually recorded.
-  ///
-  /// Gain and offset are exact requirements when the context knows them. A null
-  /// on the CONTEXT side means the lights never recorded that dimension, so
-  /// there is nothing to compare it against and it drops out of the filter —
-  /// the pick is then reported as unverified on that dimension by
-  /// [_applyUnverifiedTuple]. A null on the RECORD side is different: the master
-  /// exists and simply does not state its gain, which cannot satisfy a
-  /// requirement the lights DO state, so it is excluded.
-  bool _tupleMatches(CalibrationMasterRecord r, LightFrameContext ctx) =>
-      (ctx.gain == null || r.gain == ctx.gain) &&
-      (ctx.offset == null || r.offset == ctx.offset) &&
-      r.binX == ctx.binX &&
-      r.binY == ctx.binY &&
-      _cameraCompatible(r, ctx);
-
-  /// The records that pass [_tupleMatches], narrowed to those that state the
-  /// lights' gain and offset exactly when any does, a missing value included:
-  /// a camera without gain or offset control (FLI, Atik CCDs) records neither
-  /// on its lights or its masters, and two such frames agree.
-  List<CalibrationMasterRecord> _tupleCandidates(
-    Iterable<CalibrationMasterRecord> records,
-    LightFrameContext ctx,
-  ) => _preferExactTuple(
-    records.where((r) => _tupleMatches(r, ctx)).toList(),
-    ctx,
-  );
-
-  /// [candidates] narrowed as [_tupleCandidates] describes; a flat is narrowed
-  /// after its filter and optical train, which are hard requirements too.
-  List<CalibrationMasterRecord> _preferExactTuple(
-    List<CalibrationMasterRecord> candidates,
-    LightFrameContext ctx,
-  ) {
-    final exact = candidates
-        .where((r) => r.gain == ctx.gain && r.offset == ctx.offset)
-        .toList();
-    return exact.isEmpty ? candidates : exact;
   }
 
   /// The capture dimensions the lights never recorded while [record] does,
@@ -495,23 +399,4 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
         return score;
     }
   }
-
-  /// A record only conflicts with the context camera when BOTH are known and
-  /// differ — legacy rows without a cached camera id stay matchable.
-  bool _cameraCompatible(CalibrationMasterRecord r, LightFrameContext ctx) {
-    final want = ctx.cameraId?.trim();
-    if (want == null || want.isEmpty) return true;
-    if (r.cameraId == null) return true;
-    return r.cameraId == want;
-  }
-
-  double _expDelta(CalibrationMasterRecord r, LightFrameContext ctx) =>
-      r.exposureSeconds == null
-      ? double.maxFinite
-      : (r.exposureSeconds! - ctx.exposureSeconds).abs();
-
-  double _tempDelta(CalibrationMasterRecord r, LightFrameContext ctx) =>
-      (ctx.temperature == null || r.temperature == null)
-      ? double.maxFinite
-      : (r.temperature! - ctx.temperature!).abs();
 }

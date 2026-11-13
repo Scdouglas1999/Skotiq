@@ -1564,7 +1564,6 @@ class DarkroomBuildService {
     );
   }
 
-
   static Future<void> _write(File file, Map<String, dynamic> data) async {
     final temporary = File('${file.path}.tmp');
     await temporary.writeAsString(

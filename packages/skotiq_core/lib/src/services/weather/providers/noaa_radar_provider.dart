@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
@@ -7,6 +6,7 @@ import '../radar_colormaps.dart';
 import '../radar_provider.dart';
 import '../radar_tile_decoder.dart';
 import '../../../models/weather/weather_models.dart';
+import '../../logging_service.dart';
 
 /// NOAA NEXRAD radar provider for US and southern Canada coverage.
 ///
@@ -108,11 +108,10 @@ class NoaaRadarProvider extends RadarProvider {
         frames.add(await _decodeFrame(timestamp, fov));
       }
 
-      developer.log(
+      Log.info(
         'NoaaRadarProvider: Built ${frames.length} frames '
         '(${frames.where((f) => !f.isNoData).length} with spatial data)',
-        name: 'NoaaRadarProvider',
-        level: 800,
+        source: 'NoaaRadarProvider',
       );
 
       return RadarFetchResult.success(frames);
@@ -140,18 +139,13 @@ class NoaaRadarProvider extends RadarProvider {
       if (response.statusCode == 200) {
         image = _decoder.decodePng(response.bodyBytes);
       } else {
-        developer.log(
+        Log.warning(
           'NOAA GetMap status ${response.statusCode}',
-          name: 'NoaaRadarProvider',
-          level: 900,
+          source: 'NoaaRadarProvider',
         );
       }
     } catch (e) {
-      developer.log(
-        'NOAA GetMap fetch failed: $e',
-        name: 'NoaaRadarProvider',
-        level: 900,
-      );
+      Log.warning('NOAA GetMap fetch failed: $e', source: 'NoaaRadarProvider');
     }
 
     if (image == null) {
@@ -304,10 +298,9 @@ class NoaaRadarProvider extends RadarProvider {
           final dateTime = DateTime.parse(ts.trim());
           timestamps.add(dateTime);
         } catch (e) {
-          developer.log(
+          Log.warning(
             'Failed to parse NOAA timestamp: $ts',
-            name: 'NoaaRadarProvider',
-            level: 900,
+            source: 'NoaaRadarProvider',
             error: e,
           );
         }
@@ -329,10 +322,9 @@ class NoaaRadarProvider extends RadarProvider {
             current = current.add(period);
           }
         } catch (e) {
-          developer.log(
+          Log.warning(
             'Failed to parse NOAA time period: $timeString',
-            name: 'NoaaRadarProvider',
-            level: 900,
+            source: 'NoaaRadarProvider',
             error: e,
           );
           return _generateFallbackTimestamps();

@@ -19,7 +19,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     });
 
     try {
-      developer.log('Starting enhanced auto-discovery...', name: 'Discovery');
+      Log.debug('Starting enhanced auto-discovery...', source: 'Discovery');
 
       final server = await EnhancedSkotiqDiscovery.discoverWithFallback(
         onStatus: (status) {
@@ -30,20 +30,15 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       );
 
       if (server != null) {
-        developer.log(
+        Log.info(
           'Found server: ${server.name} at ${server.host}',
-          name: 'Discovery',
-          level: 800,
+          source: 'Discovery',
         );
 
         // Save for future reconnects
         await _connectToServer(server);
       } else {
-        developer.log(
-          'No server found via any method',
-          name: 'Discovery',
-          level: 900,
-        );
+        Log.warning('No server found via any method', source: 'Discovery');
         setState(() {
           _isDiscovering = false;
           _statusMessage = '';
@@ -59,10 +54,9 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         });
       }
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         'Discovery error: $e',
-        name: 'Discovery',
-        level: 1000,
+        source: 'Discovery',
         error: e,
         stackTrace: stackTrace,
       );
@@ -190,11 +184,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         }
       }
     } catch (e) {
-      developer.log(
-        'relay prefill lookup failed: $e',
-        name: 'Relay',
-        level: 900,
-      );
+      Log.warning('relay prefill lookup failed: $e', source: 'Relay');
     }
     if (!mounted) return;
 
@@ -325,10 +315,9 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         ),
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         'QR scanner failed: $e',
-        name: 'Discovery',
-        level: 1000,
+        source: 'Discovery',
         error: e,
         stackTrace: stackTrace,
       );
@@ -441,11 +430,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       }
     } catch (e) {
       // Best-effort prefill — fall through to an empty field on any failure.
-      developer.log(
-        'tailscale prefill lookup failed: $e',
-        name: 'Discovery',
-        level: 900,
-      );
+      Log.warning('tailscale prefill lookup failed: $e', source: 'Discovery');
     }
     if (!mounted) return;
 

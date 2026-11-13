@@ -43,7 +43,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted) {
         setState(() => _checkpointAction = null);
-        context.showErrorSnackBar('Failed to resume mosaic: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to resume mosaic: ${userFacingError(e)}');
       }
     }
   }
@@ -64,7 +65,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted) {
         setState(() => _checkpointAction = null);
-        context.showErrorSnackBar('Failed to discard checkpoint: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to discard checkpoint: ${userFacingError(e)}');
       }
     }
   }
@@ -333,7 +335,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
       context.showErrorSnackBar(error.message);
       return;
     } catch (error) {
-      context.showErrorSnackBar('Could not load mosaic: ${userFacingError(error)}');
+      context.showErrorSnackBar(
+          'Could not load mosaic: ${userFacingError(error)}');
       return;
     }
 
@@ -432,7 +435,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted) {
         setState(() => _isCreatingProject = false);
-        context.showErrorSnackBar('Could not create mosaic project: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not create mosaic project: ${userFacingError(e)}');
       }
     }
   }
@@ -442,11 +446,11 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
   /// gating decision is made from — the field that decides whether the buttons
   /// are enabled at all.
   void _logWizardAction(String message) {
-    developer.log(
+    Log.debug(
       '[MosaicWizard] $message (panelSize='
       '${_panelSizeKnown ? '${_panelWidthArcmin.toStringAsFixed(1)}x'
           '${_panelHeightArcmin.toStringAsFixed(1)} arcmin' : 'unknown'})',
-      name: 'MosaicWizardDialog',
+      source: 'MosaicWizardDialog',
     );
   }
 

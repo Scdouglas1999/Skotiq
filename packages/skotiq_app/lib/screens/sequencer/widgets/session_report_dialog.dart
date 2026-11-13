@@ -280,7 +280,8 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load recovery history: ${userFacingError(error)}',
+                label:
+                    'Could not load recovery history: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(
@@ -321,7 +322,8 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load diagnostic settings: ${userFacingError(error)}',
+                label:
+                    'Could not load diagnostic settings: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(appSettingsProvider),
@@ -338,7 +340,8 @@ class _ReportBody extends ConsumerWidget {
                     colors: colors,
                   ),
                   error: (error, _) => _AuxiliaryReportState(
-                    label: 'Could not load optical-train diagnostics: ${userFacingError(error)}',
+                    label:
+                        'Could not load optical-train diagnostics: ${userFacingError(error)}',
                     colors: colors,
                     error: true,
                     onRetry: () => ref.invalidate(
@@ -491,7 +494,8 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load retrospective suggestions: ${userFacingError(error)}',
+                label:
+                    'Could not load retrospective suggestions: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(
@@ -603,12 +607,14 @@ class _ReportBody extends ConsumerWidget {
         style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
       );
 
-  bool get _wasStoppedByOperator => runWasStoppedByOperator(report.status);
+  SequenceRunStatus? get _status => SequenceRunStatus.tryParse(report.status);
+
+  bool get _wasStoppedByOperator => _status?.stoppedByOperator ?? false;
 
   /// The report's error messages minus, on an operator stop, the cancellation
   /// notice that a Stop always produces. See [runErrorMessagesFor].
   List<String> get _errorMessages =>
-      runErrorMessagesFor(report.status, report.errorMessages);
+      runErrorMessagesFor(_status, report.errorMessages);
 
   /// The cause to headline, or null when there is nothing to explain.
   ///

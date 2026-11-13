@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
@@ -112,7 +111,6 @@ class NodePropertiesPanel extends ConsumerWidget {
             ),
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: SkotiqTokens.spaceLg,
@@ -130,14 +128,11 @@ class NodePropertiesPanel extends ConsumerWidget {
                   ),
           ),
         ),
-
         Divider(color: colors.border, height: 1),
-
         if (selectedNode != null) ...[
           _buildInspectorTabBar(selectedNode),
           Divider(color: colors.border, height: 1),
         ],
-
         Expanded(
           child: selectedNode == null
               ? _EmptySelection(colors: colors, isMobile: true)

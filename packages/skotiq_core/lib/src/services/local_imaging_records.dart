@@ -281,8 +281,10 @@ final class LocalImagingRecords implements ImagingRecords {
 /// What the host does with a frame Science has graded: scan it for
 /// transients against the sky atlas, fold it into the atlas ("Your Sky") and
 /// contribute it to any live co-imaging session that covers it.
-SolvedFrameFoldHook solvedFrameFoldHook(Ref ref, ImagesDao imagesDao) =>
-    (capturedImageId) async {
+SolvedFrameFoldHook solvedFrameFoldHook(
+  Ref ref,
+  ImagesDao imagesDao,
+) => (capturedImageId) async {
   final logger = ref.read(loggingServiceProvider);
   try {
     // With Your Sky off nothing is folded and First Light, whose template

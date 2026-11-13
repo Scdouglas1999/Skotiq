@@ -1,5 +1,4 @@
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -177,12 +176,7 @@ void main(List<String> args) async {
   final heldBy = contended;
   if (heldBy != null) {
     stderr.writeln('Skotiq: ${heldBy.message}');
-    developer.log(
-      heldBy.message,
-      name: 'desktop.main',
-      level: 1000,
-      error: heldBy,
-    );
+    Log.error(heldBy.message, source: 'desktop.main', error: heldBy);
     // exit(), not `exitCode = …; return;`: the native bridge has already
     // started its hot-plug poll watcher and USB hotplug listener by the time
     // main() runs, and those keep the Dart isolate alive forever. Returning
@@ -220,7 +214,7 @@ void main(List<String> args) async {
 
   // Pointed at the app logger once it exists.
   void Function(String message) relaunchLog = (message) =>
-      developer.log(message, name: 'desktop.relaunch');
+      Log.debug(message, source: 'desktop.relaunch');
 
   await windowManager.ensureInitialized();
   startupTimeline.mark('window manager');

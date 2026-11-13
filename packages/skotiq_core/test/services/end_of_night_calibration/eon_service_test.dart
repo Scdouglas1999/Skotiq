@@ -46,7 +46,7 @@ class FakeRig implements EonRig {
     targetTempC: -10,
     sensorTempC: -10.1,
   );
-  String runStatus = 'completed';
+  SequenceRunStatus runStatus = SequenceRunStatus.completed;
   int framesPerDarkGroup = 20;
   int biasFrames = 50;
   Set<double> leakyExposures = {};
@@ -290,7 +290,7 @@ void main() {
     'stopping during the run stops the frames and still builds masters',
     () async {
       rig.runGate = Completer<void>();
-      rig.runStatus = 'stopped';
+      rig.runStatus = SequenceRunStatus.stopped;
       rig.framesPerDarkGroup = 5;
       final done = service.run(reason: 'manual');
       await pumpUntil(() => rig.calls.contains('run'));
@@ -328,7 +328,7 @@ void main() {
   });
 
   test('a short run builds what it took and reports the shortfall', () async {
-    rig.runStatus = 'stopped';
+    rig.runStatus = SequenceRunStatus.stopped;
     rig.framesPerDarkGroup = 7;
     final report = await service.run(reason: 'manual');
     expect(report.phase, EonPhase.finished);
@@ -417,7 +417,7 @@ void main() {
 
     test('after a stopped run', () async {
       rig.runGate = Completer<void>();
-      rig.runStatus = 'stopped';
+      rig.runStatus = SequenceRunStatus.stopped;
       final running = service.run(reason: 'manual');
       await pumpUntil(() => rig.calls.contains('run'));
       expect(rig.wheelPosition, 7);
@@ -430,7 +430,7 @@ void main() {
     test('after a run stopped from outside the step', () async {
       // POST /api/sequencer/stop ends the native run; the step only sees
       // the run come back stopped.
-      rig.runStatus = 'stopped';
+      rig.runStatus = SequenceRunStatus.stopped;
       final report = await service.run(reason: 'manual');
       expect(report.runStatus, 'stopped');
       expect(rig.wheelPosition, 4);

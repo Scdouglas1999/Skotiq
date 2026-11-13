@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/backend/device_capabilities.dart';
@@ -7,6 +5,7 @@ import '../models/equipment/equipment_models.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
+import '../services/logging_service.dart';
 
 /// Provider to fetch camera capabilities for a device
 /// Returns null if the device is not connected or doesn't support capabilities
@@ -56,10 +55,9 @@ final cameraCapabilitiesProvider =
             // Remembering is a convenience for a later, offline session. It
             // must never be able to fail the capability read that device
             // connection and every camera control depend on.
-            developer.log(
+            Log.warning(
               'Could not remember sensor geometry for $deviceId.',
-              name: 'Capabilities',
-              level: 900,
+              source: 'Capabilities',
               error: error,
               stackTrace: stack,
             );

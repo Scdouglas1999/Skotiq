@@ -19,7 +19,6 @@
 // moment the app is up, whether or not a sequence is running.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,6 +26,7 @@ import '../models/backend/event_types.dart' as core_events;
 import '../services/usb_disconnect_log.dart';
 import 'backend_provider.dart';
 import 'logging_service_provider.dart';
+import '../services/logging_service.dart';
 
 /// Singleton log per provider container.
 ///
@@ -85,10 +85,9 @@ final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
     },
     onError: (Object error) {
       // Log-only — a stream error must not block subsequent events.
-      developer.log(
+      Log.error(
         '[UsbDisconnectEventBridge] Event stream error: $error',
-        name: 'UsbDisconnectEventBridge',
-        level: 1000,
+        source: 'UsbDisconnectEventBridge',
         error: error,
       );
     },

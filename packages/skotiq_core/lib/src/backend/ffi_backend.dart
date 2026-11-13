@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -35,6 +34,7 @@ import '../models/errors/skotiq_error.dart' as dart_error;
 import 'bridge_event_codec.dart';
 import '../services/ip_geolocation.dart';
 import '../models/backend/backend_types.dart';
+import '../services/logging_service.dart';
 
 part 'ffi_backend/native_runtime.dart';
 part 'ffi_backend/type_mappers.dart';

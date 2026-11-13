@@ -79,8 +79,7 @@ class ScienceProcessingService {
   ScienceProcessingService(this._ref);
 
   ScienceDao get _scienceDao => _ref.read(scienceDaoProvider);
-  ImagingRecords get _imagesRepo =>
-      _ref.read(imagingRecordsProvider);
+  ImagingRecords get _imagesRepo => _ref.read(imagingRecordsProvider);
   ScienceBackend get _scienceBackend => _ref.read(scienceBackendProvider);
   LoggingService get _logger => _ref.read(loggingServiceProvider);
   ScienceProcessingStatusTracker get _status =>

@@ -9,7 +9,8 @@
 library;
 
 import '../../database/database.dart'
-    show FramePhotometricCalibrationRow,
+    show
+        FramePhotometricCalibrationRow,
         ScienceFrameQualityMetricsRow,
         TransparencySampleRow;
 import '../equipment_health_service.dart' show EquipmentHealthReport;

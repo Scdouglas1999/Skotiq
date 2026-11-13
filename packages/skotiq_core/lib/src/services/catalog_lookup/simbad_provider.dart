@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../../models/annotation_data.dart';
 import '../sesame_name_resolver.dart';
+import '../logging_service.dart';
 
 class SimbadProvider {
   static const String _baseUrl =
@@ -69,12 +69,7 @@ class SimbadProvider {
         }
       }
     } catch (e) {
-      developer.log(
-        '[SIMBAD] Error: $e',
-        name: 'SimbadProvider',
-        level: 900,
-        error: e,
-      );
+      Log.warning('[SIMBAD] Error: $e', source: 'SimbadProvider', error: e);
     }
 
     return null;
@@ -114,10 +109,9 @@ class SimbadProvider {
       }
     } on TargetNameLookupUnavailable catch (e) {
       exactFailure = e;
-      developer.log(
+      Log.warning(
         '[SIMBAD] exact name lookup unavailable: $e',
-        name: 'SimbadProvider',
-        level: 900,
+        source: 'SimbadProvider',
       );
     }
 
@@ -180,10 +174,9 @@ class SimbadProvider {
           )
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
-        developer.log(
+        Log.warning(
           '[SIMBAD] name search HTTP ${response.statusCode}',
-          name: 'SimbadProvider',
-          level: 900,
+          source: 'SimbadProvider',
         );
         return null;
       }
@@ -211,10 +204,9 @@ class SimbadProvider {
       }
       return out;
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[SIMBAD] name search error: $e',
-        name: 'SimbadProvider',
-        level: 900,
+        source: 'SimbadProvider',
         error: e,
       );
       return null;

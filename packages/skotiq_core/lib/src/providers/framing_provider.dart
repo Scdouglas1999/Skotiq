@@ -1,7 +1,6 @@
 import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -31,6 +30,7 @@ import 'framing_image_cache_provider.dart';
 import 'profiles_provider.dart';
 import 'mosaic_project_service_provider.dart';
 import 'target_library_service_provider.dart';
+import '../services/logging_service.dart';
 
 part 'framing_provider/models.dart';
 part 'framing_provider/support.dart';
@@ -260,10 +260,9 @@ class FramingNotifier extends StateNotifier<FramingState> {
     try {
       await remote.framingSetTarget(ra: raHours, dec: decDegrees, name: name);
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         'Failed to push framing target to host: $e',
-        name: 'FramingNotifier',
-        level: 1000,
+        source: 'FramingNotifier',
         error: e,
         stackTrace: stackTrace,
       );
@@ -294,10 +293,9 @@ class FramingNotifier extends StateNotifier<FramingState> {
   void _rememberLastFramedTarget(FramingTarget target) {
     unawaited(
       persistLastFramedTarget(target).catchError((Object e, StackTrace s) {
-        developer.log(
+        Log.error(
           'Failed to persist last framed target: $e',
-          name: 'FramingNotifier',
-          level: 1000,
+          source: 'FramingNotifier',
           error: e,
           stackTrace: s,
         );
@@ -838,10 +836,9 @@ class FramingNotifier extends StateNotifier<FramingState> {
     try {
       decoded = jsonDecode(raw);
     } on FormatException catch (e, stackTrace) {
-      developer.log(
+      Log.warning(
         'Discarding corrupt framing.lastTarget setting: $e',
-        name: 'FramingNotifier',
-        level: 900,
+        source: 'FramingNotifier',
         error: e,
         stackTrace: stackTrace,
       );

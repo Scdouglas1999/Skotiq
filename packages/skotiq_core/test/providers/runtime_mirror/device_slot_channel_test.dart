@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'mirror_link.dart';
 
@@ -149,25 +150,36 @@ void main() {
     expect((sent.single.value?['readings'] as Map)['altitude'], 62.1);
   });
 
-  test('the periodic re-read of unchanged devices changes no client state', () async {
-    final host = mirrorHost();
-    _connect(host.container.read(mountStateProvider.notifier), 'm', 'Mount');
-    _connect(host.container.read(focuserStateProvider.notifier), 'f', 'Foc');
-    _connect(host.container.read(filterWheelStateProvider.notifier), 'w', 'W');
-    _connect(host.container.read(guiderStateProvider.notifier), 'g', 'Guider');
-    await settle(_slotInterval);
-    final client = mirrorClient(host.container);
-    await hydrateHostRuntimeState(client.container, client.backend);
+  test(
+    'the periodic re-read of unchanged devices changes no client state',
+    () async {
+      final host = mirrorHost();
+      _connect(host.container.read(mountStateProvider.notifier), 'm', 'Mount');
+      _connect(host.container.read(focuserStateProvider.notifier), 'f', 'Foc');
+      _connect(
+        host.container.read(filterWheelStateProvider.notifier),
+        'w',
+        'W',
+      );
+      _connect(
+        host.container.read(guiderStateProvider.notifier),
+        'g',
+        'Guider',
+      );
+      await settle(_slotInterval);
+      final client = mirrorClient(host.container);
+      await hydrateHostRuntimeState(client.container, client.backend);
 
-    var changes = 0;
-    for (final slot in deviceSlots) {
-      client.container.listen(slot.state, (_, _) => changes++);
-    }
-    await hydrateHostRuntimeState(client.container, client.backend);
-    await hydrateHostRuntimeState(client.container, client.backend);
+      var changes = 0;
+      for (final slot in deviceSlots) {
+        client.container.listen(slot.state, (_, _) => changes++);
+      }
+      await hydrateHostRuntimeState(client.container, client.backend);
+      await hydrateHostRuntimeState(client.container, client.backend);
 
-    expect(changes, 0);
-  });
+      expect(changes, 0);
+    },
+  );
 
   test('a device the host disconnects leaves the client, and the reason a '
       'device dropped arrives with it', () async {
@@ -250,6 +262,47 @@ void main() {
     expect(shown.exposureProgress, 0.4);
   });
 
+  test('a client that links during a run reads the camera idle once the '
+      'last frame ends', () async {
+    final host = mirrorHost();
+    final camera = host.container.read(cameraStateProvider.notifier);
+    _connect(camera, 'cam-1', 'Main camera');
+    // A host's own flag reads exposing just after each of its run's frames.
+    camera.setExposing(true);
+    await settle(_slotInterval);
+    final client = mirrorClient(host.container);
+    await hydrateHostRuntimeState(client.container, client.backend);
+
+    void cameraEvent(String type, [Map<String, dynamic> data = const {}]) =>
+        applyHostEventOnClient(
+          client.container,
+          client.backend,
+          SkotiqEvent(
+            timestamp: 0,
+            severity: EventSeverity.info,
+            category: EventCategory.imaging,
+            eventType: type,
+            data: data,
+          ),
+        );
+
+    // The run's last frame, then the host's flag after it.
+    camera.setExposing(false);
+    cameraEvent('ExposureStarted', {'duration_secs': 3.0});
+    cameraEvent('ExposureProgress', {'progress': 0.5, 'remainingSecs': 1.5});
+    expect(client.container.read(cameraStateProvider).isExposing, isTrue);
+    cameraEvent('ExposureComplete', {'success': true});
+    camera.setExposing(true);
+    await settle(_slotInterval);
+    await hydrateHostRuntimeState(client.container, client.backend);
+    camera.setExposing(false);
+    await settle(_slotInterval);
+    await hydrateHostRuntimeState(client.container, client.backend);
+
+    expect(client.container.read(cameraStateProvider).isExposing, isFalse);
+    expect(client.container.read(exposureProgressProvider), ExposureProgress.idle());
+  });
+
   test('each re-read says the host still holds the camera, so it does not '
       'go unheard', () async {
     final host = mirrorHost();
@@ -284,12 +337,15 @@ void main() {
 
       // The host's own window applies the guider releasing its camera; the
       // camera slot is not the guide camera's.
-      applyHostLocalSyncEvent(host.container, buildHostMutationEvent(
+      applyHostLocalSyncEvent(
+        host.container,
+        buildHostMutationEvent(
           entityType: HostMutationEntity.equipment,
           action: HostMutationAction.disconnected,
           entityId: 'sim_camera_2',
           extra: {'deviceType': 'camera', 'deviceId': 'sim_camera_2'},
-        ));
+        ),
+      );
       await settle(_slotInterval);
       await hydrateHostRuntimeState(client.container, client.backend);
 
@@ -314,13 +370,17 @@ void main() {
         ..setConnecting('sim_focuser_1', 'Simulated Focuser')
         ..connectFailed(StateError('unplugged'));
 
-      applyHostEventOnClient(client.container, client.backend, const SkotiqEvent(
+      applyHostEventOnClient(
+        client.container,
+        client.backend,
+        const SkotiqEvent(
           timestamp: 1,
           severity: EventSeverity.info,
           category: EventCategory.equipment,
           eventType: 'Disconnected',
           data: {'device_type': 'focuser', 'device_id': 'sim_focuser_1'},
-        ));
+        ),
+      );
       await hydrateHostRuntimeState(client.container, client.backend);
 
       final slot = client.container.read(focuserStateProvider);

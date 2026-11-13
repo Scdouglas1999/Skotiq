@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -12,11 +11,14 @@ import '../database/daos/calibration_tags_dao.dart';
 import '../database/daos/flat_library_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
+import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/calibration/shared_calibration_models.dart';
 import '../models/collaboration/collaboration_models.dart';
 import '../providers/async_scope.dart';
+import 'calibration/dark_selection.dart';
 import 'calibration/fits_header_reader.dart';
 import 'calibration/shared_calibration_library.dart';
+import 'logging_service.dart';
 part 'calibration_library_service/remote_acceptance.dart';
 part 'calibration_library_service/matchers.dart';
 part 'calibration_library_service/sharing.dart';
@@ -50,6 +52,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
     this.thresholds = CalibrationStalenessThresholds.defaults,
     RemoteCalibrationLibrary? remoteLibrary,
     Future<String> Function()? sharedMasterDirResolver,
+    DarkLibraryMatchTolerances Function()? darkTolerances,
     DateTime Function()? now,
   }) : _db = db,
        _flatDao = flatLibraryDao,
@@ -57,11 +60,13 @@ class CalibrationLibraryService implements CalibrationLibrary {
        _host = ref?.providerBackendScope(),
        _remoteLibrary = remoteLibrary,
        _sharedMasterDirResolver = sharedMasterDirResolver,
+       _darkTolerances = darkTolerances,
        _now = now ?? DateTime.now;
 
   final SkotiqDatabase _db;
   final FlatLibraryDao _flatDao;
   final CalibrationTagsDao _tagsDao;
+
   /// The host this service was built for; null in wirings without one.
   final AsyncScope<SkotiqBackend>? _host;
 
@@ -75,6 +80,10 @@ class CalibrationLibraryService implements CalibrationLibrary {
   /// wirings that never accept remote masters; [acceptRemoteMaster] then refuses
   /// rather than guessing a path.
   final Future<String> Function()? _sharedMasterDirResolver;
+
+  /// The operator's dark tolerances, the ones live calibration matches with.
+  /// Null in wirings without settings, which match on the defaults.
+  final DarkLibraryMatchTolerances Function()? _darkTolerances;
 
   final FitsHeaderReader headerReader;
   final CalibrationStalenessThresholds thresholds;
@@ -135,7 +144,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
   /// Rules (each deviation is scored down and surfaced in `reasons` /
   /// `warnings` — the match is transparent by design):
   ///  * **Darks**: gain, offset, and binning must match *exactly*. Exposure
-  ///    within ±[CalibrationMatchTolerances.dark]`.exposureSecs` is an exact
+  ///    within the operator's exposure tolerance is an exact
   ///    match; otherwise the nearest-exposure dark is returned with
   ///    `exposureScaled = true` and a warning. Temperature within tolerance
   ///    preferred; out-of-tolerance candidates only win when nothing closer
@@ -165,7 +174,6 @@ class CalibrationLibraryService implements CalibrationLibrary {
   @override
   Future<CalibrationMatchSet> match(
     LightFrameContext context, {
-    CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
     bool includeRemote = true,
   }) async {
     // Enrich exactly as [listMasters] does. A master flat whose filter lives
@@ -174,6 +182,9 @@ class CalibrationLibraryService implements CalibrationLibrary {
     // matcher reports "No matching master flat for filter X" about the very
     // record on screen — and silently drops flat-field correction.
     final all = await _enrichAll(await _loadAll());
+    final tolerances = CalibrationMatchTolerances(
+      dark: _darkTolerances?.call() ?? DarkLibraryMatchTolerances.defaults,
+    );
     String? remoteWarning;
     if (includeRemote && _remoteLibrary != null) {
       // Signed out is a NORMAL state, not a failure: no exception, no error log
@@ -194,10 +205,9 @@ class CalibrationLibraryService implements CalibrationLibrary {
           // hub failure must never degrade local matching, but the operator
           // must see that shared masters were not consulted (offline != 'none
           // exist').
-          developer.log(
+          Log.warning(
             'Remote calibration candidates skipped: $e',
-            name: 'CalibrationLibraryService',
-            level: 900,
+            source: 'CalibrationLibraryService',
           );
           remoteWarning =
               'Shared calibration hub unreachable — shared masters were not '
@@ -526,5 +536,4 @@ class CalibrationLibraryService implements CalibrationLibrary {
   }
 
   static double _clampScore(double score) => score.clamp(0.0, 100.0);
-
 }

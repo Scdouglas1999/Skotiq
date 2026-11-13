@@ -47,12 +47,16 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      applyHostEventOnClient(container, backend, imagingEvent('ExposureStarted', {
+      applyHostEventOnClient(
+        container,
+        backend,
+        imagingEvent('ExposureStarted', {
           'duration_secs': 60.0,
           'frame_type': 'light',
           'frame': 3,
           'total': 10,
-        }));
+        }),
+      );
 
       expect(container.read(cameraStateProvider).isExposing, isTrue);
       final progress = container.read(exposureProgressProvider);
@@ -75,10 +79,14 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
+    applyHostEventOnClient(
+      container,
+      backend,
+      imagingEvent('ExposureProgress', {
         'progress': 0.25,
         'remainingSecs': 45.0,
-      }));
+      }),
+    );
 
     final camera = container.read(cameraStateProvider);
     expect(camera.isExposing, isTrue);
@@ -101,13 +109,21 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
+    applyHostEventOnClient(
+      container,
+      backend,
+      imagingEvent('ExposureProgress', {
         'progress': 0.5,
         'remainingSecs': 30.0,
-      }));
+      }),
+    );
     expect(container.read(cameraStateProvider).isExposing, isTrue);
 
-    applyHostEventOnClient(container, backend, imagingEvent('ExposureComplete', const {}));
+    applyHostEventOnClient(
+      container,
+      backend,
+      imagingEvent('ExposureComplete', const {}),
+    );
     expect(container.read(cameraStateProvider).isExposing, isFalse);
     expect(
       container.read(exposureProgressProvider),
@@ -130,16 +146,64 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
+      applyHostEventOnClient(
+        container,
+        backend,
+        imagingEvent('ExposureProgress', {
           'progress': 0.5,
           'remainingSecs': 30.0,
-        }));
-      applyHostEventOnClient(container, backend, imagingEvent(ending, const {'error': 'driver fault'}));
+        }),
+      );
+      applyHostEventOnClient(
+        container,
+        backend,
+        imagingEvent(ending, const {'error': 'driver fault'}),
+      );
 
       expect(container.read(cameraStateProvider).isExposing, isFalse);
       expect(container.read(exposureProgressProvider), ExposureProgress.idle());
     });
   }
+
+  test('the run\'s own exposure events do not move a linked client\'s camera',
+      () async {
+    final backend = slaveBackend();
+    addTearDown(backend.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        inMemoryDatabaseOverride(),
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, backend),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    SkotiqEvent runEvent(String type, [Map<String, dynamic> data = const {}]) =>
+        SkotiqEvent(
+          timestamp: 0,
+          severity: EventSeverity.info,
+          category: EventCategory.sequencer,
+          eventType: type,
+          data: data,
+        );
+
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
+        'progress': 0.5,
+        'remainingSecs': 30.0,
+      }));
+    applySequencerEventToSequenceProviders(
+      container.read,
+      runEvent('ExposureCompleted', {'frame': 1}),
+    );
+    expect(container.read(cameraStateProvider).isExposing, isTrue);
+
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureComplete', const {}));
+    applySequencerEventToSequenceProviders(
+      container.read,
+      runEvent('ExposureStarted', {'frame': 1, 'duration_secs': 60.0}),
+    );
+    expect(container.read(cameraStateProvider).isExposing, isFalse);
+  });
 
   test(
     'exposure events are IGNORED on the host path (no network backend)',
@@ -149,10 +213,13 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      applyHostLocalSyncEvent(container, imagingEvent('ExposureProgress', {
+      applyHostLocalSyncEvent(
+        container,
+        imagingEvent('ExposureProgress', {
           'progress': 0.5,
           'remainingSecs': 30.0,
-        }));
+        }),
+      );
 
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     },

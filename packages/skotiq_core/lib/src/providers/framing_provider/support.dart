@@ -27,7 +27,8 @@ class FramingEquipmentResult {
     this.message,
   });
 
-  bool get isReady => status == FramingEquipmentStatus.ready && equipment != null;
+  bool get isReady =>
+      status == FramingEquipmentStatus.ready && equipment != null;
 }
 
 /// Provides calculated FOV from current equipment profile or custom settings
@@ -133,10 +134,9 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
             ),
           );
         } catch (error, stack) {
-          developer.log(
+          Log.warning(
             'Could not remember sensor geometry for ${profile.cameraId}.',
-            name: 'Framing',
-            level: 900,
+            source: 'Framing',
             error: error,
             stackTrace: stack,
           );

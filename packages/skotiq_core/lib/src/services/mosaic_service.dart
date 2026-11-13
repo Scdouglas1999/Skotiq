@@ -1,8 +1,7 @@
 import '../models/sequence/sequence_models.dart';
 import '../models/imaging/imaging_models.dart' show FrameType;
 import 'package:uuid/uuid.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show mosaicPanelCenters;
+import 'package:skotiq_astro/skotiq_astro.dart' show mosaicPanelCenters;
 
 class MosaicPanel {
   final double raHours;

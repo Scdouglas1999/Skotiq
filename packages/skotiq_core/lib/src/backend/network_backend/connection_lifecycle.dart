@@ -45,10 +45,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     // terminal flags so this attempt actually reaches the wire.
     _authRejected = false;
     _rejectedAuthToken = null;
-    developer.log(
+    Log.info(
       '[NetworkBackend] Manual reconnect requested',
-      name: 'NetworkBackend',
-      level: 800,
+      source: 'NetworkBackend',
     );
     await connect();
   }
@@ -57,10 +56,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     if (_connectionState != newState) {
       _connectionState = newState;
       _connectionStateController.add(newState);
-      developer.log(
+      Log.info(
         '[NetworkBackend] Connection state changed to: $newState',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
     }
   }
@@ -69,20 +67,18 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     try {
       final compatibility = await _checkServerCompatibility();
       if (!compatibility.isCompatible) {
-        developer.log(
+        Log.warning(
           'Connection rejected: ${compatibility.message}',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
         return false;
       }
 
       return true;
     } catch (e) {
-      developer.log(
+      Log.warning(
         'Connection test failed: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
         error: e,
       );
       return false;
@@ -193,11 +189,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
   void _reconcileInstanceFromInfo(String advertisedInstance) {
     final previous = _previousServerInstanceId;
     if (previous != null && previous != advertisedInstance) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] Server instance changed (old=$previous, '
         'new=$advertisedInstance); cached event seq invalidated.',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
       _lastSeenEventSeq = null;
       if (!_eventController.isClosed) {
@@ -257,10 +252,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
 
       final compatibility = await _checkServerCompatibility();
       if (!compatibility.isCompatible) {
-        developer.log(
+        Log.warning(
           'Connection rejected: ${compatibility.message}',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
         // Version mismatch is a terminal condition — the caller must
         // upgrade or downgrade one side before retrying. Emit `error`
@@ -364,11 +358,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
               final reason = json['reason'] as String? ?? 'unknown';
               final currentSeq = json['currentSeq'];
               final currentInstance = json['currentInstance'] as String?;
-              developer.log(
+              Log.warning(
                 '[NetworkBackend] resync_required: reason=$reason '
                 'currentSeq=$currentSeq currentInstance=$currentInstance',
-                name: 'NetworkBackend',
-                level: 900,
+                source: 'NetworkBackend',
               );
               _lastSeenEventSeq = null;
               if (currentInstance != null && currentInstance.isNotEmpty) {
@@ -402,30 +395,24 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
               _polarAlignController.add(event.data);
             }
           } catch (e) {
-            developer.log(
+            Log.warning(
               'Error parsing WebSocket message: $e',
-              name: 'NetworkBackend',
-              level: 900,
+              source: 'NetworkBackend',
               error: e,
             );
           }
         },
         onError: (error) {
-          developer.log(
+          Log.error(
             'WebSocket error: $error',
-            name: 'NetworkBackend',
-            level: 1000,
+            source: 'NetworkBackend',
             error: error,
           );
           _eventController.addError(error);
           _handleConnectionFailure();
         },
         onDone: () {
-          developer.log(
-            'WebSocket connection closed',
-            name: 'NetworkBackend',
-            level: 900,
-          );
+          Log.warning('WebSocket connection closed', source: 'NetworkBackend');
           _handleConnectionFailure();
         },
       );
@@ -444,10 +431,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       _hasEverConnected = true;
       final wasReconnect = _reconnectAttempt > 0;
       _reconnectAttempt = 0; // Reset reconnect counter on success
-      developer.log(
+      Log.info(
         '[NetworkBackend] WebSocket connected successfully',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       _startWebSocketHeartbeat();
 
@@ -481,11 +467,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       // an unrecoverable `error` state (mirroring the version-incompatibility
       // branch above) so the operator sees a clear identity mismatch instead
       // of a perpetual "reconnecting…".
-      developer.log(
+      Log.error(
         '[NetworkBackend] Server identity mismatch; refusing to connect: '
         '${e.message}',
-        name: 'NetworkBackend',
-        level: 1000,
+        source: 'NetworkBackend',
         error: e,
       );
       _reconnectTimer?.cancel();
@@ -512,10 +497,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         _enterAuthRejectedState();
         return;
       }
-      developer.log(
+      Log.error(
         'Failed to connect WebSocket: $e',
-        name: 'NetworkBackend',
-        level: 1000,
+        source: 'NetworkBackend',
         error: e,
       );
       // An upgrade we stopped waiting for can still complete. Left attached,
@@ -556,11 +540,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       _rejectedAuthToken = presented;
     }
     _authRejected = true;
-    developer.log(
+    Log.error(
       '[NetworkBackend] Host rejected auth credentials ($via); '
       'failing fast until the token is replaced or reconnect is requested',
-      name: 'NetworkBackend',
-      level: 1000,
+      source: 'NetworkBackend',
     );
   }
 
@@ -630,10 +613,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     );
 
     _reconnectAttempt++;
-    developer.log(
+    Log.info(
       '[NetworkBackend] Reconnecting in ${delay.inSeconds}s (attempt $_reconnectAttempt)',
-      name: 'NetworkBackend',
-      level: 800,
+      source: 'NetworkBackend',
     );
 
     _reconnectTimer = Timer(delay, () {
@@ -641,10 +623,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         return;
       }
       if (_connectionState != BackendConnectionState.connected) {
-        developer.log(
+        Log.info(
           '[NetworkBackend] Attempting reconnection...',
-          name: 'NetworkBackend',
-          level: 800,
+          source: 'NetworkBackend',
         );
         connect();
       }
@@ -665,10 +646,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       if (lastMessageAt != null &&
           DateTime.now().difference(lastMessageAt) >
               webSocketHeartbeatTimeout) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] WebSocket heartbeat timed out',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
         _wsSubscription?.cancel();
         _wsSubscription = null;
@@ -698,10 +678,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         // a future successful ping would otherwise be computed against the
         // wrong sentAt and emit a wildly inflated latency.
         _pendingPingSentAt = null;
-        developer.log(
+        Log.warning(
           '[NetworkBackend] Failed to send WebSocket heartbeat: $e',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
           error: e,
         );
         _handleConnectionFailure();
@@ -797,11 +776,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     final viewerId = _collaborationViewerId;
     final deviceName = _collaborationDeviceName;
     if (displayName == null || displayName.isEmpty) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] Skipping collaboration.join: no display name set '
         '(call setCollaborationIdentity before connect)',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
       return;
     }
@@ -823,10 +801,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         }),
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] Failed to send collaboration.join: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
         error: e,
       );
     }
@@ -847,11 +824,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       );
     } catch (e) {
       // Closing-time failure is expected on a dead socket; log at FINE.
-      developer.log(
+      Log.debug(
         '[NetworkBackend] collaboration.leave send failed (socket likely '
         'already closed): $e',
-        name: 'NetworkBackend',
-        level: 700,
+        source: 'NetworkBackend',
       );
     }
   }

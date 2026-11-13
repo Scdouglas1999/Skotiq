@@ -19,7 +19,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
@@ -30,6 +29,7 @@ import '../database/database.dart' as db;
 import '../backend/skotiq_backend.dart';
 import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
+import 'logging_service.dart';
 part 'predictive_af_service/predictive_af_models.dart';
 part 'predictive_af_service/settings_controller.dart';
 part 'predictive_af_service/regression.dart';
@@ -380,10 +380,9 @@ class PredictiveAfService {
           'Your $filterName filter focus model has drifted by '
           '$newAccumulated steps over the last $newConsecutive runs. '
           'Consider re-training (clear samples and start fresh).';
-      developer.log(
+      Log.warning(
         'Predictive AF drift warning for $filterName: $msg',
-        name: 'PredictiveAfService',
-        level: 900,
+        source: 'PredictiveAfService',
       );
       final status = ShouldWarn(
         equipmentProfileId: equipmentProfileId,

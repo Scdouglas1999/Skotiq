@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
     show
@@ -24,6 +23,7 @@ import '../backend/sequencer_error_kind.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
+import '../services/logging_service.dart';
 import '../services/notification/event_classifier.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
@@ -288,10 +288,9 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       }
     },
     onError: (error) {
-      developer.log(
+      Log.error(
         '[ErrorNotificationBridge] Event stream error: $error',
-        name: 'ErrorNotificationBridge',
-        level: 1000,
+        source: 'ErrorNotificationBridge',
         error: error,
       );
     },

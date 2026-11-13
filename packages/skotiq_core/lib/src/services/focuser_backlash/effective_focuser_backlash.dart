@@ -132,10 +132,7 @@ EffectiveFocuserBacklash resolveEffectiveFocuserBacklash({
 /// where it was taken claims more than the measurement supports.
 String _measuredPhrase(FocuserBacklashCalibrationRecord record) {
   final temperature = record.temperatureCelsius;
-  final at = temperature == null
-      ? ''
-      : ', ${formatCelsius(temperature)}';
+  final at = temperature == null ? '' : ', ${formatCelsius(temperature)}';
   return 'measured on ${ClockFormat.date(record.measuredAt.toLocal())} at position '
       '${record.measuredAtPosition}$at';
 }
-

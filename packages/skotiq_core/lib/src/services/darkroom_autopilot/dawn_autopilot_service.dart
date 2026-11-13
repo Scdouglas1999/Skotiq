@@ -48,6 +48,7 @@ import '../darkroom_delivery/delivery_artifact.dart';
 import '../darkroom_delivery/delivery_failure.dart';
 import '../darkroom_delivery/delivery_service.dart';
 import '../logging_service.dart';
+import '../wcs/master_wcs.dart';
 import 'darkroom_seam.dart';
 import 'dawn_draft_builder.dart';
 import 'dawn_job_report.dart';
@@ -1255,19 +1256,7 @@ class DawnAutopilotService {
         ? const DawnPhotometry.unavailable(
             'the master library row is gone, so its astrometry cannot be read',
           )
-        : await _photometry.resolve(
-            master: master,
-            wcs: overlayFromMasterWcs(
-              crval1: row.wcsCrval1,
-              crval2: row.wcsCrval2,
-              crpix1: row.wcsCrpix1,
-              crpix2: row.wcsCrpix2,
-              cd11: row.wcsCd1_1,
-              cd12: row.wcsCd1_2,
-              cd21: row.wcsCd2_1,
-              cd22: row.wcsCd2_2,
-            ),
-          );
+        : await _photometry.resolve(master: master, wcs: row.solvedWcs);
 
     final DawnDraft draft;
     try {
@@ -1645,19 +1634,7 @@ class DawnAutopilotService {
         'the master library row is gone, so its astrometry cannot be read',
       );
     }
-    return _photometry.resolve(
-      master: master,
-      wcs: overlayFromMasterWcs(
-        crval1: row.wcsCrval1,
-        crval2: row.wcsCrval2,
-        crpix1: row.wcsCrpix1,
-        crpix2: row.wcsCrpix2,
-        cd11: row.wcsCd1_1,
-        cd12: row.wcsCd1_2,
-        cd21: row.wcsCd2_1,
-        cd22: row.wcsCd2_2,
-      ),
-    );
+    return _photometry.resolve(master: master, wcs: row.solvedWcs);
   }
 
   /// The draft's account in the shape the recipe row stores.

@@ -1,11 +1,10 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/daos/targets_dao.dart';
 import '../../database/database.dart' show DbTarget;
 import '../../models/sequence/sequence_models.dart';
 import '../database_provider.dart';
+import '../../services/logging_service.dart';
 
 /// Keeps the catalog row a Target node images pointed where the operator
 /// pointed it.
@@ -55,19 +54,17 @@ class TargetCatalogCoordinateSync {
           updatedAt: DateTime.now(),
         ),
       );
-      developer.log(
+      Log.info(
         'Target "${row.name}" re-pointed in the builder to '
         'RA ${header.raHours}h / Dec ${header.decDegrees}°; the scheduler now '
         'evaluates it there.',
-        name: 'TargetCatalogCoordinateSync',
-        level: 800, // INFO
+        source: 'TargetCatalogCoordinateSync',
       );
       return true;
     } catch (e) {
-      developer.log(
+      Log.warning(
         'Could not re-point the catalog row for "${header.targetName}": $e',
-        name: 'TargetCatalogCoordinateSync',
-        level: 900, // WARNING
+        source: 'TargetCatalogCoordinateSync',
         error: e,
       );
       return false;

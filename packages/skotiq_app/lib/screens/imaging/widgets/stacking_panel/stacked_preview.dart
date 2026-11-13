@@ -94,17 +94,20 @@ class _StackedPreviewState extends State<_StackedPreview> {
         channels: samplesPerPixel,
       );
     } catch (e) {
-      developer.log('[StackingPanel] Error stretching preview: $e',
-          name: 'StackingPanel', level: 900, error: e);
+      Log.warning(
+        '[StackingPanel] Error stretching preview: $e',
+        source: 'StackingPanel',
+        error: e,
+      );
       _isDecoding = false;
       return;
     }
     if (rgba.length < pixelCount * 4) {
-      developer.log(
-          '[StackingPanel] Stretched preview is ${rgba.length} bytes, '
-          'expected ${pixelCount * 4}',
-          name: 'StackingPanel',
-          level: 900);
+      Log.warning(
+        '[StackingPanel] Stretched preview is ${rgba.length} bytes, '
+        'expected ${pixelCount * 4}',
+        source: 'StackingPanel',
+      );
       _isDecoding = false;
       return;
     }
@@ -133,8 +136,11 @@ class _StackedPreviewState extends State<_StackedPreview> {
       descriptor.dispose();
       buffer.dispose();
     } catch (e) {
-      developer.log('[StackingPanel] Error building preview image: $e',
-          name: 'StackingPanel', level: 900, error: e);
+      Log.warning(
+        '[StackingPanel] Error building preview image: $e',
+        source: 'StackingPanel',
+        error: e,
+      );
     } finally {
       _isDecoding = false;
     }

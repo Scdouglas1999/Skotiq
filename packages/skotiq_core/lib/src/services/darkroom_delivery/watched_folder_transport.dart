@@ -228,7 +228,6 @@ class WatchedFolderTransport implements ArtifactTransport {
     );
   }
 
-
   /// What sits at a path, in the operator's words.
   ///
   /// Only the non-directory answers are named here — a directory is the case

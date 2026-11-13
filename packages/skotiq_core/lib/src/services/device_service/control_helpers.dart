@@ -35,12 +35,12 @@ extension _DeviceServiceControlHelpers on DeviceService {
       try {
         rec = await _backend.cameraGetRecommendedSettings(deviceId);
       } catch (e) {
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.warning(
             'Auto-detect recommended camera settings failed for $deviceName ($deviceId): $e',
             source: 'DeviceService',
           ),
-          'auto-detect-recommended-settings',
         );
         return;
       }
@@ -49,12 +49,12 @@ extension _DeviceServiceControlHelpers on DeviceService {
       // Touptek/Player One/Atik/FLI/Moravian). Honest no-op.
       if (rec.unityGain == null && rec.defaultOffset == null) {
         if (rec.notes.isNotEmpty) {
-          _safeLog(
+          logSafely(
+            _ref,
             (l) => l.info(
               'Camera $deviceName reported no SDK recommendation: ${rec.notes}',
               source: 'DeviceService',
             ),
-            'auto-detect-recommended-settings',
           );
         }
         return;
@@ -71,14 +71,14 @@ extension _DeviceServiceControlHelpers on DeviceService {
       if (newGain == null && newOffset == null) {
         // Both already set by the user; surface the recommendation in logs
         // so they can compare manually if interested.
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.info(
             'Camera $deviceName advertised recommendation but profile already populated. '
             'SDK reported: unity_gain=${rec.unityGain}, default_offset=${rec.defaultOffset}. '
             'Notes: ${rec.notes}',
             source: 'DeviceService',
           ),
-          'auto-detect-recommended-settings',
         );
         return;
       }
@@ -91,12 +91,12 @@ extension _DeviceServiceControlHelpers on DeviceService {
       try {
         await notifier.saveProfile(updated);
       } catch (e) {
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.warning(
             'Failed to persist auto-detected camera settings to profile ${activeProfile.id}: $e',
             source: 'DeviceService',
           ),
-          'auto-detect-recommended-settings',
         );
         return;
       }
@@ -110,23 +110,23 @@ extension _DeviceServiceControlHelpers on DeviceService {
       if (newOffset != null) {
         logged.add('offset O=$newOffset');
       }
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.info(
           'Auto-applied recommended camera settings from $deviceName: '
           '${logged.join(", ")} (notes: ${rec.notes})',
           source: 'DeviceService',
         ),
-        'auto-detect-recommended-settings',
       );
     } catch (e) {
       // Belt-and-braces: any unexpected error here must not break the
       // connect flow.
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Unexpected error in auto-detect recommended settings for $deviceId: $e',
           source: 'DeviceService',
         ),
-        'auto-detect-recommended-settings',
       );
     }
   }
@@ -299,12 +299,12 @@ extension _DeviceServiceControlHelpers on DeviceService {
       filterWheelNotifier.setMoving(stillMoving);
       return stillMoving;
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'Filter wheel moving-state recovery failed for $deviceId: $e',
           source: 'DeviceService',
         ),
-        'filter-wheel-recover-moving',
       );
       return false;
     }

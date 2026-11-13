@@ -1,4 +1,3 @@
-
 import '../../database/database.dart' as db;
 import '../../backend/remote_host.dart';
 
@@ -23,7 +22,8 @@ class SchedulerQueueService {
   /// Null on the host (FfiBackend) and in tests.
   final HostPlanningData? _remote;
 
-  SchedulerQueueService(this._db, {HostPlanningData? remote}) : _remote = remote;
+  SchedulerQueueService(this._db, {HostPlanningData? remote})
+    : _remote = remote;
 
   /// Take [targetId] out of the scheduler queue.
   ///

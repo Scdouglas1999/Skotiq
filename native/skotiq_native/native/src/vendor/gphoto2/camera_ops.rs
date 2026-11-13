@@ -17,11 +17,11 @@ async fn finished_capture(
 #[async_trait]
 impl DeviceDriver for GPhoto2Camera {
     fn id(&self) -> &str {
-        &self.device_id
+        &self.core.device_id
     }
 
     fn name(&self) -> &str {
-        &self.model_name
+        &self.core.name
     }
 
     fn vendor(&self) -> Vendor {
@@ -33,13 +33,13 @@ impl DeviceDriver for GPhoto2Camera {
     }
 
     fn is_connected(&self) -> bool {
-        self.connected
+        self.core.connected
     }
 
     async fn connect(&mut self) -> Result<(), DriverError> {
         tracing::info!(
             "Connecting to gPhoto2 camera: {} on {}",
-            self.model_name,
+            self.core.name,
             self.port_path
         );
 
@@ -47,22 +47,23 @@ impl DeviceDriver for GPhoto2Camera {
             tracing::error!("Cannot connect to DSLR camera: libgphoto2 not loaded");
         })?;
         let sdk = sdk.lock().await;
+        self.core.begin_connection();
         self.open(&sdk)?;
 
-        self.connected = true;
+        self.core.connected = true;
         tracing::info!(
             "Successfully connected to gPhoto2 camera: {} on {} ({}x{}, {} um)",
-            self.model_name,
+            self.core.name,
             self.port_path,
-            self.sensor_width,
-            self.sensor_height,
-            self.pixel_size
+            self.core.sensor_info.width,
+            self.core.sensor_info.height,
+            self.core.sensor_info.pixel_size_x
         );
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
+        if !self.core.connected {
             return Ok(());
         }
         let exposure = std::mem::take(&mut self.exposure);
@@ -80,8 +81,8 @@ impl DeviceDriver for GPhoto2Camera {
             }
             self.close(&sdk);
         }
-        self.connected = false;
-        tracing::info!("Disconnected from gPhoto2 camera: {}", self.model_name);
+        self.core.connected = false;
+        tracing::info!("Disconnected from gPhoto2 camera: {}", self.core.name);
         Ok(())
     }
 }
@@ -89,24 +90,11 @@ impl DeviceDriver for GPhoto2Camera {
 #[async_trait]
 impl CameraDriver for GPhoto2Camera {
     fn capabilities(&self) -> CameraCapabilities {
-        CameraCapabilities {
-            can_cool: false,                           // DSLRs don't have coolers
-            can_set_gain: !self.iso_speeds.is_empty(), // ISO, as the gain number
-            can_set_offset: false,                     // DSLRs don't have offset control
-            can_set_binning: false,                    // DSLRs don't support binning
-            can_subframe: false,                       // DSLRs capture full frame only
-            has_shutter: true,                         // DSLRs have mechanical shutters
-            has_guider_port: false,                    // DSLRs don't have ST-4 ports
-            max_bin_x: 1,
-            max_bin_y: 1,
-            supports_readout_modes: false,
-        }
+        self.core.capabilities.clone()
     }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let (state, exposure_remaining) = match &self.exposure {
             ExposureState::Idle => {
@@ -133,22 +121,20 @@ impl CameraDriver for GPhoto2Camera {
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
-            gain: self.current_iso,
-            offset: 0,
-            bin_x: 1,
-            bin_y: 1,
+            gain: self.core.gain,
+            offset: self.core.offset,
+            bin_x: self.core.bin_x,
+            bin_y: self.core.bin_y,
             exposure_remaining,
         })
     }
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
         if !matches!(self.exposure, ExposureState::Idle) {
             return Err(DriverError::SdkError(format!(
                 "gPhoto2: {} is still taking the last exposure",
-                self.model_name
+                self.core.name
             )));
         }
 
@@ -164,7 +150,7 @@ impl CameraDriver for GPhoto2Camera {
 
         let requested = params.duration_secs;
         match plan_exposure(
-            &self.model_name,
+            &self.core.name,
             &self.shutter,
             self.bulb_widget.is_some(),
             requested,
@@ -187,9 +173,7 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
         // A timed speed cannot be cut short; its frame is discarded when the
         // camera has written it (as the INDI driver does,
         // gphoto_driver.cpp:817-819, 1011-1018).
@@ -221,9 +205,7 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         Ok(match &self.exposure {
             ExposureState::Idle => true,
@@ -235,9 +217,7 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let (sdk, files, made) = match std::mem::take(&mut self.exposure) {
             ExposureState::Idle => {
@@ -313,19 +293,15 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = GPhoto2Sdk::lock().await?;
         self.apply_iso(&sdk, gain)
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
-        Ok(self.current_iso)
+        self.core.require_connected()?;
+        Ok(self.core.gain)
     }
 
     async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
@@ -333,10 +309,8 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
-        Ok(0) // DSLRs don't have offset control
+        self.core.require_connected()?;
+        Ok(self.core.offset)
     }
 
     async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), DriverError> {
@@ -344,10 +318,8 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
-        Ok((1, 1))
+        self.core.require_connected()?;
+        Ok((self.core.bin_x, self.core.bin_y))
     }
 
     async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), DriverError> {
@@ -355,17 +327,7 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
-        SensorInfo {
-            width: self.sensor_width,
-            height: self.sensor_height,
-            pixel_size_x: self.pixel_size,
-            pixel_size_y: self.pixel_size,
-            max_adu: resolve_max_adu(self.measured_white_level, self.bit_depth),
-            bit_depth: self.bit_depth,
-            color: true,
-            bayer_pattern: self.color_filter,
-            saturation_adu: self.measured_saturation_level,
-        }
+        self.core.sensor_info.clone()
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
@@ -389,9 +351,9 @@ impl CameraDriver for GPhoto2Camera {
         let mut custom = std::collections::HashMap::new();
         custom.insert(
             "camera_model".to_string(),
-            serde_json::Value::String(self.model_name.clone()),
+            serde_json::Value::String(self.core.name.clone()),
         );
-        custom.insert("iso".to_string(), serde_json::json!(self.current_iso));
+        custom.insert("iso".to_string(), serde_json::json!(self.core.gain));
         custom.insert(
             "can_bulb".to_string(),
             serde_json::Value::Bool(self.bulb_widget.is_some()),
@@ -436,9 +398,7 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn capture_preview(&self) -> Result<Vec<u8>, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
         if !self.can_preview {
             return Err(DriverError::NotSupported);
         }
@@ -479,7 +439,7 @@ impl CameraDriver for GPhoto2Camera {
 
 impl Drop for GPhoto2Camera {
     fn drop(&mut self) {
-        if !self.connected {
+        if !self.core.connected {
             return;
         }
         // The capture thread still uses the camera: leave it to the process.
@@ -487,7 +447,7 @@ impl Drop for GPhoto2Camera {
             if !capture.is_finished() {
                 tracing::warn!(
                     "gPhoto2: {} dropped during a capture; its handle is not closed",
-                    self.model_name
+                    self.core.name
                 );
                 return;
             }

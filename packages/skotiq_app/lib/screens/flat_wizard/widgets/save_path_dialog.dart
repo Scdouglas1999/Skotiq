@@ -78,13 +78,11 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
         _pathController.text.isNotEmpty ? _pathController.text : null;
     setState(() => _isBrowsing = true);
     try {
-      final host = authority.remoteHost?.files;
       final result = await ref.read(hostFoldersProvider).pickUsable(
         context,
-        host: host,
-        title: host == null
-            ? 'Select flat-frame folder'
-            : 'Select host flat-frame folder',
+        title: ref.read(isRemoteModeProvider)
+            ? 'Select host flat-frame folder'
+            : 'Select flat-frame folder',
         initialPath: current,
       );
       if (!_isCurrentBrowse(generation, authority)) return;

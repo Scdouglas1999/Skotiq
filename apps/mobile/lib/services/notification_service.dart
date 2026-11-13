@@ -1,5 +1,4 @@
 import 'package:skotiq_astro/format.dart';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -10,6 +9,7 @@ import 'package:skotiq_app/utils/darkroom_navigation.dart'
 import 'package:skotiq_core/models.dart' show darkroomRouteForPayload;
 
 import 'mobile_preferences.dart';
+import 'package:skotiq_core/services.dart';
 
 part 'notification_service/contracts.dart';
 
@@ -306,11 +306,10 @@ class MobileNotificationService implements MobileNotificationSink {
       // A preferences outage must not prevent safety-critical notification
       // channels and OS permissions from initializing. Keep the fail-open
       // first-run notification default and make the storage problem visible.
-      developer.log(
+      Log.error(
         '[MobileNotificationService] Could not load the sequence '
         'notification preference; keeping notifications enabled: $error',
-        name: 'MobileNotificationService',
-        level: 1000,
+        source: 'MobileNotificationService',
         error: error,
         stackTrace: stackTrace,
       );
@@ -398,34 +397,31 @@ class MobileNotificationService implements MobileNotificationSink {
     if (android == null) {
       // Plugin not registered on Android — would only happen if the
       // package was installed wrong. Surface loudly.
-      developer.log(
+      Log.error(
         '[MobileNotificationService] AndroidFlutterLocalNotificationsPlugin '
         'unavailable; POST_NOTIFICATIONS cannot be requested.',
-        name: 'MobileNotificationService',
-        level: 1000,
+        source: 'MobileNotificationService',
       );
       _androidNotificationsAuthorized = false;
       return false;
     }
     final granted = await android.requestNotificationsPermission();
     if (granted == null) {
-      developer.log(
+      Log.error(
         '[MobileNotificationService] requestNotificationsPermission '
         'returned null — treating as denied.',
-        name: 'MobileNotificationService',
-        level: 1000,
+        source: 'MobileNotificationService',
       );
       _androidNotificationsAuthorized = false;
       return false;
     }
     _androidNotificationsAuthorized = granted;
     if (!granted) {
-      developer.log(
+      Log.warning(
         '[MobileNotificationService] POST_NOTIFICATIONS was denied by '
         'the user. Sequence/safety alerts will be silenced until the '
         'user enables notifications in system settings.',
-        name: 'MobileNotificationService',
-        level: 900,
+        source: 'MobileNotificationService',
       );
     }
     return granted;
@@ -584,11 +580,10 @@ class MobileNotificationService implements MobileNotificationSink {
     } catch (error, stackTrace) {
       // Do not latch the once-only guard on a platform-channel failure. A
       // subsequent rebuild/retry can still route the cold-start tap.
-      developer.log(
+      Log.error(
         '[MobileNotificationService] Could not inspect launch notification: '
         '$error',
-        name: 'MobileNotificationService',
-        level: 1000,
+        source: 'MobileNotificationService',
         error: error,
         stackTrace: stackTrace,
       );
@@ -607,10 +602,9 @@ class MobileNotificationService implements MobileNotificationSink {
     final route = routeForNotificationPayload(payload);
     if (route == null) {
       // Unknown payload shape — surfacing it loudly beats silent fallback.
-      developer.log(
+      Log.warning(
         '[MobileNotificationService] Notification payload has no route: $payload',
-        name: 'MobileNotificationService',
-        level: 900,
+        source: 'MobileNotificationService',
       );
       return NotificationTapOutcome.unknownPayload;
     }
@@ -619,10 +613,9 @@ class MobileNotificationService implements MobileNotificationSink {
     if (navigator == null) {
       // The app hasn't wired up the router yet (cold start path). Record
       // the route so we don't pretend the tap did something.
-      developer.log(
+      Log.warning(
         '[MobileNotificationService] No navigator installed; dropped tap to $route ($payload)',
-        name: 'MobileNotificationService',
-        level: 900,
+        source: 'MobileNotificationService',
       );
       return NotificationTapOutcome.noNavigator;
     }

@@ -204,7 +204,7 @@ class _EmptyPhotometry extends DawnPhotometryResolver {
 
   @override
   Future<DawnPhotometry> resolve(
-          {required DawnMaster master, required WcsOverlay? wcs}) async =>
+          {required DawnMaster master, required SolvedWcs? wcs}) async =>
       const DawnPhotometry.unavailable('no catalog stars in this test');
 }
 

@@ -1,20 +1,12 @@
-/// Unified tolerance configuration for dark-frame matching.
+/// The tolerances of the dark selection rule (`selectDark`), which the live
+/// calibration path, the Darkroom and the coverage check all share.
 ///
-/// This value class is the single source of truth that both
-/// `DarkLibraryCoverageService.evaluate` (which powers the "do I have darks"
-/// UI badges) and `DarkLibraryDao.findBestMatch` (which actually picks the
-/// dark to subtract at runtime) must consult. They MUST agree, otherwise the
-/// coverage UI can show "all darks present" while the calibration pipeline
-/// silently returns null — this audit bug.
-///
-/// Defaults are tuned for typical astrophotography cameras:
-///   * Exposure: ±0.5s catches the request-vs-reported drift seen on real
-///     cameras (60.0 vs 60.001 vs 59.999) without falling over to a frame
-///     captured at a deliberately different duration.
-///   * Temperature: ±1.0°C is the conventional pipeline default — wide
-///     enough for typical cooled-camera regulation jitter.
-///   * Gain / offset / binning: exact match. These are discrete settings
-///     selected by the user; "close enough" is never correct here.
+///   * Exposure: ±0.5 s absorbs the request-vs-reported drift of real cameras
+///     (60.0 vs 60.001) without accepting a deliberately different duration.
+///     A dark outside it needs exposure scaling.
+///   * Temperature: ±1.0 °C. Darks within it are preferred; with none, the
+///     nearest is used and the pick says so.
+///   * Gain, offset and binning are exact and have no tolerance.
 class DarkLibraryMatchTolerances {
   /// Maximum allowed difference between the requested light-frame exposure
   /// (seconds) and a candidate dark's exposure to still be considered a

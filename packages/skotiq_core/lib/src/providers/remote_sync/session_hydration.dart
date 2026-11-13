@@ -34,10 +34,9 @@ Future<void> hydrateRemoteSessionState(
     );
   } catch (e) {
     // An unreachable endpoint leaves the values the events already applied.
-    developer.log(
+    Log.warning(
       'Runtime state hydration failed: $e',
-      name: 'RemoteSessionSync',
-      level: 900,
+      source: 'RemoteSessionSync',
     );
   }
   if (container.backendScopeOver(backend).isStale) return;
@@ -102,7 +101,10 @@ final _rereadWithTheHost = <ProviderOrFamily>[
 
 /// Fill an empty event log with the host's recent events. Only into an empty
 /// history, so nothing is added twice.
-Future<void> seedEventLogFromHost(ProviderContainer container, SkotiqBackend backend) async {
+Future<void> seedEventLogFromHost(
+  ProviderContainer container,
+  SkotiqBackend backend,
+) async {
   if (container.read(eventHistoryProvider).isNotEmpty) return;
   final runState = backend.remoteHost?.runState;
   if (runState == null) return;
@@ -115,10 +117,6 @@ Future<void> seedEventLogFromHost(ProviderContainer container, SkotiqBackend bac
     container.read(eventHistoryProvider.notifier).seedEarlier(typed);
   } catch (e) {
     // The log then starts with the first live event, as before.
-    developer.log(
-      'Event log seeding failed: $e',
-      name: 'RemoteSessionSync',
-      level: 900,
-    );
+    Log.warning('Event log seeding failed: $e', source: 'RemoteSessionSync');
   }
 }
