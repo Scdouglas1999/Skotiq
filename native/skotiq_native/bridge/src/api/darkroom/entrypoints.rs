@@ -5,19 +5,18 @@ use serde_json::{json, Value};
 use skotiq_imaging::recipe::ops::crop::{crop_fit, CropRect};
 use skotiq_imaging::recipe::{Recipe, RenderOptions, RECIPE_SCHEMA_VERSION};
 
-use super::args::{
+use crate::api::darkroom::args::{
     report_json, DarkroomCancelArgs, DarkroomCancelResult, DarkroomContextArgs, DarkroomExportArgs,
     DarkroomRegistryArgs,
 };
-use super::export::run_export;
-use super::render::{
+use crate::api::darkroom::export::run_export;
+use crate::api::darkroom::render::{
     build_context, encode_preview, level_json, load_pyramid, parse_recipe, resolve_level,
     run_render, PreviewEncoding,
 };
-use super::schema::{draft_for_master, ops_json};
-use super::state::{
-    cancel_status, clear_cancel, registry, render_cache, request_cancel, RenderCancelToken,
-    BASE_CACHE_CAPACITY_BYTES, RENDER_CACHE_CAPACITY_BYTES,
+use crate::api::darkroom::schema::{draft_for_master, ops_json};
+use crate::api::darkroom::state::{
+    registry, render_cache, BASE_CACHE_CAPACITY_BYTES, RENDERS, RENDER_CACHE_CAPACITY_BYTES,
 };
 
 /// A rendered preview in the shape the viewer already takes.
@@ -119,7 +118,7 @@ pub fn api_darkroom_validate(recipe_json: String, context_json: String) -> Resul
     });
 
     if !context.master_path.trim().is_empty() {
-        let token = RenderCancelToken::register("")?;
+        let token = RENDERS.register("")?;
         let master = load_pyramid(&context.master_path, &token)?;
         let base = master.pyramid.base();
         reply["base"] = json!({
@@ -226,7 +225,7 @@ pub fn api_darkroom_render_preview(
     let encoding = PreviewEncoding::parse(&context.encoding)?;
     let recipe = parse_recipe(&recipe_json)?;
 
-    let token = RenderCancelToken::register(&context.render_id)?;
+    let token = RENDERS.register(&context.render_id)?;
     let master = load_pyramid(&context.master_path, &token)?;
     let level = resolve_level(&master.pyramid, context.level, context.max_dimension)?;
     let base = master
@@ -260,8 +259,8 @@ pub fn api_darkroom_render_preview(
         "recipeId": recipe.id,
         "baseMasterRef": recipe.base_master_ref,
         "masterPath": context.master_path,
-        "renderId": token.render_id(),
-        "cancellable": !token.render_id().is_empty(),
+        "renderId": token.id(),
+        "cancellable": !token.id().is_empty(),
         "stopAfter": context.stop_after,
         "catalogStars": catalog_stars,
         "level": level_json(&master.pyramid, level, &base),
@@ -366,7 +365,7 @@ pub fn api_darkroom_registry(args_json: String) -> Result<String, String> {
     }
 
     if !args.master_path.trim().is_empty() {
-        let token = RenderCancelToken::register("")?;
+        let token = RENDERS.register("")?;
         let master = load_pyramid(&args.master_path, &token)?;
         let base_master_ref = if args.base_master_ref.trim().is_empty() {
             args.master_path.clone()
@@ -411,9 +410,9 @@ pub fn api_darkroom_cancel(args_json: String) -> Result<String, String> {
         other => other,
     };
     let outcome = match op {
-        "cancel" => request_cancel(id)?,
-        "status" => cancel_status(id),
-        "clear" => clear_cancel(id)?,
+        "cancel" => RENDERS.request_cancel(id)?,
+        "status" => RENDERS.status(id),
+        "clear" => RENDERS.clear(id)?,
         other => {
             return Err(format!(
                 "unknown cancel op '{other}'; expected cancel/status/clear"

@@ -2,7 +2,7 @@
 //! member. What the members mean is decided in `device_manager::rig::ascom`.
 
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomFilterWheel;
 use std::time::Duration;

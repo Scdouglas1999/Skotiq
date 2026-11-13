@@ -1,17 +1,17 @@
 //! An ASCOM dome (`IDomeV3`) over COM. What a status read means is decided by
 //! `skotiq_device::ascom::dome`, the same as for an Alpaca dome.
 
-use super::sta_device::{driver_error, sta_accessory, StaDevice};
-use crate::device_capabilities::DomeCapabilities;
+use crate::ascom_wrapper::sta_device::{driver_error, sta_accessory, StaDevice};
+use crate::device_capabilities::types::DomeCapabilities;
 use crate::device_manager::accessory::{dome_capabilities, Dome};
 use crate::device_manager::handle::device_error;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::Timeouts;
 use async_trait::async_trait;
 use skotiq_ascom::AscomDome;
-use skotiq_device::ascom::dome::{self, DomeMembers};
-use skotiq_device::ascom::ShutterStatus;
+use skotiq_device::ascom::dome::DomeMembers;
+use skotiq_device::ascom::{dome, ShutterStatus};
 use skotiq_device::{DomeDriver, DomeState, DriverError};
 
 pub struct AscomDomeWrapper {

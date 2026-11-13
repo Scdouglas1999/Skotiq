@@ -4,10 +4,10 @@
 //! driver's `CoverCalibratorDriver::status` (for ASCOM over COM and Alpaca,
 //! `skotiq_device::ascom::cover_calibrator::state`).
 
-use crate::device::*;
+use crate::device::{CalibratorState, CoverCalibratorStatus, CoverState, DeviceType};
 use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 
 use crate::device_manager::ops::state_events::property;
 
@@ -194,6 +194,9 @@ impl DeviceManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::ConnectionState;
+    use crate::device::DeviceInfo;
+    use crate::device::DriverType;
     use crate::device_manager::handle::DeviceHandle;
     use crate::device_manager::ManagedDevice;
     use crate::state::AppState;
@@ -382,7 +385,7 @@ mod tests {
 
 /// The simulated flat panel, driven the way the app drives a real one.
 ///
-/// These go the long way round — `api_discover_devices` for the id,
+/// These go the long way round — `discover_devices` for the id,
 /// `connect_device` to open it, then `skotiq_sequencer::DeviceOps` for
 /// every operation — because that is the whole path the sequencer's
 /// `OpenCover` and `CalibratorOn` nodes take. Calling `sim_cover_move`
@@ -390,10 +393,10 @@ mod tests {
 /// connectable, or the `DriverType::Simulator` arm is gone.
 #[cfg(test)]
 mod simulator_tests {
-    use crate::api::devices::simulation::sim_singleton_test_lock;
-    use crate::api::discovery::api_discover_devices;
-    use crate::api::get_device_manager;
     use crate::device::{DeviceType, DriverType};
+    use crate::device_manager::get_device_manager;
+    use crate::discovery::discover_devices;
+    use crate::simulator::sim_singleton_test_lock;
     use skotiq_sequencer::DeviceOps;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
@@ -412,8 +415,8 @@ mod simulator_tests {
     /// Discover, register and connect the simulated panel, returning its id and
     /// the sequencer-facing ops handle the instruction nodes use.
     async fn connect_simulated_panel() -> (String, Arc<dyn DeviceOps>) {
-        crate::api::devices::simulation::reset_sim_cover_calibrator().await;
-        let devices = api_discover_devices(DeviceType::CoverCalibrator)
+        crate::simulator::cover_calibrator::reset_sim_cover_calibrator().await;
+        let devices = discover_devices(DeviceType::CoverCalibrator)
             .await
             .expect("cover calibrator discovery should succeed");
         let info = devices
@@ -554,13 +557,13 @@ mod simulator_tests {
     /// `wait_for_cover_state` is unreachable without hardware.
     #[tokio::test]
     async fn a_jammed_cover_is_reported_rather_than_silently_never_arriving() {
-        use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+        use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
 
         let _serialized = sim_singleton_test_lock().lock().await;
-        sim_faults::clear_all();
+        faults::clear_all();
         let (device_id, ops) = connect_simulated_panel().await;
 
-        sim_faults::arm(
+        faults::arm(
             "covercalibrator.cover",
             FaultSpec::new(Trigger::Always, Effect::Stall),
         );
@@ -579,7 +582,7 @@ mod simulator_tests {
             "the controller never gave up on the jammed lid: {path:?}"
         );
 
-        sim_faults::clear_all();
+        faults::clear_all();
         release_simulated_panel(&device_id).await;
     }
 

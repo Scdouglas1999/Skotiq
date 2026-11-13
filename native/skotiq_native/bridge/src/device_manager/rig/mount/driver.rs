@@ -7,12 +7,17 @@
 //! shapes the application uses.
 
 use super::Mount;
-use crate::device::*;
-use crate::device_capabilities::{DeviceCapabilities, MountCapabilities};
+use crate::device::{
+    mount_status_field, FieldAvailability, MountSite, MountSiteCapabilities, MountStatus,
+    MountTimeInfo,
+};
+use crate::device_capabilities::alpaca::alpaca_mount_capabilities;
+use crate::device_capabilities::indi::indi_capabilities;
+use crate::device_capabilities::types::{DeviceCapabilities, MountCapabilities};
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{RigDriver, Slot};
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{with_timeout, Timeouts};
 use async_trait::async_trait;
@@ -31,7 +36,6 @@ struct Protocol {
     name: &'static str,
     /// The protocol inside a sentence: "native", "Alpaca", "INDI".
     in_sentence: &'static str,
-    described_by: Description,
     no_alt_az_slew: Option<&'static str>,
     no_axis_move: Option<&'static str>,
     no_tracking_rate_read: Option<&'static str>,
@@ -42,18 +46,9 @@ struct Protocol {
     no_clock_write: Option<&'static str>,
 }
 
-enum Description {
-    /// From the driver's own answers.
-    Driver,
-    /// From the protocol's capability probe of the device id.
-    Alpaca,
-    Indi,
-}
-
 const VENDOR: Protocol = Protocol {
     name: "Native",
     in_sentence: "native",
-    described_by: Description::Driver,
     no_alt_az_slew: Some("Alt/Az slew is not supported for native serial mounts"),
     no_axis_move: Some("Native SDK does not support mount axis movement"),
     no_tracking_rate_read: None,
@@ -70,7 +65,6 @@ const NO_RATE_WRITE: &str = "Setting tracking rate is not supported by this driv
 const ALPACA: Protocol = Protocol {
     name: "Alpaca",
     in_sentence: "Alpaca",
-    described_by: Description::Alpaca,
     no_alt_az_slew: None,
     no_axis_move: None,
     no_tracking_rate_read: Some(NO_RATE_READ),
@@ -84,7 +78,6 @@ const ALPACA: Protocol = Protocol {
 const INDI: Protocol = Protocol {
     name: "INDI",
     in_sentence: "INDI",
-    described_by: Description::Indi,
     no_alt_az_slew: None,
     no_axis_move: None,
     no_tracking_rate_read: Some(NO_RATE_READ),
@@ -99,6 +92,18 @@ pub(crate) struct DriverMount {
     device_id: String,
     driver: Slot<Driver>,
     protocol: &'static Protocol,
+    description: Description,
+}
+
+/// Where a description of the mount comes from: the driver's own answers, or
+/// the protocol's capability read through the client the driver uses.
+enum Description {
+    Driver,
+    Alpaca(skotiq_alpaca::AlpacaMount),
+    Indi {
+        client: Arc<RwLock<skotiq_indi::IndiClient>>,
+        device_name: String,
+    },
 }
 
 impl DriverMount {
@@ -109,14 +114,17 @@ impl DriverMount {
             device_id: device_id.to_string(),
             driver: Slot::held(driver),
             protocol: &VENDOR,
+            description: Description::Driver,
         }
     }
 
     pub(crate) fn alpaca(device_id: &str, mount: skotiq_alpaca::AlpacaMount) -> Self {
+        let description = Description::Alpaca(mount.clone());
         Self {
             device_id: device_id.to_string(),
             driver: Slot::per_call(move || Box::new(mount.clone()) as Box<Driver>),
             protocol: &ALPACA,
+            description,
         }
     }
 
@@ -126,12 +134,17 @@ impl DriverMount {
         device_name: &str,
     ) -> Self {
         let device_name = device_name.to_string();
+        let description = Description::Indi {
+            client: client.clone(),
+            device_name: device_name.clone(),
+        };
         Self {
             device_id: device_id.to_string(),
             driver: Slot::per_call(move || {
                 Box::new(skotiq_indi::IndiMount::new(client.clone(), &device_name)) as Box<Driver>
             }),
             protocol: &INDI,
+            description,
         }
     }
 
@@ -176,20 +189,21 @@ impl RigDriver for DriverMount {
                 self.protocol.name, self.device_id
             )
         })?;
-        mount.heartbeat().await.map_err(|e| {
-            format!(
-                "{} mount liveness probe failed: {}",
-                self.protocol.name, e
-            )
-        })
+        mount
+            .heartbeat()
+            .await
+            .map_err(|e| format!("{} mount liveness probe failed: {}", self.protocol.name, e))
     }
 
     async fn identity(&self) -> Option<DeviceIdentity> {
-        if !matches!(self.protocol.described_by, Description::Driver) {
+        if !matches!(self.description, Description::Driver) {
             return None;
         }
         let mount = self.driver.read().await?;
-        Some(DeviceManager::identity_from_device(&self.device_id, &*mount))
+        Some(DeviceManager::identity_from_device(
+            &self.device_id,
+            &*mount,
+        ))
     }
 }
 
@@ -518,13 +532,16 @@ impl Mount for DriverMount {
     }
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        match self.protocol.described_by {
-            Description::Alpaca => {
-                return crate::device_capabilities::get_alpaca_capabilities(device_id).await
+        match &self.description {
+            Description::Alpaca(driver) => {
+                return Ok(DeviceCapabilities::Mount(
+                    alpaca_mount_capabilities(driver.telescope()).await,
+                ))
             }
-            Description::Indi => {
-                return crate::device_capabilities::get_indi_capabilities(device_id).await
-            }
+            Description::Indi {
+                client,
+                device_name,
+            } => return indi_capabilities(client, device_name, device_id).await,
             Description::Driver => {}
         }
         let mount = self.driver.read().await.ok_or_else(|| {

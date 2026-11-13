@@ -1,4 +1,5 @@
 use super::*;
+use crate::device::DriverType;
 
 fn info(id: &str, device_type: DeviceType) -> DeviceInfo {
     DeviceInfo {

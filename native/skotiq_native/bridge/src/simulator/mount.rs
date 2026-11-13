@@ -1,0 +1,464 @@
+use crate::device::{MountStatus, PierSide, TrackingRate};
+use crate::storage::ObserverLocation;
+use std::sync::{Arc, OnceLock};
+use tokio::sync::RwLock;
+
+pub(crate) static SIM_MOUNT: OnceLock<Arc<RwLock<SimulatedMount>>> = OnceLock::new();
+
+#[flutter_rust_bridge::frb]
+pub struct SimulatedMount {
+    pub status: MountStatus,
+}
+
+impl Default for SimulatedMount {
+    fn default() -> Self {
+        // Simulator pretends to be a fully-capable mount: every optional field
+        // is reported `Available` so UI rendering paths exercise the populated
+        // case during development without needing real hardware.
+        use crate::device::{mount_status_field as f, FieldAvailability};
+        let mut availability = std::collections::HashMap::new();
+        availability.insert(f::AT_HOME.to_string(), FieldAvailability::Available);
+        availability.insert(f::SIDE_OF_PIER.to_string(), FieldAvailability::Available);
+        availability.insert(f::ALTITUDE.to_string(), FieldAvailability::Available);
+        availability.insert(f::AZIMUTH.to_string(), FieldAvailability::Available);
+        availability.insert(f::SIDEREAL_TIME.to_string(), FieldAvailability::Available);
+        availability.insert(f::TRACKING_RATE.to_string(), FieldAvailability::Available);
+        Self {
+            status: MountStatus {
+                connected: false,
+                tracking: false,
+                slewing: false,
+                parked: true,
+                at_home: Some(false),
+                side_of_pier: Some(PierSide::Unknown),
+                right_ascension: 0.0,
+                declination: 0.0,
+                // The horizon frame is NOT a property of the mount: it needs
+                // an observing site and the current time. Every read goes
+                // through `gate::apply_derived_mount_telemetry`, which
+                // computes these when a site is configured and sets them to
+                // `None` when there is not — so a stored `Some(0.0)` here was
+                // only ever a stand-in that could leak out as a claim that the
+                // tube is on the horizon at sidereal time zero.
+                altitude: None,
+                azimuth: None,
+                sidereal_time: None,
+                tracking_rate: Some(TrackingRate::Sidereal),
+                can_park: true,
+                can_slew: true,
+                can_sync: true,
+                can_pulse_guide: true,
+                can_set_tracking_rate: true,
+                availability,
+            },
+        }
+    }
+}
+
+pub(crate) fn get_sim_mount() -> &'static Arc<RwLock<SimulatedMount>> {
+    SIM_MOUNT.get_or_init(|| Arc::new(RwLock::new(SimulatedMount::default())))
+}
+
+/// Simulated slew rate, degrees of arc per second.
+///
+/// Far brisker than real hardware (a good GEM manages 3-6 °/s) for the same
+/// reason the cooler ramp is: the motion has to COMPLETE inside a test or a
+/// sequence node's budget. It still consumes observable time, which is the
+/// point — a slew that snaps to the target never reports `slewing`, and every
+/// wait-for-motion path in the app then completes before the mount has moved.
+pub(crate) const SIM_SLEW_DEG_PER_SEC: f64 = 180.0;
+
+/// The simulated slew rate in degrees per second: [`SIM_SLEW_DEG_PER_SEC`]
+/// unless `SKOTIQ_SIM_SLEW_DEG_PER_SEC` names a positive rate. A live drive
+/// sets a hardware-like rate (3-6 °/s) to watch a slew take real time.
+pub(crate) fn sim_slew_deg_per_sec() -> f64 {
+    static RATE: OnceLock<f64> = OnceLock::new();
+    *RATE.get_or_init(|| {
+        std::env::var("SKOTIQ_SIM_SLEW_DEG_PER_SEC")
+            .ok()
+            .and_then(|raw| raw.trim().parse::<f64>().ok())
+            .filter(|rate| rate.is_finite() && *rate > 0.0)
+            .unwrap_or(SIM_SLEW_DEG_PER_SEC)
+    })
+}
+
+/// How long the simulated mount keeps reporting `slewing == false`, without
+/// moving, after it accepts a slew: zero unless `SKOTIQ_SIM_SLEW_START_LAG_MS`
+/// names a delay.
+///
+/// ASCOM drivers return from `SlewToCoordinatesAsync` before their `Slewing`
+/// property turns true. A caller that reads `Slewing` once right after the
+/// command sees an idle mount and must not take that as an arrival.
+pub(crate) fn sim_slew_start_lag_secs() -> f64 {
+    static LAG: OnceLock<f64> = OnceLock::new();
+    *LAG.get_or_init(|| {
+        std::env::var("SKOTIQ_SIM_SLEW_START_LAG_MS")
+            .ok()
+            .and_then(|raw| raw.trim().parse::<f64>().ok())
+            .filter(|ms| ms.is_finite() && *ms > 0.0)
+            .map_or(0.0, |ms| ms / 1000.0)
+    })
+}
+
+/// Floor on how long any commanded slew takes.
+///
+/// A meridian flip re-slews to the SAME coordinates, so a pure
+/// distance/rate model would make the largest mechanical motion a GEM
+/// performs finish instantly.
+pub(crate) const SIM_MIN_SLEW_SECS: f64 = 0.2;
+
+/// How long the simulated mount keeps reporting `slewing` AFTER its axes have
+/// reached the commanded coordinates.
+///
+/// Real drivers hold `Slewing` true through a mechanical settle: the axes
+/// arrive, the tube rings down, and only then does the driver report idle.
+/// Without a tail here `slewing` falls to false in the very same status read
+/// that first reports the target coordinates, making "arrived" and "stopped
+/// moving" one event that no caller can observe out of order. Every
+/// wait-for-motion path in the app — the sequencer's
+/// `wait_for_mount_idle_with_progress`, centering's
+/// `wait_for_centering_correction_slew` (and the
+/// `CenteringSlewTimeoutException` behind it), the polar-alignment poll and
+/// the post-flip guiding settle — is then satisfied on its first poll.
+///
+/// Sized in the same family as [`SIM_CALIBRATOR_SETTLE_SECS`]: long enough
+/// that a poller has to go round at least once more, short enough that it
+/// still fits inside a sequence node's budget.
+pub(crate) const SIM_SLEW_SETTLE_SECS: f64 = 0.6;
+
+/// Extra arc a slew covers when it also crosses the mount to the other side of
+/// the pier: the tube swings through roughly half a turn of the RA axis on top
+/// of whatever the coordinate change asks for.
+pub(crate) const SIM_FLIP_TRAVERSE_DEG: f64 = 180.0;
+
+/// An in-flight simulated slew.
+///
+/// Kept out of [`SimulatedMount`] because that struct is mirrored to Dart by
+/// flutter_rust_bridge and Dart has no use for the interpolation state.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SimSlew {
+    pub(crate) start: std::time::Instant,
+    pub(crate) duration_secs: f64,
+    /// Time after the command during which the mount has not started moving
+    /// and reports `slewing == false` (see [`sim_slew_start_lag_secs`]).
+    pub(crate) start_lag_secs: f64,
+    pub(crate) from: (f64, f64),
+    pub(crate) to: (f64, f64),
+    pub(crate) to_pier: PierSide,
+    /// Whether this motion is a FindHome. Only a home that runs to the end of
+    /// its settle reports `AtHome`; an abort part-way leaves it false, exactly
+    /// as a real driver does.
+    pub(crate) homing: bool,
+}
+
+pub(crate) static SIM_SLEW: OnceLock<Arc<RwLock<Option<SimSlew>>>> = OnceLock::new();
+
+pub(crate) fn sim_slew() -> &'static Arc<RwLock<Option<SimSlew>>> {
+    SIM_SLEW.get_or_init(|| Arc::new(RwLock::new(None)))
+}
+
+/// Great-circle separation between two equatorial positions, in degrees.
+pub(crate) fn angular_separation_deg(from: (f64, f64), to: (f64, f64)) -> f64 {
+    let (ra1, dec1) = ((from.0 * 15.0).to_radians(), from.1.to_radians());
+    let (ra2, dec2) = ((to.0 * 15.0).to_radians(), to.1.to_radians());
+    let cos_sep = dec1.sin() * dec2.sin() + dec1.cos() * dec2.cos() * (ra2 - ra1).cos();
+    cos_sep.clamp(-1.0, 1.0).acos().to_degrees()
+}
+
+/// How long a slew covering `separation_deg` takes, given whether it also
+/// crosses the pier.
+pub(crate) fn sim_slew_duration_secs(separation_deg: f64, crosses_pier: bool) -> f64 {
+    let arc = separation_deg
+        + if crosses_pier {
+            SIM_FLIP_TRAVERSE_DEG
+        } else {
+            0.0
+        };
+    (arc / sim_slew_deg_per_sec()).max(SIM_MIN_SLEW_SECS)
+}
+
+/// Interpolate right ascension the short way around the 24h wrap, so a slew
+/// from 23h to 1h travels two hours forward rather than 22 hours backward.
+pub(crate) fn interpolate_ra(from: f64, to: f64, fraction: f64) -> f64 {
+    let mut delta = (to - from).rem_euclid(24.0);
+    if delta > 12.0 {
+        delta -= 24.0;
+    }
+    (from + delta * fraction).rem_euclid(24.0)
+}
+
+/// The side of the pier a German equatorial ends up on after slewing to `ra`,
+/// given the local sidereal time at the moment the slew is commanded.
+///
+/// Pier side is MECHANICAL STATE, not a projection of where the mount is
+/// pointing: a GEM tracks straight through the meridian without flipping, so
+/// the side only changes when a slew puts it on the other one. Deriving it from
+/// the current pointing instead made it change with the clock while the mount
+/// stood still, and made a meridian flip — whose entire signature is "the side
+/// changed" — impossible to detect, because re-slewing to the same coordinates
+/// re-derived the same answer.
+pub(crate) fn pier_side_after_slew_to(ra_hours: f64, lst_hours: f64) -> PierSide {
+    match skotiq_sequencer::meridian::expected_pier_side(skotiq_sequencer::meridian::hour_angle(
+        ra_hours, lst_hours,
+    )) {
+        skotiq_sequencer::meridian::PierSide::East => PierSide::East,
+        skotiq_sequencer::meridian::PierSide::West => PierSide::West,
+        skotiq_sequencer::meridian::PierSide::Unknown => PierSide::Unknown,
+    }
+}
+
+/// Local sidereal time now for the configured site, if there is one.
+pub(crate) fn sim_local_sidereal_time(now: chrono::DateTime<chrono::Utc>) -> Option<f64> {
+    let longitude = crate::state::get_state()
+        .get_observer_location()
+        .ok()
+        .flatten()?
+        .longitude;
+    Some(skotiq_sequencer::meridian::local_sidereal_time(
+        skotiq_sequencer::meridian::julian_day(&now),
+        longitude,
+    ))
+}
+
+/// Give a mount that has never slewed the side its current pointing puts it
+/// on, once. A side already recorded is mechanical state and is never
+/// recomputed; without a site there is no hour angle, so it stays unknown.
+pub(crate) fn seed_unknown_pier_side(status: &mut MountStatus, lst_hours: Option<f64>) {
+    if !matches!(status.side_of_pier, None | Some(PierSide::Unknown)) {
+        return;
+    }
+    if let Some(lst) = lst_hours {
+        status.side_of_pier = Some(pier_side_after_slew_to(status.right_ascension, lst));
+    }
+}
+
+/// Start a simulated slew to `(ra, dec)`, deciding the pier side it will land
+/// on from the local sidereal time at `now`.
+///
+/// Without a configured site there is no hour angle and therefore no honest
+/// answer for the pier side, so the mount keeps the side it was already on.
+pub(crate) async fn begin_sim_slew(ra: f64, dec: f64, now: chrono::DateTime<chrono::Utc>) {
+    let (from, current_pier) = {
+        let mount = get_sim_mount().read().await;
+        (
+            (mount.status.right_ascension, mount.status.declination),
+            mount.status.side_of_pier.unwrap_or(PierSide::Unknown),
+        )
+    };
+    let to_pier = match sim_local_sidereal_time(now) {
+        Some(lst) => pier_side_after_slew_to(ra, lst),
+        None => current_pier,
+    };
+    let duration_secs = sim_slew_duration_secs(
+        angular_separation_deg(from, (ra, dec)),
+        to_pier != current_pier && current_pier != PierSide::Unknown,
+    );
+
+    crate::simulator::runaway::shift_physical_pointing(from, (ra, dec));
+    let start_lag_secs = sim_slew_start_lag_secs();
+    *sim_slew().write().await = Some(SimSlew {
+        start: std::time::Instant::now(),
+        duration_secs,
+        start_lag_secs,
+        from,
+        to: (ra, dec),
+        to_pier,
+        homing: false,
+    });
+    let mut mount = get_sim_mount().write().await;
+    mount.status.slewing = start_lag_secs <= 0.0;
+    mount.status.parked = false;
+    mount.status.at_home = Some(false);
+}
+
+/// Start a simulated FindHome: the same timed motion as a slew, onto the home
+/// position from [`sim_home_position`].
+///
+/// A German equatorial's home is a mechanical pose — counterweights down, tube
+/// on the pole — so it does not change sides of the pier on the way there; the
+/// mount keeps the side it is on. Tracking is switched off when the motion
+/// starts, which is the ASCOM convention (`FindHome` leaves `Tracking` false)
+/// and the only behavior that keeps a homed mount sitting at its home pose
+/// instead of drifting off it with the sky.
+///
+/// `AtHome` is cleared now and set by [`advance_sim_slew`] only once the
+/// motion has finished its settle.
+pub(crate) async fn begin_sim_home() {
+    // Homing moves the tube to the pose the mount will report.
+    crate::simulator::runaway::clear_physical_pointing();
+    let (from, current_pier) = {
+        let mount = get_sim_mount().read().await;
+        (
+            (mount.status.right_ascension, mount.status.declination),
+            mount.status.side_of_pier.unwrap_or(PierSide::Unknown),
+        )
+    };
+    let to = sim_home_position();
+    let duration_secs = sim_slew_duration_secs(angular_separation_deg(from, to), false);
+
+    *sim_slew().write().await = Some(SimSlew {
+        start: std::time::Instant::now(),
+        duration_secs,
+        start_lag_secs: 0.0,
+        from,
+        to,
+        to_pier: current_pier,
+        homing: true,
+    });
+    let mut mount = get_sim_mount().write().await;
+    mount.status.slewing = true;
+    mount.status.tracking = false;
+    mount.status.at_home = Some(false);
+}
+
+/// Advance an in-flight slew to now, updating the mount's pointing and, on
+/// arrival, its pier side.
+///
+/// Called from every simulated mount status read, which is what makes the
+/// motion observable to a caller polling `slewing`.
+pub(crate) async fn advance_sim_slew() {
+    let Some(slew) = *sim_slew().read().await else {
+        return;
+    };
+    let since_command_secs = slew.start.elapsed().as_secs_f64();
+    if since_command_secs < slew.start_lag_secs {
+        get_sim_mount().write().await.status.slewing = false;
+        return;
+    }
+    let elapsed_secs = since_command_secs - slew.start_lag_secs;
+    let fraction = if slew.duration_secs > 0.0 {
+        (elapsed_secs / slew.duration_secs).clamp(0.0, 1.0)
+    } else {
+        1.0
+    };
+
+    let mut mount = get_sim_mount().write().await;
+    if fraction >= 1.0 {
+        // The axes are on target and the pier side is committed from here on,
+        // but the driver does not report idle until the settle tail expires —
+        // see SIM_SLEW_SETTLE_SECS for why "arrived" and "stopped" must be two
+        // observable events rather than one.
+        mount.status.right_ascension = slew.to.0;
+        mount.status.declination = slew.to.1;
+        mount.status.side_of_pier = Some(slew.to_pier);
+        if elapsed_secs >= slew.duration_secs + SIM_SLEW_SETTLE_SECS {
+            mount.status.slewing = false;
+            if slew.homing {
+                mount.status.at_home = Some(true);
+            }
+            drop(mount);
+            *sim_slew().write().await = None;
+        } else {
+            mount.status.slewing = true;
+        }
+    } else {
+        mount.status.right_ascension = interpolate_ra(slew.from.0, slew.to.0, fraction);
+        mount.status.declination = slew.from.1 + (slew.to.1 - slew.from.1) * fraction;
+        mount.status.slewing = true;
+    }
+}
+
+/// Drop any in-flight slew, leaving the mount wherever it had reached.
+///
+/// Abort/stop/park all need this: without it the interpolation would carry the
+/// mount on to the target it was told to stop travelling to.
+pub(crate) async fn cancel_sim_slew() {
+    *sim_slew().write().await = None;
+}
+
+/// Whether a commanded slew — including its [`SIM_SLEW_SETTLE_SECS`] tail — is
+/// still in flight as of the last [`advance_sim_slew`].
+///
+/// Reads only: callers reach this through `gate::require_mount_connected`,
+/// which has already advanced the motion under the fault gate. Advancing again
+/// here would let a caller step a mount that `sim_faults` has deliberately
+/// stalled.
+pub(crate) async fn sim_slew_in_flight() -> bool {
+    sim_slew().read().await.is_some()
+}
+
+/// A park position stored by Set park.
+///
+/// A park position is a pose of the mount, fixed against the horizon, not a
+/// point on the sky. With a site configured it is kept as hour angle and
+/// declination, so parking later lands on the same pose rather than on the
+/// RA the sky has since carried away. Without a site there is no sidereal
+/// time to measure an hour angle from, and the coordinates are kept as they
+/// were read.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum SimParkPose {
+    HourAngle { hour_angle: f64, dec: f64 },
+    Equatorial { ra: f64, dec: f64 },
+}
+
+static SIM_SET_PARK: std::sync::Mutex<Option<SimParkPose>> = std::sync::Mutex::new(None);
+
+fn sim_site() -> Option<ObserverLocation> {
+    crate::state::get_state()
+        .get_observer_location()
+        .ok()
+        .flatten()
+}
+
+/// Store the simulated mount's current pointing as its park position.
+pub(crate) fn set_sim_park_position(ra: f64, dec: f64) {
+    let pose = match sim_local_sidereal_time(chrono::Utc::now()) {
+        Some(lst) => SimParkPose::HourAngle {
+            hour_angle: (lst - ra).rem_euclid(24.0),
+            dec,
+        },
+        None => SimParkPose::Equatorial { ra, dec },
+    };
+    if let Ok(mut stored) = SIM_SET_PARK.lock() {
+        *stored = Some(pose);
+    }
+}
+
+/// Forget a stored park position, back to the default pole pose.
+#[cfg(test)]
+pub(crate) fn clear_sim_park_position() {
+    if let Ok(mut stored) = SIM_SET_PARK.lock() {
+        *stored = None;
+    }
+}
+
+/// The celestial pole of the configured site's hemisphere, at RA 0.
+///
+/// A German equatorial with the counterweights down points at the pole, a
+/// fixed point in the horizon frame whatever the time.
+fn sim_pole_position() -> (f64, f64) {
+    let southern = sim_site().is_some_and(|site| site.latitude < 0.0);
+    (0.0, if southern { -90.0 } else { 90.0 })
+}
+
+/// The equatorial coordinates a parked simulated mount reports.
+///
+/// The position stored by Set park when there is one; otherwise the default
+/// park, counterweights down on the pole. Park moves RA/Dec there: leaving
+/// them at the previous target makes a parked mount report the altitude of
+/// whatever it was last imaging, still tracking the sky.
+pub(crate) fn sim_park_position() -> (f64, f64) {
+    let stored = SIM_SET_PARK.lock().ok().and_then(|stored| *stored);
+    match stored {
+        Some(SimParkPose::HourAngle { hour_angle, dec }) => {
+            match sim_local_sidereal_time(chrono::Utc::now()) {
+                Some(lst) => ((lst - hour_angle).rem_euclid(24.0), dec),
+                // The site was removed after the park was stored: the hour angle
+                // can no longer be placed on the sky, so park on the pole.
+                None => sim_pole_position(),
+            }
+        }
+        Some(SimParkPose::Equatorial { ra, dec }) => (ra, dec),
+        None => sim_pole_position(),
+    }
+}
+
+/// The equatorial coordinates the simulated mount's home position reports.
+///
+/// The simulated mount homes to the mechanical pose it parks in by default —
+/// counterweights down, tube on the celestial pole of the configured site's
+/// hemisphere. Set park does not move home. A homed mount is not parked and
+/// still accepts commands.
+pub(crate) fn sim_home_position() -> (f64, f64) {
+    sim_pole_position()
+}

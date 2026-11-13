@@ -1,4 +1,5 @@
-use super::*;
+use super::UnifiedDeviceOps;
+use skotiq_sequencer::SiteOps;
 
 impl SiteOps for UnifiedDeviceOps {
     fn get_observer_location(&self) -> Option<(f64, f64)> {

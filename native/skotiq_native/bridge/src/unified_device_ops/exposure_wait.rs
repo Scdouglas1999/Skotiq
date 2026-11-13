@@ -1,4 +1,11 @@
-use super::*;
+use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
+use crate::event::equipment::EventSeverity;
+use crate::event::imaging::ImagingEvent;
+use crate::state::SharedAppState;
+use skotiq_sequencer::{DeviceError, DeviceResult};
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock};
+use tokio::sync::Mutex;
 
 pub(crate) const EXPOSURE_COMPLETION_MARGIN: std::time::Duration =
     std::time::Duration::from_secs(60);
@@ -181,7 +188,7 @@ mod wait_tests {
             duration,
             exposure_completion_timeout(duration),
             exposure_abort_generation("wait-test-camera").await,
-            crate::api::get_state(),
+            crate::state::get_state(),
             || async move { Ok(started.elapsed().as_secs_f64() >= duration) },
         )
         .await
@@ -210,7 +217,7 @@ mod readout_tests {
             duration,
             exposure_completion_timeout(duration),
             exposure_abort_generation("readout-test-camera").await,
-            crate::api::get_state(),
+            crate::state::get_state(),
             || async move { Ok(started.elapsed().as_secs_f64() >= duration + readout) },
         )
         .await
@@ -227,6 +234,7 @@ mod readout_tests {
 #[cfg(test)]
 mod ownership_tests {
     use super::*;
+    use crate::unified_device_ops::create_unified_device_ops;
 
     #[tokio::test]
     async fn competing_consumer_cannot_claim_sensor_until_download_finishes() {

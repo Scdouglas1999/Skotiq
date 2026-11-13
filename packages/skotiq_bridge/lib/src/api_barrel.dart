@@ -3,7 +3,6 @@
 /// surface the package exports.
 library;
 
-export 'api.dart';
 export 'api/connection.dart';
 export 'api/darkroom/entrypoints.dart';
 export 'api/depthlock.dart';
@@ -15,12 +14,6 @@ export 'api/devices/filter_wheel.dart';
 export 'api/devices/focuser.dart';
 export 'api/devices/mount.dart';
 export 'api/devices/rotator.dart';
-export 'api/devices/simulation/camera.dart';
-export 'api/devices/simulation/environment.dart';
-export 'api/devices/simulation/filter_wheel.dart';
-export 'api/devices/simulation/focuser.dart';
-export 'api/devices/simulation/mount.dart';
-export 'api/devices/simulation/rotator.dart';
 export 'api/devices/switch.dart';
 export 'api/diagnostics.dart';
 export 'api/discovery.dart';

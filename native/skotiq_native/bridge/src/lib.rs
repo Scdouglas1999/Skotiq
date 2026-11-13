@@ -46,7 +46,7 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 // All public functions are exposed via flutter_rust_bridge.
 
 pub mod adaptive_polling;
-mod api;
+pub mod api;
 // the per-frame exposure-parameter apply logic (gain/offset/binning) is
 // platform-independent and lives here so it compiles and is regression-tested
 // on every platform; the Windows-only `ascom_wrapper` worker calls into it.
@@ -58,55 +58,33 @@ mod ascom_exposure_apply;
 mod ascom_wrapper;
 mod builtin_guider;
 mod depthlock_service;
-mod device;
-mod device_capabilities;
-mod device_id;
-mod device_manager;
+pub mod device;
+pub mod device_capabilities;
+pub mod device_id;
+pub mod device_manager;
+mod discovery;
 mod dispatch;
-mod error;
-mod event;
+pub mod error;
+pub mod event;
 mod filter_matching;
 mod frame_display;
 mod frame_header;
 mod guider;
 mod hotplug;
 mod last_frame;
-/// THE simulated-capture entry point: the one place a simulated frame is
-/// produced, shared by the sequencer download and the Imaging screen's manual
-/// capture so both see the same sky.
-mod sim_capture;
-/// Synthetic frame generation for the simulator camera (unit-tested against the
-/// real star detector; see the module docs for why that matters).
-mod sim_frame;
-/// `SKOTIQ_SIM_REPLAY`: answer simulated lights with recorded rig frames.
-mod sim_replay;
-/// Real-sky star source for the simulator camera, read out of the plate
-/// solver's own star database so a simulated frame can actually be solved.
-mod sim_sky;
-mod stacking_api;
-mod state;
-mod storage;
-mod timeout_ops;
-mod unified_device_ops;
+mod run_cancel;
+mod simulator;
+pub mod stacking_api;
+pub mod state;
+pub mod storage;
+pub mod timeout_ops;
+pub mod unified_device_ops;
 mod util;
 
 // `api` and `event` both carry `imaging` and `sequencer` submodules, so the
 // globs re-export those NAMES ambiguously. Nothing resolves them at the root.
-#[allow(ambiguous_glob_reexports)]
-pub use api::*;
-pub use device::*;
-pub use device_capabilities::*;
-pub use device_id::*;
-pub use device_manager::*;
-pub use error::*;
-#[allow(ambiguous_glob_reexports)]
-pub use event::*;
-pub use stacking_api::*;
-pub use state::*;
-pub use storage::*;
-pub use timeout_ops::*;
-pub use unified_device_ops::*;
 
+use crate::error::SkotiqError;
 use std::panic;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};

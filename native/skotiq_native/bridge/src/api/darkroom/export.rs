@@ -54,12 +54,14 @@ use skotiq_imaging::recipe::{
 };
 use skotiq_imaging::{write_jpeg, write_png, write_tiff, FitsHeader, ImageData, PixelType};
 
-use super::args::{empty_report_json, report_json, CancelledRender, DarkroomExportArgs};
-use super::render::{
+use crate::api::darkroom::args::{
+    empty_report_json, report_json, CancelledRender, DarkroomExportArgs,
+};
+use crate::api::darkroom::render::{
     build_context, level_json, load_pyramid, parse_recipe, quantise_unit, run_render,
     screen_transfer,
 };
-use super::state::{registry, RenderCancelToken};
+use crate::api::darkroom::state::{registry, RENDERS};
 
 /// Marker every recipe-payload `HISTORY` card starts with.
 const HISTORY_RECIPE_MARKER: &str = "SKRECIPE-B64";
@@ -169,7 +171,7 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
         return Err("outputs is empty; an export writes at least one file".to_string());
     }
 
-    let token = RenderCancelToken::register(&args.render_id)?;
+    let token = RENDERS.register(&args.render_id)?;
     let master = load_pyramid(&args.master_path, &token)?;
     let base = Arc::clone(master.pyramid.base());
     let (ctx, catalog_stars) = build_context(&recipe, &base, 0, &token, &args.catalog_stars)?;
@@ -214,7 +216,7 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
     };
 
     if token.is_cancelled() {
-        return Err(CancelledRender::err(token.render_id(), "write"));
+        return Err(CancelledRender::err(token.id(), "write"));
     }
 
     let stretched_domain = report
@@ -293,7 +295,7 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
     Ok(json!({
         "stage": stage.as_json(),
         "masterPath": args.master_path,
-        "renderId": token.render_id(),
+        "renderId": token.id(),
         "base": level_json(&master.pyramid, 0, &base),
         "report": report_value,
         "recipeFingerprint": fingerprint,

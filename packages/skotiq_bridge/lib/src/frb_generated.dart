@@ -3,7 +3,6 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api.dart';
 import 'api/connection.dart';
 import 'api/darkroom/entrypoints.dart';
 import 'api/depthlock.dart';
@@ -15,12 +14,6 @@ import 'api/devices/filter_wheel.dart';
 import 'api/devices/focuser.dart';
 import 'api/devices/mount.dart';
 import 'api/devices/rotator.dart';
-import 'api/devices/simulation/camera.dart';
-import 'api/devices/simulation/environment.dart';
-import 'api/devices/simulation/filter_wheel.dart';
-import 'api/devices/simulation/focuser.dart';
-import 'api/devices/simulation/mount.dart';
-import 'api/devices/simulation/rotator.dart';
 import 'api/devices/switch.dart';
 import 'api/diagnostics.dart';
 import 'api/difference_image.dart';
@@ -124,7 +117,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 99863083;
+  int get rustContentHash => 454717944;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -714,7 +707,7 @@ abstract class RustLibApi extends BaseApi {
     required String argsJson,
   });
 
-  Future<void> crateApiApiInvalidateDiscoveryCache();
+  Future<void> crateApiDiscoveryApiInvalidateDiscoveryCache();
 
   Future<bool> crateApiConnectionApiIsDeviceConnected({
     required DeviceType deviceType,
@@ -1318,29 +1311,6 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
     required int offset,
   });
-
-  Future<SimulatedCamera>
-  crateApiDevicesSimulationCameraSimulatedCameraDefault();
-
-  Future<SimulatedDome>
-  crateApiDevicesSimulationEnvironmentSimulatedDomeDefault();
-
-  Future<SimulatedFilterWheel>
-  crateApiDevicesSimulationFilterWheelSimulatedFilterWheelDefault();
-
-  Future<SimulatedFocuser>
-  crateApiDevicesSimulationFocuserSimulatedFocuserDefault();
-
-  Future<SimulatedMount> crateApiDevicesSimulationMountSimulatedMountDefault();
-
-  Future<SimulatedRotator>
-  crateApiDevicesSimulationRotatorSimulatedRotatorDefault();
-
-  Future<SimulatedSafetyMonitor>
-  crateApiDevicesSimulationEnvironmentSimulatedSafetyMonitorDefault();
-
-  Future<SimulatedWeather>
-  crateApiDevicesSimulationEnvironmentSimulatedWeatherDefault();
 
   Future<SolveHints> crateApiPlateSolveSolveHintsDefault();
 
@@ -5764,24 +5734,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiApiInvalidateDiscoveryCache() {
+  Future<void> crateApiDiscoveryApiInvalidateDiscoveryCache() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__api_invalidate_discovery_cache(port_);
+          return wire
+              .wire__crate__api__discovery__api_invalidate_discovery_cache(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiApiInvalidateDiscoveryCacheConstMeta,
+        constMeta: kCrateApiDiscoveryApiInvalidateDiscoveryCacheConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiApiInvalidateDiscoveryCacheConstMeta =>
+  TaskConstMeta get kCrateApiDiscoveryApiInvalidateDiscoveryCacheConstMeta =>
       const TaskConstMeta(
         debugName: "api_invalidate_discovery_cache",
         argNames: [],
@@ -10481,227 +10454,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SimulatedCamera>
-  crateApiDevicesSimulationCameraSimulatedCameraDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__camera__simulated_camera_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_camera,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationCameraSimulatedCameraDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationCameraSimulatedCameraDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_camera_default", argNames: []);
-
-  @override
-  Future<SimulatedDome>
-  crateApiDevicesSimulationEnvironmentSimulatedDomeDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__environment__simulated_dome_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_dome,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationEnvironmentSimulatedDomeDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationEnvironmentSimulatedDomeDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_dome_default", argNames: []);
-
-  @override
-  Future<SimulatedFilterWheel>
-  crateApiDevicesSimulationFilterWheelSimulatedFilterWheelDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_filter_wheel,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationFilterWheelSimulatedFilterWheelDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationFilterWheelSimulatedFilterWheelDefaultConstMeta =>
-      const TaskConstMeta(
-        debugName: "simulated_filter_wheel_default",
-        argNames: [],
-      );
-
-  @override
-  Future<SimulatedFocuser>
-  crateApiDevicesSimulationFocuserSimulatedFocuserDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__focuser__simulated_focuser_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_focuser,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationFocuserSimulatedFocuserDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationFocuserSimulatedFocuserDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_focuser_default", argNames: []);
-
-  @override
-  Future<SimulatedMount> crateApiDevicesSimulationMountSimulatedMountDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__mount__simulated_mount_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_mount,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationMountSimulatedMountDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationMountSimulatedMountDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_mount_default", argNames: []);
-
-  @override
-  Future<SimulatedRotator>
-  crateApiDevicesSimulationRotatorSimulatedRotatorDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__rotator__simulated_rotator_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_rotator,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationRotatorSimulatedRotatorDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationRotatorSimulatedRotatorDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_rotator_default", argNames: []);
-
-  @override
-  Future<SimulatedSafetyMonitor>
-  crateApiDevicesSimulationEnvironmentSimulatedSafetyMonitorDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_safety_monitor,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationEnvironmentSimulatedSafetyMonitorDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationEnvironmentSimulatedSafetyMonitorDefaultConstMeta =>
-      const TaskConstMeta(
-        debugName: "simulated_safety_monitor_default",
-        argNames: [],
-      );
-
-  @override
-  Future<SimulatedWeather>
-  crateApiDevicesSimulationEnvironmentSimulatedWeatherDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__environment__simulated_weather_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_weather,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationEnvironmentSimulatedWeatherDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationEnvironmentSimulatedWeatherDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_weather_default", argNames: []);
-
-  @override
   Future<SolveHints> crateApiPlateSolveSolveHintsDefault() {
     return handler.executeNormal(
       NormalTask(
@@ -12015,24 +11767,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 5:
         return EquipmentEvent_MountSlewStarted(
-          ra: dco_decode_f_64(raw[1]),
-          dec: dco_decode_f_64(raw[2]),
+          deviceId: dco_decode_String(raw[1]),
+          ra: dco_decode_f_64(raw[2]),
+          dec: dco_decode_f_64(raw[3]),
         );
       case 6:
         return EquipmentEvent_MountSlewCompleted(
-          ra: dco_decode_f_64(raw[1]),
-          dec: dco_decode_f_64(raw[2]),
+          deviceId: dco_decode_String(raw[1]),
+          ra: dco_decode_f_64(raw[2]),
+          dec: dco_decode_f_64(raw[3]),
         );
       case 7:
-        return EquipmentEvent_MountTrackingStarted();
+        return EquipmentEvent_MountTrackingStarted(
+          deviceId: dco_decode_String(raw[1]),
+        );
       case 8:
-        return EquipmentEvent_MountTrackingStopped();
+        return EquipmentEvent_MountTrackingStopped(
+          deviceId: dco_decode_String(raw[1]),
+        );
       case 9:
-        return EquipmentEvent_MountParkStarted();
+        return EquipmentEvent_MountParkStarted(
+          deviceId: dco_decode_String(raw[1]),
+        );
       case 10:
-        return EquipmentEvent_MountParkCompleted();
+        return EquipmentEvent_MountParkCompleted(
+          deviceId: dco_decode_String(raw[1]),
+        );
       case 11:
-        return EquipmentEvent_MountUnparked();
+        return EquipmentEvent_MountUnparked(
+          deviceId: dco_decode_String(raw[1]),
+        );
       case 12:
         return EquipmentEvent_FocuserMoveStarted(
           deviceId: dco_decode_String(raw[1]),
@@ -12044,10 +11808,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           position: dco_decode_i_32(raw[2]),
         );
       case 14:
-        return EquipmentEvent_FocuserTemperatureChanged(
-          temperature: dco_decode_f_64(raw[1]),
-        );
-      case 15:
         return EquipmentEvent_FilterChanging(
           deviceId: dco_decode_String(raw[1]),
           fromPosition: dco_decode_i_32(raw[2]),
@@ -12055,47 +11815,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           filterName: dco_decode_opt_String(raw[4]),
           fromFilterName: dco_decode_opt_String(raw[5]),
         );
-      case 16:
+      case 15:
         return EquipmentEvent_FilterChanged(
           deviceId: dco_decode_String(raw[1]),
           position: dco_decode_i_32(raw[2]),
           filterName: dco_decode_opt_String(raw[3]),
         );
-      case 17:
+      case 16:
         return EquipmentEvent_RotatorMoveStarted(
           deviceId: dco_decode_String(raw[1]),
           targetAngle: dco_decode_f_64(raw[2]),
         );
-      case 18:
+      case 17:
         return EquipmentEvent_RotatorMoveCompleted(
           deviceId: dco_decode_String(raw[1]),
           angle: dco_decode_f_64(raw[2]),
         );
-      case 19:
+      case 18:
         return EquipmentEvent_CameraCoolingStarted(
           deviceId: dco_decode_String(raw[1]),
           targetTemp: dco_decode_f_64(raw[2]),
         );
-      case 20:
+      case 19:
         return EquipmentEvent_CameraCoolingReached(
           deviceId: dco_decode_String(raw[1]),
           temperature: dco_decode_f_64(raw[2]),
         );
-      case 21:
+      case 20:
         return EquipmentEvent_CameraWarmingStarted(
           deviceId: dco_decode_String(raw[1]),
         );
-      case 22:
+      case 21:
         return EquipmentEvent_CameraWarmingCompleted(
           deviceId: dco_decode_String(raw[1]),
         );
-      case 23:
+      case 22:
         return EquipmentEvent_CameraTemperatureChanged(
           deviceId: dco_decode_String(raw[1]),
           temperature: dco_decode_f_64(raw[2]),
           coolerPower: dco_decode_opt_box_autoadd_f_64(raw[3]),
         );
-      case 24:
+      case 23:
         return EquipmentEvent_CameraSettingsChanged(
           deviceId: dco_decode_String(raw[1]),
           gain: dco_decode_i_32(raw[2]),
@@ -12104,18 +11864,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           binX: dco_decode_i_32(raw[5]),
           binY: dco_decode_i_32(raw[6]),
         );
-      case 25:
+      case 24:
         return EquipmentEvent_HeartbeatStarted(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
           intervalSecs: dco_decode_u_64(raw[3]),
         );
-      case 26:
+      case 25:
         return EquipmentEvent_HeartbeatStopped(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
         );
-      case 27:
+      case 26:
         return EquipmentEvent_HeartbeatStatusChanged(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
@@ -12123,20 +11883,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           consecutiveFailures: dco_decode_u_32(raw[4]),
           lastRttMs: dco_decode_opt_box_autoadd_u_64(raw[5]),
         );
-      case 28:
+      case 27:
         return EquipmentEvent_HeartbeatReconnecting(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
           attempt: dco_decode_u_32(raw[3]),
           maxAttempts: dco_decode_u_32(raw[4]),
         );
-      case 29:
+      case 28:
         return EquipmentEvent_HeartbeatReconnected(
           deviceType: dco_decode_String(raw[1]),
           deviceId: dco_decode_String(raw[2]),
           afterAttempts: dco_decode_u_32(raw[3]),
         );
-      case 30:
+      case 29:
         return EquipmentEvent_DeviceDiscovered(
           deviceClass: dco_decode_String(raw[1]),
           driver: dco_decode_String(raw[2]),
@@ -12145,7 +11905,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           displayName: dco_decode_String(raw[5]),
           uniqueId: dco_decode_opt_String(raw[6]),
         );
-      case 31:
+      case 30:
         return EquipmentEvent_DeviceLost(
           deviceClass: dco_decode_String(raw[1]),
           driver: dco_decode_String(raw[2]),
@@ -14103,81 +13863,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ShutterStatus dco_decode_shutter_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ShutterStatus.values[raw as int];
-  }
-
-  @protected
-  SimulatedCamera dco_decode_simulated_camera(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedCamera(status: dco_decode_camera_status(arr[0]));
-  }
-
-  @protected
-  SimulatedDome dco_decode_simulated_dome(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedDome(status: dco_decode_dome_status(arr[0]));
-  }
-
-  @protected
-  SimulatedFilterWheel dco_decode_simulated_filter_wheel(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedFilterWheel(status: dco_decode_filter_wheel_status(arr[0]));
-  }
-
-  @protected
-  SimulatedFocuser dco_decode_simulated_focuser(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedFocuser(status: dco_decode_focuser_status(arr[0]));
-  }
-
-  @protected
-  SimulatedMount dco_decode_simulated_mount(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedMount(status: dco_decode_mount_status(arr[0]));
-  }
-
-  @protected
-  SimulatedRotator dco_decode_simulated_rotator(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedRotator(status: dco_decode_rotator_status(arr[0]));
-  }
-
-  @protected
-  SimulatedSafetyMonitor dco_decode_simulated_safety_monitor(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedSafetyMonitor(status: dco_decode_safety_status(arr[0]));
-  }
-
-  @protected
-  SimulatedWeather dco_decode_simulated_weather(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SimulatedWeather(
-      connected: dco_decode_bool(arr[0]),
-      conditions: dco_decode_weather_conditions(arr[1]),
-    );
   }
 
   @protected
@@ -16241,23 +15926,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           message: var_message,
         );
       case 5:
+        var var_deviceId = sse_decode_String(deserializer);
         var var_ra = sse_decode_f_64(deserializer);
         var var_dec = sse_decode_f_64(deserializer);
-        return EquipmentEvent_MountSlewStarted(ra: var_ra, dec: var_dec);
+        return EquipmentEvent_MountSlewStarted(
+          deviceId: var_deviceId,
+          ra: var_ra,
+          dec: var_dec,
+        );
       case 6:
+        var var_deviceId = sse_decode_String(deserializer);
         var var_ra = sse_decode_f_64(deserializer);
         var var_dec = sse_decode_f_64(deserializer);
-        return EquipmentEvent_MountSlewCompleted(ra: var_ra, dec: var_dec);
+        return EquipmentEvent_MountSlewCompleted(
+          deviceId: var_deviceId,
+          ra: var_ra,
+          dec: var_dec,
+        );
       case 7:
-        return EquipmentEvent_MountTrackingStarted();
+        var var_deviceId = sse_decode_String(deserializer);
+        return EquipmentEvent_MountTrackingStarted(deviceId: var_deviceId);
       case 8:
-        return EquipmentEvent_MountTrackingStopped();
+        var var_deviceId = sse_decode_String(deserializer);
+        return EquipmentEvent_MountTrackingStopped(deviceId: var_deviceId);
       case 9:
-        return EquipmentEvent_MountParkStarted();
+        var var_deviceId = sse_decode_String(deserializer);
+        return EquipmentEvent_MountParkStarted(deviceId: var_deviceId);
       case 10:
-        return EquipmentEvent_MountParkCompleted();
+        var var_deviceId = sse_decode_String(deserializer);
+        return EquipmentEvent_MountParkCompleted(deviceId: var_deviceId);
       case 11:
-        return EquipmentEvent_MountUnparked();
+        var var_deviceId = sse_decode_String(deserializer);
+        return EquipmentEvent_MountUnparked(deviceId: var_deviceId);
       case 12:
         var var_deviceId = sse_decode_String(deserializer);
         var var_targetPosition = sse_decode_i_32(deserializer);
@@ -16273,11 +15973,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           position: var_position,
         );
       case 14:
-        var var_temperature = sse_decode_f_64(deserializer);
-        return EquipmentEvent_FocuserTemperatureChanged(
-          temperature: var_temperature,
-        );
-      case 15:
         var var_deviceId = sse_decode_String(deserializer);
         var var_fromPosition = sse_decode_i_32(deserializer);
         var var_toPosition = sse_decode_i_32(deserializer);
@@ -16290,7 +15985,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           filterName: var_filterName,
           fromFilterName: var_fromFilterName,
         );
-      case 16:
+      case 15:
         var var_deviceId = sse_decode_String(deserializer);
         var var_position = sse_decode_i_32(deserializer);
         var var_filterName = sse_decode_opt_String(deserializer);
@@ -16299,41 +15994,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           position: var_position,
           filterName: var_filterName,
         );
-      case 17:
+      case 16:
         var var_deviceId = sse_decode_String(deserializer);
         var var_targetAngle = sse_decode_f_64(deserializer);
         return EquipmentEvent_RotatorMoveStarted(
           deviceId: var_deviceId,
           targetAngle: var_targetAngle,
         );
-      case 18:
+      case 17:
         var var_deviceId = sse_decode_String(deserializer);
         var var_angle = sse_decode_f_64(deserializer);
         return EquipmentEvent_RotatorMoveCompleted(
           deviceId: var_deviceId,
           angle: var_angle,
         );
-      case 19:
+      case 18:
         var var_deviceId = sse_decode_String(deserializer);
         var var_targetTemp = sse_decode_f_64(deserializer);
         return EquipmentEvent_CameraCoolingStarted(
           deviceId: var_deviceId,
           targetTemp: var_targetTemp,
         );
-      case 20:
+      case 19:
         var var_deviceId = sse_decode_String(deserializer);
         var var_temperature = sse_decode_f_64(deserializer);
         return EquipmentEvent_CameraCoolingReached(
           deviceId: var_deviceId,
           temperature: var_temperature,
         );
-      case 21:
+      case 20:
         var var_deviceId = sse_decode_String(deserializer);
         return EquipmentEvent_CameraWarmingStarted(deviceId: var_deviceId);
-      case 22:
+      case 21:
         var var_deviceId = sse_decode_String(deserializer);
         return EquipmentEvent_CameraWarmingCompleted(deviceId: var_deviceId);
-      case 23:
+      case 22:
         var var_deviceId = sse_decode_String(deserializer);
         var var_temperature = sse_decode_f_64(deserializer);
         var var_coolerPower = sse_decode_opt_box_autoadd_f_64(deserializer);
@@ -16342,7 +16037,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           temperature: var_temperature,
           coolerPower: var_coolerPower,
         );
-      case 24:
+      case 23:
         var var_deviceId = sse_decode_String(deserializer);
         var var_gain = sse_decode_i_32(deserializer);
         var var_gainIsIso = sse_decode_bool(deserializer);
@@ -16357,7 +16052,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           binX: var_binX,
           binY: var_binY,
         );
-      case 25:
+      case 24:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         var var_intervalSecs = sse_decode_u_64(deserializer);
@@ -16366,14 +16061,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           deviceId: var_deviceId,
           intervalSecs: var_intervalSecs,
         );
-      case 26:
+      case 25:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         return EquipmentEvent_HeartbeatStopped(
           deviceType: var_deviceType,
           deviceId: var_deviceId,
         );
-      case 27:
+      case 26:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         var var_status = sse_decode_heartbeat_status(deserializer);
@@ -16386,7 +16081,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           consecutiveFailures: var_consecutiveFailures,
           lastRttMs: var_lastRttMs,
         );
-      case 28:
+      case 27:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         var var_attempt = sse_decode_u_32(deserializer);
@@ -16397,7 +16092,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           attempt: var_attempt,
           maxAttempts: var_maxAttempts,
         );
-      case 29:
+      case 28:
         var var_deviceType = sse_decode_String(deserializer);
         var var_deviceId = sse_decode_String(deserializer);
         var var_afterAttempts = sse_decode_u_32(deserializer);
@@ -16406,7 +16101,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           deviceId: var_deviceId,
           afterAttempts: var_afterAttempts,
         );
-      case 30:
+      case 29:
         var var_deviceClass = sse_decode_String(deserializer);
         var var_driver = sse_decode_String(deserializer);
         var var_id = sse_decode_String(deserializer);
@@ -16421,7 +16116,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           displayName: var_displayName,
           uniqueId: var_uniqueId,
         );
-      case 31:
+      case 30:
         var var_deviceClass = sse_decode_String(deserializer);
         var var_driver = sse_decode_String(deserializer);
         var var_id = sse_decode_String(deserializer);
@@ -19265,70 +18960,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SimulatedCamera sse_decode_simulated_camera(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_camera_status(deserializer);
-    return SimulatedCamera(status: var_status);
-  }
-
-  @protected
-  SimulatedDome sse_decode_simulated_dome(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_dome_status(deserializer);
-    return SimulatedDome(status: var_status);
-  }
-
-  @protected
-  SimulatedFilterWheel sse_decode_simulated_filter_wheel(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_filter_wheel_status(deserializer);
-    return SimulatedFilterWheel(status: var_status);
-  }
-
-  @protected
-  SimulatedFocuser sse_decode_simulated_focuser(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_focuser_status(deserializer);
-    return SimulatedFocuser(status: var_status);
-  }
-
-  @protected
-  SimulatedMount sse_decode_simulated_mount(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_mount_status(deserializer);
-    return SimulatedMount(status: var_status);
-  }
-
-  @protected
-  SimulatedRotator sse_decode_simulated_rotator(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_rotator_status(deserializer);
-    return SimulatedRotator(status: var_status);
-  }
-
-  @protected
-  SimulatedSafetyMonitor sse_decode_simulated_safety_monitor(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_safety_status(deserializer);
-    return SimulatedSafetyMonitor(status: var_status);
-  }
-
-  @protected
-  SimulatedWeather sse_decode_simulated_weather(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_connected = sse_decode_bool(deserializer);
-    var var_conditions = sse_decode_weather_conditions(deserializer);
-    return SimulatedWeather(
-      connected: var_connected,
-      conditions: var_conditions,
-    );
-  }
-
-  @protected
   SkotiqError sse_decode_skotiq_error(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -21370,24 +21001,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_String(message, serializer);
-      case EquipmentEvent_MountSlewStarted(ra: final ra, dec: final dec):
+      case EquipmentEvent_MountSlewStarted(
+        deviceId: final deviceId,
+        ra: final ra,
+        dec: final dec,
+      ):
         sse_encode_i_32(5, serializer);
+        sse_encode_String(deviceId, serializer);
         sse_encode_f_64(ra, serializer);
         sse_encode_f_64(dec, serializer);
-      case EquipmentEvent_MountSlewCompleted(ra: final ra, dec: final dec):
+      case EquipmentEvent_MountSlewCompleted(
+        deviceId: final deviceId,
+        ra: final ra,
+        dec: final dec,
+      ):
         sse_encode_i_32(6, serializer);
+        sse_encode_String(deviceId, serializer);
         sse_encode_f_64(ra, serializer);
         sse_encode_f_64(dec, serializer);
-      case EquipmentEvent_MountTrackingStarted():
+      case EquipmentEvent_MountTrackingStarted(deviceId: final deviceId):
         sse_encode_i_32(7, serializer);
-      case EquipmentEvent_MountTrackingStopped():
+        sse_encode_String(deviceId, serializer);
+      case EquipmentEvent_MountTrackingStopped(deviceId: final deviceId):
         sse_encode_i_32(8, serializer);
-      case EquipmentEvent_MountParkStarted():
+        sse_encode_String(deviceId, serializer);
+      case EquipmentEvent_MountParkStarted(deviceId: final deviceId):
         sse_encode_i_32(9, serializer);
-      case EquipmentEvent_MountParkCompleted():
+        sse_encode_String(deviceId, serializer);
+      case EquipmentEvent_MountParkCompleted(deviceId: final deviceId):
         sse_encode_i_32(10, serializer);
-      case EquipmentEvent_MountUnparked():
+        sse_encode_String(deviceId, serializer);
+      case EquipmentEvent_MountUnparked(deviceId: final deviceId):
         sse_encode_i_32(11, serializer);
+        sse_encode_String(deviceId, serializer);
       case EquipmentEvent_FocuserMoveStarted(
         deviceId: final deviceId,
         targetPosition: final targetPosition,
@@ -21402,11 +21048,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(13, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_i_32(position, serializer);
-      case EquipmentEvent_FocuserTemperatureChanged(
-        temperature: final temperature,
-      ):
-        sse_encode_i_32(14, serializer);
-        sse_encode_f_64(temperature, serializer);
       case EquipmentEvent_FilterChanging(
         deviceId: final deviceId,
         fromPosition: final fromPosition,
@@ -21414,7 +21055,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         filterName: final filterName,
         fromFilterName: final fromFilterName,
       ):
-        sse_encode_i_32(15, serializer);
+        sse_encode_i_32(14, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_i_32(fromPosition, serializer);
         sse_encode_i_32(toPosition, serializer);
@@ -21425,7 +21066,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         position: final position,
         filterName: final filterName,
       ):
-        sse_encode_i_32(16, serializer);
+        sse_encode_i_32(15, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_i_32(position, serializer);
         sse_encode_opt_String(filterName, serializer);
@@ -21433,42 +21074,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         deviceId: final deviceId,
         targetAngle: final targetAngle,
       ):
-        sse_encode_i_32(17, serializer);
+        sse_encode_i_32(16, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_f_64(targetAngle, serializer);
       case EquipmentEvent_RotatorMoveCompleted(
         deviceId: final deviceId,
         angle: final angle,
       ):
-        sse_encode_i_32(18, serializer);
+        sse_encode_i_32(17, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_f_64(angle, serializer);
       case EquipmentEvent_CameraCoolingStarted(
         deviceId: final deviceId,
         targetTemp: final targetTemp,
       ):
-        sse_encode_i_32(19, serializer);
+        sse_encode_i_32(18, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_f_64(targetTemp, serializer);
       case EquipmentEvent_CameraCoolingReached(
         deviceId: final deviceId,
         temperature: final temperature,
       ):
-        sse_encode_i_32(20, serializer);
+        sse_encode_i_32(19, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_f_64(temperature, serializer);
       case EquipmentEvent_CameraWarmingStarted(deviceId: final deviceId):
-        sse_encode_i_32(21, serializer);
+        sse_encode_i_32(20, serializer);
         sse_encode_String(deviceId, serializer);
       case EquipmentEvent_CameraWarmingCompleted(deviceId: final deviceId):
-        sse_encode_i_32(22, serializer);
+        sse_encode_i_32(21, serializer);
         sse_encode_String(deviceId, serializer);
       case EquipmentEvent_CameraTemperatureChanged(
         deviceId: final deviceId,
         temperature: final temperature,
         coolerPower: final coolerPower,
       ):
-        sse_encode_i_32(23, serializer);
+        sse_encode_i_32(22, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_f_64(temperature, serializer);
         sse_encode_opt_box_autoadd_f_64(coolerPower, serializer);
@@ -21480,7 +21121,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         binX: final binX,
         binY: final binY,
       ):
-        sse_encode_i_32(24, serializer);
+        sse_encode_i_32(23, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_i_32(gain, serializer);
         sse_encode_bool(gainIsIso, serializer);
@@ -21492,7 +21133,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         deviceId: final deviceId,
         intervalSecs: final intervalSecs,
       ):
-        sse_encode_i_32(25, serializer);
+        sse_encode_i_32(24, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_u_64(intervalSecs, serializer);
@@ -21500,7 +21141,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         deviceType: final deviceType,
         deviceId: final deviceId,
       ):
-        sse_encode_i_32(26, serializer);
+        sse_encode_i_32(25, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
       case EquipmentEvent_HeartbeatStatusChanged(
@@ -21510,7 +21151,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         consecutiveFailures: final consecutiveFailures,
         lastRttMs: final lastRttMs,
       ):
-        sse_encode_i_32(27, serializer);
+        sse_encode_i_32(26, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_heartbeat_status(status, serializer);
@@ -21522,7 +21163,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         attempt: final attempt,
         maxAttempts: final maxAttempts,
       ):
-        sse_encode_i_32(28, serializer);
+        sse_encode_i_32(27, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_u_32(attempt, serializer);
@@ -21532,7 +21173,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         deviceId: final deviceId,
         afterAttempts: final afterAttempts,
       ):
-        sse_encode_i_32(29, serializer);
+        sse_encode_i_32(28, serializer);
         sse_encode_String(deviceType, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_u_32(afterAttempts, serializer);
@@ -21544,7 +21185,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         displayName: final displayName,
         uniqueId: final uniqueId,
       ):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(29, serializer);
         sse_encode_String(deviceClass, serializer);
         sse_encode_String(driver, serializer);
         sse_encode_String(id, serializer);
@@ -21556,7 +21197,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         driver: final driver,
         id: final id,
       ):
-        sse_encode_i_32(31, serializer);
+        sse_encode_i_32(30, serializer);
         sse_encode_String(deviceClass, serializer);
         sse_encode_String(driver, serializer);
         sse_encode_String(id, serializer);
@@ -23911,76 +23552,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_shutter_status(ShutterStatus self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_camera(
-    SimulatedCamera self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_camera_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_dome(SimulatedDome self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_dome_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_filter_wheel(
-    SimulatedFilterWheel self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_filter_wheel_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_focuser(
-    SimulatedFocuser self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_focuser_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_mount(
-    SimulatedMount self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_mount_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_rotator(
-    SimulatedRotator self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_rotator_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_safety_monitor(
-    SimulatedSafetyMonitor self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_safety_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_weather(
-    SimulatedWeather self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_bool(self.connected, serializer);
-    sse_encode_weather_conditions(self.conditions, serializer);
   }
 
   @protected

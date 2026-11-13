@@ -1,7 +1,11 @@
 //! Darkroom build regressions: calibration, master flats, coverage,
 //! rejection and the cost of a build on full-size frames.
-use super::*;
-use std::path::PathBuf;
+use crate::api::post_session::entrypoints::{api_build_master_flat, api_master_accumulate};
+use crate::api::post_session::helpers::image_to_f64;
+use crate::api::post_session::masters::abandon_open_master;
+use crate::api::post_session::multi_night::NO_SUBS_KIND;
+use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData};
+use std::path::{Path, PathBuf};
 
 struct Lcg(u64);
 impl Lcg {

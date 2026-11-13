@@ -2,7 +2,8 @@
 //! reaches the caller as that kind of failure, not as a generic fault.
 
 use super::*;
-use crate::dispatch::DeviceOpError;
+use crate::device::DriverType;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -206,7 +207,10 @@ async fn a_reading_an_alpaca_mount_does_not_have_is_unsupported_not_an_error() {
         .expect("status");
     assert_eq!(status.at_home, None);
     assert_eq!(status.sidereal_time, None);
-    for field in [mount_status_field::AT_HOME, mount_status_field::SIDEREAL_TIME] {
+    for field in [
+        mount_status_field::AT_HOME,
+        mount_status_field::SIDEREAL_TIME,
+    ] {
         assert!(
             matches!(
                 status.availability.get(field),

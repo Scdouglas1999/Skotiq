@@ -8,9 +8,10 @@
 pub(crate) mod phd2;
 pub(crate) mod stop_reason;
 
-use crate::api::{get_device_manager, get_state};
 use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
 use crate::error::SkotiqError;
+use crate::state::get_state;
 
 /// What the guider is doing and how well it guides.
 #[derive(Debug, Clone)]
@@ -102,7 +103,7 @@ impl Guider {
         if phd2::is_device_id(device_id) {
             return Ok(Self::Phd2);
         }
-        if device_id == crate::builtin_guider::device_id() {
+        if device_id == crate::builtin_guider::control::device_id() {
             return Ok(Self::Builtin);
         }
         Err(SkotiqError::OperationFailed(format!(
@@ -114,7 +115,7 @@ impl Guider {
     pub(crate) fn device_id(self) -> &'static str {
         match self {
             Self::Phd2 => phd2::DEVICE_ID,
-            Self::Builtin => crate::builtin_guider::device_id(),
+            Self::Builtin => crate::builtin_guider::control::device_id(),
         }
     }
 
@@ -170,7 +171,7 @@ impl Guider {
         match self {
             Self::Phd2 => phd2::start_guiding(settle_pixels, settle_time, settle_timeout).await,
             Self::Builtin => {
-                crate::builtin_guider::start_guiding(settle_pixels, settle_time, settle_timeout)
+                crate::builtin_guider::control::start_guiding(settle_pixels, settle_time, settle_timeout)
                     .await?;
                 stop_reason::set(None);
                 Ok(())
@@ -184,7 +185,7 @@ impl Guider {
     pub(crate) async fn stop(self) -> Result<(), SkotiqError> {
         match self {
             Self::Phd2 => phd2::stop_guiding().await,
-            Self::Builtin => crate::builtin_guider::stop().await,
+            Self::Builtin => crate::builtin_guider::control::stop().await,
         }
     }
 
@@ -212,7 +213,7 @@ impl Guider {
                 phd2::dither(amount, ra_only, settle_pixels, settle_time, settle_timeout).await
             }
             Self::Builtin => {
-                crate::builtin_guider::dither(
+                crate::builtin_guider::dither::dither(
                     amount,
                     ra_only,
                     settle_pixels,
@@ -228,7 +229,7 @@ impl Guider {
     pub(crate) async fn loop_exposures(self) -> Result<(), SkotiqError> {
         match self {
             Self::Phd2 => phd2::loop_exposures().await,
-            Self::Builtin => crate::builtin_guider::loop_exposures().await,
+            Self::Builtin => crate::builtin_guider::control::loop_exposures().await,
         }
     }
 
@@ -236,7 +237,7 @@ impl Guider {
     pub(crate) async fn set_paused(self, paused: bool) -> Result<(), SkotiqError> {
         match self {
             Self::Phd2 => phd2::set_paused(paused).await,
-            Self::Builtin => crate::builtin_guider::set_paused(paused).await,
+            Self::Builtin => crate::builtin_guider::control::set_paused(paused).await,
         }
     }
 
@@ -248,7 +249,7 @@ impl Guider {
         );
         let result = match self {
             Self::Phd2 => phd2::find_star().await,
-            Self::Builtin => crate::builtin_guider::find_star().await,
+            Self::Builtin => crate::builtin_guider::control::find_star().await,
         };
         match &result {
             Ok((x, y)) => tracing::info!("Auto Select: locked guide star at ({x:.1}, {y:.1}) px"),
@@ -282,35 +283,35 @@ impl Guider {
     ) -> Result<(), SkotiqError> {
         match self {
             Self::Phd2 => phd2::set_lock_position(x, y, exact).await,
-            Self::Builtin => crate::builtin_guider::set_lock_position(x, y).await,
+            Self::Builtin => crate::builtin_guider::control::set_lock_position(x, y).await,
         }
     }
 
     pub(crate) async fn lock_position(self) -> Result<(f64, f64), SkotiqError> {
         match self {
             Self::Phd2 => phd2::lock_position().await,
-            Self::Builtin => crate::builtin_guider::get_lock_position().await,
+            Self::Builtin => crate::builtin_guider::control::get_lock_position().await,
         }
     }
 
     pub(crate) async fn deselect_star(self) -> Result<(), SkotiqError> {
         match self {
             Self::Phd2 => phd2::deselect_star().await,
-            Self::Builtin => crate::builtin_guider::deselect_star().await,
+            Self::Builtin => crate::builtin_guider::control::deselect_star().await,
         }
     }
 
     pub(crate) async fn star_image(self, size: u32) -> Result<GuideStarImage, SkotiqError> {
         match self {
             Self::Phd2 => phd2::star_image(size).await,
-            Self::Builtin => crate::builtin_guider::get_star_image(size).await,
+            Self::Builtin => crate::builtin_guider::control::get_star_image(size).await,
         }
     }
 
     pub(crate) async fn status(self) -> Result<GuiderStatus, SkotiqError> {
         let mut status = match self {
             Self::Phd2 => phd2::status().await?,
-            Self::Builtin => crate::builtin_guider::get_status().await,
+            Self::Builtin => crate::builtin_guider::control::get_status().await,
         };
         status.stop_reason = stop_reason::reported(&status.state);
         Ok(status)
@@ -319,7 +320,7 @@ impl Guider {
     pub(crate) async fn calibration(self) -> Result<GuiderCalibration, SkotiqError> {
         match self {
             Self::Phd2 => phd2::calibration().await,
-            Self::Builtin => Ok(crate::builtin_guider::get_calibration_data().await),
+            Self::Builtin => Ok(crate::builtin_guider::control::get_calibration_data().await),
         }
     }
 }
@@ -342,6 +343,7 @@ pub(crate) static TEST_SLOT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_
 
 #[cfg(test)]
 mod tests {
+    
     use super::*;
 
     fn backend_name(device_id: &str) -> Result<&'static str, String> {
@@ -368,7 +370,7 @@ mod tests {
     #[test]
     fn the_builtin_guider_id_names_the_builtin_guider() {
         assert_eq!(
-            backend_name(crate::builtin_guider::device_id()),
+            backend_name(crate::builtin_guider::control::device_id()),
             Ok("built-in")
         );
     }
@@ -395,7 +397,7 @@ mod tests {
 
     #[test]
     fn the_active_guider_is_the_profiles_when_connected_else_the_connected_one() {
-        let builtin = crate::builtin_guider::device_id();
+        let builtin = crate::builtin_guider::control::device_id();
         let connected = |ids: &[&str]| ids.iter().map(|id| id.to_string()).collect::<Vec<_>>();
 
         let both = connected(&[builtin, phd2::DEVICE_ID]);

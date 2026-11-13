@@ -1,4 +1,8 @@
 use super::*;
+use crate::device_id::cache::{
+    clear_device_id_cache, get_device_id_cache_stats, invalidate_device_id_cache,
+    parse_device_id_cached, reset_device_id_cache_metrics,
+};
 
 #[test]
 fn test_parse_ascom() {

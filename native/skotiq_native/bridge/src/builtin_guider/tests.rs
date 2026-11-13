@@ -1,4 +1,40 @@
-use super::*;
+use crate::builtin_guider::calibration::{
+    build_calibration, estimate_dec_backlash_ms, matched_displacements,
+};
+use crate::builtin_guider::config::{
+    GuiderConfig, Vec2, BUILTIN_GUIDER_ID, GUIDE_MAX_MATCH_DISTANCE_PX, GUIDE_MAX_TRACKED_STARS,
+};
+use crate::builtin_guider::control::{
+    begin_loop, calibration_data, connect, disconnect, finish_failed_guiding, set_paused,
+    start_guiding, start_synthetic_loop, stop, stop_locked,
+};
+use crate::builtin_guider::dither::{
+    abandon_dither, dither, dither_offset, dither_target_within_jump, DITHER_MATCH_GRACE_FRAMES,
+    DITHER_MAX_JUMP_PX, DITHER_PATTERN_POINTS,
+};
+use crate::builtin_guider::loop_runner::{
+    choose_guide_camera, guide_focal_length_mm, next_guiding_frame, pick_guide_camera,
+    publish_star_measurement, retry_guide_frame, GuideFrameAttempt, GUIDE_FRAME_RETRIES,
+    NO_GUIDE_CAMERA,
+};
+use crate::builtin_guider::metrics::{
+    apply_settle_state, axis_rms, compute_pulse_durations, crop_raw_u16_image, measure_offset,
+    nearest_star, push_arcsec_sample, record_per_star_residuals, select_reference_stars,
+    settle_timeout_message, PulseDebt,
+};
+use crate::builtin_guider::state::{
+    build_tracked_stars, guide_offset_arcsec, guide_pixel_scale_arcsec, op_lock, state,
+    BuiltinGuiderState, DecDirection, GuideCalibration, GuideReferenceStar, GuideSnapshot,
+    SettleSpec, RMS_HISTORY_LEN,
+};
+use crate::device::DeviceType;
+use crate::error::SkotiqError;
+use crate::event::guiding::GuidingEvent;
+use crate::state::get_state;
+use skotiq_imaging::{DetectedStar, ImageData};
+use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
+use tokio::sync::{Mutex, RwLock};
 
 fn star(x: f64, y: f64, flux: f64) -> DetectedStar {
     DetectedStar {
@@ -1095,7 +1131,7 @@ async fn a_looping_frame_announces_its_star_measurement() {
             .await
             .expect("no guiding event published for a looping frame")
             .expect("event bus closed");
-        if let crate::event::EventPayload::Guiding(crate::event::GuidingEvent::GuideStats {
+        if let crate::event::bus::EventPayload::Guiding(crate::event::guiding::GuidingEvent::GuideStats {
             snr,
             star_mass,
         }) = event.payload
@@ -1494,18 +1530,18 @@ fn the_guide_scale_uses_the_guide_scope_focal_length() {
 /// imaging camera takes no exposure at all.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera() {
-    use crate::api::devices::simulation::{
-        get_sim_camera, get_sim_camera_for, sim_singleton_test_lock, SIM_GUIDE_CAMERA_ID,
-        SIM_IMAGING_CAMERA_ID,
+    use crate::simulator::camera::{
+        get_sim_camera, get_sim_camera_for, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
     };
+    use crate::simulator::sim_singleton_test_lock;
     use crate::device::{DeviceInfo, DriverType};
     let _serial = test_serial().lock().await;
     let _sims = sim_singleton_test_lock().lock().await;
     reset_guider_state().await;
-    crate::device_manager::ops::sim_faults::clear_all();
-    crate::api::devices::simulation::reset_sim_guide_offset().await;
+    crate::simulator::faults::clear_all();
+    crate::simulator::guiding::reset_sim_guide_offset().await;
 
-    let manager = crate::api::get_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     for (id, device_type) in [
         (SIM_IMAGING_CAMERA_ID, DeviceType::Camera),
         (SIM_GUIDE_CAMERA_ID, DeviceType::Camera),

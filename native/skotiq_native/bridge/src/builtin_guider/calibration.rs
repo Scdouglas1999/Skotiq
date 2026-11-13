@@ -1,4 +1,18 @@
-use super::*;
+use crate::builtin_guider::config::{Vec2, GUIDE_MAX_MATCH_DISTANCE_PX};
+use crate::builtin_guider::loop_runner::{capture_guide_frame_with_retries, resolve_devices};
+use crate::builtin_guider::metrics::{
+    choose_lock_star, guide_reference_weight, measure_offset, nearest_star, select_reference_stars,
+    update_snapshot_from_frame,
+};
+use crate::builtin_guider::state::{
+    state, BuiltinGuiderState, GuideCalibration, GuideFrame, GuideReferenceStar,
+};
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
+use skotiq_imaging::DetectedStar;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
 
 pub(crate) async fn calibrate_mount_response(
     controller: Arc<RwLock<BuiltinGuiderState>>,

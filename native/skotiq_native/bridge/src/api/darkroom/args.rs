@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 
 use skotiq_imaging::recipe::{RenderReport, StepOutcome};
 
-use crate::api::post_session::CANCELLED_KIND;
+use crate::api::post_session::cancel::CANCELLED_KIND;
 
 /// One catalogue star supplied by the caller, in degrees.
 ///

@@ -17,7 +17,10 @@
 //!   cargo test -p skotiq_bridge --release -- --ignored --nocapture normfix
 //! ```
 
-use super::*;
+use crate::api::post_session::entrypoints::{api_integrate_session, api_master_accumulate};
+use crate::api::post_session::helpers::image_to_f64;
+use skotiq_imaging::registration::{RegistrationConfig, TransformKind};
+use skotiq_imaging::{read_frame, ImageData};
 
 /// Stack every requested filter's lights through the production entry point.
 #[test]

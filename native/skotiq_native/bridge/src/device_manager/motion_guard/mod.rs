@@ -190,7 +190,7 @@ pub(crate) fn run_is_active() -> bool {
 
 /// Declination of the home pose for the configured site.
 fn home_dec_deg() -> f64 {
-    let southern = crate::api::get_state()
+    let southern = crate::state::get_state()
         .get_observer_location()
         .ok()
         .flatten()
@@ -357,7 +357,7 @@ pub(crate) async fn check_sync(
 /// Mount ids the sampler should read: every connected mount plus every mount
 /// the guard already knows (a disconnected one counts as silent).
 async fn mounts_to_sample() -> Vec<(String, bool)> {
-    let manager = crate::api::get_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     let connected: Vec<String> = manager
         .get_connected_device_infos()
         .await
@@ -420,7 +420,7 @@ async fn sampler_round() {
             // hangs is the mount not answering.
             let read = tokio::time::timeout(
                 Duration::from_secs(5),
-                crate::api::get_device_manager().mount_get_status(&device_id),
+                crate::device_manager::get_device_manager().mount_get_status(&device_id),
             )
             .await;
             if read.is_err() {

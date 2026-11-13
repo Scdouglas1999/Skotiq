@@ -1,4 +1,7 @@
-use super::*;
+use super::UnifiedDeviceOps;
+use crate::device_manager::get_device_manager;
+use async_trait::async_trait;
+use skotiq_sequencer::{ConnectionOps, DeviceResult};
 
 #[async_trait]
 impl ConnectionOps for UnifiedDeviceOps {

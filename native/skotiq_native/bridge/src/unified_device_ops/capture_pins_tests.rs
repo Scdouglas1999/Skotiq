@@ -8,13 +8,14 @@
 //! driver that hands back exactly those samples.
 
 use super::*;
-use crate::api::get_device_manager;
 use crate::device::{DeviceInfo, DriverType};
+use crate::device_manager::get_device_manager;
 use skotiq_device::{
     BayerPattern, CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver,
     DriverError, ExposureParams, ImageData as DeviceImageData, ImageMetadata, ReadoutMode,
     SensorInfo, SubFrame, Vendor, VendorFeatures,
 };
+use skotiq_sequencer::ImageData;
 
 #[derive(Debug)]
 struct FixedFrameCamera {
@@ -250,7 +251,7 @@ async fn disconnect_fixed_camera(device_id: &str) {
     let mgr = get_device_manager();
     mgr.unregister_device(device_id).await;
     mgr.handles.remove(device_id);
-    let _ = crate::api::api_clear_device_image(device_id.to_string()).await;
+    let _ = crate::api::imaging::api_clear_device_image(device_id.to_string()).await;
 }
 
 fn fnv1a(bytes: impl IntoIterator<Item = u8>) -> u64 {
@@ -263,10 +264,10 @@ fn fnv1a(bytes: impl IntoIterator<Item = u8>) -> u64 {
 
 /// Everything the store publishes for the device's last frame, as text.
 async fn stored_frame_digest(device_id: &str) -> String {
-    let display = crate::api::api_get_last_image(device_id.to_string())
+    let display = crate::api::imaging::api_get_last_image(device_id.to_string())
         .await
         .expect("a frame is stored");
-    let raw = crate::api::api_get_last_raw_image_data(device_id.to_string())
+    let raw = crate::api::imaging::api_get_last_raw_image_data(device_id.to_string())
         .await
         .expect("raw samples are stored");
     let s = &display.stats;
@@ -610,7 +611,7 @@ async fn frame_path_stage_times() {
                 .expect("the frame format applies");
 
             let t = std::time::Instant::now();
-            let last = crate::api::api_get_last_image(device_id.clone())
+            let last = crate::api::imaging::api_get_last_image(device_id.clone())
                 .await
                 .expect("last image");
             record("last image for the screen", t.elapsed().as_secs_f64());

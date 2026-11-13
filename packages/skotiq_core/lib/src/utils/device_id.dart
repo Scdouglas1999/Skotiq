@@ -285,7 +285,7 @@ const String kBuiltinGuiderIdPrefix = 'native:builtin_guider:';
 const String builtinGuiderDeviceId = 'native:builtin_guider:multi_star';
 
 /// Display name the backend itself advertises for the built-in guider
-/// (`bridge/src/api/discovery.rs`, the Guider arm). Kept identical here so a
+/// (`bridge/src/discovery.rs`, the Guider arm). Kept identical here so a
 /// device id and a discovery record never produce two different names for the
 /// same guider.
 const String kBuiltinGuiderDisplayName = 'Built-in Multi-Star Guider';
@@ -293,7 +293,7 @@ const String kBuiltinGuiderDisplayName = 'Built-in Multi-Star Guider';
 /// Display names for the built-in simulators, keyed by the type token of their
 /// `sim_<type>_<index>` id.
 ///
-/// Verbatim from `bridge/src/api/discovery.rs` (`("sim_camera_1",
+/// Verbatim from `bridge/src/discovery.rs` (`("sim_camera_1",
 /// "Simulated Camera")` …). The backend carries these names; a surface that
 /// only has the id otherwise prints `sim_filterwheel_1` at the operator.
 const Map<String, String> kSimulatorDeviceDisplayNames = {

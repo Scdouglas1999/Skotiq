@@ -2,15 +2,15 @@
 //! says it supports is what its operations do.
 
 use super::*;
-use crate::device_capabilities::{
-    get_device_capabilities, invalidate_capability_cache_for_device, DeviceCapabilities,
-};
+use crate::device_capabilities::cache::invalidate_capability_cache_for_device;
+use crate::device_capabilities::get_device_capabilities;
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::error::SkotiqError;
 
 /// Registers and connects `id` on the app's device manager, the one the
 /// capability API reads, with no capability cached for it.
 async fn connect_sim(id: &str, device_type: DeviceType) -> &'static DeviceManager {
-    let manager = crate::api::get_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     manager
         .register_device(build_sim_info(id, device_type), false)
         .await;
@@ -97,7 +97,7 @@ async fn a_simulated_wheel_reports_the_slots_it_turns_between() {
 #[tokio::test]
 async fn a_registered_accessory_that_is_not_connected_answers_not_connected() {
     let id = "sim_rotator_42";
-    let manager = crate::api::get_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     manager
         .register_device(build_sim_info(id, DeviceType::Rotator), false)
         .await;

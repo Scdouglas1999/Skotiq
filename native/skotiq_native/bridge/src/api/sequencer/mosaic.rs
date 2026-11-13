@@ -1,5 +1,3 @@
-use super::*;
-
 /// Altitude in degrees above the horizon (-90 to +90) for a target at `ra_hours`
 /// (hours, 0-24) / `dec_degrees` (degrees), seen from `latitude` / `longitude`
 /// in degrees (north and east positive) at `time_unix_millis` (UTC epoch ms).

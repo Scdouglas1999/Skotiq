@@ -8,10 +8,12 @@
 //! showed the old filter), two would double-log and double-toast.
 
 use super::property;
-use crate::api::devices::simulation as sim;
-use crate::api::{get_device_manager, get_state};
 use crate::device::{DeviceInfo, DeviceType, DriverType};
-use crate::event::{EquipmentEvent, EventPayload, SkotiqEvent};
+use crate::device_manager::get_device_manager;
+use crate::event::bus::{EventPayload, SkotiqEvent};
+use crate::event::equipment::EquipmentEvent;
+use crate::simulator as sim;
+use crate::state::get_state;
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
 
@@ -113,12 +115,19 @@ async fn every_filter_wheel_path_publishes_one_move() {
         .await
         .unwrap();
     assert_one_filter_move(&drain(&mut rx), 3, "api_filterwheel_set_position");
-    assert_eq!(sim::get_sim_filterwheel().read().await.status.position, 3);
+    assert_eq!(
+        sim::filter_wheel::get_sim_filterwheel()
+            .read()
+            .await
+            .status
+            .position,
+        3
+    );
 
     ops.filterwheel_set_position(WHEEL, 5).await.unwrap();
     assert_one_filter_move(&drain(&mut rx), 5, "UnifiedDeviceOps");
 
-    let names = sim::get_sim_filterwheel()
+    let names = sim::filter_wheel::get_sim_filterwheel()
         .read()
         .await
         .status
@@ -138,7 +147,7 @@ async fn the_filter_move_events_name_the_slots() {
         .filter_wheel_set_position(WHEEL, 0)
         .await
         .unwrap();
-    let names = sim::get_sim_filterwheel()
+    let names = sim::filter_wheel::get_sim_filterwheel()
         .read()
         .await
         .status
@@ -172,14 +181,14 @@ async fn a_failed_filter_move_reports_where_the_wheel_is() {
         .unwrap();
     let mut rx = get_state().event_bus.subscribe();
 
-    super::super::sim_faults::arm(
+    crate::simulator::faults::arm(
         "filterwheel.set_position",
-        super::super::sim_faults::FaultSpec::transient("the wheel jammed"),
+        crate::simulator::faults::FaultSpec::transient("the wheel jammed"),
     );
     let result = get_device_manager()
         .filter_wheel_set_position(WHEEL, 5)
         .await;
-    super::super::sim_faults::clear("filterwheel.set_position");
+    crate::simulator::faults::clear("filterwheel.set_position");
 
     assert!(result.is_err(), "the armed fault must fail the move");
     let events = drain(&mut rx);
@@ -220,7 +229,7 @@ async fn an_unknown_device_publishes_nothing() {
                     ..
                 }
                 | EquipmentEvent::RotatorMoveStarted { .. }
-                | EquipmentEvent::MountParkStarted
+                | EquipmentEvent::MountParkStarted { .. }
         )),
         "{events:?}"
     );
@@ -230,7 +239,7 @@ async fn an_unknown_device_publishes_nothing() {
 async fn filter_names_publish_once() {
     let _serialized = sim::sim_singleton_test_lock().lock().await;
     attach(WHEEL, DeviceType::FilterWheel).await;
-    let before = sim::get_sim_filterwheel()
+    let before = sim::filter_wheel::get_sim_filterwheel()
         .read()
         .await
         .status
@@ -367,7 +376,11 @@ async fn camera_settings_publish_once_per_change() {
     assert_eq!((settings[2].0, settings[2].1), (140, 21));
     assert_eq!(settings[3], (140, 21, 2, 2));
     // Binning used to be written straight into the simulator, past the manager.
-    let status = sim::get_sim_camera_for(CAMERA).read().await.status.clone();
+    let status = sim::camera::get_sim_camera_for(CAMERA)
+        .read()
+        .await
+        .status
+        .clone();
     assert_eq!((status.bin_x, status.bin_y), (2, 2));
 
     get_device_manager()
@@ -487,8 +500,8 @@ async fn every_rotator_path_publishes_once() {
 }
 
 async fn stop_sim_slew() {
-    sim::cancel_sim_slew().await;
-    sim::get_sim_mount().write().await.status.slewing = false;
+    sim::mount::cancel_sim_slew().await;
+    sim::mount::get_sim_mount().write().await.status.slewing = false;
 }
 
 #[tokio::test]
@@ -497,7 +510,7 @@ async fn every_mount_path_publishes_once() {
     attach(MOUNT, DeviceType::Mount).await;
     stop_sim_slew().await;
     {
-        let mut mount = sim::get_sim_mount().write().await;
+        let mut mount = sim::mount::get_sim_mount().write().await;
         mount.status.parked = false;
         mount.status.tracking = true;
         mount.status.slewing = false;
@@ -515,7 +528,7 @@ async fn every_mount_path_publishes_once() {
     assert_eq!(
         one(&events, &|e| matches!(
             e,
-            EquipmentEvent::MountTrackingStopped
+            EquipmentEvent::MountTrackingStopped { device_id } if device_id == MOUNT
         )),
         1,
         "{events:?}"
@@ -528,7 +541,7 @@ async fn every_mount_path_publishes_once() {
     assert_eq!(
         one(&events, &|e| matches!(
             e,
-            EquipmentEvent::MountTrackingStarted
+            EquipmentEvent::MountTrackingStarted { device_id } if device_id == MOUNT
         )),
         1,
         "{events:?}"
@@ -541,7 +554,7 @@ async fn every_mount_path_publishes_once() {
     assert_eq!(
         one(
             &events,
-            &|e| matches!(e, EquipmentEvent::MountSlewStarted { ra, dec } if *ra == 5.5 && *dec == 20.0)
+            &|e| matches!(e, EquipmentEvent::MountSlewStarted { device_id, ra, dec } if device_id == MOUNT && *ra == 5.5 && *dec == 20.0)
         ),
         1,
         "api slew: {events:?}"
@@ -574,10 +587,13 @@ async fn every_mount_path_publishes_once() {
     let events = drain(&mut rx);
     assert_eq!(
         (
-            one(&events, &|e| matches!(e, EquipmentEvent::MountParkStarted)),
+            one(
+                &events,
+                &|e| matches!(e, EquipmentEvent::MountParkStarted { device_id } if device_id == MOUNT)
+            ),
             one(&events, &|e| matches!(
                 e,
-                EquipmentEvent::MountParkCompleted
+                EquipmentEvent::MountParkCompleted { device_id } if device_id == MOUNT
             )),
         ),
         (1, 1),
@@ -589,7 +605,10 @@ async fn every_mount_path_publishes_once() {
         .unwrap();
     let events = drain(&mut rx);
     assert_eq!(
-        one(&events, &|e| matches!(e, EquipmentEvent::MountUnparked)),
+        one(
+            &events,
+            &|e| matches!(e, EquipmentEvent::MountUnparked { device_id } if device_id == MOUNT)
+        ),
         1,
         "{events:?}"
     );
@@ -600,10 +619,13 @@ async fn every_mount_path_publishes_once() {
     let events = drain(&mut rx);
     assert_eq!(
         (
-            one(&events, &|e| matches!(e, EquipmentEvent::MountParkStarted)),
+            one(
+                &events,
+                &|e| matches!(e, EquipmentEvent::MountParkStarted { device_id } if device_id == MOUNT)
+            ),
             one(&events, &|e| matches!(
                 e,
-                EquipmentEvent::MountParkCompleted
+                EquipmentEvent::MountParkCompleted { device_id } if device_id == MOUNT
             )),
         ),
         (1, 1),
@@ -613,7 +635,10 @@ async fn every_mount_path_publishes_once() {
     ops.mount_unpark(MOUNT).await.unwrap();
     let events = drain(&mut rx);
     assert_eq!(
-        one(&events, &|e| matches!(e, EquipmentEvent::MountUnparked)),
+        one(
+            &events,
+            &|e| matches!(e, EquipmentEvent::MountUnparked { device_id } if device_id == MOUNT)
+        ),
         1,
         "{events:?}"
     );

@@ -10,8 +10,7 @@
 //! function lives here, and the implementation it delegates to lives in
 //! `crate::hotplug`. No business logic in this file beyond the FFI shim.
 
-use crate::api::api_invalidate_discovery_cache;
-use crate::hotplug;
+use crate::{discovery, hotplug};
 
 /// Force an immediate hot-plug diff pass across every polled driver and
 /// device type, independent of the 30 s slow-poll cadence.
@@ -36,6 +35,6 @@ pub async fn api_rescan_devices() {
     tracing::info!("Manual hot-plug rescan triggered from UI");
     // Invalidate first so the diff's "fresh observed set" comes from a
     // re-enumerated SDK list, not a cached-50-seconds-ago one.
-    api_invalidate_discovery_cache().await;
+    discovery::forget().await;
     hotplug::trigger_rescan().await;
 }
