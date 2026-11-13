@@ -69,30 +69,6 @@ void main() {
         NodeStatus.failure,
       );
     });
-
-    test('a legacy success bool is still honored', () {
-      apply(_event('NodeCompleted', {'node_id': 'n1', 'success': true}));
-
-      expect(
-        container.read(sequenceProgressProvider).nodeStatuses['n1'],
-        NodeStatus.success,
-      );
-    });
-
-    test(
-      'no status at all leaves the node alone rather than claiming failure',
-      () {
-        apply(
-          _event('NodeStarted', {'node_id': 'n1', 'node_type': 'Exposure'}),
-        );
-        apply(_event('NodeCompleted', {'node_id': 'n1'}));
-
-        expect(
-          container.read(sequenceProgressProvider).nodeStatuses['n1'],
-          NodeStatus.running,
-        );
-      },
-    );
   });
 
   group('lifecycle events drive state when no local run is owned', () {
@@ -191,20 +167,6 @@ void main() {
       progress = container.read(sequenceProgressProvider);
       expect(progress.completedExposures, 1);
       expect(progress.completedIntegrationSecs, 10.0);
-    });
-
-    test('the prefixed spellings still work for hosts that emit them', () {
-      apply(_event('SequenceStarted', {'sequence_name': 'x'}));
-      expect(
-        container.read(sequenceExecutionStateProvider),
-        SequenceExecutionState.running,
-      );
-
-      apply(_event('SequenceCompleted'));
-      expect(
-        container.read(sequenceExecutionStateProvider),
-        SequenceExecutionState.completed,
-      );
     });
   });
 

@@ -164,6 +164,9 @@ void main() {
           data: {
             'node_id': 'snapshot-node',
             'frame': 1,
+            'total': 1,
+            'accepted_total': 1,
+            'rejected_total': 0,
             'save_path': '/captures/dark.fits',
             ..._captureData(),
           },
@@ -273,6 +276,7 @@ void main() {
           'reason': 'HFR 6.2 above limit',
           'accepted_total': 7,
           'rejected_total': 1,
+          'consecutive_rejects': 1,
           'reject_path': '/captures/m42/Reject/D_0008.fits',
           ..._captureData(),
         },

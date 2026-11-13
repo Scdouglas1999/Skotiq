@@ -55,15 +55,9 @@ void main() {
 
   test('the wire shape — detail_json as a JSON String — reaches the tally', () {
     final tally = RunRecordNotifier();
-    _applyTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node1}),
-    );
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
     for (var frame = 1; frame <= 4; frame++) {
-      _applyTally(
-        tally,
-        _exposureProgress(node1, frame, 4),
-      );
+      _applyTally(tally, _exposureProgress(node1, frame, 4));
     }
 
     expect(
@@ -71,20 +65,6 @@ void main() {
       const NodeExposureTally(captured: 4, planned: 4),
       reason: 'the node-addressed source must reach the tally on the real path',
     );
-  });
-
-  test('an already-decoded Map payload is still accepted', () {
-    final tally = RunRecordNotifier();
-    _applyTally(
-      tally,
-      _seq('InstructionProgressStructured', {
-        'node_id': node1,
-        'detail_kind': 'Exposure',
-        'detail_json': {'frame': 4, 'total': 4},
-      }),
-    );
-
-    expect(tally.state.tally[node1]?.captured, 4);
   });
 
   test('a malformed detail_json payload is ignored, not counted', () {
@@ -103,15 +83,9 @@ void main() {
 
   test('the node boundary cannot credit node 2 with node 1 frames', () {
     final tally = RunRecordNotifier();
-    _applyTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node1}),
-    );
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
     for (var frame = 1; frame <= 3; frame++) {
-      _applyTally(
-        tally,
-        _exposureProgress(node1, frame, 4),
-      );
+      _applyTally(tally, _exposureProgress(node1, frame, 4));
       _applyTally(
         tally,
         _seq('ExposureCompleted', {
@@ -124,14 +98,8 @@ void main() {
 
     // The waveF ordering: NodeStarted for node 2 is emitted 53 us BEFORE
     // node 1's final frame, so the run's "current node" has already advanced.
-    _applyTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node2}),
-    );
-    _applyTally(
-      tally,
-      _exposureProgress(node1, 4, 4),
-    );
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node2}));
+    _applyTally(tally, _exposureProgress(node1, 4, 4));
     _applyTally(
       tally,
       _seq('ExposureCompleted', {
@@ -155,10 +123,7 @@ void main() {
 
   test('structured progress with no node id is not attributed to anyone', () {
     final tally = RunRecordNotifier();
-    _applyTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node1}),
-    );
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
     _applyTally(
       tally,
       _seq('InstructionProgressStructured', {
@@ -174,15 +139,9 @@ void main() {
   test('a fresh pass over a node clears the previous pass frames', () {
     final tally = RunRecordNotifier();
     for (var frame = 1; frame <= 4; frame++) {
-      _applyTally(
-        tally,
-        _exposureProgress(node1, frame, 4),
-      );
+      _applyTally(tally, _exposureProgress(node1, frame, 4));
     }
-    _applyTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node1}),
-    );
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
 
     expect(tally.state.tally[node1], isNull);
   });

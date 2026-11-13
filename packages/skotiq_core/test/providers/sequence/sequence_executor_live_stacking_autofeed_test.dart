@@ -31,8 +31,10 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
+import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -197,20 +199,13 @@ bridge_event.SkotiqEvent _frameAccepted({
   int frame = 1,
   double durationSecs = 120.0,
 }) {
-  return bridge_event.SkotiqEvent(
-    timestamp: DateTime.now().millisecondsSinceEpoch,
-    severity: bridge_event.EventSeverity.info,
-    category: bridge_event.EventCategory.sequencer,
-    eventType: 'FrameAccepted',
-    data: {
-      'node_id': 'exp-1',
-      'frame': frame,
-      'total': 10,
-      'accepted_total': frame,
-      'rejected_total': 0,
-      'duration_secs': durationSecs,
-      if (savePath.isNotEmpty) 'save_path': savePath,
-    },
+  return frameVerdictEvent(
+    accepted: true,
+    nodeId: 'exp-1',
+    frame: frame,
+    total: 10,
+    path: savePath.isEmpty ? null : savePath,
+    capture: testCapture(exposureSecs: durationSecs),
   );
 }
 

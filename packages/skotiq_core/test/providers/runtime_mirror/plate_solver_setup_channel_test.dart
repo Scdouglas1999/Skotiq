@@ -123,7 +123,10 @@ void main() {
     client.container.listen(plateSolverPreferenceProvider, (_, _) {});
     await settle();
 
-    expect(client.container.read(plateSolverDetectionProvider).isLoading, isTrue);
+    expect(
+      client.container.read(plateSolverDetectionProvider).isLoading,
+      isTrue,
+    );
     expect(client.container.read(plateSolverReadyProvider), isNull);
     verifyNever(() => client.backend.detectPlateSolvers());
     verifyNever(() => client.backend.getPlateSolverConfig());

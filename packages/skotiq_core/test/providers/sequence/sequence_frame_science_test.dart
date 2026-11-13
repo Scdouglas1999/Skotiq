@@ -16,8 +16,10 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_executor/run_frame_science.dart';
 
+import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 import 'package:skotiq_core/src/models/sequence/run_frame_assessment.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
@@ -78,16 +80,17 @@ bridge_event.SkotiqEvent _event(String type, Map<String, dynamic> data) =>
     );
 
 bridge_event.SkotiqEvent _accepted(String path, {String? frameType}) =>
-    _event('FrameAccepted', {
-      'node_id': _nodeId,
-      'frame': 1,
-      'filter': 'L',
-      'hfr': 2.3,
-      'star_count': 900,
-      'exposure_secs': 120.0,
-      'save_path': path,
-      if (frameType != null) 'frame_type': frameType,
-    });
+    frameVerdictEvent(
+      accepted: true,
+      nodeId: _nodeId,
+      hfr: 2.3,
+      starCount: 900,
+      path: path,
+      capture: testCapture(
+        exposureSecs: 120.0,
+        frameType: frameType ?? 'Light',
+      ),
+    );
 
 bridge_event.SkotiqEvent _assessed(
   String path, {

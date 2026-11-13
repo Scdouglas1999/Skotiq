@@ -210,11 +210,11 @@ void main() {
       final hostPlan = buildSequence(name: 'Host Autopilot', databaseId: 11);
 
       showHostOpenPlan(c, {
-            'sequence': fileService.sequenceToMap(hostPlan),
-            'databaseId': 11,
-            'isDirty': false,
-            'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
-          });
+        'sequence': fileService.sequenceToMap(hostPlan),
+        'databaseId': 11,
+        'isDirty': false,
+        'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
+      });
 
       expect(c.read(currentSequenceProvider)!.name, 'Host Autopilot');
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.autopilot);
@@ -226,10 +226,10 @@ void main() {
       final hostPlan = buildSequence(name: 'Legacy Host', databaseId: 12);
 
       showHostOpenPlan(c, {
-            'sequence': fileService.sequenceToMap(hostPlan),
-            'databaseId': 12,
-            'isDirty': false,
-          });
+        'sequence': fileService.sequenceToMap(hostPlan),
+        'databaseId': 12,
+        'isDirty': false,
+      });
 
       expect(c.read(currentSequenceProvider)!.name, 'Legacy Host');
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.manual);
@@ -241,10 +241,10 @@ void main() {
 
       // Slave first mirrors a host autopilot plan.
       showHostOpenPlan(c, {
-            'sequence': fileService.sequenceToMap(buildSequence()),
-            'isDirty': false,
-            'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
-          });
+        'sequence': fileService.sequenceToMap(buildSequence()),
+        'isDirty': false,
+        'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
+      });
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.autopilot);
 
       // Host closes its editor.

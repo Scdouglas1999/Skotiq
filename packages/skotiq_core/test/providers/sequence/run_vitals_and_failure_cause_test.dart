@@ -11,7 +11,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as backend_events;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -253,10 +254,14 @@ void main() {
       );
       // The cascade as the run reported it, in order.
       executor.handleSequencerEventForTest(
-        sequencerEvent('Error', {'message': rejectStorm}),
+        sequencerEvent('Error', {
+          'kind': 'step_failed',
+          'message': rejectStorm,
+        }),
       );
       executor.handleSequencerEventForTest(
         sequencerEvent('Error', {
+          'kind': 'step_failed',
           'message': 'Change Filter failed: Operation cancelled',
         }),
       );
@@ -293,10 +298,14 @@ void main() {
         final (container, executor) = build(sequence: smartExposureSequence());
 
         executor.handleSequencerEventForTest(
-          sequencerEvent('Error', {'message': rejectStorm}),
+          sequencerEvent('Error', {
+            'kind': 'step_failed',
+            'message': rejectStorm,
+          }),
         );
         executor.handleSequencerEventForTest(
           sequencerEvent('Error', {
+            'kind': 'step_failed',
             'message': 'Change Filter failed: Operation cancelled',
           }),
         );
@@ -324,6 +333,7 @@ void main() {
 
         executor.handleSequencerEventForTest(
           sequencerEvent('Error', {
+            'kind': 'step_failed',
             'message': 'Change Filter failed: Operation cancelled',
           }),
         );

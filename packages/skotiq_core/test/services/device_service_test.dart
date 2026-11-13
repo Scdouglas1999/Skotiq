@@ -1152,7 +1152,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequenceStarted',
+          eventType: 'Started',
           data: {'sequence_name': 'M31 LRGB'},
         ),
       );
@@ -1170,7 +1170,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequenceStarted',
+          eventType: 'Started',
           data: {'sequence_name': 'Test'},
         ),
       );
@@ -1182,7 +1182,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequenceCompleted',
+          eventType: 'Completed',
           data: {},
         ),
       );
@@ -1199,7 +1199,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequenceStarted',
+          eventType: 'Started',
           data: {'sequence_name': 'Test'},
         ),
       );
@@ -1210,7 +1210,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequencePaused',
+          eventType: 'Paused',
           data: {},
         ),
       );

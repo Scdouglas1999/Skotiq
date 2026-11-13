@@ -30,7 +30,12 @@ void main() {
 
   test('a host with no window shows the frame its run is exposing', () async {
     final host = exposingHost();
-    host.events.add(_imaging('ExposureStarted', {'duration_secs': 30.0}));
+    host.events.add(
+      _imaging('ExposureStarted', {
+        'duration_secs': 30.0,
+        'frame_type': 'light',
+      }),
+    );
     await settle();
     expect(host.container.read(cameraStateProvider).isExposing, isTrue);
     expect(host.container.read(exposureProgressProvider).remaining, 30.0);
@@ -43,8 +48,15 @@ void main() {
   test('a client that links mid-exposure shows it, and its end', () async {
     final host = exposingHost();
     host.events
-      ..add(_imaging('ExposureStarted', {'duration_secs': 30.0}))
-      ..add(_imaging('ExposureProgress', {'progress': 0.5, 'remainingSecs': 15.0}));
+      ..add(
+        _imaging('ExposureStarted', {
+          'duration_secs': 30.0,
+          'frame_type': 'light',
+        }),
+      )
+      ..add(
+        _imaging('ExposureProgress', {'progress': 0.5, 'remainingSecs': 15.0}),
+      );
     await settle(const Duration(milliseconds: 600));
 
     final client = mirrorClient(host.container);
@@ -77,7 +89,10 @@ void main() {
     applyHostEventOnClient(
       client.container,
       client.backend,
-      _imaging('ExposureStarted', {'duration_secs': 30.0}),
+      _imaging('ExposureStarted', {
+        'duration_secs': 30.0,
+        'frame_type': 'light',
+      }),
     );
     expect(client.container.read(cameraStateProvider).isExposing, isFalse);
   });
@@ -95,7 +110,10 @@ void main() {
     applyHostEventOnClient(
       client.container,
       client.backend,
-      _imaging('ExposureStarted', {'duration_secs': 30.0}),
+      _imaging('ExposureStarted', {
+        'duration_secs': 30.0,
+        'frame_type': 'light',
+      }),
     );
     expect(client.container.read(cameraStateProvider).isExposing, isFalse);
   });

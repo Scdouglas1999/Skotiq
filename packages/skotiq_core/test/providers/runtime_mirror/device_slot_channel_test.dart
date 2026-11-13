@@ -288,7 +288,10 @@ void main() {
 
     // The run's last frame, then the host's flag after it.
     camera.setExposing(false);
-    cameraEvent('ExposureStarted', {'duration_secs': 3.0});
+    cameraEvent('ExposureStarted', {
+      'duration_secs': 3.0,
+      'frame_type': 'light',
+    });
     cameraEvent('ExposureProgress', {'progress': 0.5, 'remainingSecs': 1.5});
     expect(client.container.read(cameraStateProvider).isExposing, isTrue);
     cameraEvent('ExposureComplete', {'success': true});
@@ -300,7 +303,10 @@ void main() {
     await hydrateHostRuntimeState(client.container, client.backend);
 
     expect(client.container.read(cameraStateProvider).isExposing, isFalse);
-    expect(client.container.read(exposureProgressProvider), ExposureProgress.idle());
+    expect(
+      client.container.read(exposureProgressProvider),
+      ExposureProgress.idle(),
+    );
   });
 
   test('each re-read says the host still holds the camera, so it does not '

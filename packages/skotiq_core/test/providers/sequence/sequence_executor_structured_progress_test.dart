@@ -10,7 +10,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as backend_events;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -61,7 +62,7 @@ void main() {
           'instruction': 'TakeExposure',
           'progress_percent': 42.0,
           'detail_kind': 'Exposure',
-          'detail_json': {'frame': 4, 'total': 10, 'duration_secs': 180},
+          'detail_json': '{"frame": 4, "total": 10, "duration_secs": 180}',
         },
       ),
     );

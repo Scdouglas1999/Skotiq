@@ -32,8 +32,10 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 
+import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 /// A backend whose unstubbed members answer with a completed `Future<void>`,
 /// so the resume path's deep runtime-config push runs end to end without
@@ -298,17 +300,12 @@ void main() {
     await executor.start();
 
     executor.handleSequencerEventForTest(
-      bridge_event.SkotiqEvent(
-        timestamp: DateTime.now().millisecondsSinceEpoch,
-        severity: bridge_event.EventSeverity.info,
-        category: bridge_event.EventCategory.sequencer,
-        eventType: 'FrameAccepted',
-        data: const {
-          'node_id': 'exp1',
-          'frame': 1,
-          'total': 10,
-          'save_path': '/captures/m31/L_0001.fits',
-        },
+      frameVerdictEvent(
+        accepted: true,
+        nodeId: 'exp1',
+        frame: 1,
+        total: 10,
+        path: '/captures/m31/L_0001.fits',
       ),
     );
 
@@ -343,17 +340,12 @@ void main() {
       await executor.resumeFromCheckpoint();
 
       executor.handleSequencerEventForTest(
-        bridge_event.SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: bridge_event.EventSeverity.info,
-          category: bridge_event.EventCategory.sequencer,
-          eventType: 'FrameAccepted',
-          data: const {
-            'node_id': 'exp1',
-            'frame': 5,
-            'total': 10,
-            'save_path': '/captures/m31/L_0005.fits',
-          },
+        frameVerdictEvent(
+          accepted: true,
+          nodeId: 'exp1',
+          frame: 5,
+          total: 10,
+          path: '/captures/m31/L_0005.fits',
         ),
       );
 

@@ -68,13 +68,6 @@ void main() {
     expect(classified?.category, NotificationCategory.sequenceStopped);
   });
 
-  test('so does an older host\'s cancellation, which had no kind', () {
-    final classified = NotificationEventClassifier.classify(
-      _sequencerWithData('Error', const {'message': 'Sequence cancelled'}),
-    );
-    expect(classified?.category, NotificationCategory.sequenceStopped);
-  });
-
   test('a stop row names its author without reading its words', () {
     final decision = NotificationEventClassifier.stopDecisionOf(
       _sequencerWithData('DecisionLogged', const {
@@ -91,6 +84,7 @@ void main() {
     expect(
       NotificationEventClassifier.classify(
         _sequencerWithData('Error', const {
+          'kind': 'step_failed',
           'message': 'Temperature compensation cancelled',
         }),
       ),

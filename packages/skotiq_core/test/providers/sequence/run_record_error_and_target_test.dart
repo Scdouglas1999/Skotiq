@@ -11,7 +11,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as backend_events;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -96,7 +97,7 @@ void main() {
       final (container, executor) = build();
 
       executor.handleSequencerEventForTest(
-        sequencerEvent('Error', {'message': reason}),
+        sequencerEvent('Error', {'kind': 'step_failed', 'message': reason}),
       );
       executor.handleSequencerEventForTest(
         sequencerEvent('SequenceFailed', {'error': reason}),
@@ -113,7 +114,7 @@ void main() {
       final (container, executor) = build();
 
       executor.handleSequencerEventForTest(
-        sequencerEvent('Error', {'message': reason}),
+        sequencerEvent('Error', {'kind': 'step_failed', 'message': reason}),
       );
       executor.handleSequencerEventForTest(
         sequencerEvent('SequenceFailed', {'error': reason}),
@@ -143,10 +144,13 @@ void main() {
       final (container, executor) = build();
 
       executor.handleSequencerEventForTest(
-        sequencerEvent('Error', {'message': reason}),
+        sequencerEvent('Error', {'kind': 'step_failed', 'message': reason}),
       );
       executor.handleSequencerEventForTest(
-        sequencerEvent('Error', {'message': 'Slew: mount refused the slew'}),
+        sequencerEvent('Error', {
+          'kind': 'step_failed',
+          'message': 'Slew: mount refused the slew',
+        }),
       );
       executor.handleSequencerEventForTest(
         sequencerEvent('SequenceFailed', {
@@ -222,7 +226,7 @@ void main() {
       final (container, executor) = build(sequence: targetSequence());
 
       executor.handleSequencerEventForTest(
-        sequencerEvent('TargetStarted', {'target_name': 'M31'}),
+        sequencerEvent('TargetChanged', {'target_name': 'M31'}),
       );
       executor.handleSequencerEventForTest(
         sequencerEvent('NodeStarted', {

@@ -11,7 +11,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as backend_events;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -138,6 +139,8 @@ void main() {
     'node_id': 'expo1',
     'frame': frame,
     'total': 4,
+    'accepted_total': 0,
+    'rejected_total': 0,
     'exposure_secs': exposureSecs,
     'gain': gain,
     'offset': offset,
@@ -156,6 +159,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'HFR 6.2 above threshold 4.0',
           'reject_path': '/tmp/rejected_0001.fits',
         }),
@@ -198,6 +202,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'too few stars',
         }),
       );
@@ -279,6 +284,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'clouds',
         }),
       );
@@ -377,6 +383,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'clouds',
         }),
       );
@@ -544,6 +551,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'HFR',
           'reject_path': '/tmp/rejects/light_0002.fits',
         }),
