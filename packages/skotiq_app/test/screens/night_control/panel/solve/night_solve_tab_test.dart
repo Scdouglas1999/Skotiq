@@ -117,21 +117,16 @@ void main() {
     expect(api.calls, ['solve', 'solveAndSync', 'center']);
   });
 
-  testWidgets('the centering note quotes the config Center runs',
+  testWidgets('the centering note quotes the centering the button runs',
       (tester) async {
     await pumpPanelTab(
       tester,
       const NightSolveTab(),
-      overrides: [
-        ...panelOverrides(),
-        nightCenteringConfigProvider.overrideWithValue(
-          const CenteringConfig(maxIterations: 7, toleranceArcsec: 12),
-        ),
-      ],
+      overrides: panelOverrides(),
     );
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
     await tester.pump();
-    expect(find.textContaining('Center button: within 12" · 7 attempts'),
+    expect(find.textContaining('Center button: within 30" · 5 attempts'),
         findsOneWidget);
     expect(find.textContaining("Plan's Center step"), findsNothing);
   });
@@ -147,9 +142,6 @@ void main() {
       const NightSolveTab(),
       overrides: [
         ...panelOverrides(),
-        nightCenteringConfigProvider.overrideWithValue(
-          const CenteringConfig(maxIterations: 5, toleranceArcsec: 30),
-        ),
         nightPlanCenterNodeProvider.overrideWithValue(
           CenterNode(id: 'center', accuracyArcsec: 5, maxAttempts: 5),
         ),
