@@ -56,12 +56,6 @@
 //! Connection-level errors are not silenced here; this layer composes
 //! values *after* `with_camera!` has already established the device path.
 
-use crate::device::*;
-use crate::device_manager::rig;
-use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
-use skotiq_device::{ImageData, SubFrame};
-
 /// Sentinel meaning "this camera setting could not be read".
 ///
 /// `ImageMetadata.gain`/`offset` are plain `i32` (unlike `temperature`, which is
@@ -216,7 +210,8 @@ mod fits_card_tests {
 mod sim_camera_tests {
     use crate::device::{CameraState, DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
-    use crate::simulator::{clear_sim_exposure, get_sim_camera, sim_singleton_test_lock};
+    use crate::simulator::camera::{clear_sim_exposure, get_sim_camera};
+    use crate::simulator::sim_singleton_test_lock;
     use skotiq_device::FrameType;
 
     /// `expect_err` on a `Result<ImageData, _>` would dump a whole 1920x1080
@@ -446,9 +441,9 @@ mod sim_sky_wiring_tests {
     use super::*;
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
-    use crate::simulator::{
-        clear_sim_exposure, get_sim_camera, get_sim_mount, sim_singleton_test_lock,
-    };
+    use crate::simulator::camera::{clear_sim_exposure, get_sim_camera};
+    use crate::simulator::mount::get_sim_mount;
+    use crate::simulator::sim_singleton_test_lock;
     use skotiq_device::FrameType;
 
     /// The declared simulated rig: 3.76 um pixels behind the default 1000 mm
@@ -570,7 +565,7 @@ mod sim_sky_wiring_tests {
         }
         // So the field sits where the projection puts it rather than where an
         // earlier test's accumulated drift left it.
-        crate::simulator::reset_sim_guide_offset().await;
+        crate::simulator::guiding::reset_sim_guide_offset().await;
 
         let device_id = "sim_camera_sky_wiring";
         let info = DeviceInfo {

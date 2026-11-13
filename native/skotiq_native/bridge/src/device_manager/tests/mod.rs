@@ -7,6 +7,7 @@
 use super::*;
 #[cfg(windows)]
 use crate::ascom_wrapper::mount::test_support::{build_test_mount_wrapper, TestMountResponses};
+use crate::device::DriverType;
 use crate::state::AppState;
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -1,4 +1,15 @@
-use super::*;
+use super::{device_error, UnifiedDeviceOps};
+use crate::device_manager::get_device_manager;
+use crate::event::equipment::EventSeverity;
+use crate::event::imaging::ImagingEvent;
+use crate::state::SharedAppState;
+use crate::unified_device_ops::exposure_wait::{
+    claim_camera_acquisition, exposure_abort_generation, exposure_completion_timeout,
+    mark_camera_exposure_aborted, wait_for_camera_exposure_complete,
+};
+use crate::unified_device_ops::pointing::connected_camera_label;
+use async_trait::async_trait;
+use skotiq_sequencer::{CameraOps, DeviceError, DeviceResult, ExposureRequest, ImageData};
 
 #[async_trait]
 impl CameraOps for UnifiedDeviceOps {
@@ -398,7 +409,7 @@ impl CameraOps for UnifiedDeviceOps {
 
     async fn camera_get_iso_speeds(&self, camera_id: &str) -> DeviceResult<Vec<i32>> {
         match crate::device_capabilities::get_device_capabilities(camera_id).await {
-            Ok(crate::device_capabilities::DeviceCapabilities::Camera(caps)) => Ok(caps.iso_speeds),
+            Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps)) => Ok(caps.iso_speeds),
             Ok(_) => Ok(Vec::new()),
             Err(e) => Err(format!("Failed to read camera capabilities: {}", e).into()),
         }

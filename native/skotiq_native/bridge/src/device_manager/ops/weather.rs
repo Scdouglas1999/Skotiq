@@ -1,9 +1,9 @@
 //! Weather (observing conditions) operations.
 
-use crate::device::*;
+use crate::device::WeatherConditions;
 use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 
 impl DeviceManager {
     /// What the weather station reports; a sensor it does not have is `None`.
@@ -35,6 +35,10 @@ impl DeviceManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::ConnectionState;
+    use crate::device::DeviceInfo;
+    use crate::device::DeviceType;
+    use crate::device::DriverType;
     use crate::device_manager::handle::DeviceHandle;
     use crate::device_manager::ManagedDevice;
     use crate::state::AppState;

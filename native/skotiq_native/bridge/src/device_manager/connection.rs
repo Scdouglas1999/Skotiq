@@ -4,15 +4,14 @@
 //! contain the cross-driver lifecycle logic. Driver-specific `connect_*`
 //! helpers continue to live in `crate::dispatch::{ascom,alpaca,indi,native}`
 //! (also split-impl-block) and are invoked from `connect_device_internal`
-//! below. No behavior or signature has changed relative to the previous
-//! monolithic `devices.rs`.
+//! below.
 
-use crate::device::*;
+use crate::device::{ConnectionState, DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::handle::{device_noun, protocol_label, DeviceHandle};
 use crate::device_manager::identity::{DeviceIdentity, IDENTITY_CONFLICT_MARKER};
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, ManagedDevice};
-use crate::event::*;
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time::interval;
@@ -452,7 +451,10 @@ impl DeviceManager {
 
         match &result {
             Ok(_) => {
-                crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
+                crate::device_capabilities::cache::invalidate_capability_cache_for_device(
+                    device_id,
+                )
+                .await;
 
                 // The name the identity check just read off the driver, not
                 // the one registered before the connect: after the bus
@@ -763,7 +765,7 @@ impl DeviceManager {
     /// (the `unplug(reorder)` fault), so the identity check runs against the
     /// simulators the same way it does against a ZWO pair.
     async fn simulated_camera_identity(device_id: &str) -> DeviceIdentity {
-        let status = crate::simulator::get_sim_camera_for(device_id)
+        let status = crate::simulator::camera::get_sim_camera_for(device_id)
             .read()
             .await
             .status
@@ -830,7 +832,7 @@ impl DeviceManager {
     /// simulator's own gates name it.
     pub(crate) fn sim_fault_prefix(info: &DeviceInfo) -> Option<&'static str> {
         Some(match info.device_type {
-            DeviceType::Camera => crate::simulator::sim_camera_fault_prefix(&info.id),
+            DeviceType::Camera => crate::simulator::camera::sim_camera_fault_prefix(&info.id),
             DeviceType::Mount => "mount",
             DeviceType::Focuser => "focuser",
             DeviceType::FilterWheel => "filterwheel",
@@ -886,7 +888,8 @@ impl DeviceManager {
             ));
         }
 
-        use crate::simulator::{get_sim_camera_for, get_sim_mount};
+        use crate::simulator::camera::get_sim_camera_for;
+        use crate::simulator::mount::get_sim_mount;
 
         match info.device_type {
             DeviceType::Camera => {
@@ -926,7 +929,7 @@ impl DeviceManager {
     pub async fn disconnect_device(&self, device_id: &str) -> Result<(), String> {
         // Stop heartbeat monitoring first to prevent false disconnect events
         let _ = self.stop_heartbeat(device_id).await;
-        crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
+        crate::device_capabilities::cache::invalidate_capability_cache_for_device(device_id).await;
 
         let device_info = {
             let devices = self.devices.read().await;
@@ -973,8 +976,11 @@ impl DeviceManager {
             };
         }
 
-        if device_info.id == crate::builtin_guider::device_id() {
-            record_disconnect!("Built-in guider", crate::builtin_guider::disconnect().await);
+        if device_info.id == crate::builtin_guider::control::device_id() {
+            record_disconnect!(
+                "Built-in guider",
+                crate::builtin_guider::control::disconnect().await
+            );
         }
         // PHD2 has its own out-of-band disconnect path (the PHD2
         // client storage lives outside the per-driver maps below). If a user
@@ -1062,7 +1068,7 @@ impl DeviceManager {
 
     /// Report a connection error (triggers auto-reconnect if enabled)
     pub async fn report_error(&self, device_id: &str, error: String) {
-        crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
+        crate::device_capabilities::cache::invalidate_capability_cache_for_device(device_id).await;
 
         let device_type = {
             let mut devices = self.devices.write().await;

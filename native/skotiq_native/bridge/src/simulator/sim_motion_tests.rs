@@ -1,4 +1,14 @@
 use super::*;
+use crate::simulator::camera::{
+    begin_sim_exposure, begin_sim_exposure_for, clear_sim_exposure, get_sim_camera_for,
+    next_sim_frame_seed, reset_sim_frame_seed, sim_camera_fault_prefix,
+    sim_exposure_elapsed_is_complete, sim_exposure_is_complete, take_sim_exposure_for_download,
+    SimExposureRequest, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
+};
+use crate::simulator::guiding::{
+    apply_offset_delta, drift_step_secs, sim_pulse_delta, SIM_DRIFT_PX_PER_SEC_X,
+    SIM_MAX_DRIFT_STEP_SECS, SIM_MAX_OFFSET_PX,
+};
 
 /// Successive frames must draw different noise, and the sequence must be
 /// resettable so a run can be reproduced exactly.

@@ -10,8 +10,9 @@
 //! `golden/`; record them only on a commit whose mount behavior is the
 //! reference.
 
-use super::mount_home::register_mount;
 use super::*;
+use crate::device::{DriverType, MountSite, MountStatus, MountTimeInfo};
+use crate::device_manager::tests::mount_home::register_mount;
 use std::sync::Mutex as StdMutex;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 

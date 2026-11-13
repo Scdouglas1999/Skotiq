@@ -7,7 +7,8 @@
 
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::get_device_manager;
-use crate::event::{EquipmentEvent, EventPayload, SkotiqEvent};
+use crate::event::bus::{EventPayload, SkotiqEvent};
+use crate::event::equipment::EquipmentEvent;
 use crate::simulator as sim;
 use crate::state::get_state;
 use tokio::sync::broadcast::error::TryRecvError;
@@ -80,7 +81,11 @@ async fn a_focuser_moved_outside_skotiq_is_published_once() {
     assert!(focuser_completions(&drain(&mut rx)).is_empty());
 
     // The hand controller turns it.
-    sim::get_sim_focuser().write().await.status.position = 24_350;
+    sim::focuser::get_sim_focuser()
+        .write()
+        .await
+        .status
+        .position = 24_350;
     manager.backstop_check(FOCUSER, DeviceType::Focuser).await;
     assert_eq!(
         focuser_completions(&drain(&mut rx)),
@@ -101,7 +106,11 @@ async fn a_device_with_a_command_in_flight_is_skipped() {
     let mut rx = get_state().event_bus.subscribe();
 
     let command = manager.command_activity.begin(FOCUSER);
-    sim::get_sim_focuser().write().await.status.position = 25_400;
+    sim::focuser::get_sim_focuser()
+        .write()
+        .await
+        .status
+        .position = 25_400;
     manager.backstop_check(FOCUSER, DeviceType::Focuser).await;
     assert!(
         focuser_completions(&drain(&mut rx)).is_empty(),
@@ -127,7 +136,7 @@ async fn a_moving_focuser_is_left_alone_until_it_stops() {
     let mut rx = get_state().event_bus.subscribe();
 
     {
-        let focuser = sim::get_sim_focuser();
+        let focuser = sim::focuser::get_sim_focuser();
         let mut focuser = focuser.write().await;
         focuser.status.position = 26_200;
         focuser.status.moving = true;
@@ -135,7 +144,7 @@ async fn a_moving_focuser_is_left_alone_until_it_stops() {
     manager.backstop_check(FOCUSER, DeviceType::Focuser).await;
     assert!(focuser_completions(&drain(&mut rx)).is_empty());
 
-    sim::get_sim_focuser().write().await.status.moving = false;
+    sim::focuser::get_sim_focuser().write().await.status.moving = false;
     manager.backstop_check(FOCUSER, DeviceType::Focuser).await;
     assert_eq!(
         focuser_completions(&drain(&mut rx)),
@@ -152,7 +161,11 @@ async fn a_wheel_moved_outside_skotiq_publishes_filter_changed_with_its_name() {
     let mut rx = get_state().event_bus.subscribe();
 
     manager.backstop_check(WHEEL, DeviceType::FilterWheel).await;
-    sim::get_sim_filterwheel().write().await.status.position = 3;
+    sim::filter_wheel::get_sim_filterwheel()
+        .write()
+        .await
+        .status
+        .position = 3;
     manager.backstop_check(WHEEL, DeviceType::FilterWheel).await;
 
     let names = manager

@@ -3,12 +3,15 @@
 //! waits for another operation of this mount.
 
 use super::{wait_for_ascom_pulse_end, Mount};
-use crate::device::*;
-use crate::device_capabilities::DeviceCapabilities;
+use crate::device::{
+    mount_status_field, FieldAvailability, MountSite, MountSiteCapabilities, MountStatus,
+    MountTimeInfo, TrackingRate,
+};
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::ops::mount::site::alpaca_utc_date;
 use crate::device_manager::rig::RigDriver;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{mount_slew_with_timeout, with_timeout_str, Timeouts};
 use async_trait::async_trait;
@@ -474,7 +477,7 @@ impl Mount for AlpacaMount {
 
     async fn capabilities(&self, _device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
         Ok(DeviceCapabilities::Mount(
-            crate::device_capabilities::alpaca_mount_capabilities(&self.mount).await,
+            crate::device_capabilities::alpaca::alpaca_mount_capabilities(&self.mount).await,
         ))
     }
 }

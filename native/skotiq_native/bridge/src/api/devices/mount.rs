@@ -1,29 +1,6 @@
-// split from monolithic api.rs
-#![allow(unused_imports)]
-// Shared imports inherited from the monolithic api.rs.
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::error::*;
-use crate::event::*;
-use crate::state::*;
-use crate::storage::{AppSettings, ObserverLocation};
-use crate::unified_device_ops::create_unified_device_ops;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
-    DebayerAlgorithm, FitsHeader, ImageData,
-};
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-// Sibling-module items via the parent's pub use re-exports.
-use super::super::*;
-use super::*;
+use crate::device::{MountSite, MountSiteCapabilities, MountStatus, MountTimeInfo};
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
 
 // Mount control
 
@@ -245,12 +222,13 @@ pub async fn mount_set_time(
 #[cfg(test)]
 mod tests {
     use super::api_mount_set_tracking;
-    use crate::api::sequencer::{api_sequencer_start, api_sequencer_stop, get_sequence_executor};
+    use crate::api::sequencer::get_sequence_executor;
+    use crate::api::sequencer::lifecycle::{api_sequencer_start, api_sequencer_stop};
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
-    use crate::simulator::{
-        get_sim_mount, reset_sim_guide_offset, sim_guide_offset, sim_singleton_test_lock,
-    };
+    use crate::simulator::guiding::{reset_sim_guide_offset, sim_guide_offset};
+    use crate::simulator::mount::get_sim_mount;
+    use crate::simulator::sim_singleton_test_lock;
     use skotiq_sequencer::{
         DelayConfig, ExecutorState, NodeDefinition, NodeType, SequenceDefinition,
     };

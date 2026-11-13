@@ -17,7 +17,7 @@
 
 use crate::device::{DeviceType, DriverType};
 use crate::device_manager::DeviceManager;
-use crate::event::{EquipmentEvent, EventSeverity};
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use crate::state::SharedAppState;
 
 /// `PropertyChanged.property` names for settings with no event of their own.
@@ -82,7 +82,7 @@ impl DeviceManager {
             Ok(status) => {
                 let gain_is_iso = matches!(
                     crate::device_capabilities::get_device_capabilities(device_id).await,
-                    Ok(crate::device_capabilities::DeviceCapabilities::Camera(caps))
+                    Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps))
                         if !caps.iso_speeds.is_empty()
                 );
                 self.publish_state_event(EquipmentEvent::CameraSettingsChanged {

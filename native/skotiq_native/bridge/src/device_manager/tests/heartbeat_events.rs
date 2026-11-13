@@ -1,11 +1,13 @@
 use super::*;
+use crate::device::DriverType;
 
 // stop_heartbeat must not emit HeartbeatStopped when there was
 // no heartbeat task to stop. Otherwise every connect (which defensively
 // calls stop_heartbeat first) emits a spurious stop event.
 #[tokio::test]
 async fn stop_heartbeat_on_unknown_device_emits_no_event() {
-    use crate::event::{EquipmentEvent, EventPayload};
+    use crate::event::bus::EventPayload;
+    use crate::event::equipment::EquipmentEvent;
     use tokio::sync::broadcast::error::TryRecvError;
 
     let manager = build_device_manager();
@@ -45,7 +47,8 @@ async fn stop_heartbeat_on_unknown_device_emits_no_event() {
 // first, so the very first connect would otherwise publish a stop event.
 #[tokio::test]
 async fn stop_heartbeat_on_registered_but_inactive_device_emits_no_event() {
-    use crate::event::{EquipmentEvent, EventPayload};
+    use crate::event::bus::EventPayload;
+    use crate::event::equipment::EquipmentEvent;
     use tokio::sync::broadcast::error::TryRecvError;
 
     let manager = build_device_manager();
@@ -247,7 +250,7 @@ async fn manual_disconnect_trips_in_flight_reconnect_cancel_token() {
 // the token the disconnect had tripped.
 #[tokio::test]
 async fn requested_connect_after_manual_disconnect_is_not_canceled() {
-    use crate::simulator::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
@@ -325,7 +328,7 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
 
     let result = connecting.await.unwrap();
     faults::clear_all();
-    crate::simulator::get_sim_mount()
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status
@@ -337,7 +340,7 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
 // probe passes. The failed reads must be what the heartbeat sees.
 #[tokio::test]
 async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
-    use crate::simulator::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
     use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
@@ -376,9 +379,10 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
 // "Reconnection attempt N failed" event for the same failure.
 #[tokio::test]
 async fn a_failed_reconnect_attempt_publishes_one_event() {
-    use crate::simulator::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
     use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
-    use crate::event::{EquipmentEvent, EventPayload};
+    use crate::event::bus::EventPayload;
+    use crate::event::equipment::EquipmentEvent;
     use tokio::sync::broadcast::error::TryRecvError;
 
     let _guard = super::simulator_singleton_test_lock().lock().await;

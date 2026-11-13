@@ -1,4 +1,6 @@
-use super::*;
+use crate::device::FilterWheelStatus;
+use std::sync::{Arc, OnceLock};
+use tokio::sync::RwLock;
 
 pub(crate) static SIM_FILTERWHEEL: OnceLock<Arc<RwLock<SimulatedFilterWheel>>> = OnceLock::new();
 

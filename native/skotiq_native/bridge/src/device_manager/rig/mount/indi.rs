@@ -1,12 +1,15 @@
 //! An INDI mount on its server's shared connection.
 
 use super::Mount;
-use crate::device::*;
-use crate::device_capabilities::DeviceCapabilities;
+use crate::device::{
+    mount_status_field, FieldAvailability, MountSite, MountSiteCapabilities, MountStatus,
+    MountTimeInfo,
+};
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::ops::mount::slew::stop_failure_detail;
 use crate::device_manager::rig::RigDriver;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{mount_slew_with_timeout, with_timeout_str, Timeouts};
 use async_trait::async_trait;
@@ -548,7 +551,11 @@ impl Mount for IndiMountHandle {
     }
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        crate::device_capabilities::indi_capabilities(&self.client, &self.device_name, device_id)
-            .await
+        crate::device_capabilities::indi::indi_capabilities(
+            &self.client,
+            &self.device_name,
+            device_id,
+        )
+        .await
     }
 }

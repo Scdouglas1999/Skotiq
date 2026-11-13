@@ -1,7 +1,8 @@
 //! Rotator control exposed to Dart.
 
-use crate::api::{api_get_rotator_capabilities, get_device_manager};
+use crate::api::diagnostics::api_get_rotator_capabilities;
 use crate::device::RotatorStatus;
+use crate::device_manager::get_device_manager;
 use crate::error::SkotiqError;
 
 /// Get rotator status

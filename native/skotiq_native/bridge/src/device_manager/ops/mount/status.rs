@@ -1,4 +1,7 @@
-use super::*;
+use crate::device::{DeviceType, FieldAvailability, MountStatus, TrackingRate};
+use crate::device_manager::DeviceManager;
+use crate::dispatch::error::DeviceOpError;
+use std::collections::HashMap;
 
 impl DeviceManager {
     /// Sync the mount to J2000 coordinates, publishing the position synced

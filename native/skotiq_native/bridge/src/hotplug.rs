@@ -55,12 +55,11 @@
 
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::get_device_manager;
-use crate::event::{EquipmentEvent, EventSeverity};
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use crate::state::get_state;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Mutex as StdMutex;
-use std::sync::OnceLock;
+use std::sync::{Mutex as StdMutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 static LISTENER_STARTED: AtomicBool = AtomicBool::new(false);

@@ -1,6 +1,7 @@
 //! The heartbeat's liveness probe of a native mount.
 
 use super::*;
+use crate::device::DriverType;
 use skotiq_device::{
     DeviceDriver, DriverError, GuideDirection, MountDriver, PierSide, TrackingRate, Vendor,
 };

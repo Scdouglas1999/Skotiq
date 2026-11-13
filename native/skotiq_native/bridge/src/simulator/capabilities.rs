@@ -1,5 +1,7 @@
 use crate::device::DeviceType;
-use crate::device_capabilities::{CameraCapabilities, DeviceCapabilities, MountCapabilities};
+use crate::device_capabilities::types::{
+    CameraCapabilities, DeviceCapabilities, MountCapabilities,
+};
 use crate::device_id::{ConnectionInfo, ParsedDeviceId};
 use crate::error::SkotiqError;
 
@@ -56,8 +58,8 @@ pub(crate) async fn get_simulator_capabilities(
     })?;
 
     let capabilities = match device_type {
-        DeviceType::Camera if crate::simulator::is_sim_guide_camera(&parsed.raw_id) => {
-            use crate::simulator::{SIM_GUIDE_PIXEL_UM, SIM_GUIDE_SENSOR_H, SIM_GUIDE_SENSOR_W};
+        DeviceType::Camera if crate::simulator::camera::is_sim_guide_camera(&parsed.raw_id) => {
+            use crate::simulator::camera::{SIM_GUIDE_PIXEL_UM, SIM_GUIDE_SENSOR_H, SIM_GUIDE_SENSOR_W};
             DeviceCapabilities::Camera(CameraCapabilities {
                 max_width: SIM_GUIDE_SENSOR_W,
                 max_height: SIM_GUIDE_SENSOR_H,
@@ -84,11 +86,11 @@ pub(crate) async fn get_simulator_capabilities(
             })
         }
         DeviceType::Camera
-            if !crate::simulator::sim_camera_iso_speeds(&parsed.raw_id)
+            if !crate::simulator::camera::sim_camera_iso_speeds(&parsed.raw_id)
                 .is_empty() =>
         {
             let iso_speeds =
-                crate::simulator::sim_camera_iso_speeds(&parsed.raw_id).to_vec();
+                crate::simulator::camera::sim_camera_iso_speeds(&parsed.raw_id).to_vec();
             DeviceCapabilities::Camera(CameraCapabilities {
                 max_width: crate::simulator::frame::SIM_W as u32,
                 max_height: crate::simulator::frame::SIM_H as u32,
@@ -108,7 +110,7 @@ pub(crate) async fn get_simulator_capabilities(
             })
         }
         DeviceType::Camera => {
-            let traits = crate::simulator::sim_imaging_camera_traits();
+            let traits = crate::simulator::camera::sim_imaging_camera_traits();
             let cooled = !traits.no_cooler;
             let gain = !traits.no_gain;
             DeviceCapabilities::Camera(CameraCapabilities {

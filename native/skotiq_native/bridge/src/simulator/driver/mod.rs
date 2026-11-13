@@ -8,18 +8,21 @@ mod mount;
 
 use crate::device::{DeviceInfo, DeviceType};
 use crate::device_manager::handle::DeviceHandle;
-use crate::simulator::{
-    get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
-    get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor, get_sim_switch,
-    get_sim_weather,
-};
-use accessories::{
+use crate::simulator::camera::get_sim_camera_for;
+use crate::simulator::cover_calibrator::get_sim_cover_calibrator;
+use crate::simulator::driver::accessories::{
     SimCoverCalibrator, SimDome, SimRotator, SimSafetyMonitor, SimSwitch, SimWeather,
 };
-use camera::SimCamera;
-use filter_wheel::SimFilterWheel;
-use focuser::SimFocuser;
-use mount::SimMount;
+use crate::simulator::driver::camera::SimCamera;
+use crate::simulator::driver::filter_wheel::SimFilterWheel;
+use crate::simulator::driver::focuser::SimFocuser;
+use crate::simulator::driver::mount::SimMount;
+use crate::simulator::environment::{get_sim_dome, get_sim_safety_monitor, get_sim_weather};
+use crate::simulator::filter_wheel::get_sim_filterwheel;
+use crate::simulator::focuser::get_sim_focuser;
+use crate::simulator::mount::get_sim_mount;
+use crate::simulator::rotator::get_sim_rotator;
+use crate::simulator::switch::get_sim_switch;
 use std::sync::Arc;
 
 /// The handle for a simulated device, `None` for the device types that have

@@ -10,17 +10,18 @@
 //! replaces with live ones on its next read.
 
 use crate::device::{DomeStatus, ShutterState};
-use crate::device_capabilities::{
+use crate::device_capabilities::types::{
     DomeCapabilities, RotatorCapabilities, SafetyMonitorCapabilities, WeatherCapabilities,
 };
 use crate::device_manager::accessory::{Dome, Rotator, SafetyMonitor, Weather};
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
+use crate::simulator as sim;
+use crate::simulator::cover_calibrator::get_sim_cover_calibrator;
+use crate::simulator::environment::{get_sim_dome, get_sim_safety_monitor, get_sim_weather};
 use crate::simulator::gate;
-use crate::simulator::{
-    self as sim, get_sim_cover_calibrator, get_sim_dome, get_sim_rotator, get_sim_safety_monitor,
-    get_sim_switch, get_sim_weather,
-};
+use crate::simulator::rotator::get_sim_rotator;
+use crate::simulator::switch::get_sim_switch;
 use async_trait::async_trait;
 use skotiq_device::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
 use skotiq_device::{
@@ -187,7 +188,7 @@ impl Dome for SimDome {
             slewing: false,
             at_home: true,
             at_park: false,
-            shutter_status: Some(crate::device_capabilities::ShutterStatus::Closed),
+            shutter_status: Some(crate::device_capabilities::types::ShutterStatus::Closed),
             can_slave: s.can_slave,
             slaved: false,
             can_abort: true,
@@ -336,52 +337,75 @@ impl AccessoryDriver for SimSwitch {
 #[async_trait]
 impl SwitchDriver for SimSwitch {
     async fn count(&self) -> Result<i32, DriverError> {
-        sim::sim_switch_count().await.map_err(refuse)
+        sim::switch::sim_switch_count().await.map_err(refuse)
     }
 
     async fn switch_name(&self, index: i32) -> Result<String, DriverError> {
-        Ok(sim::sim_switch_read(index).await.map_err(refuse)?.name)
+        Ok(sim::switch::sim_switch_read(index)
+            .await
+            .map_err(refuse)?
+            .name)
     }
 
     async fn switch_description(&self, index: i32) -> Result<String, DriverError> {
-        Ok(sim::sim_switch_read(index)
+        Ok(sim::switch::sim_switch_read(index)
             .await
             .map_err(refuse)?
             .description)
     }
 
     async fn can_write(&self, index: i32) -> Result<bool, DriverError> {
-        Ok(sim::sim_switch_read(index).await.map_err(refuse)?.writable)
+        Ok(sim::switch::sim_switch_read(index)
+            .await
+            .map_err(refuse)?
+            .writable)
     }
 
     async fn state(&self, index: i32) -> Result<bool, DriverError> {
-        Ok(sim::sim_switch_read(index).await.map_err(refuse)?.state)
+        Ok(sim::switch::sim_switch_read(index)
+            .await
+            .map_err(refuse)?
+            .state)
     }
 
     async fn set_state(&self, index: i32, on: bool) -> Result<(), DriverError> {
-        sim::sim_switch_write_state(index, on).await.map_err(refuse)
+        sim::switch::sim_switch_write_state(index, on)
+            .await
+            .map_err(refuse)
     }
 
     async fn value(&self, index: i32) -> Result<f64, DriverError> {
-        Ok(sim::sim_switch_read(index).await.map_err(refuse)?.value)
+        Ok(sim::switch::sim_switch_read(index)
+            .await
+            .map_err(refuse)?
+            .value)
     }
 
     async fn set_value(&self, index: i32, value: f64) -> Result<(), DriverError> {
-        sim::sim_switch_write_value(index, value)
+        sim::switch::sim_switch_write_value(index, value)
             .await
             .map_err(refuse)
     }
 
     async fn min_value(&self, index: i32) -> Result<f64, DriverError> {
-        Ok(sim::sim_switch_read(index).await.map_err(refuse)?.min)
+        Ok(sim::switch::sim_switch_read(index)
+            .await
+            .map_err(refuse)?
+            .min)
     }
 
     async fn max_value(&self, index: i32) -> Result<f64, DriverError> {
-        Ok(sim::sim_switch_read(index).await.map_err(refuse)?.max)
+        Ok(sim::switch::sim_switch_read(index)
+            .await
+            .map_err(refuse)?
+            .max)
     }
 
     async fn step(&self, index: i32) -> Result<f64, DriverError> {
-        Ok(sim::sim_switch_read(index).await.map_err(refuse)?.step)
+        Ok(sim::switch::sim_switch_read(index)
+            .await
+            .map_err(refuse)?
+            .step)
     }
 }
 
@@ -551,15 +575,21 @@ impl AccessoryDriver for SimCoverCalibrator {
 #[async_trait]
 impl CoverCalibratorDriver for SimCoverCalibrator {
     async fn open_cover(&self) -> Result<(), DriverError> {
-        sim::sim_cover_move(true).await.map_err(refuse)
+        sim::cover_calibrator::sim_cover_move(true)
+            .await
+            .map_err(refuse)
     }
 
     async fn close_cover(&self) -> Result<(), DriverError> {
-        sim::sim_cover_move(false).await.map_err(refuse)
+        sim::cover_calibrator::sim_cover_move(false)
+            .await
+            .map_err(refuse)
     }
 
     async fn halt_cover(&self) -> Result<(), DriverError> {
-        sim::sim_cover_halt().await.map_err(refuse)
+        sim::cover_calibrator::sim_cover_halt()
+            .await
+            .map_err(refuse)
     }
 
     async fn cover_status(&self) -> Result<CoverStatus, DriverError> {
@@ -567,11 +597,15 @@ impl CoverCalibratorDriver for SimCoverCalibrator {
     }
 
     async fn calibrator_on(&self, brightness: i32) -> Result<(), DriverError> {
-        sim::sim_calibrator_on(brightness).await.map_err(refuse)
+        sim::cover_calibrator::sim_calibrator_on(brightness)
+            .await
+            .map_err(refuse)
     }
 
     async fn calibrator_off(&self) -> Result<(), DriverError> {
-        sim::sim_calibrator_off().await.map_err(refuse)
+        sim::cover_calibrator::sim_calibrator_off()
+            .await
+            .map_err(refuse)
     }
 
     async fn calibrator_status(&self) -> Result<CalibratorStatus, DriverError> {
@@ -587,7 +621,9 @@ impl CoverCalibratorDriver for SimCoverCalibrator {
     }
 
     async fn status(&self) -> Result<CoverCalibratorState, DriverError> {
-        let status = sim::sim_cover_status().await.map_err(refuse)?;
+        let status = sim::cover_calibrator::sim_cover_status()
+            .await
+            .map_err(refuse)?;
         Ok(CoverCalibratorState {
             cover: status.cover_state.to_i32().into(),
             calibrator: status.calibrator_state.to_i32().into(),

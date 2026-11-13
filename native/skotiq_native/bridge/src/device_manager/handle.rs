@@ -5,15 +5,15 @@
 //! error. Which protocol answers is decided once, at connect.
 
 use crate::device::{DeviceType, DriverType};
-use crate::device_capabilities::DeviceCapabilities;
-use crate::device_manager::accessory::{self, Dome, Rotator, SafetyMonitor, Weather};
+use crate::device_capabilities::types::DeviceCapabilities;
+use crate::device_manager::accessory::{Dome, Rotator, SafetyMonitor, Weather};
 use crate::device_manager::rig::camera::Camera;
 use crate::device_manager::rig::filter_wheel::FilterWheel;
 use crate::device_manager::rig::focuser::Focuser;
 use crate::device_manager::rig::mount::Mount;
 use crate::device_manager::rig::RigDriver;
-use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::device_manager::{accessory, DeviceManager};
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::simulator::gate;
 use skotiq_device::{AccessoryDriver, CoverCalibratorDriver, DriverError, SwitchDriver};
@@ -332,7 +332,7 @@ impl DeviceManager {
         device_id: &str,
         camera: Box<dyn skotiq_device::CameraDriver + Send + Sync>,
     ) {
-        use crate::device_manager::rig::camera::VendorCamera;
+        use crate::device_manager::rig::camera::vendor::VendorCamera;
         self.handles.insert(
             device_id,
             DeviceHandle::Camera(Arc::new(VendorCamera::new(device_id, camera))),
@@ -344,7 +344,7 @@ impl DeviceManager {
         device_id: &str,
         mount: Box<dyn skotiq_device::MountDriver + Send + Sync>,
     ) {
-        use crate::device_manager::rig::mount::VendorMount;
+        use crate::device_manager::rig::mount::vendor::VendorMount;
         self.handles.insert(
             device_id,
             DeviceHandle::Mount(Arc::new(VendorMount::new(device_id, mount))),
@@ -352,7 +352,7 @@ impl DeviceManager {
     }
 
     pub(crate) fn hold_alpaca_mount(&self, device_id: &str, mount: skotiq_alpaca::AlpacaTelescope) {
-        use crate::device_manager::rig::mount::AlpacaMount;
+        use crate::device_manager::rig::mount::alpaca::AlpacaMount;
         self.handles.insert(
             device_id,
             DeviceHandle::Mount(Arc::new(AlpacaMount::new(device_id, mount))),
@@ -365,7 +365,7 @@ impl DeviceManager {
         device_id: &str,
         mount: crate::ascom_wrapper::mount::AscomMountWrapper,
     ) {
-        use crate::device_manager::rig::mount::ComMount;
+        use crate::device_manager::rig::mount::com::ComMount;
         self.handles.insert(
             device_id,
             DeviceHandle::Mount(Arc::new(ComMount::new(device_id, mount))),

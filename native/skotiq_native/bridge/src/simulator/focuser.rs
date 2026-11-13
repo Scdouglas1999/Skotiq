@@ -1,4 +1,7 @@
-use super::*;
+use crate::device::FocuserStatus;
+use std::sync::{Arc, OnceLock};
+use std::time::Instant;
+use tokio::sync::RwLock;
 
 pub(crate) static SIM_FOCUSER: OnceLock<Arc<RwLock<SimulatedFocuser>>> = OnceLock::new();
 

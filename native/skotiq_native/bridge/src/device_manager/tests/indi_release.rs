@@ -1,7 +1,9 @@
 use super::*;
+use crate::device::DriverType;
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::focuser::IndiFocuserHandle;
-use crate::event::{EquipmentEvent, EventPayload};
+use crate::event::bus::EventPayload;
+use crate::event::equipment::EquipmentEvent;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 
@@ -56,7 +58,7 @@ fn focuser_info(id: &str) -> DeviceInfo {
 }
 
 async fn published_disconnected(
-    rx: &mut tokio::sync::broadcast::Receiver<crate::event::SkotiqEvent>,
+    rx: &mut tokio::sync::broadcast::Receiver<crate::event::bus::SkotiqEvent>,
     id: &str,
 ) -> bool {
     while let Ok(event) = rx.try_recv() {

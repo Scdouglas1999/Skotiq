@@ -895,7 +895,7 @@ async fn a_sequence_frame_and_a_manual_capture_take_their_format_from_the_run_co
         xisf_compression: skotiq_imaging::XisfCompression::from_name("zstd+sh").unwrap(),
         xisf_checksums: true,
     };
-    crate::api::api_sequencer_apply_run_config(serde_json::to_string(&xisf).unwrap())
+    crate::api::sequencer::runtime_config::api_sequencer_apply_run_config(serde_json::to_string(&xisf).unwrap())
         .await
         .expect("the run config applies");
 

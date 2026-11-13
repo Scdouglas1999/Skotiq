@@ -1,11 +1,11 @@
 //! Rotator operations.
 
-use crate::device::*;
+use crate::device::DeviceType;
 use crate::device_manager::handle::device_error;
 use crate::device_manager::ops::state_events::property;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
-use crate::event::EquipmentEvent;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 
 impl DeviceManager {
     // Rotator commands publish their state change (see `state_events`).

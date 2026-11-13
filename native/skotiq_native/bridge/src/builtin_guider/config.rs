@@ -1,4 +1,4 @@
-use super::*;
+use crate::error::SkotiqError;
 
 pub(crate) const BUILTIN_GUIDER_ID: &str = "native:builtin_guider:multi_star";
 

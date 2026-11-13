@@ -1,4 +1,5 @@
-use super::*;
+use flutter_rust_bridge::frb;
+use serde::{Deserialize, Serialize};
 
 /// Event severity levels
 #[frb]

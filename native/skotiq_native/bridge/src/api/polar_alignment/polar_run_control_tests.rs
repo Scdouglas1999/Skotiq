@@ -1,9 +1,14 @@
-use super::{
-    get_polar_align_cancel, get_polar_align_flag, normalize_hour_angle, plate_solve_ra_degrees,
-    polar_generation, polar_loop_control, pole_region_target, release_polar_run_if_current,
-    rotation_step_target, step_crosses_meridian, try_admit_polar_run, PolarLoopControl,
-    PolarOrdering, POLE_REGION_MERIDIAN_MARGIN_HOURS, POLE_REGION_OFFSET_DEG,
+use crate::api::polar_alignment::events::plate_solve_ra_degrees;
+use crate::api::polar_alignment::pole_slew::{
+    normalize_hour_angle, pole_region_target, rotate_for_next_point, rotation_step_target,
+    slew_to_pole_region, step_crosses_meridian, SlewOutcome, POLE_REGION_MERIDIAN_MARGIN_HOURS,
+    POLE_REGION_OFFSET_DEG,
 };
+use crate::api::polar_alignment::run_control::{
+    get_polar_align_cancel, get_polar_align_flag, polar_generation, polar_loop_control,
+    release_polar_run_if_current, try_admit_polar_run, PolarLoopControl,
+};
+use std::sync::atomic::Ordering as PolarOrdering;
 
 /// The rotation between measurement points is a step about the polar axis in
 /// the MOUNT's frame: mount RA moves by the step, mount Dec does not move at
@@ -98,7 +103,8 @@ fn raw_frame(width: u32, height: u32, data: Vec<u16>) -> crate::last_frame::RawF
 /// ADU sky and the difference between two bright stars both survive.
 #[tokio::test]
 async fn polar_solve_frame_is_the_cameras_own_samples() {
-    use super::{write_polar_solve_frame, SolveHints};
+    use crate::api::plate_solve::SolveHints;
+    use crate::api::polar_alignment::run_loop::write_polar_solve_frame;
 
     let (width, height) = (16u32, 8u32);
     let mut data = vec![1000u16; (width * height) as usize];
@@ -131,7 +137,8 @@ async fn polar_solve_frame_is_the_cameras_own_samples() {
 /// otherwise solve, three times per alignment run.
 #[tokio::test]
 async fn polar_solve_frame_carries_the_field_scale_hints() {
-    use super::{write_polar_solve_frame, SolveHints};
+    use crate::api::plate_solve::SolveHints;
+    use crate::api::polar_alignment::run_loop::write_polar_solve_frame;
 
     let path = crate::util::temp_fits::create_unique_temp_fits_path("polar_hint_test");
     let path_str = path.to_string_lossy().to_string();
@@ -161,7 +168,8 @@ async fn polar_solve_frame_carries_the_field_scale_hints() {
 /// solver behaves exactly as it did before — no invented numbers.
 #[tokio::test]
 async fn polar_solve_frame_omits_scale_cards_when_nothing_is_known() {
-    use super::{write_polar_solve_frame, SolveHints};
+    use crate::api::plate_solve::SolveHints;
+    use crate::api::polar_alignment::run_loop::write_polar_solve_frame;
 
     let path = crate::util::temp_fits::create_unique_temp_fits_path("polar_hint_absent_test");
     let path_str = path.to_string_lossy().to_string();
@@ -318,7 +326,8 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
     use crate::device_manager::get_device_manager;
-    use crate::simulator::{get_sim_mount, sim_singleton_test_lock};
+    use crate::simulator::mount::get_sim_mount;
+    use crate::simulator::sim_singleton_test_lock;
 
     let _serialized = sim_singleton_test_lock().lock().await;
     let _globals = polar_globals_test_lock().lock().await;
@@ -340,7 +349,7 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
             false,
         )
         .await;
-    crate::simulator::cancel_sim_slew().await;
+    crate::simulator::mount::cancel_sim_slew().await;
 
     // Three hours west of the meridian at Dec 60 of date, like run 1.
     let longitude = -75.3576;
@@ -364,7 +373,7 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
     get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
     let generation = polar_generation().load(PolarOrdering::Relaxed);
     for (point, expected_ra) in [(2, start_ra - 20.0 / 15.0), (3, start_ra - 40.0 / 15.0)] {
-        let outcome = super::rotate_for_next_point(
+        let outcome = rotate_for_next_point(
             mount_id,
             point,
             20.0,
@@ -375,7 +384,7 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
         )
         .await
         .expect("rotation step");
-        assert!(matches!(outcome, super::SlewOutcome::Settled));
+        assert!(matches!(outcome, SlewOutcome::Settled));
         let status = get_device_manager()
             .mount_get_status(mount_id)
             .await
@@ -405,7 +414,8 @@ async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
     use crate::device_manager::get_device_manager;
-    use crate::simulator::{get_sim_mount, sim_singleton_test_lock};
+    use crate::simulator::mount::get_sim_mount;
+    use crate::simulator::sim_singleton_test_lock;
     use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
 
     let _serialized = sim_singleton_test_lock().lock().await;
@@ -428,7 +438,7 @@ async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
             false,
         )
         .await;
-    crate::simulator::cancel_sim_slew().await;
+    crate::simulator::mount::cancel_sim_slew().await;
     {
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
@@ -441,10 +451,10 @@ async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
     get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
     let generation = polar_generation().load(PolarOrdering::Relaxed);
     let lst = local_sidereal_time(julian_day(&chrono::Utc::now()), longitude);
-    let outcome = super::slew_to_pole_region(mount_id, true, true, longitude, generation)
+    let outcome = slew_to_pole_region(mount_id, true, true, longitude, generation)
         .await
         .expect("pole-region slew");
-    assert!(matches!(outcome, super::SlewOutcome::Settled));
+    assert!(matches!(outcome, SlewOutcome::Settled));
 
     let status = get_device_manager()
         .mount_get_status(mount_id)

@@ -3,12 +3,12 @@
 //! on the STA worker. The dome, switch, weather station, safety monitor and
 //! cover calibrator implement their traits in their own files.
 
-use super::rotator::AscomRotatorWrapper;
-use crate::device_capabilities::RotatorCapabilities;
+use crate::ascom_wrapper::rotator::AscomRotatorWrapper;
+use crate::device_capabilities::types::RotatorCapabilities;
 use crate::device_manager::accessory::{
     ascom_mechanical_position, ascom_rotator_capabilities, AscomRotatorMembers, Rotator,
 };
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{AccessoryDriver, DriverError, RotatorDriver};

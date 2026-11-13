@@ -6,11 +6,11 @@
 //! `switch_can_write` could only ever answer `true` and the UI's read-only
 //! rendering would ship unexercised.
 
-use crate::device::*;
+use crate::device::DeviceType;
 use crate::device_manager::accessory::switch_value_on_step;
 use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 
 use crate::device_manager::ops::state_events::property;
 
@@ -200,7 +200,8 @@ mod simulator_tests {
     use crate::device_manager::get_device_manager;
     use crate::device_manager::DeviceManager;
     use crate::discovery::discover_devices;
-    use crate::simulator::{reset_sim_switch, sim_singleton_test_lock};
+    use crate::simulator::sim_singleton_test_lock;
+    use crate::simulator::switch::reset_sim_switch;
     use std::sync::Arc;
     use std::time::Duration;
 

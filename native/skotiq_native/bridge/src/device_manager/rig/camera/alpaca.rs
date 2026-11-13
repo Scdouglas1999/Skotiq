@@ -3,10 +3,10 @@
 
 use super::{no_preview, Camera, ExposureAborts};
 use crate::device::DriverType;
-use crate::device_capabilities::DeviceCapabilities;
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::ops::camera::UNKNOWN_CAMERA_SETTING;
 use crate::device_manager::rig::RigDriver;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{DriverError, ImageData, SubFrame};
@@ -392,7 +392,7 @@ impl Camera for AlpacaCameraHandle {
 
     async fn capabilities(&self, _device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
         Ok(DeviceCapabilities::Camera(
-            crate::device_capabilities::alpaca_camera_capabilities(&self.camera).await,
+            crate::device_capabilities::alpaca::alpaca_camera_capabilities(&self.camera).await,
         ))
     }
 }

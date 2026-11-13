@@ -1,4 +1,6 @@
-use super::*;
+use crate::device_manager::{rig, DeviceManager};
+use crate::dispatch::error::DeviceOpError;
+use skotiq_device::ImageData;
 
 impl DeviceManager {
     pub async fn camera_download_image(&self, device_id: &str) -> Result<ImageData, DeviceOpError> {

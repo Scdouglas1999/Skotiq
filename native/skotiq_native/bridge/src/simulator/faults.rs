@@ -46,7 +46,7 @@
 //! effect instead sets a latch that the simulator's motion advancers consult
 //! (see [`is_stalled`]).
 
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex as StdMutex, OnceLock};

@@ -9,22 +9,19 @@
 //!
 //! Coordinates are in the mount's own frame; the caller converts.
 
-mod alpaca;
+pub(crate) mod alpaca;
 #[cfg(windows)]
-mod com;
-mod indi;
-mod vendor;
+pub(crate) mod com;
+pub(crate) mod indi;
+pub(crate) mod vendor;
 
-pub(crate) use alpaca::AlpacaMount;
 #[cfg(windows)]
 pub(crate) use com::ComMount;
-pub(crate) use indi::IndiMountHandle;
-pub(crate) use vendor::VendorMount;
 
 use super::RigDriver;
 use crate::device::{MountSite, MountSiteCapabilities, MountStatus, MountTimeInfo};
-use crate::device_capabilities::DeviceCapabilities;
-use crate::dispatch::DeviceOpError;
+use crate::device_capabilities::types::DeviceCapabilities;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use std::time::Duration;

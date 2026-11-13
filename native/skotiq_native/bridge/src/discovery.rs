@@ -602,7 +602,7 @@ pub(crate) async fn scan_native_for_type_with(
 
         // Built-in guider (always available).
         out.push(DeviceInfo {
-            id: crate::builtin_guider::device_id().to_string(),
+            id: crate::builtin_guider::control::device_id().to_string(),
             name: "Built-in Multi-Star Guider".to_string(),
             device_type: DeviceType::Guider,
             driver_type: DriverType::Native,
@@ -694,8 +694,8 @@ async fn scan_indi_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, 
 /// screen shows for it.
 fn simulator_for_type(device_type: DeviceType) -> Option<(&'static str, &'static str)> {
     Some(match device_type {
-        DeviceType::Camera if crate::simulator::sim_imaging_camera_is_dslr() => {
-            ("sim_camera_1", crate::simulator::SIM_DSLR_NAME)
+        DeviceType::Camera if crate::simulator::camera::sim_imaging_camera_is_dslr() => {
+            ("sim_camera_1", crate::simulator::camera::SIM_DSLR_NAME)
         }
         DeviceType::Camera => ("sim_camera_1", "Simulated Camera"),
         DeviceType::Mount => ("sim_mount_1", "Simulated Mount"),
@@ -714,10 +714,13 @@ fn simulator_for_type(device_type: DeviceType) -> Option<(&'static str, &'static
 /// The name discovery gives the simulator with [device_id], so a device
 /// reads the same in discovery, the connected list and on a linked client.
 pub(crate) fn simulator_display_name(device_id: &str, device_type: DeviceType) -> Option<String> {
-    if device_type == DeviceType::Camera && crate::simulator::is_sim_guide_camera(device_id) {
-        return Some(crate::simulator::SIM_GUIDE_CAMERA_NAME.to_string());
+    if device_type == DeviceType::Camera && crate::simulator::camera::is_sim_guide_camera(device_id)
+    {
+        return Some(crate::simulator::camera::SIM_GUIDE_CAMERA_NAME.to_string());
     }
-    if device_type == DeviceType::Camera && device_id == crate::simulator::SIM_GUIDE_CAMERA_ID {
+    if device_type == DeviceType::Camera
+        && device_id == crate::simulator::camera::SIM_GUIDE_CAMERA_ID
+    {
         // The imaging camera, re-enumerated at the guide camera's id.
         return simulator_for_type(device_type).map(|(_, name)| name.to_string());
     }
@@ -749,7 +752,9 @@ fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
     // Each camera's name and serial follow the body, not the id: the bus can
     // re-enumerate them in the other order (see `unplug_sim_camera`).
     if device_type == DeviceType::Camera {
-        use crate::simulator::{is_sim_guide_camera, SIM_GUIDE_CAMERA_ID, SIM_GUIDE_CAMERA_NAME};
+        use crate::simulator::camera::{
+            is_sim_guide_camera, SIM_GUIDE_CAMERA_ID, SIM_GUIDE_CAMERA_NAME,
+        };
         return [id, SIM_GUIDE_CAMERA_ID]
             .into_iter()
             .map(|camera_id| {

@@ -69,7 +69,7 @@ pub(crate) async fn sim_sky_view(
         return None;
     }
     let (centre_ra_deg, centre_dec_deg) = {
-        let mount = crate::simulator::get_sim_mount().read().await;
+        let mount = crate::simulator::mount::get_sim_mount().read().await;
         if !mount.status.connected {
             return None;
         }
@@ -101,7 +101,7 @@ pub(crate) async fn sim_sky_view(
     let rotation_deg = if optics == SimOptics::GuideScope {
         0.0
     } else {
-        let rotator = crate::simulator::get_sim_rotator().read().await;
+        let rotator = crate::simulator::rotator::get_sim_rotator().read().await;
         if rotator.status.connected {
             rotator.status.position
         } else {
@@ -110,7 +110,7 @@ pub(crate) async fn sim_sky_view(
     };
     let focal_length_mm = match optics {
         SimOptics::GuideScope => sim_guide_focal_length_mm().await,
-        SimOptics::ImagingTrain => crate::get_state()
+        SimOptics::ImagingTrain => crate::state::get_state()
             .get_profile()
             .await
             .map(|profile| profile.telescope_focal_length)
@@ -165,12 +165,12 @@ pub(crate) struct SimCaptureRequest {
 /// when it has one, so the guider's arcsecond scale and the rendered field
 /// agree, otherwise the simulator's own guide scope.
 async fn sim_guide_focal_length_mm() -> f64 {
-    crate::get_state()
+    crate::state::get_state()
         .get_profile()
         .await
         .and_then(|profile| profile.guide_focal_length_mm)
         .filter(|focal| focal.is_finite() && *focal > 0.0)
-        .unwrap_or(crate::simulator::SIM_GUIDE_FOCAL_LENGTH_MM)
+        .unwrap_or(crate::simulator::camera::SIM_GUIDE_FOCAL_LENGTH_MM)
 }
 
 /// The optics a simulated camera looks through.
@@ -184,7 +184,7 @@ pub(crate) enum SimOptics {
 
 impl SimOptics {
     pub(crate) fn for_camera(device_id: &str) -> Self {
-        if crate::simulator::is_sim_guide_camera(device_id) {
+        if crate::simulator::camera::is_sim_guide_camera(device_id) {
             Self::GuideScope
         } else {
             Self::ImagingTrain
@@ -263,12 +263,15 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
     let focus_position = if guide_scope {
         None
     } else {
-        let focuser = crate::simulator::get_sim_focuser().read().await;
+        let focuser = crate::simulator::focuser::get_sim_focuser().read().await;
         if focuser.status.connected {
             // A cooling tube moves best focus outward (see
             // `SKOTIQ_SIM_NIGHT_COOLING_C_PER_HOUR`); a focuser left where
             // it was is that far out of focus.
-            Some(focuser.status.position - crate::simulator::sim_thermal_focus_shift_steps())
+            Some(
+                focuser.status.position
+                    - crate::simulator::focuser::sim_thermal_focus_shift_steps(),
+            )
         } else {
             None
         }
@@ -291,8 +294,8 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
     }
     // Star position tracks the simulated mount, so guide pulses and tracking
     // drift are visible to whatever is measuring the frame.
-    let mount_offset = crate::simulator::sim_guide_offset_px().await;
-    let seed = crate::simulator::next_sim_frame_seed();
+    let mount_offset = crate::simulator::guiding::sim_guide_offset_px().await;
+    let seed = crate::simulator::camera::next_sim_frame_seed();
     let (offset_x, offset_y) = if guide_scope {
         guide_camera_offset_px(
             mount_offset,
@@ -335,7 +338,7 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
 
 /// Where the simulated mount points, in degrees, when it is connected.
 async fn sim_pointing_deg() -> Option<(f64, f64)> {
-    let mount = crate::simulator::get_sim_mount().read().await;
+    let mount = crate::simulator::mount::get_sim_mount().read().await;
     mount.status.connected.then(|| {
         (
             mount.status.right_ascension * 15.0,

@@ -1,11 +1,11 @@
 //! A vendor SDK camera.
 
 use super::{Camera, ExposureAborts};
-use crate::device_capabilities::{CameraCapabilities, DeviceCapabilities};
+use crate::device_capabilities::types::{CameraCapabilities, DeviceCapabilities};
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{Exclusive, RigDriver};
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{

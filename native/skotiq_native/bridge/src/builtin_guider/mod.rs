@@ -35,32 +35,13 @@
 //!   star detection with a real `NoStarsDetected` error.
 //! * `unwrap_or_default()` on profile-name lookup — guider profile may not
 //!   yet exist on first run; empty name flows through to default config.
-use crate::device_manager::get_device_manager;
-use crate::state::get_state;
-use crate::guider::{GuideStarImage, GuiderCalibration, GuiderStatus, TrackedGuideStar};
-use crate::device::DeviceType;
-use crate::error::SkotiqError;
-use crate::event::{EventSeverity, GuidingEvent, SystemEvent};
-use skotiq_imaging::{detect_stars_with_stats, DetectedStar, ImageData, StarDetectionConfig};
-use std::sync::Arc;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
-use tokio::sync::{Mutex, RwLock};
-use tokio::task::JoinHandle;
 
 pub(crate) mod calibration;
-pub(crate) use calibration::*;
 pub(crate) mod config;
-pub(crate) use config::*;
 pub(crate) mod control;
-pub(crate) use control::*;
 pub(crate) mod dither;
-pub(crate) use dither::*;
 pub(crate) mod loop_runner;
-pub(crate) use loop_runner::*;
 pub(crate) mod metrics;
-pub(crate) use metrics::*;
 pub(crate) mod state;
-pub(crate) use state::*;
 #[cfg(test)]
 mod tests;

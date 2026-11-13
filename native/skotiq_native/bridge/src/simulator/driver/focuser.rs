@@ -1,9 +1,10 @@
-use crate::device_capabilities::FocuserCapabilities;
+use crate::device_capabilities::types::FocuserCapabilities;
 use crate::device_manager::rig::focuser::Focuser;
 use crate::device_manager::rig::RigDriver;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
-use crate::simulator::{faults, gate, get_sim_focuser};
+use crate::simulator::focuser::get_sim_focuser;
+use crate::simulator::{faults, gate};
 use async_trait::async_trait;
 use skotiq_device::DriverError;
 

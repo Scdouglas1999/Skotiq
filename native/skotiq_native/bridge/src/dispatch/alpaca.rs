@@ -2,21 +2,25 @@
 //!
 //! Methods in this module are additional impl blocks on `DeviceManager` and
 //! provide Alpaca-only logic for `connect_*` and `perform_*_health_check`. They are invoked from the dispatcher methods in
-//! `crate::device_manager`. No behavior or signature has changed relative to the
-//! previous monolithic `devices.rs`.
+//! `crate::device_manager`.
 
-use crate::device::*;
+use crate::device::{DeviceInfo, DeviceType};
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::ascom::{AscomFilterWheel, AscomFocuser};
-use crate::device_manager::rig::camera::AlpacaCameraHandle;
-use crate::device_manager::rig::mount::AlpacaMount;
+use crate::device_manager::rig::camera::alpaca::AlpacaCameraHandle;
+use crate::device_manager::rig::mount::alpaca::AlpacaMount;
 use crate::device_manager::DeviceManager;
 use std::sync::Arc;
 
 impl DeviceManager {
     pub(crate) async fn connect_alpaca(&self, info: &DeviceInfo) -> Result<(), String> {
-        use crate::device_id::{parse_device_id_cached, ConnectionInfo};
-        use skotiq_alpaca::*;
+        use crate::device_id::cache::parse_device_id_cached;
+        use crate::device_id::ConnectionInfo;
+        use skotiq_alpaca::{
+            AlpacaCamera, AlpacaCoverCalibrator, AlpacaDome, AlpacaFilterWheel, AlpacaFocuser,
+            AlpacaObservingConditions, AlpacaRotator, AlpacaSafetyMonitor, AlpacaSwitch,
+            AlpacaTelescope,
+        };
 
         let parsed = parse_device_id_cached(&info.id)
             .map_err(|e| format!("Invalid Alpaca device ID '{}': {}", info.id, e))?;

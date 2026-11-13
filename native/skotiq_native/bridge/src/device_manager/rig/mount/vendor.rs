@@ -6,11 +6,14 @@
 //! disconnected or released: every operation then answers not connected.
 
 use super::Mount;
-use crate::device::*;
-use crate::device_capabilities::{DeviceCapabilities, MountCapabilities};
+use crate::device::{
+    mount_status_field, FieldAvailability, MountSite, MountSiteCapabilities, MountStatus,
+    MountTimeInfo,
+};
+use crate::device_capabilities::types::{DeviceCapabilities, MountCapabilities};
 use crate::device_manager::rig::{Exclusive, RigDriver};
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::mount_slew_with_timeout;
 use async_trait::async_trait;

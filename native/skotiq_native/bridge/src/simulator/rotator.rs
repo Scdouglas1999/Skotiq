@@ -1,4 +1,6 @@
-use super::*;
+use crate::device::RotatorStatus;
+use std::sync::{Arc, OnceLock};
+use tokio::sync::RwLock;
 
 pub(crate) static SIM_ROTATOR: OnceLock<Arc<RwLock<SimulatedRotator>>> = OnceLock::new();
 

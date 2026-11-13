@@ -1,5 +1,5 @@
 use super::detector::*;
-use super::ledger::{CommandKind, CommandLedger};
+use crate::device_manager::motion_guard::ledger::{CommandKind, CommandLedger};
 
 const RUN: Context = Context {
     watch_position: true,
@@ -350,8 +350,9 @@ fn a_runaway_that_ends_at_home_is_a_lost_position() {
 async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
+    use crate::simulator::mount::{get_sim_mount, SimulatedMount};
+    use crate::simulator::sim_singleton_test_lock;
     use crate::simulator::{faults, runaway};
-    use crate::simulator::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
 
     let _serialized = sim_singleton_test_lock().lock().await;
     super::reset_for_tests();
@@ -375,7 +376,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
             false,
         )
         .await;
-    crate::simulator::cancel_sim_slew().await;
+    crate::simulator::mount::cancel_sim_slew().await;
     {
         let mut mount = get_sim_mount().write().await;
         *mount = SimulatedMount::default();
@@ -459,7 +460,9 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
         "the restart at home did not mark the position unknown"
     );
     assert!(
-        crate::api::sequencer::api_sequencer_resume().await.is_err(),
+        crate::api::sequencer::lifecycle::api_sequencer_resume()
+            .await
+            .is_err(),
         "a run could be resumed while the mount's position is unknown"
     );
 

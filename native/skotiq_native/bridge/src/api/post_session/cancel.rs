@@ -15,9 +15,9 @@
 //! disk the run finishes normally: reporting a cancelled run while a complete
 //! master sits beside it would misdescribe what is on disk.
 
-use super::*;
 use crate::run_cancel::CancelRegistry;
 pub(crate) use crate::run_cancel::CancelToken;
+use serde::{Deserialize, Serialize};
 
 /// The `kind` discriminator every cancelled post-session call carries.
 pub(crate) const CANCELLED_KIND: &str = "cancelled";

@@ -1,4 +1,16 @@
-use super::*;
+use super::get_sequence_executor;
+use crate::api::sequencer::event_translation::{
+    recovery_event_completed, recovery_event_gave_up, recovery_event_progress,
+    recovery_event_started, structured_progress_payload_from_progress_detail,
+    typed_sequencer_event_from_progress_detail,
+};
+use crate::error::SkotiqError;
+use crate::event::bus::EventPayload;
+use crate::event::correlation::create_event_auto_id;
+use crate::event::equipment::{EventCategory, EventSeverity};
+use crate::event::sequencer::{SequencerErrorKind, SequencerEvent};
+use crate::state::{get_state, SharedAppState};
+use skotiq_sequencer::{ExecutorEvent, ExecutorState, NodeStatus};
 
 /// Set once the two event bridges below are running, so a second call cannot
 /// stand up a second copy of them.
@@ -590,7 +602,7 @@ pub(crate) async fn run_sequencer_event_loop(
                 // call returns it to Dart.
                 ExecutorEvent::AutofocusProgress { focuser_id, detail } => {
                     state.publish_equipment_event(
-                        crate::event::EquipmentEvent::PropertyChanged {
+                        crate::event::equipment::EquipmentEvent::PropertyChanged {
                             device_type: "focuser".to_string(),
                             device_id: focuser_id.clone(),
                             property: "AutofocusProgress".to_string(),
@@ -678,8 +690,8 @@ pub(crate) async fn wait_for_no_event_listeners() {
 fn run_error_event(
     kind: SequencerErrorKind,
     message: String,
-    notice: Option<crate::event::SequencerNotice>,
-) -> crate::event::SkotiqEvent {
+    notice: Option<crate::event::sequencer::SequencerNotice>,
+) -> crate::event::bus::SkotiqEvent {
     create_event_auto_id(
         kind.run_severity(),
         EventCategory::Sequencer,
@@ -693,8 +705,8 @@ fn run_error_event(
 
 #[cfg(test)]
 mod frame_event_capture_tests {
-    use crate::api::sequencer::typed_sequencer_event_from_progress_detail;
-    use crate::event::SequencerEvent;
+    use crate::api::sequencer::event_translation::typed_sequencer_event_from_progress_detail;
+    use crate::event::sequencer::SequencerEvent;
     use skotiq_sequencer::scheduling::FrameCaptureMetadata;
     use skotiq_sequencer::ProgressDetail;
 
@@ -807,7 +819,9 @@ mod frame_event_capture_tests {
 
 #[cfg(test)]
 mod event_bridge_idempotence_tests {
-    use crate::api::sequencer::{api_sequencer_subscribe_events, get_sequence_executor};
+
+    use crate::api::sequencer::event_bridge::api_sequencer_subscribe_events;
+    use crate::api::sequencer::get_sequence_executor;
 
     /// Wait for the executor's event-broadcast receiver count to stop changing,
     /// so the assertion is not racing the supervised task's first `subscribe()`.
@@ -842,7 +856,7 @@ mod event_bridge_idempotence_tests {
     async fn subscribing_again_does_not_add_a_second_event_listener() {
         // Other tests listen to the same executor for their own runs.
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
-        crate::api::sequencer::wait_for_no_event_listeners().await;
+        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
         api_sequencer_subscribe_events()
             .await
             .expect("first subscribe should succeed");
@@ -872,7 +886,8 @@ mod event_bridge_idempotence_tests {
 #[cfg(test)]
 mod terminal_announcement_tests {
     use super::run_sequencer_event_loop;
-    use crate::event::{EventPayload, SequencerEvent};
+    use crate::event::bus::EventPayload;
+    use crate::event::sequencer::SequencerEvent;
     use crate::state::get_state;
     use skotiq_sequencer::{ExecutorEvent, ExecutorState};
 

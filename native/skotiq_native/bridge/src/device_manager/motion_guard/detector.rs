@@ -7,7 +7,7 @@
 
 use std::collections::VecDeque;
 
-use super::ledger::CommandLedger;
+use crate::device_manager::motion_guard::ledger::CommandLedger;
 
 /// An axis turning faster than this, in degrees per second, is not tracking
 /// or guiding. Sidereal is 0.0042 deg/s and the fastest guide rate is about

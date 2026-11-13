@@ -2,13 +2,13 @@
 //! [`super::Guider`], plus what only PHD2 has: its guide algorithm settings,
 //! its calibration store, its exposure and its profile.
 
-use super::stop_reason;
-use super::{GuideStarImage, GuiderCalibration, GuiderStatus};
-use crate::device_manager::get_device_manager;
-use crate::state::get_state;
+use super::{stop_reason, GuideStarImage, GuiderCalibration, GuiderStatus};
 use crate::device::{DeviceInfo, DeviceType, DriverType};
+use crate::device_manager::get_device_manager;
 use crate::error::SkotiqError;
-use crate::event::{EventSeverity, GuidingEvent};
+use crate::event::equipment::EventSeverity;
+use crate::event::guiding::GuidingEvent;
+use crate::state::get_state;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;

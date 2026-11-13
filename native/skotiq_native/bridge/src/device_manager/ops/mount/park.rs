@@ -1,5 +1,6 @@
-use super::*;
-use crate::event::EquipmentEvent;
+use crate::device_manager::DeviceManager;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 
 impl DeviceManager {
     /// Park the mount, publishing `MountParkStarted` before the command and

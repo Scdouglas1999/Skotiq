@@ -46,34 +46,29 @@
 //! }
 //! ```
 
-use crate::device_id::parse_device_id_cached;
+use crate::device_capabilities::alpaca::get_alpaca_capabilities;
+use crate::device_capabilities::ascom::get_ascom_capabilities;
+use crate::device_capabilities::cache::{
+    capability_cache, CapabilityCacheEntry, CAPABILITY_CACHE_TTL,
+};
+use crate::device_capabilities::indi::get_indi_capabilities;
+use crate::device_capabilities::native::get_native_capabilities;
+use crate::device_capabilities::types::{DeviceCapabilities, ShutterStatus};
+use crate::device_id::cache::parse_device_id_cached;
 use crate::error::SkotiqError;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
+use std::time::Instant;
 // Re-use enums from device module to avoid FRB conflicts
-use crate::device::{CalibratorState, CoverState, TrackingRate};
 
 // Import native traits for connect/disconnect and live filter-wheel queries.
-#[cfg(windows)]
-use skotiq_device::DeviceDriver;
 
 pub(crate) mod alpaca;
-pub(crate) use alpaca::*;
 pub(crate) mod ascom;
-pub(crate) use ascom::*;
 pub(crate) mod cache;
-pub(crate) use cache::*;
 pub(crate) mod indi;
-pub(crate) use indi::*;
 pub(crate) mod native;
-pub(crate) use native::*;
 #[cfg(test)]
 mod tests;
-pub(crate) mod types;
-pub use types::*;
+pub mod types;
 
 /// Re-read the LIVE readings that share the capability structs, overwriting
 /// whatever the cache is holding for them.

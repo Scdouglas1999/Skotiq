@@ -3,13 +3,12 @@
 //! [`super::ascom::AscomFilterWheel`].
 
 use super::{closed, Exclusive, RigDriver};
-use crate::device_capabilities::FilterWheelCapabilities;
-use crate::dispatch::DeviceOpError;
+use crate::device_capabilities::types::FilterWheelCapabilities;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{DriverError, FilterWheelDriver};
-use skotiq_indi::names as indi;
-use skotiq_indi::IndiFilterWheel;
+use skotiq_indi::{names as indi, IndiFilterWheel};
 use std::time::Duration;
 
 #[async_trait]

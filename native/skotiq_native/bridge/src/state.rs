@@ -3,16 +3,18 @@
 //! This module maintains the application state and provides
 //! thread-safe access to it from multiple components.
 
-use crate::device::*;
-use crate::event::*;
-use crate::storage::AppSettings;
-use crate::storage::ObserverLocation;
-use crate::storage::PlateSolverPreference;
-use crate::storage::PlateSolverStorage;
-use crate::storage::ProfileStorage;
-use crate::storage::SettingsStorage;
-use std::sync::Arc;
-use std::sync::OnceLock;
+use crate::device::DeviceType;
+use crate::event::bus::{EventBus, EventPayload, SkotiqEvent};
+use crate::event::correlation::SharedEventBus;
+use crate::event::equipment::{EquipmentEvent, EventCategory, EventSeverity};
+use crate::event::guiding::GuidingEvent;
+use crate::event::imaging::ImagingEvent;
+use crate::event::system::{SafetyEvent, SystemEvent};
+use crate::storage::{
+    AppSettings, ObserverLocation, PlateSolverPreference, PlateSolverStorage, ProfileStorage,
+    SettingsStorage,
+};
+use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
 pub struct AppState {
@@ -117,7 +119,7 @@ impl AppState {
     /// Create a new application state
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            event_bus: Arc::new(EventBus::new(crate::event::DEFAULT_EVENT_BUFFER_SIZE)),
+            event_bus: Arc::new(EventBus::new(crate::event::bus::DEFAULT_EVENT_BUFFER_SIZE)),
             profile: RwLock::new(None),
             observer_location: std::sync::RwLock::new(None),
         })
@@ -370,7 +372,7 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            event_bus: Arc::new(EventBus::new(crate::event::DEFAULT_EVENT_BUFFER_SIZE)),
+            event_bus: Arc::new(EventBus::new(crate::event::bus::DEFAULT_EVENT_BUFFER_SIZE)),
             profile: RwLock::new(None),
             observer_location: std::sync::RwLock::new(None),
         }

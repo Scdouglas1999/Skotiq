@@ -1,16 +1,19 @@
 use super::*;
 use crate::device::{DeviceInfo, DeviceType, DriverType};
-use crate::device_manager::get_device_manager;
-use crate::device_manager::DeviceManager;
+use crate::device_manager::{get_device_manager, DeviceManager};
+use crate::event::imaging::ImagingEvent;
+use crate::unified_device_ops::exposure_wait::{
+    exposure_abort_generation, wait_for_camera_exposure_complete,
+};
+use crate::unified_device_ops::rich_header::build_rich_header;
 use skotiq_device::{
     CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver, DriverError,
     ExposureParams, ImageData, ImageMetadata, ReadoutMode, SensorInfo, SubFrame, Vendor,
     VendorFeatures,
 };
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use skotiq_sequencer::{CameraOps, ConnectionOps, MountOps};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct InstantCompleteCamera {
@@ -394,7 +397,8 @@ async fn an_exposure_given_up_mid_frame_announces_that_it_ended() {
 
     let mut ended = false;
     while let Ok(event) = events.try_recv() {
-        if let crate::event::EventPayload::Imaging(ImagingEvent::ExposureCancelled) = event.payload
+        if let crate::event::bus::EventPayload::Imaging(ImagingEvent::ExposureCancelled) =
+            event.payload
         {
             ended = true;
         }

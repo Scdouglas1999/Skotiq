@@ -9,7 +9,9 @@
 //! [`DeviceManager::mount_site_capabilities`] says which directions the driver
 //! can honour so the UI never offers one that will be refused.
 
-use super::*;
+use crate::device::{MountSite, MountSiteCapabilities, MountTimeInfo};
+use crate::device_manager::DeviceManager;
+use crate::dispatch::error::DeviceOpError;
 
 /// Days between the OLE Automation epoch (1899-12-30) and the Unix epoch.
 ///

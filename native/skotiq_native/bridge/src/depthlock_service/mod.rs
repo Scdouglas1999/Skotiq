@@ -14,7 +14,7 @@ pub mod store;
 #[cfg(test)]
 mod tests;
 
-use engine::DepthLockService;
+use crate::depthlock_service::engine::DepthLockService;
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 

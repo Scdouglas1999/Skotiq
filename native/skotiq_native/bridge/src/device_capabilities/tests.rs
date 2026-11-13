@@ -1,4 +1,15 @@
-use super::*;
+#[cfg(windows)]
+use crate::device_capabilities::ascom::normalize_ascom_capability_device_type;
+use crate::device_capabilities::cache::{
+    capability_cache, invalidate_capability_cache, invalidate_capability_cache_for_device,
+};
+use crate::device_capabilities::get_device_capabilities;
+use crate::device_capabilities::indi::{indi_readout_mode_label, indi_sensor_type_is_color};
+use crate::device_capabilities::types::{
+    CameraCapabilities, CameraRecommendedSettings, DeviceCapabilities, MountCapabilities,
+    RotatorCapabilities,
+};
+use serde::Serialize;
 
 fn native_test_info(id: &str, device_type: crate::device::DeviceType) -> crate::device::DeviceInfo {
     crate::device::DeviceInfo {

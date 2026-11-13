@@ -1,4 +1,7 @@
-use super::*;
+use super::get_sequence_executor;
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
+use crate::unified_device_ops::create_unified_device_ops;
 
 /// Set simulation mode (use mock devices instead of real hardware)
 pub async fn api_sequencer_set_simulation_mode(enabled: bool) -> Result<(), SkotiqError> {
@@ -416,6 +419,7 @@ pub async fn api_sequencer_get_adaptive_swap_json() -> Result<Option<String>, Sk
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::sequencer::lifecycle::api_sequencer_get_state;
 
     /// A start holds the executor through its preflight. Status reads and the
     /// settings push answer meanwhile (the mount guard's run check reads the

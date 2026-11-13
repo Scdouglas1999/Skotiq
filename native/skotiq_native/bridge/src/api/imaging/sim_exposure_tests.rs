@@ -1,5 +1,5 @@
 use super::*;
-use crate::simulator::{get_sim_camera, get_sim_camera_for};
+use crate::simulator::camera::{get_sim_camera, get_sim_camera_for};
 
 /// Connect a simulated camera under `device_id` the way the Equipment screen
 /// does: registered with the device manager, singleton marked connected.
@@ -49,7 +49,7 @@ async fn detach_sim_camera(device_id: &str) {
 /// file and drives the real parser, index, projection and renderer.
 #[tokio::test]
 async fn the_manual_capture_path_renders_the_catalogue_sky() {
-    use crate::simulator::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
 
     let _serialized = crate::simulator::sim_singleton_test_lock()
         .lock()
@@ -104,7 +104,7 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     }
     // So the field sits where the projection puts it rather than where an
     // earlier test's accumulated drift left it.
-    crate::simulator::reset_sim_guide_offset().await;
+    crate::simulator::guiding::reset_sim_guide_offset().await;
 
     let device_id = "sim_manual_capture_sky".to_string();
     attach_sim_camera(&device_id).await;
@@ -169,7 +169,7 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
 /// come from the same `detect_stars` the real-camera branch uses.
 #[tokio::test]
 async fn simulated_frame_stats_track_focus_instead_of_a_random_draw() {
-    use crate::simulator::get_sim_focuser;
+    use crate::simulator::focuser::get_sim_focuser;
 
     let _serialized = crate::simulator::sim_singleton_test_lock()
         .lock()
@@ -338,7 +338,7 @@ async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
 #[tokio::test]
 #[ignore = "needs astap_cli and a star database; see the doc comment to run it"]
 async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
-    use crate::simulator::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
     use crate::simulator::sky::astap_integration::{astap_dir, read_crval, write_fits, PIXEL_UM};
 
     let _serialized = crate::simulator::sim_singleton_test_lock()
@@ -375,7 +375,7 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
         mount.status.right_ascension = mount_ra;
         mount.status.declination = mount_dec;
     }
-    crate::simulator::reset_sim_guide_offset().await;
+    crate::simulator::guiding::reset_sim_guide_offset().await;
 
     let device_id = "sim_manual_capture_solve".to_string();
     attach_sim_camera(&device_id).await;

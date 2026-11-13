@@ -1,5 +1,7 @@
-use super::*;
-use crate::event::EquipmentEvent;
+use crate::device::DeviceType;
+use crate::device_manager::DeviceManager;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 
 /// Describe the failed half (or halves) of a two-direction axis stop.
 ///

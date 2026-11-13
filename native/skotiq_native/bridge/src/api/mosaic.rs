@@ -239,7 +239,8 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
     // failure is logged and skipped, never propagated.
     let preview_png_path = match args.output.preview_png_path.as_ref() {
         Some(p) if !p.trim().is_empty() => {
-            match crate::api::post_session::write_preview_png(&output.master, Path::new(p)) {
+            match crate::api::post_session::helpers::write_preview_png(&output.master, Path::new(p))
+            {
                 Ok(()) => Some(p.clone()),
                 Err(e) => {
                     tracing::warn!(

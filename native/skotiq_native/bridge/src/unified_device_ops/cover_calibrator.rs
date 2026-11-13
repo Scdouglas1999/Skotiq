@@ -1,4 +1,8 @@
-use super::*;
+use super::{device_error, UnifiedDeviceOps};
+use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
+use async_trait::async_trait;
+use skotiq_sequencer::{CoverCalibratorOps, DeviceResult};
 
 #[async_trait]
 impl CoverCalibratorOps for UnifiedDeviceOps {

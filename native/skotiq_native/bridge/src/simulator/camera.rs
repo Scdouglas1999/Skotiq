@@ -1,4 +1,7 @@
-use super::*;
+use crate::device::{CameraState, CameraStatus};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
+use tokio::sync::RwLock;
 
 pub const SIM_IMAGING_CAMERA_ID: &str = "sim_camera_1";
 /// Id of the simulated guide camera: a small sensor behind a short guide scope,

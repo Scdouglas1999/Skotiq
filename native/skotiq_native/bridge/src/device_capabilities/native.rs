@@ -1,4 +1,5 @@
-use super::*;
+use crate::device_capabilities::types::DeviceCapabilities;
+use crate::error::SkotiqError;
 
 /// Get capabilities for a native SDK camera or mount
 ///

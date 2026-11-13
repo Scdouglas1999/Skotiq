@@ -5,10 +5,10 @@
 use super::{no_preview, Camera, ExposureAborts};
 use crate::ascom_wrapper::camera::{AscomCameraWrapper, CameraConnectionHealth};
 use crate::device::DriverType;
-use crate::device_capabilities::DeviceCapabilities;
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{Exclusive, RigDriver};
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{CameraDriver, DeviceDriver, DriverError, ExposureParams, ImageData, SubFrame};
@@ -304,7 +304,7 @@ impl Camera for ComCamera {
             .await
             .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?;
         Ok(DeviceCapabilities::Camera(
-            crate::device_capabilities::camera_capabilities_from_ascom(ascom_caps),
+            crate::device_capabilities::ascom::camera_capabilities_from_ascom(ascom_caps),
         ))
     }
 

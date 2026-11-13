@@ -2,11 +2,12 @@
 //! parks on it, a moving mount is refused, and a mount whose protocol has no
 //! set-park command answers unsupported.
 
-use super::mount_home::{
+use super::*;
+use crate::device::DriverType;
+use crate::device_manager::tests::mount_home::{
     connect_sim_mount_away_from_home, disconnect_sim_mount, register_mount, wait_until_idle,
     with_site_latitude,
 };
-use super::*;
 use crate::dispatch::error::DeviceOpError;
 
 /// Set park stores where the mount is pointing; a later park goes there, not
@@ -55,7 +56,7 @@ async fn simulated_set_park_moves_the_park_position_but_not_home() {
     })
     .await;
 
-    crate::simulator::clear_sim_park_position();
+    crate::simulator::mount::clear_sim_park_position();
     disconnect_sim_mount().await;
 }
 
@@ -82,7 +83,7 @@ async fn set_park_is_refused_while_the_mount_moves() {
     })
     .await;
 
-    crate::simulator::clear_sim_park_position();
+    crate::simulator::mount::clear_sim_park_position();
     disconnect_sim_mount().await;
 }
 

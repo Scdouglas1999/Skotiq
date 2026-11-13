@@ -2,7 +2,8 @@
 //! reaches the caller as that kind of failure, not as a generic fault.
 
 use super::*;
-use crate::dispatch::DeviceOpError;
+use crate::device::DriverType;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 

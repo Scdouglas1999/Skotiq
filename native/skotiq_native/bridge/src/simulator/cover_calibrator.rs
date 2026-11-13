@@ -1,4 +1,8 @@
-use super::*;
+use crate::device::{CalibratorState, CoverCalibratorStatus, CoverState};
+use crate::simulator::errors::{sim_fault, SimDeviceError, SimRamp};
+use std::sync::{Arc, OnceLock};
+use std::time::Instant;
+use tokio::sync::RwLock;
 
 /// End-to-end travel time of the simulated dust cover, in seconds.
 ///

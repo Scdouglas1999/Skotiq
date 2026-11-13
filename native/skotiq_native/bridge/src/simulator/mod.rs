@@ -6,15 +6,10 @@
 //! simulated flat panel rounds its continuous ramp, clamped to
 //! `0..=max_brightness`, before the cast to ASCOM's integer `Brightness`.
 
-use crate::device::*;
-use crate::storage::ObserverLocation;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+#[cfg(test)]
 use std::sync::OnceLock;
-use std::time::Instant;
 #[cfg(test)]
 use tokio::sync::Mutex;
-use tokio::sync::RwLock;
 
 pub(crate) mod capabilities;
 pub(crate) mod capture;
@@ -27,27 +22,17 @@ pub(crate) mod runaway;
 pub(crate) mod sky;
 
 pub(crate) mod camera;
-pub(crate) use camera::*;
 pub(crate) mod cover_calibrator;
-pub(crate) use cover_calibrator::*;
 pub(crate) mod environment;
-pub(crate) use environment::*;
 pub(crate) mod errors;
-pub(crate) use errors::*;
 pub(crate) mod filter_wheel;
-pub(crate) use filter_wheel::*;
 pub(crate) mod focuser;
-pub(crate) use focuser::*;
 pub(crate) mod guiding;
-pub(crate) use guiding::*;
 pub(crate) mod mount;
-pub(crate) use mount::*;
 pub(crate) mod rotator;
-pub(crate) use rotator::*;
 #[cfg(test)]
 mod sim_motion_tests;
 pub(crate) mod switch;
-pub(crate) use switch::*;
 
 /// Serializes every test that drives the process-global simulator singletons.
 ///

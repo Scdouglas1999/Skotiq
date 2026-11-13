@@ -2,11 +2,11 @@
 //! the wheel's handle (see [`crate::device_manager::rig::filter_wheel`]).
 
 use crate::adaptive_polling::ConsecutiveFailureBackoff;
-use crate::device::*;
+use crate::device::DeviceType;
 use crate::device_manager::ops::state_events::property;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
-use crate::event::EquipmentEvent;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 use std::collections::HashMap;
 use std::sync::{Mutex as StdMutex, OnceLock};
 use std::time::{Duration, Instant};

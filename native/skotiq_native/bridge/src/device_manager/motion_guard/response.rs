@@ -2,9 +2,10 @@
 
 use std::time::Duration;
 
-use super::detector::{Finding, LostReason, MotionKind};
 use super::{config, now, unix_now, with_registry, FaultRecord, LostRecord};
-use crate::event::{EventSeverity, SafetyEvent};
+use crate::device_manager::motion_guard::detector::{Finding, LostReason, MotionKind};
+use crate::event::equipment::EventSeverity;
+use crate::event::system::SafetyEvent;
 
 /// Rounds of stop commands the guard sends to a mount that keeps moving.
 const STOP_ROUNDS: u32 = 3;
@@ -668,7 +669,7 @@ async fn auto_recover(device_id: &str) -> Result<(), String> {
         solve.separation_deg
     );
     recovery_sync(device_id, solve.ra_hours, solve.dec_deg).await?;
-    crate::api::sequencer::api_sequencer_resume()
+    crate::api::sequencer::lifecycle::api_sequencer_resume()
         .await
         .map_err(|e| format!("The run did not resume: {e}"))?;
     Ok(())
@@ -676,12 +677,14 @@ async fn auto_recover(device_id: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod hold_tests {
+    
     use super::hold_run_or_stop_guiding;
     use crate::state::get_state;
-    use crate::api::sequencer::{
-        api_sequencer_start, get_sequence_executor, run_sequencer_event_loop,
-    };
-    use crate::event::{EventPayload, SequencerEvent};
+    use crate::api::sequencer::event_bridge::run_sequencer_event_loop;
+    use crate::api::sequencer::get_sequence_executor;
+    use crate::api::sequencer::lifecycle::api_sequencer_start;
+    use crate::event::bus::EventPayload;
+    use crate::event::sequencer::SequencerEvent;
 
     /// The guard asks the run to pause and the run announces it when its
     /// state turns Paused. The guard used to publish a Paused of its own as
@@ -702,7 +705,7 @@ mod hold_tests {
             children: vec![],
         });
         sequence.root_node_id = Some("wait".to_string());
-        crate::api::sequencer::wait_for_no_event_listeners().await;
+        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
         let mut run_events = {
             let mut executor = get_sequence_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(

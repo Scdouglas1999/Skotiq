@@ -17,7 +17,7 @@ pub(crate) mod policy;
 pub(crate) mod read_health;
 pub(crate) mod rig;
 
-use crate::device::*;
+use crate::device::{ConnectionState, DeviceInfo, DeviceType};
 use crate::state::SharedAppState;
 use skotiq_device::DeviceDriver;
 use std::collections::HashMap;

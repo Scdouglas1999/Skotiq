@@ -35,9 +35,9 @@ use skotiq_imaging::recipe::{
     RenderOptions, RenderOutput, StepOutcome,
 };
 
-use super::args::{CancelledRender, CatalogStarArgs};
-use super::catalog::SuppliedCatalog;
-use super::state::{base_pyramid, registry, render_cache, LoadedMaster};
+use crate::api::darkroom::args::{CancelledRender, CatalogStarArgs};
+use crate::api::darkroom::catalog::SuppliedCatalog;
+use crate::api::darkroom::state::{base_pyramid, registry, render_cache, LoadedMaster};
 use crate::run_cancel::CancelToken;
 
 /// How a render's samples become 8-bit RGBA.

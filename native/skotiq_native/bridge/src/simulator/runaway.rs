@@ -10,7 +10,7 @@
 use std::sync::Mutex;
 
 use crate::simulator::faults;
-use crate::simulator::{cancel_sim_slew, get_sim_mount, sim_home_position};
+use crate::simulator::mount::{cancel_sim_slew, get_sim_mount, sim_home_position};
 
 const KEY: &str = "mount.runaway";
 const EXTERNAL_KEY: &str = "mount.external";
@@ -35,7 +35,7 @@ async fn step_external() -> Result<(), String> {
     );
     if send {
         tracing::warn!("simulator fault: a slew from outside Skotiq to RA {ra}h Dec {dec}");
-        crate::simulator::begin_sim_slew(ra, dec, chrono::Utc::now()).await;
+        crate::simulator::mount::begin_sim_slew(ra, dec, chrono::Utc::now()).await;
     }
     Ok(())
 }

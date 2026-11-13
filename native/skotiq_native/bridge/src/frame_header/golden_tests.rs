@@ -157,7 +157,7 @@ fn full_frame_context() -> FrameContext {
 async fn a_sequence_frame_with_every_field_writes_these_cards() {
     let scratch = Scratch::new("sequence_full");
     let path = scratch.file("frame.fits");
-    let ops = crate::create_unified_device_ops();
+    let ops = crate::unified_device_ops::create_unified_device_ops();
     ops.save_fits(&seq_frame(8, 8), &path, &full_frame_context())
         .await
         .expect("sequence save");
@@ -184,7 +184,7 @@ async fn a_photometry_frame_writes_these_cards() {
     ctx.photometry_differential_mag = Some(0.125);
     ctx.photometry_fwhm_arcsec = Some(2.4);
     ctx.photometry_snr = Some(180.5);
-    let ops = crate::create_unified_device_ops();
+    let ops = crate::unified_device_ops::create_unified_device_ops();
     ops.save_fits(&seq_frame(4, 4), &path, &ctx)
         .await
         .expect("photometry save");
@@ -222,10 +222,10 @@ async fn a_manual_frame_with_no_rig_connected_writes_these_cards() {
     .expect("store frame");
     let scratch = Scratch::new("manual_no_rig");
     let path = scratch.file("frame.fits");
-    let saved = crate::api::api_save_fits_from_last_capture(
+    let saved = crate::api::imaging::api_save_fits_from_last_capture(
         device_id.to_string(),
         path.clone(),
-        crate::api::FitsWriteHeader {
+        crate::api::imaging::FitsWriteHeader {
             object_name: Some("M31".to_string()),
             exposure_time: 60.0,
             frame_type: "Light".to_string(),
@@ -349,7 +349,7 @@ async fn a_sequence_frame_header_matches_the_rig_frame() {
 
     let scratch = Scratch::new("rig");
     let path = scratch.file("rig.fits");
-    let ops = crate::create_unified_device_ops();
+    let ops = crate::unified_device_ops::create_unified_device_ops();
     ops.save_fits(&seq_frame(4656, 3520), &path, &ctx)
         .await
         .expect("rig-shaped save");
@@ -543,7 +543,7 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
         .await
         .expect("store frame");
     };
-    let header = || crate::api::FitsWriteHeader {
+    let header = || crate::api::imaging::FitsWriteHeader {
         object_name: Some("M31".to_string()),
         exposure_time: 30.0,
         frame_type: "Light".to_string(),
@@ -566,7 +566,7 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
         rotator_id: None,
     };
     let save = |path: String, keeper: bool| async move {
-        crate::api::api_save_fits_from_last_capture(device_id.to_string(), path, header(), keeper)
+        crate::api::imaging::api_save_fits_from_last_capture(device_id.to_string(), path, header(), keeper)
             .await
     };
     let saving = |choice| async move {

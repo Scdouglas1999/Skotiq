@@ -1,4 +1,6 @@
-use super::*;
+use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
+use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
 
 /// Telescope pointing sampled from the mount at save time, for the FITS
 /// `RA`/`DEC`/`OBJCTRA`/`OBJCTDEC` (and, via the altitude, `AIRMASS`) cards.

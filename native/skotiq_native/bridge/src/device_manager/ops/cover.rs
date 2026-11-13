@@ -4,10 +4,10 @@
 //! driver's `CoverCalibratorDriver::status` (for ASCOM over COM and Alpaca,
 //! `skotiq_device::ascom::cover_calibrator::state`).
 
-use crate::device::*;
+use crate::device::{CalibratorState, CoverCalibratorStatus, CoverState, DeviceType};
 use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 
 use crate::device_manager::ops::state_events::property;
 
@@ -194,6 +194,9 @@ impl DeviceManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::ConnectionState;
+    use crate::device::DeviceInfo;
+    use crate::device::DriverType;
     use crate::device_manager::handle::DeviceHandle;
     use crate::device_manager::ManagedDevice;
     use crate::state::AppState;
@@ -412,7 +415,7 @@ mod simulator_tests {
     /// Discover, register and connect the simulated panel, returning its id and
     /// the sequencer-facing ops handle the instruction nodes use.
     async fn connect_simulated_panel() -> (String, Arc<dyn DeviceOps>) {
-        crate::simulator::reset_sim_cover_calibrator().await;
+        crate::simulator::cover_calibrator::reset_sim_cover_calibrator().await;
         let devices = discover_devices(DeviceType::CoverCalibrator)
             .await
             .expect("cover calibrator discovery should succeed");

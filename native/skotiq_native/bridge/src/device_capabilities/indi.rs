@@ -1,5 +1,11 @@
-use super::*;
+use crate::device::TrackingRate;
+use crate::device_capabilities::types::{
+    CameraCapabilities, DeviceCapabilities, MountCapabilities,
+};
+use crate::device_id::cache::parse_device_id_cached;
+use crate::error::SkotiqError;
 use skotiq_indi::names as indi;
+use std::sync::Arc;
 
 pub(crate) fn indi_sensor_type_is_color(sensor_type: &str) -> bool {
     let normalized = sensor_type.to_ascii_lowercase();
@@ -61,7 +67,7 @@ pub(crate) async fn indi_capabilities(
     // present, otherwise wait briefly for the newly pooled client to hydrate.
     let start = std::time::Instant::now();
     let description = loop {
-        let description = client.read().await.describe_device(&device_name).await;
+        let description = client.read().await.describe_device(device_name).await;
         if !description.properties.is_empty()
             || start.elapsed() >= std::time::Duration::from_secs(1)
         {
@@ -87,7 +93,7 @@ pub(crate) async fn indi_capabilities(
             .any(|p| p.name == indi::CCD_GAIN || p.name == indi::CCD_CONTROLS);
         let has_offset = properties.iter().any(|p| p.name == indi::CCD_OFFSET);
 
-        let camera = IndiCamera::new(Arc::clone(&client), &device_name);
+        let camera = IndiCamera::new(Arc::clone(client), device_name);
         let gain_range = camera.get_gain_range().await;
         let sensor_type = camera.get_sensor_type().await;
         let bayer_pattern = camera.get_bayer_pattern().await;
@@ -115,7 +121,7 @@ pub(crate) async fn indi_capabilities(
             let locked_client = client.read().await;
             let limits = locked_client
                 .get_number_limits(
-                    &device_name,
+                    device_name,
                     indi::CCD_TEMPERATURE,
                     indi::CCD_TEMPERATURE_VALUE,
                 )
@@ -204,7 +210,7 @@ pub(crate) async fn indi_capabilities(
             let mut max_rate: Option<f64> = None;
             for element in &slew_rate.elements {
                 if let Some(max) = locked_client
-                    .get_number_limits(&device_name, indi::TELESCOPE_SLEW_RATE, element)
+                    .get_number_limits(device_name, indi::TELESCOPE_SLEW_RATE, element)
                     .await
                     .and_then(|limits| limits.max)
                 {
@@ -237,7 +243,7 @@ pub(crate) async fn indi_capabilities(
                 };
                 for element in &prop.elements {
                     let Some(limits) = locked_client
-                        .get_number_limits(&device_name, prop_name, element)
+                        .get_number_limits(device_name, prop_name, element)
                         .await
                     else {
                         continue;

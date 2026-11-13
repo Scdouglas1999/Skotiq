@@ -2,9 +2,9 @@
 //! says it supports is what its operations do.
 
 use super::*;
-use crate::device_capabilities::{
-    get_device_capabilities, invalidate_capability_cache_for_device, DeviceCapabilities,
-};
+use crate::device_capabilities::cache::invalidate_capability_cache_for_device;
+use crate::device_capabilities::get_device_capabilities;
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::error::SkotiqError;
 
 /// Registers and connects `id` on the app's device manager, the one the

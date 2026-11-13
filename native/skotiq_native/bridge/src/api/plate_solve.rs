@@ -1,28 +1,9 @@
-// split from monolithic api.rs
-#![allow(unused_imports)]
-// Shared imports inherited from the monolithic api.rs.
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::error::*;
-use crate::event::*;
-use crate::state::*;
-use crate::storage::{AppSettings, ObserverLocation};
-use crate::unified_device_ops::create_unified_device_ops;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
-    DebayerAlgorithm, FitsHeader, ImageData,
-};
+use crate::device::{ConnectionState, DeviceType};
+use crate::error::SkotiqError;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-// Sibling-module items via the parent's pub use re-exports.
-use super::*;
 
 /// Process-wide admission gate shared by UI, headless HTTP, sequencer, and
 /// recovery callers. External solvers write sibling `.ini`/`.wcs` artifacts;
@@ -507,7 +488,7 @@ pub(crate) async fn gather_solve_hints_for_camera(camera_id: Option<&str>) -> So
     // looked at, so a rig with no saved profile reported "pixel pitch unknown"
     // about a sensor that was connected and answering every other caller in the
     // app. The pitch is the camera's to report, not the profile's.
-    let profile = crate::get_state().get_profile().await;
+    let profile = crate::state::get_state().get_profile().await;
 
     hints.focal_length_mm = profile
         .as_ref()

@@ -16,7 +16,8 @@
 //! matter.
 
 use super::*;
-use crate::dispatch::DeviceOpError;
+use crate::device::DriverType;
+use crate::dispatch::error::DeviceOpError;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 

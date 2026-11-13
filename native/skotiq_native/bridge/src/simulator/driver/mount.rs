@@ -3,13 +3,13 @@
 //! connect answers exactly as the connected one does, and the simulator's own
 //! gate says whether the mount is connected.
 
-use crate::device::*;
-use crate::device_capabilities::DeviceCapabilities;
+use crate::device::{MountSite, MountSiteCapabilities, MountStatus, MountTimeInfo, TrackingRate};
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::rig::mount::Mount;
 use crate::device_manager::rig::RigDriver;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
-use crate::simulator::get_sim_mount;
+use crate::simulator::mount::get_sim_mount;
 use async_trait::async_trait;
 use skotiq_device::DriverError;
 
@@ -46,11 +46,11 @@ impl Mount for SimMount {
         // Travels to the target over time rather than teleporting, and
         // records the pier side the mount lands on. See
         // `crate::simulator::begin_sim_slew`.
-        crate::simulator::begin_sim_slew(ra, dec, chrono::Utc::now()).await;
+        crate::simulator::mount::begin_sim_slew(ra, dec, chrono::Utc::now()).await;
         // Repointing starts a new target: the previous one's accumulated
         // drift does not carry over, and this is what stops a long
         // session leaving the field pinned at its offset clamp.
-        crate::simulator::reset_sim_guide_offset().await;
+        crate::simulator::guiding::reset_sim_guide_offset().await;
         Ok(())
     }
 
@@ -80,8 +80,8 @@ impl Mount for SimMount {
             site.longitude,
             now,
         );
-        crate::simulator::begin_sim_slew(ra, dec, now).await;
-        crate::simulator::reset_sim_guide_offset().await;
+        crate::simulator::mount::begin_sim_slew(ra, dec, now).await;
+        crate::simulator::guiding::reset_sim_guide_offset().await;
         Ok(())
     }
 
@@ -90,8 +90,8 @@ impl Mount for SimMount {
         // Drop the in-flight slew first, or the interpolation would
         // carry the mount on to the target it was just told to stop
         // travelling to.
-        crate::simulator::cancel_sim_slew().await;
-        crate::simulator::get_sim_mount()
+        crate::simulator::mount::cancel_sim_slew().await;
+        crate::simulator::mount::get_sim_mount()
             .write()
             .await
             .status
@@ -101,8 +101,8 @@ impl Mount for SimMount {
 
     async fn stop(&self) -> Result<(), DeviceOpError> {
         crate::simulator::gate::require_mount_connected().await?;
-        crate::simulator::cancel_sim_slew().await;
-        let mut m = crate::simulator::get_sim_mount().write().await;
+        crate::simulator::mount::cancel_sim_slew().await;
+        let mut m = crate::simulator::mount::get_sim_mount().write().await;
         m.status.slewing = false;
         m.status.tracking = false;
         Ok(())
@@ -118,7 +118,7 @@ impl Mount for SimMount {
         // The simulator has no axis-rate state model — just record
         // `slewing` so subsequent `mount_get_status` reflects the move
         // command. A real driver wouldn't no-op silently.
-        let m = crate::simulator::get_sim_mount();
+        let m = crate::simulator::mount::get_sim_mount();
         let mut m = m.write().await;
         m.status.slewing = rate != 0.0;
         // Driving an axis moves the mount off its home pose.
@@ -134,9 +134,9 @@ impl Mount for SimMount {
         // Drop the in-flight slew BEFORE writing the park position: a
         // status read landing in between would otherwise advance the
         // abandoned slew straight back over it.
-        crate::simulator::cancel_sim_slew().await;
-        let (ra, dec) = crate::simulator::sim_park_position();
-        let mut m = crate::simulator::get_sim_mount().write().await;
+        crate::simulator::mount::cancel_sim_slew().await;
+        let (ra, dec) = crate::simulator::mount::sim_park_position();
+        let mut m = crate::simulator::mount::get_sim_mount().write().await;
         m.status.right_ascension = ra;
         m.status.declination = dec;
         m.status.parked = true;
@@ -147,7 +147,7 @@ impl Mount for SimMount {
         // simulator parks on the same pose it homes to.
         m.status.at_home = Some(false);
         drop(m);
-        crate::simulator::reset_sim_guide_offset().await;
+        crate::simulator::guiding::reset_sim_guide_offset().await;
         Ok(())
     }
 
@@ -158,11 +158,11 @@ impl Mount for SimMount {
         // — and can be made to fail on — the same mount state every
         // other mutating op does.
         crate::simulator::gate::require_mount_connected().await?;
-        let m = crate::simulator::get_sim_mount();
-        let lst = crate::simulator::sim_local_sidereal_time(chrono::Utc::now());
+        let m = crate::simulator::mount::get_sim_mount();
+        let lst = crate::simulator::mount::sim_local_sidereal_time(chrono::Utc::now());
         let mut m = m.write().await;
         m.status.parked = false;
-        crate::simulator::seed_unknown_pier_side(&mut m.status, lst);
+        crate::simulator::mount::seed_unknown_pier_side(&mut m.status, lst);
         Ok(())
     }
 
@@ -173,8 +173,8 @@ impl Mount for SimMount {
         // Travels to the home pose over time and reports AtHome only
         // once it has arrived and settled; see
         // `crate::simulator::begin_sim_home`.
-        crate::simulator::begin_sim_home().await;
-        crate::simulator::reset_sim_guide_offset().await;
+        crate::simulator::mount::begin_sim_home().await;
+        crate::simulator::guiding::reset_sim_guide_offset().await;
         Ok(())
     }
 
@@ -187,10 +187,10 @@ impl Mount for SimMount {
         crate::simulator::gate::require_mount_connected().await?;
         crate::simulator::gate::refuse_while_mount_slewing("set park").await?;
         let (ra, dec) = {
-            let m = crate::simulator::get_sim_mount().read().await;
+            let m = crate::simulator::mount::get_sim_mount().read().await;
             (m.status.right_ascension, m.status.declination)
         };
-        crate::simulator::set_sim_park_position(ra, dec);
+        crate::simulator::mount::set_sim_park_position(ra, dec);
         Ok(())
     }
 
@@ -211,9 +211,9 @@ impl Mount for SimMount {
         // without moving it, so any in-flight slew has to be dropped
         // first — otherwise the interpolation would overwrite the
         // synced coordinates on the next status read.
-        crate::simulator::cancel_sim_slew().await;
+        crate::simulator::mount::cancel_sim_slew().await;
         crate::simulator::runaway::clear_physical_pointing();
-        let m = crate::simulator::get_sim_mount();
+        let m = crate::simulator::mount::get_sim_mount();
         let mut m = m.write().await;
         m.status.right_ascension = ra;
         m.status.declination = dec;
@@ -235,12 +235,12 @@ impl Mount for SimMount {
         // `connected` read, is what advances the motion and runs the
         // fault injector.
         crate::simulator::gate::require_mount_connected().await?;
-        let lst = crate::simulator::sim_local_sidereal_time(chrono::Utc::now());
-        let m = crate::simulator::get_sim_mount();
+        let lst = crate::simulator::mount::sim_local_sidereal_time(chrono::Utc::now());
+        let m = crate::simulator::mount::get_sim_mount();
         let mut m = m.write().await;
         m.status.tracking = enabled;
         if enabled {
-            crate::simulator::seed_unknown_pier_side(&mut m.status, lst);
+            crate::simulator::mount::seed_unknown_pier_side(&mut m.status, lst);
         }
         // Tracking turns the RA axis, which carries the mount off the
         // home pose a FindHome left it in.
@@ -263,7 +263,7 @@ impl Mount for SimMount {
         // dithering and the correction loop cannot be exercised
         // without a mount.
         crate::simulator::gate::require_mount_connected().await?;
-        crate::simulator::advance_sim_guide_pulse(
+        crate::simulator::guiding::advance_sim_guide_pulse(
             match dir {
                 skotiq_device::GuideDirection::North => "north",
                 skotiq_device::GuideDirection::South => "south",
@@ -299,7 +299,7 @@ impl Mount for SimMount {
                 )))
             }
         };
-        let m = crate::simulator::get_sim_mount();
+        let m = crate::simulator::mount::get_sim_mount();
         m.write().await.status.tracking_rate = Some(rate);
         Ok(())
     }
@@ -360,7 +360,7 @@ impl Mount for SimMount {
     }
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        let parsed = crate::device_id::parse_device_id_cached(device_id)?;
+        let parsed = crate::device_id::cache::parse_device_id_cached(device_id)?;
         crate::simulator::capabilities::get_simulator_capabilities(&parsed).await
     }
 }

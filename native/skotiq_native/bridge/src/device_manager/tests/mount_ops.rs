@@ -1,4 +1,5 @@
 use super::*;
+use crate::device::DriverType;
 
 /// Register a simulator mount so the simulator ops can be driven the same
 /// way a real driver is.
@@ -36,7 +37,7 @@ async fn disconnected_simulated_mount_refuses_motion_and_status() {
     register_sim_mount(&manager, device_id).await;
 
     {
-        let mount = crate::simulator::get_sim_mount();
+        let mount = crate::simulator::mount::get_sim_mount();
         let mut mount = mount.write().await;
         mount.status.connected = false;
         mount.status.right_ascension = 0.0;
@@ -59,7 +60,7 @@ async fn disconnected_simulated_mount_refuses_motion_and_status() {
     );
 
     // And the refused slew must not have moved it.
-    let mount = crate::simulator::get_sim_mount()
+    let mount = crate::simulator::mount::get_sim_mount()
         .read()
         .await
         .status
@@ -82,7 +83,7 @@ async fn connected_simulated_mount_accepts_a_slew() {
     register_sim_mount(&manager, device_id).await;
 
     {
-        let mount = crate::simulator::get_sim_mount();
+        let mount = crate::simulator::mount::get_sim_mount();
         let mut mount = mount.write().await;
         mount.status.connected = true;
         mount.status.parked = true;
@@ -110,7 +111,7 @@ async fn connected_simulated_mount_accepts_a_slew() {
     assert!((mount.declination - dec_now).abs() < 1e-6);
     assert!(!mount.parked);
 
-    crate::simulator::get_sim_mount()
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status
@@ -176,7 +177,7 @@ async fn a_slow_mount_read_does_not_hold_the_device_table() {
     let manager = build_device_manager();
     let device_id = "sim_mount_slow_status";
     register_sim_mount(&manager, device_id).await;
-    crate::simulator::get_sim_mount()
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status

@@ -1,4 +1,6 @@
-use super::*;
+use crate::device::{DomeStatus, SafetyStatus, ShutterState, WeatherConditions};
+use std::sync::{Arc, OnceLock};
+use tokio::sync::RwLock;
 
 // Observatory accessory simulators
 

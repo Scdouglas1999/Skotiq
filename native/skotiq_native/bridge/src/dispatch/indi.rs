@@ -4,7 +4,7 @@
 //! provide INDI-only logic: the shared server connections, device discovery,
 //! connection and the per-device health check.
 
-use crate::device::*;
+use crate::device::{DeviceInfo, DeviceType, DriverType, TrackingRate};
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::DeviceManager;
 use skotiq_indi::names as indi;
@@ -39,11 +39,14 @@ fn handle(
     client: Arc<RwLock<skotiq_indi::IndiClient>>,
     device_name: &str,
 ) -> Option<DeviceHandle> {
-    use crate::device_manager::rig::camera::IndiCameraHandle;
+    use crate::device_manager::rig::camera::indi::IndiCameraHandle;
     use crate::device_manager::rig::filter_wheel::IndiWheel;
     use crate::device_manager::rig::focuser::IndiFocuserHandle;
-    use crate::device_manager::rig::mount::IndiMountHandle;
-    use skotiq_indi::*;
+    use crate::device_manager::rig::mount::indi::IndiMountHandle;
+    use skotiq_indi::{
+        IndiCoverCalibrator, IndiDome, IndiFilterWheel, IndiRotator, IndiSafetyMonitor,
+        IndiSwitchDevice, IndiWeather,
+    };
     Some(match info.device_type {
         DeviceType::Camera => DeviceHandle::Camera(Arc::new(IndiCameraHandle::new(
             &info.id,
@@ -86,7 +89,7 @@ fn handle(
 
 impl DeviceManager {
     pub(crate) fn parse_indi_device_id(device_id: &str) -> Result<(String, u16, String), String> {
-        let parsed = crate::device_id::parse_device_id_cached(device_id)
+        let parsed = crate::device_id::cache::parse_device_id_cached(device_id)
             .map_err(|e| format!("Invalid INDI device ID format: {}", e))?;
         match parsed.connection_info {
             crate::device_id::ConnectionInfo::Indi {

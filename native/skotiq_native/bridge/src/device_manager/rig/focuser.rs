@@ -7,14 +7,13 @@
 //! [`super::ascom::AscomFocuser`].
 
 use super::{Exclusive, RigDriver};
-use crate::device_capabilities::FocuserCapabilities;
-use crate::dispatch::DeviceOpError;
+use crate::device_capabilities::types::FocuserCapabilities;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{focuser_move_with_timeout, with_timeout_str, Timeouts};
 use async_trait::async_trait;
 use skotiq_device::{DriverError, FocuserDriver};
-use skotiq_indi::names as indi;
-use skotiq_indi::IndiFocuser;
+use skotiq_indi::{names as indi, IndiFocuser};
 use tracing::warn;
 
 #[async_trait]

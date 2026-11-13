@@ -54,12 +54,14 @@ use skotiq_imaging::recipe::{
 };
 use skotiq_imaging::{write_jpeg, write_png, write_tiff, FitsHeader, ImageData, PixelType};
 
-use super::args::{empty_report_json, report_json, CancelledRender, DarkroomExportArgs};
-use super::render::{
+use crate::api::darkroom::args::{
+    empty_report_json, report_json, CancelledRender, DarkroomExportArgs,
+};
+use crate::api::darkroom::render::{
     build_context, level_json, load_pyramid, parse_recipe, quantise_unit, run_render,
     screen_transfer,
 };
-use super::state::{registry, RENDERS};
+use crate::api::darkroom::state::{registry, RENDERS};
 
 /// Marker every recipe-payload `HISTORY` card starts with.
 const HISTORY_RECIPE_MARKER: &str = "SKRECIPE-B64";

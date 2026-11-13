@@ -24,23 +24,20 @@
 //! SDK's own rule, kept with its lock
 //! (`skotiq_native::vendor::sdk_loader::lock_scope`).
 
-mod alpaca;
+pub(crate) mod alpaca;
 #[cfg(windows)]
 mod com;
-mod indi;
-mod vendor;
+pub(crate) mod indi;
+pub(crate) mod vendor;
 
-pub(crate) use alpaca::AlpacaCameraHandle;
 #[cfg(windows)]
 pub(crate) use com::ComCamera;
-pub(crate) use indi::IndiCameraHandle;
-pub(crate) use vendor::VendorCamera;
 
 use super::RigDriver;
 use crate::device::DriverType;
-use crate::device_capabilities::DeviceCapabilities;
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{ImageData, SubFrame};

@@ -1,4 +1,8 @@
-use super::*;
+use super::UnifiedDeviceOps;
+use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
+use async_trait::async_trait;
+use skotiq_sequencer::{DeviceResult, ImageData, PlateSolveOps, PlateSolveResult};
 
 #[async_trait]
 impl PlateSolveOps for UnifiedDeviceOps {

@@ -7,11 +7,12 @@
 //! target slew "missed" by the precession offset) passed every one of them.
 
 use super::*;
-use crate::simulator::{get_sim_mount, sim_singleton_test_lock};
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::epoch::{
     j2000_to_jnow, jnow_to_j2000, SimFrameGuard as FrameGuard, SimMountFrame,
 };
+use crate::simulator::mount::get_sim_mount;
+use crate::simulator::sim_singleton_test_lock;
 use skotiq_sequencer::instructions::InstructionContext;
 use skotiq_sequencer::SlewConfig;
 use std::sync::atomic::AtomicBool;
@@ -32,7 +33,7 @@ async fn attach_sim_mount(device_id: &str) {
         display_name: "Simulated Mount".to_string(),
     };
     get_device_manager().register_device(info, false).await;
-    crate::simulator::cancel_sim_slew().await;
+    crate::simulator::mount::cancel_sim_slew().await;
     let mut mount = get_sim_mount().write().await;
     mount.status.connected = true;
     mount.status.parked = false;
@@ -173,12 +174,12 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
             false,
         )
         .await;
-    crate::simulator::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
         .connected = true;
-    crate::simulator::clear_sim_exposure().await;
+    crate::simulator::camera::clear_sim_exposure().await;
 
     let mut ctx = target_context(mount_id, NGC7380_J2000);
     let slewed =
@@ -201,7 +202,7 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     let exposed =
         skotiq_sequencer::instructions::execute_exposure(&config, &ctx, |_, _, _| {}).await;
 
-    crate::simulator::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -388,9 +389,10 @@ async fn attach_sim_device(device_id: &str, device_type: DeviceType, name: &str)
 /// wheel, rotator) through the code each path runs in the app.
 #[tokio::test]
 async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
-    use crate::simulator::{
-        get_sim_camera_for, get_sim_filterwheel, get_sim_focuser, get_sim_rotator,
-    };
+    use crate::simulator::camera::get_sim_camera_for;
+    use crate::simulator::filter_wheel::get_sim_filterwheel;
+    use crate::simulator::focuser::get_sim_focuser;
+    use crate::simulator::rotator::get_sim_rotator;
 
     let _serialized = sim_singleton_test_lock().lock().await;
     let _frame = FrameGuard::pin(SimMountFrame::OfDate);
@@ -416,7 +418,7 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
             .await
             .unwrap_or_else(|e| panic!("connect {id}: {e}"));
     }
-    crate::simulator::clear_sim_exposure().await;
+    crate::simulator::camera::clear_sim_exposure().await;
 
     // A site where it is night whenever the test runs: the daylight gate
     // refuses light frames under a Sun above -12 degrees.
@@ -502,10 +504,10 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
     )
     .await
     .expect("manual exposure");
-    let saved = crate::api::api_save_fits_from_last_capture(
+    let saved = crate::api::imaging::api_save_fits_from_last_capture(
         camera_id.to_string(),
         manual_path.to_string_lossy().to_string(),
-        crate::api::FitsWriteHeader {
+        crate::api::imaging::FitsWriteHeader {
             object_name: Some("NGC 7380".to_string()),
             exposure_time: 0.1,
             frame_type: "Light".to_string(),

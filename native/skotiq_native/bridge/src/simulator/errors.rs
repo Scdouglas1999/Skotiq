@@ -1,4 +1,4 @@
-use super::*;
+use std::time::Instant;
 
 /// Why a simulated device refused an operation.
 ///
@@ -40,7 +40,7 @@ impl std::fmt::Display for SimDeviceError {
 /// whose messages already name the simulated device type rather than an id.
 impl From<SimDeviceError> for crate::dispatch::DeviceOpError {
     fn from(err: SimDeviceError) -> Self {
-        use crate::dispatch::DeviceOpError;
+        use crate::dispatch::error::DeviceOpError;
         match err {
             SimDeviceError::NotConnected(m) => DeviceOpError::not_connected(None, m),
             SimDeviceError::InvalidParameter(m) => DeviceOpError::invalid_parameter(m),
@@ -51,7 +51,7 @@ impl From<SimDeviceError> for crate::dispatch::DeviceOpError {
 
 /// Consult the fault registry, mapping a fired fault onto [`SimDeviceError`].
 pub(crate) async fn sim_fault(key: &str) -> Result<(), SimDeviceError> {
-    use crate::dispatch::DeviceOpError;
+    use crate::dispatch::error::DeviceOpError;
     crate::simulator::faults::check(key)
         .await
         .map_err(|error| match error {

@@ -27,8 +27,11 @@
 //! `Ok(0)` it cannot distinguish from a real reading.
 
 use crate::device::{CameraStatus, FilterWheelStatus, FocuserStatus, MountStatus, RotatorStatus};
-use crate::dispatch::DeviceOpError;
-use crate::simulator::{get_sim_filterwheel, get_sim_focuser, get_sim_mount, get_sim_rotator};
+use crate::dispatch::error::DeviceOpError;
+use crate::simulator::filter_wheel::get_sim_filterwheel;
+use crate::simulator::focuser::get_sim_focuser;
+use crate::simulator::mount::get_sim_mount;
+use crate::simulator::rotator::get_sim_rotator;
 
 /// Format the not-connected error message uniformly across all simulator
 /// device types. Keeping the wording centralized means tests can match on
@@ -98,7 +101,7 @@ pub(crate) fn not_connected_rotator() -> DeviceOpError {
 /// covered by the singleton's defaults and need no special handling at
 /// the call site.
 pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, DeviceOpError> {
-    use crate::simulator::{get_sim_camera_for, sim_camera_fault_prefix};
+    use crate::simulator::camera::{get_sim_camera_for, sim_camera_fault_prefix};
     let prefix = sim_camera_fault_prefix(device_id);
     // Faults are consulted before anything else, including the connected gate,
     // so an armed fault is deterministic for the test that armed it rather than
@@ -106,7 +109,7 @@ pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, 
     let key = format!("{prefix}.status");
     if let Err(e) = faults(&key).await {
         if let Some(reorder) = crate::simulator::faults::take_unplug(&key) {
-            crate::simulator::unplug_sim_camera(device_id, reorder).await;
+            crate::simulator::camera::unplug_sim_camera(device_id, reorder).await;
         }
         return Err(e);
     }
@@ -118,9 +121,9 @@ pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, 
     // and the run silently uses warm darks), so the stall latch suppresses the
     // ramp while leaving every read succeeding.
     if !crate::simulator::faults::is_stalled(&format!("{prefix}.cooler")) {
-        crate::simulator::advance_sim_cooler(device_id).await;
+        crate::simulator::camera::advance_sim_cooler(device_id).await;
     }
-    let state = crate::simulator::sim_camera_state(device_id).await;
+    let state = crate::simulator::camera::sim_camera_state(device_id).await;
     let cam = get_sim_camera_for(device_id).read().await;
     if !cam.status.connected {
         return Err(not_connected("camera"));
@@ -140,8 +143,8 @@ pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, 
 /// constants.
 pub(crate) async fn read_camera_last_exposure(
     device_id: &str,
-) -> Result<crate::simulator::SimExposureRequest, DeviceOpError> {
-    use crate::simulator::{get_sim_camera_for, sim_camera_fault_prefix};
+) -> Result<crate::simulator::camera::SimExposureRequest, DeviceOpError> {
+    use crate::simulator::camera::{get_sim_camera_for, sim_camera_fault_prefix};
     // `camera.download` is the highest-value fault key in the file: the INDI
     // BLOB download timeout and the USB camera that stops answering mid-read
     // both land here, and both cost a whole frame on real hardware.
@@ -149,16 +152,18 @@ pub(crate) async fn read_camera_last_exposure(
     if !get_sim_camera_for(device_id).read().await.status.connected {
         return Err(not_connected("camera"));
     }
-    Ok(crate::simulator::get_sim_last_exposure_for(device_id)
-        .read()
-        .await
-        .clone())
+    Ok(
+        crate::simulator::camera::get_sim_last_exposure_for(device_id)
+            .read()
+            .await
+            .clone(),
+    )
 }
 
 /// Write-side gate for camera ops: returns `Ok(())` only when the
 /// simulator camera singleton is currently connected.
 pub(crate) async fn require_camera_connected(device_id: &str) -> Result<(), DeviceOpError> {
-    use crate::simulator::{get_sim_camera_for, sim_camera_fault_prefix};
+    use crate::simulator::camera::{get_sim_camera_for, sim_camera_fault_prefix};
     faults(&format!("{}.command", sim_camera_fault_prefix(device_id))).await?;
     if !get_sim_camera_for(device_id).read().await.status.connected {
         return Err(not_connected("camera"));
@@ -214,7 +219,7 @@ async fn advance_mount_motion() {
     if crate::simulator::faults::is_stalled("mount.slew") {
         return;
     }
-    crate::simulator::advance_sim_slew().await;
+    crate::simulator::mount::advance_sim_slew().await;
 }
 
 /// Configured observer location as `(latitude, longitude)`, if the app has one.
@@ -310,8 +315,8 @@ pub(crate) async fn refuse_while_mount_slewing(operation: &str) -> Result<(), De
     // goto (including its settle tail) even when a fault has frozen the
     // interpolation, while `status.slewing` also covers a manual axis move,
     // which has no interpolation cell at all.
-    let moving =
-        crate::simulator::sim_slew_in_flight().await || get_sim_mount().read().await.status.slewing;
+    let moving = crate::simulator::mount::sim_slew_in_flight().await
+        || get_sim_mount().read().await.status.slewing;
     if moving {
         return Err(DeviceOpError::Message(format!(
             "Simulated mount is slewing and refused {}. Abort the slew or wait for it to finish.",
@@ -330,7 +335,7 @@ pub(crate) async fn read_focuser_status() -> Result<FocuserStatus, DeviceOpError
     }
     let mut status = focuser.status.clone();
     if status.temperature.is_some() {
-        status.temperature = Some(crate::simulator::sim_focuser_temperature_c());
+        status.temperature = Some(crate::simulator::focuser::sim_focuser_temperature_c());
     }
     Ok(status)
 }
@@ -394,8 +399,8 @@ pub(crate) fn unsupported_simulator_device(kind: &'static str) -> String {
 #[cfg(test)]
 mod fault_injection_tests {
     use super::*;
+    use crate::simulator::camera::get_sim_camera;
     use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
-    use crate::simulator::get_sim_camera;
 
     /// The simulator singletons are process-global, so these serialize against
     /// the same lock the other simulator tests use and clear the registry after
@@ -526,10 +531,12 @@ mod fault_injection_tests {
 /// only the assembled path proves the behaviour.
 #[cfg(test)]
 mod mount_motion_tests {
+
     use crate::device::{DeviceInfo, DeviceType, DriverType, PierSide};
     use crate::device_manager::get_device_manager;
     use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
-    use crate::simulator::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
+    use crate::simulator::mount::{get_sim_mount, SimulatedMount};
+    use crate::simulator::sim_singleton_test_lock;
     use crate::state::get_state;
     use crate::storage::ObserverLocation;
     use std::time::Duration;
@@ -560,7 +567,7 @@ mod mount_motion_tests {
         // The interpolation cell lives outside `SimulatedMount`, so resetting
         // the struct alone would leave the previous test's slew in flight and
         // this one's first command would be refused as "still moving".
-        crate::simulator::cancel_sim_slew().await;
+        crate::simulator::mount::cancel_sim_slew().await;
         let mut mount = get_sim_mount().write().await;
         *mount = SimulatedMount::default();
         mount.status.connected = true;
@@ -835,12 +842,13 @@ mod mount_motion_tests {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::device::{mount_status_field as field, FieldAvailability, PierSide};
     use chrono::TimeZone;
 
     fn parked_status() -> MountStatus {
-        crate::simulator::SimulatedMount::default().status
+        crate::simulator::mount::SimulatedMount::default().status
     }
 
     /// Altitude and azimuth have to follow the mount's own RA/Dec and the clock.
@@ -966,7 +974,7 @@ mod tests {
     /// from the pointing, and never overwrite a side a slew already recorded.
     #[test]
     fn a_mount_that_never_slewed_gets_a_side_once() {
-        use crate::simulator::seed_unknown_pier_side;
+        use crate::simulator::mount::seed_unknown_pier_side;
         let now = chrono::Utc.with_ymd_and_hms(2026, 7, 28, 3, 17, 0).unwrap();
         let lst = skotiq_sequencer::meridian::local_sidereal_time(
             skotiq_sequencer::meridian::julian_day(&now),
@@ -978,7 +986,7 @@ mod tests {
         seed_unknown_pier_side(&mut status, Some(lst));
         assert_eq!(
             status.side_of_pier,
-            Some(crate::simulator::pier_side_after_slew_to(
+            Some(crate::simulator::mount::pier_side_after_slew_to(
                 status.right_ascension,
                 lst
             ))

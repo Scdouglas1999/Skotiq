@@ -1,9 +1,10 @@
-use crate::device_capabilities::FilterWheelCapabilities;
+use crate::device_capabilities::types::FilterWheelCapabilities;
 use crate::device_manager::rig::filter_wheel::FilterWheel;
 use crate::device_manager::rig::RigDriver;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
-use crate::simulator::{faults, gate, get_sim_filterwheel};
+use crate::simulator::filter_wheel::get_sim_filterwheel;
+use crate::simulator::{faults, gate};
 use async_trait::async_trait;
 use skotiq_device::DriverError;
 

@@ -1,4 +1,7 @@
-use super::*;
+use crate::simulator::errors::{sim_fault, SimDeviceError};
+use std::sync::{Arc, OnceLock};
+use std::time::Instant;
+use tokio::sync::RwLock;
 
 /// How long a commanded switch change takes to appear in the device's own
 /// telemetry, in seconds.

@@ -26,7 +26,7 @@ use std::time::Duration;
 use crate::device::{ConnectionState, DeviceType};
 use crate::device_manager::policy::policy;
 use crate::device_manager::DeviceManager;
-use crate::event::EquipmentEvent;
+use crate::event::equipment::EquipmentEvent;
 
 /// How often the backstop reads the devices. Slow on purpose: it repairs a
 /// change nobody announced, it does not track motion.
