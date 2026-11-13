@@ -8,20 +8,6 @@ import '../../models/backend/event_types.dart' show SkotiqEvent;
 import '../../models/backend/host_mutation_event.dart';
 import '../../services/logging_service.dart';
 
-/// How much of the imaging host's key/value settings this client can reach.
-enum HostSettingsStoreSupport {
-  /// The first fetch has not finished.
-  unknown,
-
-  /// The host serves `/api/settings/store`: every host-owned row is mirrored.
-  full,
-
-  /// The host predates `/api/settings/store`. Only the `science.*` and
-  /// `smart_night.*` rows, which have their own endpoints, are mirrored; the
-  /// rest of the host's rows cannot be read from this client.
-  legacy,
-}
-
 /// The imaging host's `app_settings` rows as a linked client sees them.
 ///
 /// Reads come from an in-memory snapshot fetched from the host; writes go to
@@ -43,12 +29,7 @@ class HostSettingsStore {
   final Stream<SkotiqEvent> Function() _events;
   final Duration minRefreshInterval;
 
-  /// Prefixes a legacy host serves through their own endpoints.
-  static const String sciencePrefix = 'science.';
-  static const String smartNightPrefix = 'smart_night.';
-
   Map<String, String> _values = const {};
-  HostSettingsStoreSupport _support = HostSettingsStoreSupport.unknown;
   Future<void>? _initialLoad;
   Future<void>? _inFlight;
   Timer? _refreshTimer;
@@ -59,35 +40,15 @@ class HostSettingsStore {
 
   final StreamController<Set<String>> _changes =
       StreamController<Set<String>>.broadcast();
-  final Set<String> _unsharedKeys = <String>{};
-  final StreamController<Set<String>> _unsharedChanges =
-      StreamController<Set<String>>.broadcast();
 
   /// Keys whose host value changed under this client, from another client or
   /// from the host itself. Never fires for this client's own writes.
   Stream<Set<String>> get changes => _changes.stream;
 
-  HostSettingsStoreSupport get support => _support;
-
   /// Whether this client's credential has admin access to the host, as the
-  /// host last said; null before the first fetch and from a host that does
-  /// not say.
+  /// host last said; null before the first fetch.
   bool? get adminAccess => _adminAccess;
   bool? _adminAccess;
-
-  /// Host-owned keys this client has needed but the host could not serve, so
-  /// their values came from this computer's own database.
-  Set<String> get unsharedKeys => Set.unmodifiable(_unsharedKeys);
-
-  /// Fires with [unsharedKeys] whenever a new key joins it.
-  Stream<Set<String>> get unsharedKeyChanges => _unsharedChanges.stream;
-
-  /// Record that [key] was read or written on this computer because the host
-  /// cannot serve it.
-  void noteUnsharedKey(String key) {
-    if (_disposed || !_unsharedKeys.add(key)) return;
-    _unsharedChanges.add(unsharedKeys);
-  }
 
   /// The snapshot as last fetched or written.
   Map<String, String> get values => _values;
@@ -106,50 +67,14 @@ class HostSettingsStore {
     return load;
   }
 
-  /// Whether this client can read and write [key] on the host.
-  bool covers(String key) {
-    switch (_support) {
-      case HostSettingsStoreSupport.full:
-        return true;
-      case HostSettingsStoreSupport.legacy:
-        return key.startsWith(sciencePrefix) ||
-            key.startsWith(smartNightPrefix);
-      case HostSettingsStoreSupport.unknown:
-        return false;
-    }
-  }
-
   /// Write [settings] to the host and drop [remove] from it.
-  ///
-  /// Throws [StateError] for a key the host cannot store, so the caller's
-  /// write fails visibly instead of landing somewhere nobody reads it.
   Future<void> write(
     Map<String, String> settings, {
     List<String> remove = const [],
   }) async {
     await ensureLoaded();
-    final keys = {...settings.keys, ...remove};
-    final uncovered = keys.where((k) => !covers(k)).toList();
-    if (uncovered.isNotEmpty) {
-      throw HostSettingUnavailableError(uncovered);
-    }
     _writeGeneration++;
-    if (_support == HostSettingsStoreSupport.full) {
-      await _backend.updateSettingsStore(settings, remove: remove);
-    } else {
-      if (remove.isNotEmpty) {
-        throw HostSettingUnavailableError(remove);
-      }
-      final science = <String, String>{};
-      final smartNight = <String, String>{};
-      settings.forEach((key, value) {
-        (key.startsWith(sciencePrefix) ? science : smartNight)[key] = value;
-      });
-      if (science.isNotEmpty) await _backend.updateScienceSettings(science);
-      if (smartNight.isNotEmpty) {
-        await _backend.updateSmartNightSettings(smartNight);
-      }
-    }
+    await _backend.updateSettingsStore(settings, remove: remove);
     _writeGeneration++;
     final next = Map<String, String>.from(_values)..addAll(settings);
     for (final key in remove) {
@@ -167,16 +92,11 @@ class HostSettingsStore {
     Map<String, Object?> base = const {},
   }) async {
     await ensureLoaded();
-    if (!covers(key)) throw HostSettingUnavailableError([key]);
     final fallback = SettingsDao.mergeJsonObject(
       _values[key],
       fields,
       base: base,
     );
-    if (_support != HostSettingsStoreSupport.full) {
-      await write({key: fallback});
-      return fallback;
-    }
     _writeGeneration++;
     final stored = await _backend.mergeSettingsStore(
       {key: fields},
@@ -271,18 +191,8 @@ class HostSettingsStore {
 
   Future<Map<String, String>> _fetch() async {
     final store = await _backend.getSettingsStore();
-    if (store != null) {
-      _support = HostSettingsStoreSupport.full;
-      _adminAccess = store.adminAccess;
-      return store.values;
-    }
-    _support = HostSettingsStoreSupport.legacy;
-    _adminAccess = null;
-    final results = await Future.wait([
-      _backend.getScienceSettings(),
-      _backend.getSmartNightSettings(),
-    ]);
-    return {...results[0], ...results[1]};
+    _adminAccess = store.adminAccess;
+    return store.values;
   }
 
   @visibleForTesting
@@ -294,18 +204,5 @@ class HostSettingsStore {
     _refreshTimer = null;
     unawaited(_hostEvents?.cancel());
     unawaited(_changes.close());
-    unawaited(_unsharedChanges.close());
   }
-}
-
-/// A write named settings the connected imaging host cannot store.
-class HostSettingUnavailableError extends StateError {
-  HostSettingUnavailableError(this.keys)
-    : super(
-        'The imaging host does not share ${keys.join(', ')} with this '
-        'computer. Change ${keys.length == 1 ? 'it' : 'them'} on the host, or '
-        'update Skotiq on the host.',
-      );
-
-  final List<String> keys;
 }
