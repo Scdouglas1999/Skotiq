@@ -11,7 +11,8 @@ function to append `Name(scalar args)` to `$FAKE_SDK_TRACE` and, for a gap of
 100 ms or more since the previous call, a line to `$FAKE_SDK_TRACE.timing`.
 
 A fake whose source is `include_str!`ed (SVBony: tests/fake_sdk/svbony.rs) is
-read from that file. The Touptek and Moravian fakes predate the entry points
+read from that file; one named by its path (gPhoto2: fake_sdk/gphoto2.rs, which
+only the Linux tests use) is read from it. The Touptek and Moravian fakes predate the entry points
 those drivers now require (pull-mode callbacks; the gxccd API), so their
 libraries fail to load and their sessions record the same load error before
 and after.
@@ -34,6 +35,7 @@ FAKES = [
     ("touptek", "TOUPTEK_FAKE_SDK", "libogmacam.so"),
     ("fli", "FLI_FAKE_SDK", "libfli.so"),
     ("moravian", "MORAVIAN_FAKE_SDK", "libgxccd.so"),
+    ("gphoto2", "fake_sdk/gphoto2.rs", "libgphoto2.so"),
 ]
 SCALARS = {"c_int", "c_long", "c_uint", "c_ulong", "c_double", "c_float", "bool", "f32", "f64", "i32",
            "u32", "i64", "u64", "c_uchar", "c_ushort", "c_short", "u8", "u16", "i16", "usize"}
@@ -69,6 +71,8 @@ def instrument(m):
 
 PAT = re.compile(r'(#\[no_mangle\] pub (?:unsafe )?extern "C" fn (\w+)\(([^)]*)\)(?:->[^{]+)?)\{')
 def fake_source(const):
+    if const.endswith(".rs"):
+        return (tests / const).read_text()
     m = re.search(r'const %s: &str = r#"\n(.*?)"#;' % const, src, flags=re.S)
     if m:
         return m.group(1)
@@ -81,7 +85,7 @@ for vendor, const, lib in FAKES:
     body, count = PAT.subn(instrument, fake_source(const))
     d = out / vendor
     d.mkdir(parents=True, exist_ok=True)
-    rs = d / (const.lower() + ".rs")
+    rs = d / (pathlib.Path(const).stem.lower() + ".rs")
     rs.write_text(body + TRACE)
     r = subprocess.run([os.environ.get("RUSTC", "rustc"), "--crate-type", "cdylib", "--edition", "2021",
                         "-A", "warnings", str(rs), "-o", str(d / lib)], capture_output=True, text=True)

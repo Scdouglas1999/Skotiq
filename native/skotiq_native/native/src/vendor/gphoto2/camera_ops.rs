@@ -1,6 +1,18 @@
 //! `DeviceDriver` / `CameraDriver` / `Drop` implementations for `GPhoto2Camera`.
 
+use super::exposure::{exposure_range, plan_exposure, ExposurePlan, MadeExposure};
 use super::*;
+
+/// The files of a finished capture, waited for until the camera wrote them.
+async fn finished_capture(
+    capture: tokio::task::JoinHandle<Result<CameraFilePath, DriverError>>,
+) -> Result<CameraFilePath, DriverError> {
+    capture.await.unwrap_or_else(|stopped| {
+        Err(DriverError::SdkError(format!(
+            "gPhoto2: the capture stopped: {stopped}"
+        )))
+    })
+}
 
 #[async_trait]
 impl DeviceDriver for GPhoto2Camera {
@@ -14,6 +26,10 @@ impl DeviceDriver for GPhoto2Camera {
 
     fn vendor(&self) -> Vendor {
         Vendor::GPhoto2
+    }
+
+    fn serial_number(&self) -> Option<String> {
+        self.facts.serial.clone()
     }
 
     fn is_connected(&self) -> bool {
@@ -30,120 +46,42 @@ impl DeviceDriver for GPhoto2Camera {
         let sdk = GPhoto2Sdk::installed().inspect_err(|_| {
             tracing::error!("Cannot connect to DSLR camera: libgphoto2 not loaded");
         })?;
-
         let sdk = sdk.lock().await;
-
-        let detected = detect_cameras_with(&sdk);
-        if self.port_path.is_empty() {
-            if detected.len() > 1 {
-                return Err(DriverError::InvalidDevice(format!(
-                    "gPhoto2 device '{}' does not encode a stable USB port and cannot be safely selected while multiple cameras are connected",
-                    self.model_name
-                )));
-            }
-        } else {
-            let desired = detected
-                .iter()
-                .find(|camera| camera.port == self.port_path)
-                .ok_or_else(|| {
-                    DriverError::DeviceNotFound(format!(
-                        "gPhoto2 camera '{}' on '{}' is no longer present",
-                        self.model_name, self.port_path
-                    ))
-                })?;
-
-            self.camera_index = desired.index;
-            if detected.len() > 1 && desired.index != 0 {
-                return Err(DriverError::InvalidDevice(format!(
-                    "gPhoto2 cannot safely bind '{}' on '{}' while another camera is enumerated first",
-                    self.model_name, self.port_path
-                )));
-            }
-        }
-
-        // SAFETY: All `gp_*` allocations are paired with their
-        // corresponding free/unref on every error path; on success the resources are
-        // stored in `self.gp_camera` / `self.gp_context` and live until `disconnect`.
-        // Out-pointer (`camera`) is a stack local.
-        unsafe {
-            let context = (sdk.context_new)();
-            if context.is_null() {
-                return Err(DriverError::SdkError(
-                    "gPhoto2: Failed to create context".to_string(),
-                ));
-            }
-
-            let mut camera: *mut GPCamera = std::ptr::null_mut();
-            let ret = (sdk.camera_new)(&mut camera);
-            if ret < GP_OK || camera.is_null() {
-                (sdk.context_unref)(context);
-                return Err(DriverError::SdkError(format!(
-                    "gPhoto2: Failed to create camera object: code {}",
-                    ret
-                )));
-            }
-
-            // Initialize camera (auto-detects and connects to first available camera)
-            let ret = (sdk.camera_init)(camera, context);
-            if ret < GP_OK {
-                (sdk.camera_free)(camera);
-                (sdk.context_unref)(context);
-                return Err(DriverError::SdkError(format!(
-                    "gPhoto2: Failed to initialize camera '{}': code {} - camera may be in use by another application or not connected via USB",
-                    self.model_name, ret
-                )));
-            }
-
-            self.gp_camera = camera;
-            self.gp_context = context;
-        }
-
-        // Read camera info (ISO values, abilities, sensor dimensions)
-        if let Err(e) = self.populate_camera_info(&sdk) {
-            tracing::warn!("gPhoto2: Failed to populate camera info: {}", e);
-            // Non-fatal — we can still capture with defaults
-        }
+        self.open(&sdk)?;
 
         self.connected = true;
         tracing::info!(
-            "Successfully connected to gPhoto2 camera: {} ({}x{}, {}-bit)",
+            "Successfully connected to gPhoto2 camera: {} on {} ({}x{}, {} um)",
             self.model_name,
+            self.port_path,
             self.sensor_width,
             self.sensor_height,
-            self.bit_depth
+            self.pixel_size
         );
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        if self.connected {
+        if !self.connected {
+            return Ok(());
+        }
+        let exposure = std::mem::take(&mut self.exposure);
+        // A timed capture holds the camera until it has written its frame.
+        if let ExposureState::Timed { capture, .. } = exposure {
+            let _ = finished_capture(capture).await;
             let sdk = GPhoto2Sdk::lock().await?;
-
-            // SAFETY: Each
-            // raw pointer is non-null-checked before use and set to null after free so
-            // a subsequent drop does not double-free. `camera_exit`+`camera_free` is
-            // the libgphoto2-documented teardown sequence; `context_unref` releases
-            // the context refcount.
-            unsafe {
-                if !self.gp_camera.is_null() {
-                    let _ = (sdk.camera_exit)(self.gp_camera, self.gp_context);
-                    (sdk.camera_free)(self.gp_camera);
-                    self.gp_camera = std::ptr::null_mut();
-                }
-
-                if !self.gp_context.is_null() {
-                    (sdk.context_unref)(self.gp_context);
-                    self.gp_context = std::ptr::null_mut();
+            self.close(&sdk);
+        } else {
+            let sdk = GPhoto2Sdk::lock().await?;
+            if let ExposureState::Bulb { opened, .. } = exposure {
+                if let Err(e) = self.close_bulb(&sdk, opened) {
+                    tracing::warn!("gPhoto2: {}", e);
                 }
             }
-
-            self.connected = false;
-            self.exposure_state = ExposureState::Idle;
-            self.last_capture_path = None;
-            self.last_raw_data = None;
-
-            tracing::info!("Disconnected from gPhoto2 camera: {}", self.model_name);
+            self.close(&sdk);
         }
+        self.connected = false;
+        tracing::info!("Disconnected from gPhoto2 camera: {}", self.model_name);
         Ok(())
     }
 }
@@ -152,13 +90,13 @@ impl DeviceDriver for GPhoto2Camera {
 impl CameraDriver for GPhoto2Camera {
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities {
-            can_cool: false,        // DSLRs don't have coolers
+            can_cool: false,                           // DSLRs don't have coolers
             can_set_gain: !self.iso_speeds.is_empty(), // ISO, as the gain number
-            can_set_offset: false,  // DSLRs don't have offset control
-            can_set_binning: false, // DSLRs don't support binning
-            can_subframe: false,    // DSLRs capture full frame only
-            has_shutter: true,      // DSLRs have mechanical shutters
-            has_guider_port: false, // DSLRs don't have ST-4 ports
+            can_set_offset: false,                     // DSLRs don't have offset control
+            can_set_binning: false,                    // DSLRs don't support binning
+            can_subframe: false,                       // DSLRs capture full frame only
+            has_shutter: true,                         // DSLRs have mechanical shutters
+            has_guider_port: false,                    // DSLRs don't have ST-4 ports
             max_bin_x: 1,
             max_bin_y: 1,
             supports_readout_modes: false,
@@ -170,47 +108,33 @@ impl CameraDriver for GPhoto2Camera {
             return Err(DriverError::NotConnected);
         }
 
-        let state = match self.exposure_state {
-            ExposureState::Idle => CameraState::Idle,
-            ExposureState::Exposing {
-                start,
-                duration_secs,
-            } => {
-                let elapsed = start.elapsed().as_secs_f64();
-                if elapsed >= duration_secs {
-                    CameraState::Downloading
+        let (state, exposure_remaining) = match &self.exposure {
+            ExposureState::Idle => {
+                self.probe()?;
+                (CameraState::Idle, None)
+            }
+            ExposureState::Timed { start, seconds, .. } => {
+                let remaining = seconds - start.elapsed().as_secs_f64();
+                if remaining > 0.0 {
+                    (CameraState::Exposing, Some(remaining))
                 } else {
-                    CameraState::Exposing
+                    (CameraState::Downloading, Some(0.0))
                 }
             }
-            ExposureState::BulbExposing { .. } => CameraState::Exposing,
-            ExposureState::Complete => CameraState::Idle,
-            ExposureState::Failed => CameraState::Error,
-        };
-
-        let exposure_remaining = match self.exposure_state {
-            ExposureState::Exposing {
-                start,
-                duration_secs,
-            }
-            | ExposureState::BulbExposing {
-                start,
-                duration_secs,
-            } => {
-                let remaining = duration_secs - start.elapsed().as_secs_f64();
-                Some(remaining.max(0.0))
-            }
-            _ => None,
+            ExposureState::Bulb { opened, requested } => (
+                CameraState::Exposing,
+                Some((requested - opened.elapsed().as_secs_f64()).max(0.0)),
+            ),
         };
 
         Ok(CameraStatus {
             state,
-            sensor_temp: None, // DSLRs don't report sensor temp
+            sensor_temp: None, // a body reports its temperature only in its raw files
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
             gain: self.current_iso,
-            offset: self.current_offset,
+            offset: 0,
             bin_x: 1,
             bin_y: 1,
             exposure_remaining,
@@ -221,83 +145,44 @@ impl CameraDriver for GPhoto2Camera {
         if !self.connected {
             return Err(DriverError::NotConnected);
         }
+        if !matches!(self.exposure, ExposureState::Idle) {
+            return Err(DriverError::SdkError(format!(
+                "gPhoto2: {} is still taking the last exposure",
+                self.model_name
+            )));
+        }
 
         let sdk = GPhoto2Sdk::lock().await?;
-
+        self.discard_stray_events(&sdk)?;
         if let Some(iso) = params.gain {
             self.apply_iso(&sdk, iso)?;
         }
-
-        // Force RAW capture format. We always LibRaw-decode the downloaded
-        // file, so a body left in JPEG / RAW+JPEG must be switched to RAW or
-        // every frame fails to decode. Best-effort (warns if unsupported).
+        // Skotiq always decodes the raw file, so a body left on JPEG is
+        // switched to RAW (best effort; the read checks the file).
         self.apply_raw_format(&sdk);
+        self.refresh_shutter_speeds(&sdk)?;
 
-        self.exposure_time = params.duration_secs;
-        let use_bulb = params.duration_secs > 30.0;
-
-        if use_bulb {
-            // Bulb mode for long exposures
-            if !self.can_bulb {
-                return Err(DriverError::SdkError(
-                    "gPhoto2: Camera does not support Bulb mode for exposures > 30s".to_string(),
-                ));
-            }
-
-            self.do_bulb_start(&sdk)?;
-            self.exposure_state = ExposureState::BulbExposing {
-                start: Instant::now(),
-                duration_secs: params.duration_secs,
-            };
-
-            tracing::info!(
-                "gPhoto2: Started bulb exposure for {:.1}s",
-                params.duration_secs
-            );
-        } else {
-            // Standard capture: set shutter speed first, then capture
-            if let Some(speed_str) = self.find_shutter_speed(params.duration_secs) {
-                // Write to whichever shutter widget the body exposes. Some cameras
-                // (notably Nikon) present the setting as "shutterspeed2", and the
-                // read path (get_config_choices) already falls back to it — so the
-                // WRITE must fall back too, otherwise on those bodies set_config
-                // fails, is only warned, and the exposure time silently never
-                // changes (wrong sub-30s subs).
-                let set_res = self
-                    .set_config_value_str(&sdk, "shutterspeed", &speed_str)
-                    .or_else(|_| self.set_config_value_str(&sdk, "shutterspeed2", &speed_str));
-                if let Err(e) = set_res {
-                    tracing::warn!(
-                        "gPhoto2: Could not set shutter speed to '{}': {}. Camera will use current setting.",
-                        speed_str, e
+        let requested = params.duration_secs;
+        match plan_exposure(
+            &self.model_name,
+            &self.shutter,
+            self.bulb_widget.is_some(),
+            requested,
+        )? {
+            ExposurePlan::Timed(speed) => {
+                if ((speed.seconds - requested) / requested).abs() > 0.01 {
+                    tracing::info!(
+                        "gPhoto2: {} s is not one of the camera's shutter speeds; using {} ({} s)",
+                        requested,
+                        speed.choice,
+                        speed.seconds
                     );
-                } else {
-                    tracing::info!("gPhoto2: Set shutter speed to {}", speed_str);
                 }
+                self.start_timed(sdk, &speed)?;
+                tracing::info!("gPhoto2: timed exposure {} started", speed.choice);
             }
-
-            self.exposure_state = ExposureState::Exposing {
-                start: Instant::now(),
-                duration_secs: params.duration_secs,
-            };
-
-            // gp_camera_capture blocks until the exposure completes and the image is saved
-            // on the camera's storage card. We run it in a blocking task so we don't block
-            // the async runtime.
-            //
-            // Note: We need to release the SDK lock before spawning the blocking task,
-            // then re-acquire it inside. However, since gp_camera_capture is a blocking
-            // call that needs the lock, we handle this by keeping the lock and running
-            // synchronously. The exposure polling system will check is_exposure_complete.
-            self.do_capture(&sdk)?;
-            self.exposure_state = ExposureState::Complete;
-
-            tracing::info!(
-                "gPhoto2: Capture complete for {:.3}s exposure",
-                params.duration_secs
-            );
+            ExposurePlan::Bulb => self.open_bulb(&sdk, requested)?,
         }
-
         Ok(())
     }
 
@@ -305,27 +190,33 @@ impl CameraDriver for GPhoto2Camera {
         if !self.connected {
             return Err(DriverError::NotConnected);
         }
-
+        // A timed speed cannot be cut short; its frame is discarded when the
+        // camera has written it (as the INDI driver does,
+        // gphoto_driver.cpp:817-819, 1011-1018).
+        let first = match std::mem::take(&mut self.exposure) {
+            ExposureState::Idle => return Ok(()),
+            ExposureState::Timed { capture, .. } => match finished_capture(capture).await {
+                Ok(path) => Some(path),
+                Err(e) => {
+                    tracing::warn!("gPhoto2: the aborted capture failed: {}", e);
+                    return Ok(());
+                }
+            },
+            ExposureState::Bulb { opened, requested } => {
+                let sdk = GPhoto2Sdk::lock().await?;
+                self.close_bulb(&sdk, opened)?;
+                let files =
+                    self.collect_files(&sdk, Duration::from_secs(10), Duration::from_millis(1500))?;
+                self.discard_files(&sdk, &files);
+                tracing::info!("gPhoto2: bulb exposure of {:.1}s aborted", requested);
+                return Ok(());
+            }
+        };
         let sdk = GPhoto2Sdk::lock().await?;
-
-        match self.exposure_state {
-            ExposureState::BulbExposing { .. } => {
-                self.do_bulb_stop(&sdk)?;
-                self.exposure_state = ExposureState::Idle;
-                tracing::info!("gPhoto2: Bulb exposure aborted");
-            }
-            ExposureState::Exposing { .. } => {
-                // Standard captures can't be interrupted mid-exposure on most DSLRs
-                tracing::warn!("gPhoto2: Cannot abort a standard (non-bulb) exposure in progress");
-                return Err(DriverError::SdkError(
-                    "gPhoto2: Standard exposures cannot be aborted. Use Bulb mode for interruptible long exposures.".to_string(),
-                ));
-            }
-            _ => {
-                tracing::debug!("gPhoto2: No exposure in progress to abort");
-            }
+        if let Some(first) = first {
+            let files = self.rest_of_capture(&sdk, first)?;
+            self.discard_files(&sdk, &files);
         }
-
         Ok(())
     }
 
@@ -334,26 +225,13 @@ impl CameraDriver for GPhoto2Camera {
             return Err(DriverError::NotConnected);
         }
 
-        match self.exposure_state {
-            ExposureState::Idle => Ok(true),
-            ExposureState::Complete => Ok(true),
-            ExposureState::Failed => Err(DriverError::SdkError(
-                "gPhoto2: Previous exposure failed".to_string(),
-            )),
-            ExposureState::Exposing {
-                start,
-                duration_secs,
-            } => {
-                // For standard captures, the capture already completed synchronously
-                // in start_exposure. If we're still in Exposing state, it means
-                // the duration hasn't elapsed yet (for UI progress tracking).
-                Ok(start.elapsed().as_secs_f64() >= duration_secs)
+        Ok(match &self.exposure {
+            ExposureState::Idle => true,
+            ExposureState::Timed { capture, .. } => capture.is_finished(),
+            ExposureState::Bulb { opened, requested } => {
+                opened.elapsed().as_secs_f64() >= *requested
             }
-            ExposureState::BulbExposing {
-                start,
-                duration_secs,
-            } => Ok(start.elapsed().as_secs_f64() >= duration_secs),
-        }
+        })
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
@@ -361,90 +239,57 @@ impl CameraDriver for GPhoto2Camera {
             return Err(DriverError::NotConnected);
         }
 
-        let sdk = GPhoto2Sdk::lock().await?;
-
-        // If bulb exposure is complete, we need to stop it and wait for the file
-        if let ExposureState::BulbExposing {
-            start,
-            duration_secs,
-        } = self.exposure_state
-        {
-            if start.elapsed().as_secs_f64() >= duration_secs {
-                self.do_bulb_stop(&sdk)?;
-
-                // After bulb stop, wait for the camera to save the file
-                // and send us the file-added event
-                let wait_start = Instant::now();
-                let max_wait = Duration::from_secs(30);
-
-                loop {
-                    if wait_start.elapsed() > max_wait {
-                        return Err(DriverError::Timeout(
-                            "gPhoto2: Timed out waiting for camera to save image after bulb exposure".to_string(),
-                        ));
-                    }
-
-                    // SAFETY: `gp_camera`/`gp_context` are
-                    // valid non-null. `event_data` is libgphoto2-owned and only
-                    // dereferenced after both (a) `event_type == 2` confirms it is a
-                    // GP_EVENT_FILE_ADDED payload (i.e. `*CameraFilePath`) and (b)
-                    // the non-null guard passes; the borrow is then cloned into
-                    // `self.last_capture_path` before the next loop iteration.
-                    unsafe {
-                        let mut event_type: c_int = 0;
-                        let mut event_data: *mut c_void = std::ptr::null_mut();
-                        let ret = (sdk.camera_wait_for_event)(
-                            self.gp_camera,
-                            1000, // 1 second timeout per poll
-                            &mut event_type,
-                            &mut event_data,
-                            self.gp_context,
-                        );
-
-                        if ret < GP_OK {
-                            tracing::warn!("gPhoto2: wait_for_event returned {}", ret);
-                            break;
-                        }
-
-                        // Event type 2 = GP_EVENT_FILE_ADDED
-                        if event_type == 2 && !event_data.is_null() {
-                            // event_data points to a CameraFilePath
-                            let path = &*(event_data as *const CameraFilePath);
-                            self.last_capture_path = Some(path.clone());
-                            tracing::info!(
-                                "gPhoto2: Bulb image saved: {}/{}",
-                                cstr_from_array(&path.folder),
-                                cstr_from_array(&path.name)
-                            );
-                            break;
-                        }
-                    }
+        let (sdk, files, made) = match std::mem::take(&mut self.exposure) {
+            ExposureState::Idle => {
+                return Err(DriverError::SdkError(
+                    "gPhoto2: No completed exposure to download".to_string(),
+                ))
+            }
+            ExposureState::Timed {
+                capture, seconds, ..
+            } => {
+                let first = finished_capture(capture).await?;
+                let sdk = GPhoto2Sdk::lock().await?;
+                let files = self.rest_of_capture(&sdk, first)?;
+                (sdk, files, MadeExposure::Timed(seconds))
+            }
+            ExposureState::Bulb { opened, requested } => {
+                let left = requested - opened.elapsed().as_secs_f64();
+                if left > 0.0 {
+                    tokio::time::sleep(Duration::from_secs_f64(left)).await;
                 }
+                let sdk = GPhoto2Sdk::lock().await?;
+                let open = self.close_bulb(&sdk, opened)?;
+                let files = self.bulb_files(&sdk)?;
+                (sdk, files, MadeExposure::Bulb(open))
+            }
+        };
 
-                self.exposure_state = ExposureState::Complete;
+        let names: Vec<String> = files.iter().map(|f| cstr_from_array(&f.name)).collect();
+        let read = raw_file_index(&names);
+        // A file that could not be read stays on the camera; one left in its
+        // memory goes before the next exposure.
+        let bytes = self.download_file(&sdk, &files[read])?;
+        for file in &files {
+            self.delete_file(&sdk, file);
+        }
+        if matches!(made, MadeExposure::Timed(_)) && self.facts.needs_session_reset_after_capture()
+        {
+            // SAFETY: the SDK lock is held and the camera is open; libgphoto2
+            // opens the session again on the next call.
+            unsafe {
+                (sdk.camera_exit)(self.gp_camera, self.gp_context);
             }
         }
+        drop(sdk);
 
-        if self.exposure_state != ExposureState::Complete {
-            return Err(DriverError::SdkError(
-                "gPhoto2: No completed exposure to download".to_string(),
-            ));
-        }
-
-        let raw_bytes = self.download_from_camera(&sdk)?;
-        let file_name = self
-            .last_capture_path
-            .as_ref()
-            .map(|path| cstr_from_array(&path.name))
-            .unwrap_or_default();
-
-        self.exposure_state = ExposureState::Idle;
-        self.last_capture_path = None;
-
-        self.decode_raw_to_image_data(skotiq_device::CameraFile {
-            file_name,
-            bytes: std::sync::Arc::new(raw_bytes),
-        })
+        self.decode_raw_to_image_data(
+            skotiq_device::CameraFile {
+                file_name: names[read].clone(),
+                bytes: std::sync::Arc::new(bytes),
+            },
+            made,
+        )
     }
 
     async fn set_cooler(
@@ -513,8 +358,8 @@ impl CameraDriver for GPhoto2Camera {
             pixel_size_y: self.pixel_size,
             max_adu: resolve_max_adu(self.measured_white_level, self.bit_depth),
             bit_depth: self.bit_depth,
-            color: self.is_color,
-            bayer_pattern: Some(BayerPattern::Rggb),
+            color: true,
+            bayer_pattern: self.color_filter,
             saturation_adu: self.measured_saturation_level,
         }
     }
@@ -537,27 +382,30 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
-        let mut features = VendorFeatures::default();
         let mut custom = std::collections::HashMap::new();
-
         custom.insert(
             "camera_model".to_string(),
             serde_json::Value::String(self.model_name.clone()),
         );
-
         custom.insert("iso".to_string(), serde_json::json!(self.current_iso));
-
         custom.insert(
             "can_bulb".to_string(),
-            serde_json::Value::Bool(self.can_bulb),
+            serde_json::Value::Bool(self.bulb_widget.is_some()),
         );
         custom.insert(
             "can_preview".to_string(),
             serde_json::Value::Bool(self.can_preview),
         );
-
-        features.custom_data = custom;
-        Ok(features)
+        if let Some(battery) = &self.facts.battery {
+            custom.insert("battery_level".to_string(), serde_json::json!(battery));
+        }
+        if let Some(target) = &self.facts.capture_target {
+            custom.insert("capture_target".to_string(), serde_json::json!(target));
+        }
+        Ok(VendorFeatures {
+            custom_data: custom,
+            ..Default::default()
+        })
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
@@ -577,6 +425,10 @@ impl CameraDriver for GPhoto2Camera {
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         Err(DriverError::NotSupported)
+    }
+
+    async fn get_exposure_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
+        Ok(exposure_range(&self.shutter, self.bulb_widget.is_some()))
     }
 
     async fn capture_preview(&self) -> Result<Vec<u8>, DriverError> {
@@ -599,14 +451,11 @@ impl CameraDriver for GPhoto2Camera {
             let ret = (sdk.camera_capture_preview)(self.gp_camera, gp_file, self.gp_context);
             if ret < GP_OK {
                 (sdk.file_free)(gp_file);
-                return Err(DriverError::SdkError(format!(
-                    "gPhoto2: capture_preview failed with code {}",
-                    ret
-                )));
+                return Err(gp_error(ret, "capture_preview"));
             }
 
             let mut data_ptr: *const c_char = std::ptr::null();
-            let mut data_size: u64 = 0;
+            let mut data_size: c_ulong = 0;
             let ret = (sdk.file_get_data_and_size)(gp_file, &mut data_ptr, &mut data_size);
             if ret < GP_OK || data_ptr.is_null() || data_size == 0 {
                 (sdk.file_free)(gp_file);
@@ -626,24 +475,35 @@ impl CameraDriver for GPhoto2Camera {
 
 impl Drop for GPhoto2Camera {
     fn drop(&mut self) {
-        if self.connected {
-            if let Ok(sdk) = GPhoto2Sdk::installed() {
-                // Unlocked on purpose; the SAFETY note below says why.
-                let sdk = sdk.unlocked();
-                // SAFETY: Drop is best-effort cleanup. We do NOT take the SDK lock
-                // here because (a) Drop cannot await, and (b) Drop only runs when the
-                // last owner is releasing the camera, so no other thread should be
-                // touching `gp_camera`/`gp_context`. Each pointer is non-null-checked
-                // before its corresponding free/unref. This is the same defensive
-                // teardown pattern used by other vendor Drop impls.
-                unsafe {
-                    if !self.gp_camera.is_null() {
-                        let _ = (sdk.camera_exit)(self.gp_camera, self.gp_context);
-                        (sdk.camera_free)(self.gp_camera);
-                    }
-                    if !self.gp_context.is_null() {
-                        (sdk.context_unref)(self.gp_context);
-                    }
+        if !self.connected {
+            return;
+        }
+        // The capture thread still uses the camera: leave it to the process.
+        if let ExposureState::Timed { capture, .. } = &self.exposure {
+            if !capture.is_finished() {
+                tracing::warn!(
+                    "gPhoto2: {} dropped during a capture; its handle is not closed",
+                    self.model_name
+                );
+                return;
+            }
+        }
+        if let Ok(sdk) = GPhoto2Sdk::installed() {
+            // Unlocked on purpose; the SAFETY note below says why.
+            let sdk = sdk.unlocked();
+            // SAFETY: Drop is best-effort cleanup. We do NOT take the SDK lock
+            // here because (a) Drop cannot await, and (b) Drop only runs when the
+            // last owner is releasing the camera and no capture thread holds it
+            // (checked above), so no other thread is touching
+            // `gp_camera`/`gp_context`. Each pointer is non-null-checked before
+            // its corresponding free/unref.
+            unsafe {
+                if !self.gp_camera.is_null() {
+                    let _ = (sdk.camera_exit)(self.gp_camera, self.gp_context);
+                    (sdk.camera_free)(self.gp_camera);
+                }
+                if !self.gp_context.is_null() {
+                    (sdk.context_unref)(self.gp_context);
                 }
             }
         }
