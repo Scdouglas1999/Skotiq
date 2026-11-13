@@ -183,7 +183,7 @@ mod sim_camera_tests {
             unique_id: None,
             display_name: "Simulated Camera".to_string(),
         };
-        crate::simulator::register_connected(&get_device_manager(), info).await;
+        crate::simulator::register_connected(get_device_manager(), info).await;
         get_sim_camera().write().await.status.connected = true;
         clear_sim_exposure().await;
     }
@@ -524,7 +524,7 @@ mod sim_sky_wiring_tests {
             display_name: "Simulated Camera".to_string(),
         };
         let mgr = get_device_manager();
-        crate::simulator::register_connected(&mgr, info).await;
+        crate::simulator::register_connected(mgr, info).await;
         get_sim_camera().write().await.status.connected = true;
         clear_sim_exposure().await;
 
@@ -641,7 +641,7 @@ mod sim_sky_wiring_tests {
             display_name: "Simulated Camera".to_string(),
         };
         let mgr = get_device_manager();
-        crate::simulator::register_connected(&mgr, info).await;
+        crate::simulator::register_connected(mgr, info).await;
         get_sim_camera().write().await.status.connected = true;
         clear_sim_exposure().await;
 

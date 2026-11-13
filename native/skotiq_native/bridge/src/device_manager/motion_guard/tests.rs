@@ -360,7 +360,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
     faults::clear_all();
     runaway::reset();
     let device_id = "sim_mount_runaway_guard";
-    crate::simulator::register_connected(&get_device_manager(), DeviceInfo {
+    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
                 id: device_id.to_string(),
                 name: "Simulated Mount".to_string(),
                 device_type: DeviceType::Mount,

@@ -32,7 +32,7 @@ async fn attach_sim_mount(device_id: &str) {
         unique_id: None,
         display_name: "Simulated Mount".to_string(),
     };
-    crate::simulator::register_connected(&get_device_manager(), info).await;
+    crate::simulator::register_connected(get_device_manager(), info).await;
     crate::simulator::mount::cancel_sim_slew().await;
     let mut mount = get_sim_mount().write().await;
     mount.status.connected = true;
@@ -158,7 +158,7 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     let mount_id = "sim_mount_frame_fits";
     attach_sim_mount(mount_id).await;
     let camera_id = "sim_camera_frame_fits";
-    crate::simulator::register_connected(&get_device_manager(), DeviceInfo {
+    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
                 id: camera_id.to_string(),
                 name: "Simulated Camera".to_string(),
                 device_type: DeviceType::Camera,
@@ -359,7 +359,7 @@ fn card_format(card: &str) -> String {
 }
 
 async fn attach_sim_device(device_id: &str, device_type: DeviceType, name: &str) {
-    crate::simulator::register_connected(&get_device_manager(), DeviceInfo {
+    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
                 id: device_id.to_string(),
                 name: name.to_string(),
                 device_type,
