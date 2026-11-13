@@ -303,6 +303,13 @@ final List<AlwaysOnService> alwaysOnServices = [
     'results a client computes reaching the host and the other clients',
   ),
   AlwaysOnService(
+    'camera exposure',
+    hostExposureFollowProvider,
+    _hosts,
+    'the camera card and countdown showing the frames of a run and captures '
+        'a client or the API started, on the host and on its clients',
+  ),
+  AlwaysOnService(
     'host local sync',
     hostLocalSyncProvider,
     // It refreshes what a host window shows after a client changed it.

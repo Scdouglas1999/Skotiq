@@ -1,3 +1,4 @@
+import 'runtime_mirror/channels/exposure_channel.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 
@@ -87,9 +88,6 @@ void applyHostLocalSyncEvent(ProviderContainer container, SkotiqEvent event) {
       _applySequenceLibraryNotice(container, event);
     case EventCategory.imaging:
       _rereadImagesAfter(container, event);
-      // A capture the host runs itself drives its own countdown; this shows
-      // one it did not start (a client's snapshot, an API capture).
-      _applyForeignExposureOnHost(container, event);
     case EventCategory.safety:
     case EventCategory.polarAlignment:
     case EventCategory.job:
@@ -140,7 +138,7 @@ void applyHostEventOnClient(
           event.eventType == 'ImageCaptured') {
         unawaited(_publishRemoteCurrentFrame(container, backend));
       }
-      _applyExposureMirror(container, event);
+      _followExposureOfOlderHost(container, event);
     case EventCategory.equipment:
     case EventCategory.guiding:
     case EventCategory.safety:

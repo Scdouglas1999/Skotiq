@@ -1,3 +1,4 @@
+import 'channels/exposure_channel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'channels/autofocus_result_channel.dart';
@@ -36,6 +37,7 @@ final runtimeMirrorChannelsProvider =
     Provider<List<RuntimeMirrorChannel<Object?>>>(
       (ref) => <RuntimeMirrorChannel<Object?>>[
         ...deviceSlotChannels,
+        const ExposureChannel(),
         const GuiderStatusChannel(),
         const OpenPlanChannel(),
         const PlateSolveChannel(),
