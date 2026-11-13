@@ -8,7 +8,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../utils/plan_tonight_sequencer_helper.dart';
 import '../utils/snackbar_helper.dart';
 
 /// Identifies the destination the user picked in the add-to-sequence dialog.
@@ -53,10 +55,11 @@ class _SequenceDestination {
 /// Carries the framing composition forward: [rotationDegrees] (when non-zero)
 /// becomes the header's `rotation` so the Sequencer's slew/center/rotate step
 /// reproduces the framing the user dialed in. RA/Dec/name come straight from
-/// the resolved [target].
+/// the resolved [target]. [minAltitude] is the altitude the target waits for.
 TargetHeaderNode bareTargetHeaderForFramedTarget({
   required FramingTarget target,
   double? rotationDegrees,
+  double? minAltitude,
 }) {
   final rotation = (rotationDegrees != null && rotationDegrees != 0)
       ? rotationDegrees
@@ -67,47 +70,30 @@ TargetHeaderNode bareTargetHeaderForFramedTarget({
     raHours: target.raHours,
     decDegrees: target.decDegrees,
     rotation: rotation,
+    minAltitude: minAltitude,
   );
 }
 
-/// Build one bare [TargetHeaderNode] per drawn mosaic panel.
-///
-/// With Mosaic enabled the framing canvas draws an NxM grid of panels, each at
-/// its own RA/Dec — that grid IS the composition the user made. Inserting only
-/// [bareTargetHeaderForFramedTarget] threw the panels away and dropped a single
-/// header at the grid's CENTRE, so a 2x2 mosaic silently became one frame of the
-/// middle of it.
-///
-/// Each header carries the panel's own centre and is named
-/// `"<target> Panel N"`, in the panel order the sidebar lists (capture order),
-/// so the Sequencer shows the same panels in the same order as the canvas.
-/// Panels also get [MosaicPanelInfo] so the frames they capture are stamped with
-/// their mosaic identity in FITS, exactly as the wizard-built path does.
+/// One bare target header per drawn mosaic panel, in the canvas's capture
+/// order: [MosaicService.panelHeader], the same targets Auto-build gives the
+/// same drawing, without the slew, centering and exposures under them.
 List<TargetHeaderNode> bareTargetHeadersForMosaicPanels({
   required FramingTarget target,
-  required List<FramingMosaicPanel> panels,
+  required FramingState framingState,
   double? rotationDegrees,
+  double? minAltitude,
 }) {
-  final rotation = (rotationDegrees != null && rotationDegrees != 0)
-      ? rotationDegrees
-      : null;
-  final baseName = target.name.isEmpty ? 'Mosaic' : target.name;
+  const service = MosaicService();
+  final panels = framingCapturePanels(framingState);
   return [
     for (var i = 0; i < panels.length; i++)
-      TargetHeaderNode(
-        name: '$baseName Panel ${panels[i].index + 1}',
-        targetName: '$baseName Panel ${panels[i].index + 1}',
-        raHours: panels[i].centerRaHours,
-        decDegrees: panels[i].centerDecDegrees,
-        rotation: rotation,
-        priority: i,
-        mosaicPanel: MosaicPanelInfo(
-          mosaicName: baseName,
-          panelIndex: panels[i].index,
-          totalPanels: panels.length,
-          row: panels[i].row,
-          column: panels[i].column,
-        ),
+      service.panelHeader(
+        mosaicName: framingMosaicNameFor(target),
+        panel: panels[i],
+        order: i,
+        totalPanels: panels.length,
+        rotation: rotationDegrees ?? framingState.rotation,
+        minAltitude: minAltitude,
       ),
   ];
 }
@@ -123,11 +109,12 @@ Future<bool> addFramedTargetToExistingSequence({
   required WidgetRef ref,
   required FramingTarget target,
   double? rotationDegrees,
-  List<FramingMosaicPanel> mosaicPanels = const [],
+  FramingState? mosaic,
 }) async {
   // Preserve a drawn mosaic as one target group per panel.
-  final panels =
-      mosaicPanels.length >= 2 ? mosaicPanels : const <FramingMosaicPanel>[];
+  final panels = mosaic != null && mosaic.mosaicPanels.length >= 2
+      ? mosaic.mosaicPanels
+      : const <FramingMosaicPanel>[];
   final current = ref.read(currentSequenceProvider);
   List<Sequence>? saved;
   while (saved == null) {
@@ -190,15 +177,22 @@ Future<bool> addFramedTargetToExistingSequence({
   );
   if (chosen == null || !context.mounted) return false;
 
+  // A framed target waits for the site's minimum altitude, as every target
+  // the app builds does, so it never starts imaging below it.
+  final minAltitude = ref.read(siteMinimumAltitudeDegProvider);
   final headers = panels.isEmpty
       ? [
           bareTargetHeaderForFramedTarget(
-              target: target, rotationDegrees: rotationDegrees),
+            target: target,
+            rotationDegrees: rotationDegrees,
+            minAltitude: minAltitude,
+          ),
         ]
       : bareTargetHeadersForMosaicPanels(
           target: target,
-          panels: panels,
+          framingState: mosaic!,
           rotationDegrees: rotationDegrees,
+          minAltitude: minAltitude,
         );
   final notifier = ref.read(currentSequenceProvider.notifier);
   void addAll() {

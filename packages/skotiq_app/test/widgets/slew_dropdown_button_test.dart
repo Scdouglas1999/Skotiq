@@ -590,9 +590,11 @@ void main() {
     await tester.tap(find.widgetWithText(SkotiqButton, 'Slew, Center & Rotate'));
     await tester.pump();
     mount.result.complete(CommandActionResult.ok);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start centering'));
     await tester.pump();
-    await tester.pump();
-    expect(find.text('Centering Target'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Target Centering'), findsOneWidget);
 
     // The old host answers in the same turn as the switch, before the closed
     // dialog has left the tree.
@@ -604,7 +606,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Centering Target'), findsNothing);
+    expect(find.text('Target Centering'), findsNothing);
     expect(
       find.widgetWithText(SkotiqButton, 'Slew, Center & Rotate'),
       findsOneWidget,

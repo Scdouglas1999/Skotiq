@@ -65,12 +65,19 @@ List<FramingMosaicPanel> _grid2x2() => const [
       ),
     ];
 
+FramingState _mosaic(List<FramingMosaicPanel> panels, {double rotation = 0}) =>
+    FramingState(
+      mosaicEnabled: true,
+      mosaicPanels: panels,
+      rotation: rotation,
+    );
+
 void main() {
   group('bareTargetHeadersForMosaicPanels', () {
     test('one header per panel, each at its own coordinates', () {
       final headers = bareTargetHeadersForMosaicPanels(
         target: _target(),
-        panels: _grid2x2(),
+        framingState: _mosaic(_grid2x2()),
       );
 
       expect(headers, hasLength(4));
@@ -95,19 +102,19 @@ void main() {
     test('headers are named per panel and carry MosaicPanelInfo', () {
       final headers = bareTargetHeadersForMosaicPanels(
         target: _target(),
-        panels: _grid2x2(),
+        framingState: _mosaic(_grid2x2()),
       );
 
       expect(headers.map((h) => h.targetName), [
-        'M42 Panel 1',
-        'M42 Panel 2',
-        'M42 Panel 3',
-        'M42 Panel 4',
+        'M42 Mosaic Panel 1',
+        'M42 Mosaic Panel 2',
+        'M42 Mosaic Panel 3',
+        'M42 Mosaic Panel 4',
       ]);
       for (var i = 0; i < headers.length; i++) {
         final info = headers[i].mosaicPanel;
         expect(info, isNotNull, reason: 'panel $i lost its mosaic identity');
-        expect(info!.mosaicName, 'M42');
+        expect(info!.mosaicName, 'M42 Mosaic');
         expect(info.panelIndex, _grid2x2()[i].index);
         expect(info.row, _grid2x2()[i].row);
         expect(info.column, _grid2x2()[i].column);
@@ -118,7 +125,7 @@ void main() {
     test('framing rotation rides onto every panel', () {
       final headers = bareTargetHeadersForMosaicPanels(
         target: _target(),
-        panels: _grid2x2(),
+        framingState: _mosaic(_grid2x2()),
         rotationDegrees: 33.0,
       );
       for (final header in headers) {
@@ -178,7 +185,7 @@ void main() {
         ref: h.ref,
         target: _target(),
         rotationDegrees: 0,
-        mosaicPanels: _grid2x2(),
+        mosaic: _mosaic(_grid2x2()),
       );
       await tester.pumpAndSettle();
 
@@ -219,7 +226,7 @@ void main() {
         context: h.context,
         ref: h.ref,
         target: _target(),
-        mosaicPanels: [_grid2x2().first],
+        mosaic: _mosaic([_grid2x2().first]),
       );
       await tester.pumpAndSettle();
 
@@ -247,7 +254,7 @@ void main() {
         context: h.context,
         ref: h.ref,
         target: _target(),
-        mosaicPanels: _grid2x2(),
+        mosaic: _mosaic(_grid2x2()),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cancel'));
