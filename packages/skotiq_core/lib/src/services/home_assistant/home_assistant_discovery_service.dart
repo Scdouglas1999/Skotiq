@@ -287,10 +287,7 @@ class HomeAssistantDiscoveryService {
 
     final execState = _ref.read(sequenceExecutionStateProvider);
     final progress = _ref.read(sequenceProgressProvider);
-    final sequenceActive =
-        execState == SequenceExecutionState.running ||
-        execState == SequenceExecutionState.paused;
-    states[HaEntityKeys.sequenceRunning] = onOff(sequenceActive);
+    states[HaEntityKeys.sequenceRunning] = onOff(execState.isLive);
     states[HaEntityKeys.sequencePaused] = onOff(
       execState == SequenceExecutionState.paused,
     );
