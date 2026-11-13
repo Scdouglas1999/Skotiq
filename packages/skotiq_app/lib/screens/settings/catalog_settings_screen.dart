@@ -24,6 +24,7 @@ import 'widgets/settings_widgets.dart'
     show SettingsFormScope, settingsPagePadding;
 import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
+import 'package:skotiq_core/models.dart';
 
 part 'catalog_settings_screen/card_builders.dart';
 

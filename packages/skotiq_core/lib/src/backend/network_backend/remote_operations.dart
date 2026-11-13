@@ -1,14 +1,13 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
-
   /// Snapshot of a server-side job. Mirrors the wire shape of
   /// `apps/desktop/lib/headless_api/job_manager.dart#Job.toJson`. We
   /// deliberately keep the model loose (no enum for state) so a server
   /// that adds a new state value does not crash an older client; the
   /// caller branches on the string.
   Future<RemoteJob> getJob(String jobId) async {
-    final response = await _get('jobs/$jobId');
+    final response = await _get(JobApi.getJob, path: {'jobId': jobId});
     return RemoteJob.fromJson(response);
   }
 
@@ -155,8 +154,9 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
   /// POST /api/session/claim — returns true on success, false when the
   /// slot is already taken.
   Future<bool> claimSession({String? clientName, String? clientId}) async {
-    final uri = _apiUri('session/claim');
-    final headers = _addAuthHeaders({}, endpoint: 'session/claim');
+    final path = _endpointPath(SessionOwnershipApi.claim, ApiMethod.post);
+    final uri = _apiUri(path);
+    final headers = _addAuthHeaders({}, endpoint: path);
     headers[HttpHeaders.contentTypeHeader] = 'application/json';
     final response = await _http.post(
       uri,
@@ -172,12 +172,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     if (response.statusCode == 409) {
       return false; // Slot taken — caller may decide to take-over.
     }
-    throw _parseErrorResponse(
-      response.statusCode,
-      response.body,
-      'POST',
-      'session/claim',
-    );
+    throw _parseErrorResponse(response.statusCode, response.body, 'POST', path);
   }
 
   /// POST /api/session/take-over — always succeeds (any control-scope
@@ -188,22 +183,25 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     String? clientName,
     String? clientId,
   }) async {
-    await _post('session/take-over', {
-      'reason': reason,
-      if (clientName != null) 'clientName': clientName,
-      if (clientId != null) 'clientId': clientId,
-    });
+    await _post(
+      SessionOwnershipApi.takeOver,
+      body: {
+        'reason': reason,
+        if (clientName != null) 'clientName': clientName,
+        if (clientId != null) 'clientId': clientId,
+      },
+    );
   }
 
   /// POST /api/session/release — voluntary release by the owner. 403 if
   /// called by a non-owner.
   Future<void> releaseSession() async {
-    await _post('session/release');
+    await _post(SessionOwnershipApi.release);
   }
 
   /// GET /api/session/status — combined snapshot + caller-relative view.
   Future<RemoteSessionStatus> getSessionStatus() async {
-    final response = await _get('session/status');
+    final response = await _get(SessionOwnershipApi.getStatus);
     return RemoteSessionStatus.fromJson(response);
   }
 
@@ -217,15 +215,16 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
 
   /// GET /api/system/version — current build info.
   Future<RemoteVersionInfo> getSystemVersion() async {
-    final response = await _get('system/version');
+    final response = await _get(SystemApi.version);
     return RemoteVersionInfo.fromJson(response);
   }
 
   /// POST /api/system/update/check — dispatch a check job.
   Future<RemoteJob> checkForUpdate({String? channel}) async {
-    final response = await _post('system/update/check', {
-      if (channel != null && channel.isNotEmpty) 'channel': channel,
-    });
+    final response = await _post(
+      UpdateApi.checkForUpdate,
+      body: {if (channel != null && channel.isNotEmpty) 'channel': channel},
+    );
     return RemoteJob.fromJson(
       response,
       fallbackOperation: 'system.update.check',
@@ -234,14 +233,14 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
 
   /// GET /api/system/update/status — current update phase snapshot.
   Future<RemoteUpdateStatus> getUpdateStatus() async {
-    final response = await _get('system/update/status');
+    final response = await _get(UpdateApi.getStatus);
     return RemoteUpdateStatus.fromJson(response);
   }
 
   /// POST /api/system/update/download — start downloading the staged
   /// update. Returns a job handle for progress tracking.
   Future<RemoteJob> downloadUpdate() async {
-    final response = await _post('system/update/download');
+    final response = await _post(UpdateApi.download);
     return RemoteJob.fromJson(
       response,
       fallbackOperation: 'system.update.download',
@@ -252,7 +251,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
   /// process may exit during the apply (the host is replaced by the
   /// updater binary), so clients should reconnect after the WS drops.
   Future<RemoteJob> applyUpdate() async {
-    final response = await _post('system/update/apply');
+    final response = await _post(UpdateApi.apply);
     return RemoteJob.fromJson(
       response,
       fallbackOperation: 'system.update.apply',
@@ -265,7 +264,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
   /// the server returns 501 otherwise. The host process may restart during
   /// the rollback, so clients should reconnect after the WS drops.
   Future<RemoteJob> rollbackUpdate() async {
-    final response = await _post('system/update/rollback');
+    final response = await _post(UpdateApi.rollback);
     return RemoteJob.fromJson(
       response,
       fallbackOperation: 'system.update.rollback',
@@ -280,7 +279,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
   /// error. The endpoint answers `{aborted: bool, cancelledJobs: [...]}` and
   /// never mints a job of its own, so neither does this.
   Future<List<String>> abortUpdate() async {
-    final response = await _post('system/update/abort');
+    final response = await _post(UpdateApi.abort);
     final cancelled = response['cancelledJobs'];
     if (cancelled is! List) return const <String>[];
     return cancelled
@@ -292,7 +291,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
   /// GET /api/system/update/staged — info about the staged update, or
   /// null when nothing is staged.
   Future<RemoteStagedUpdate?> getStagedUpdate() async {
-    final response = await _get('system/update/staged');
+    final response = await _get(UpdateApi.getStaged);
     final raw = response['staged'];
     if (raw == null) return null;
     if (raw is! Map) return null;
@@ -301,7 +300,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
 
   /// DELETE /api/system/update/staged — discard the staged update.
   Future<void> discardStagedUpdate() async {
-    await _delete('system/update/staged');
+    await _delete(UpdateApi.discardStaged);
   }
 
   /// GET /api/push/targets — whether a critical alert could actually reach a
@@ -309,7 +308,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
   ///
   /// Counts and a verdict only; the host never returns token values.
   Future<PushDeliveryTargets> getPushDeliveryTargets() async {
-    final response = await _get('push/targets');
+    final response = await _get(PushApi.getTargets);
     return PushDeliveryTargets.fromJson(response);
   }
 }

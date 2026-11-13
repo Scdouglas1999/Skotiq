@@ -46,6 +46,7 @@ Future<_SwappableBackendNotifier> _pumpLauncher(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        planTimerProvider.overrideWithValue(const PlanTimer()),
         backendProvider.overrideWith((ref) {
           notifier = _SwappableBackendNotifier(ref, hostA);
           return notifier;

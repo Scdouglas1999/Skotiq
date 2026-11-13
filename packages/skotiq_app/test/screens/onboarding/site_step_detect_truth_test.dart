@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/site_step.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_app/services/site_detection.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -95,7 +96,7 @@ Future<ProviderContainer> _pumpSiteStep(
         databaseProvider.overrideWithValue(db),
         onboardingApproximateLocationProvider
             .overrideWithValue(() async => null),
-        onboardingSiteLocatorProvider.overrideWithValue(
+        siteLocatorProvider.overrideWithValue(
           locator ??
               _answering(
                 const PositioningAttempt(fix: null, outcomes: []),

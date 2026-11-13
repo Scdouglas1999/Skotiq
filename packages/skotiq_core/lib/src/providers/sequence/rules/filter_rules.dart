@@ -1,3 +1,4 @@
+import '../../../models/equipment/filter_names.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../equipment_provider.dart';

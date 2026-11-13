@@ -147,8 +147,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       // the appliance has an update server configured; otherwise they 404.
       // Surface that as a clear "not enabled" note rather than a raw error.
       final msg = userFacingError(e);
-      final notEnabled = (e is ServerError && e.httpStatus == 404) ||
-          RegExp(r'\bHTTP 404\b').hasMatch(msg);
+      final notEnabled = e is ServerError && e.httpStatus == 404;
       setState(() {
         _loading = false;
         _loadError = notEnabled

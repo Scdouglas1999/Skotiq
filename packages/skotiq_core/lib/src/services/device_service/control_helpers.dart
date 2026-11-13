@@ -89,7 +89,7 @@ extension _DeviceServiceControlHelpers on DeviceService {
         defaultOffset: newOffset ?? activeProfile.defaultOffset,
       );
       try {
-        await notifier.updateProfile(updated);
+        await notifier.saveProfile(updated);
       } catch (e) {
         _safeLog(
           (l) => l.warning(

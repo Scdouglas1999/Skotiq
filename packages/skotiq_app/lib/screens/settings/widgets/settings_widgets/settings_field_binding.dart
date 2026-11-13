@@ -242,6 +242,21 @@ class NumberCodec extends SettingCodec<double> {
   })  : assert(min <= max),
         assert(decimals >= 0);
 
+  /// The rules of [setting] from the settings table: the bounds it holds a
+  /// new value to.
+  factory NumberCodec.of(
+    DoubleSetting setting, {
+    int decimals = 0,
+    String unit = '',
+  }) {
+    final min = setting.inputMin ?? setting.min;
+    final max = setting.inputMax ?? setting.max;
+    if (min == null || max == null) {
+      throw ArgumentError.value(setting.field, 'setting', 'has no bounds');
+    }
+    return NumberCodec(min: min, max: max, decimals: decimals, unit: unit);
+  }
+
   final double min;
   final double max;
   final int decimals;
@@ -341,6 +356,17 @@ class NumberCodec extends SettingCodec<double> {
 class IntCodec extends SettingCodec<int> {
   const IntCodec({required this.min, required this.max, this.unit = ''})
       : assert(min <= max);
+
+  /// The rules of [setting] from the settings table: the bounds it holds a
+  /// new value to.
+  factory IntCodec.of(IntSetting setting, {String unit = ''}) {
+    final min = setting.inputMin ?? setting.min;
+    final max = setting.inputMax ?? setting.max;
+    if (min == null || max == null) {
+      throw ArgumentError.value(setting.field, 'setting', 'has no bounds');
+    }
+    return IntCodec(min: min, max: max, unit: unit);
+  }
 
   final int min;
   final int max;

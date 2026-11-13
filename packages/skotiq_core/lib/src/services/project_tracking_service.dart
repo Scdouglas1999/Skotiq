@@ -1,5 +1,8 @@
 import '../database/database.dart' as db;
+import '../models/equipment/filter_names.dart';
 import '../models/scheduler/integration_goal.dart';
+
+const _unfiltered = 'Unfiltered';
 
 /// Accepted light integration in one filter.
 class FilterIntegration {
@@ -25,7 +28,7 @@ List<FilterIntegration> acceptedLightsByFilter(Iterable<db.DbCapturedImage> fram
   for (final frame in frames) {
     if (!_isAcceptedLight(frame)) continue;
     final label = (frame.filter == null || frame.filter!.isEmpty)
-        ? 'Unfiltered'
+        ? _unfiltered
         : frame.filter!;
     final bucket = buckets.putIfAbsent(label.toLowerCase(), _FilterBucket.new);
     bucket.frames++;
@@ -42,18 +45,34 @@ List<FilterIntegration> acceptedLightsByFilter(Iterable<db.DbCapturedImage> fram
   ]..sort((a, b) => a.filter.toLowerCase().compareTo(b.filter.toLowerCase()));
 }
 
-/// The accepted light integration a goal for [goalFilter] counts: the group
-/// with that filter, matched case-insensitively; the unfiltered goal (empty
-/// filter) counts the frames that name no filter.
+/// The accepted light integration a goal for [goalFilter] counts: the groups
+/// whose filter the filter-name rule matches ("Ha" counts the "Ha 7nm"
+/// group); the unfiltered goal (empty filter) counts the frames that name no
+/// filter.
 FilterIntegration acceptedInGoalFilter(
   List<FilterIntegration> accepted,
   String goalFilter,
 ) {
-  final key = _goalFilterKey(goalFilter);
-  for (final f in accepted) {
-    if (f.filter.toLowerCase() == key) return f;
+  final groups = _goalGroups(accepted, goalFilter);
+  return FilterIntegration(
+    filter: groups.length == 1 ? groups.single.filter : goalFilter,
+    frames: groups.fold(0, (sum, f) => sum + f.frames),
+    seconds: groups.fold(0.0, (sum, f) => sum + f.seconds),
+  );
+}
+
+List<FilterIntegration> _goalGroups(
+  List<FilterIntegration> accepted,
+  String goalFilter,
+) {
+  if (goalFilter.trim().isEmpty) {
+    return [for (final f in accepted) if (f.filter == _unfiltered) f];
   }
-  return FilterIntegration(filter: goalFilter, frames: 0, seconds: 0);
+  final named = [for (final f in accepted) if (f.filter != _unfiltered) f];
+  final matched = matchingFilterNames(goalFilter, [
+    for (final f in named) f.filter,
+  ]).toSet();
+  return [for (final f in named) if (matched.contains(f.filter)) f];
 }
 
 /// What each of [goals] counts as done, in the order given.
@@ -68,13 +87,13 @@ List<FilterIntegration> acceptedPerGoal(
   final left = <String, ({double seconds, int frames})>{};
   final lastInFilter = <String, int>{};
   for (var i = 0; i < goals.length; i++) {
-    lastInFilter[_goalFilterKey(goals[i].filter)] = i;
+    lastInFilter[_goalKey(accepted, goals[i].filter)] = i;
   }
   return [
     for (var i = 0; i < goals.length; i++)
       () {
         final goal = goals[i];
-        final key = _goalFilterKey(goal.filter);
+        final key = _goalKey(accepted, goal.filter);
         final available = left[key] ??= () {
           final all = acceptedInGoalFilter(accepted, goal.filter);
           return (seconds: all.seconds, frames: all.frames);
@@ -99,8 +118,14 @@ List<FilterIntegration> acceptedPerGoal(
   ];
 }
 
-String _goalFilterKey(String goalFilter) =>
-    goalFilter.trim().isEmpty ? 'unfiltered' : goalFilter.trim().toLowerCase();
+/// Goals that count the same frames share them: keyed by the groups they
+/// count, or by their own filter when they count none.
+String _goalKey(List<FilterIntegration> accepted, String goalFilter) {
+  final groups = _goalGroups(accepted, goalFilter);
+  return groups.isEmpty
+      ? 'none:${goalFilter.trim().toLowerCase()}'
+      : [for (final f in groups) f.filter.toLowerCase()].join('|');
+}
 
 /// The sessions that imaged a target: every session holding one of its light
 /// frames, and any session row that names the target.

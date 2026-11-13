@@ -117,6 +117,11 @@ extension _BackupRestoreValidation on BackupService {
       sequences = decodedSequences;
     }
 
+    Map<String, dynamic>? tables;
+    if (backup.containsKey('tables')) {
+      tables = _validateTables(backup['tables']);
+    }
+
     return _ValidatedBackup(
       version: version,
       backup: backup,
@@ -124,7 +129,46 @@ extension _BackupRestoreValidation on BackupService {
       profiles: profiles,
       targets: targets,
       sequences: sequences,
+      tables: tables,
     );
+  }
+
+  /// The `tables` section: an object of table name to a list of row objects
+  /// whose cells are database values or the archive's one-key encodings.
+  Map<String, dynamic> _validateTables(Object? raw) {
+    if (raw is! Map<String, dynamic>) {
+      throw const _BackupValidationException(
+        'Invalid backup file: "tables" is not an object',
+      );
+    }
+    for (final MapEntry(key: table, value: rows) in raw.entries) {
+      if (rows is! List) {
+        throw _BackupValidationException(
+          'Invalid backup file: table "$table" is not a list',
+        );
+      }
+      for (var i = 0; i < rows.length; i++) {
+        final row = rows[i];
+        if (row is! Map<String, dynamic>) {
+          throw _BackupValidationException(
+            'Invalid backup file: $table[$i] is not an object',
+          );
+        }
+        for (final MapEntry(key: column, :value) in row.entries) {
+          final valid = switch (value) {
+            null || num() || String() || bool() => true,
+            {_blobKey: String()} || {_doubleKey: String()} => true,
+            _ => false,
+          };
+          if (!valid) {
+            throw _BackupValidationException(
+              'Invalid backup file: $table[$i].$column is not a database value',
+            );
+          }
+        }
+      }
+    }
+    return raw;
   }
 
   /// Shared validator for the profile/target sections: the value must be a

@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import '../../../database/database.dart';
 import '../../../models/science/science_models.dart';
-import '../../network_backend.dart';
+import '../../../models/backend/remote_science_bundle.dart';
 
 /// Science products a linked imaging host derives from its frames:
 /// photometry, transforms, reports and their settings.

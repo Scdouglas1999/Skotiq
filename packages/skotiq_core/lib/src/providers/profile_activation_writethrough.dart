@@ -1,12 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../backend/roles/profile_settings_backend.dart';
 import '../database/daos/equipment_profiles_dao.dart';
 import '../models/equipment_profile_remote_mapping.dart';
 import '../services/logging_service.dart';
-import 'backend_provider.dart';
-import 'database_provider.dart';
-import 'logging_service_provider.dart';
 
 /// Push the SQLite-active profile into the native (Rust) executor store so the
 /// executor's `load_and_set_profile` side effects run.
@@ -28,8 +23,7 @@ import 'logging_service_provider.dart';
 /// flag flips, reading a provider through that notifier's `ref` would trip
 /// Riverpod's "dependency changed before rebuild" guard. Notifier call sites
 /// therefore resolve their collaborators BEFORE mutating SQLite and hand them
-/// here; the [Ref]/[WidgetRef] convenience wrappers below cover the widget and
-/// REST-handler call sites where that ordering constraint does not apply.
+/// here.
 ///
 /// [strict] controls legacy direct write-through callers: false keeps their
 /// best-effort behaviour; true logs and rethrows. New activation call sites
@@ -255,28 +249,4 @@ Future<void> activateProfileStrictTransactional({
       ),
     );
   }
-}
-
-/// [Ref] overload for provider/service call sites that read AFTER any state
-/// mutation is safe (i.e. the caller does not `watch` the profile streams).
-Future<void> writeActiveProfileThroughToRust(Ref ref, int profileId) {
-  return writeActiveProfileThrough(
-    dao: ref.read(equipmentProfilesDaoProvider),
-    backend: ref.read(profileSettingsBackendProvider),
-    logger: ref.read(loggingServiceProvider),
-    profileId: profileId,
-  );
-}
-
-/// WidgetRef overload for GUI call sites (equipment screen, profile editor).
-Future<void> writeActiveProfileThroughToRustFromWidget(
-  WidgetRef ref,
-  int profileId,
-) {
-  return writeActiveProfileThrough(
-    dao: ref.read(equipmentProfilesDaoProvider),
-    backend: ref.read(profileSettingsBackendProvider),
-    logger: ref.read(loggingServiceProvider),
-    profileId: profileId,
-  );
 }

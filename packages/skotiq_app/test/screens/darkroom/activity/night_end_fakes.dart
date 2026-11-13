@@ -184,7 +184,7 @@ List<Override> nightEndOverrides({
   required FakeBuildNative native,
   required RecordingNotifications notifications,
   required InstantCalibration calibration,
-  required Directory mastersRoot,
+  required Directory outputRoot,
 }) {
   final service = DarkroomBuildService(
     operation: native.call,
@@ -202,7 +202,10 @@ List<Override> nightEndOverrides({
       (ref) => FixedBackend(ref, FfiBackend(database: db)),
     ),
     darkroomBuildServiceProvider.overrideWithValue(service),
-    darkroomMastersRootProvider.overrideWith((ref) async => mastersRoot),
+    outputLocationsProvider.overrideWith(
+      (ref) async =>
+          OutputLocations(captureFolder: outputRoot.path, documents: outputRoot),
+    ),
     postSessionSeamProvider.overrideWithValue(QuietSeam()),
     notificationServiceProvider.overrideWithValue(notifications),
     endOfNightCalibrationProvider.overrideWith((ref) => calibration),

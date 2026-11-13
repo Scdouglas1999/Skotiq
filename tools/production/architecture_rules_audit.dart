@@ -90,6 +90,13 @@ const _dartPackages = <String, _DartPackage>{
         'callers pass in what it needs.',
   ),
   'skotiq_design': _DartPackage({}),
+  'skotiq_relay': _DartPackage(
+    {},
+    pureDart: true,
+    instead:
+        'skotiq_relay also runs alone as the relay server (bin/relay.dart, '
+        'Dockerfile). Keep it free of Flutter and of other Skotiq packages.',
+  ),
   'skotiq_bridge': _DartPackage(
     {},
     instead:
@@ -181,9 +188,6 @@ const _dartPackages = <String, _DartPackage>{
     'skotiq_ui',
   }),
 };
-
-/// Packages outside the workspace that workspace packages may name.
-const _externalWorkspacePackages = {'skotiq_relay'};
 
 /// The layering of the Rust workspace (`native/skotiq_native`), lowest first.
 const _rustCrates = <String, Set<String>>{
@@ -538,20 +542,23 @@ class _Site {
 // ---------------------------------------------------------------------------
 // package-direction
 
-/// Package name -> package directory, for `apps/*` and `packages/*`.
+/// Package name -> package directory, for the workspace's packages: `apps/*`,
+/// `packages/*` and the relay (the `packages` globs of `melos.yaml`).
 Map<String, String> _findDartPackages() {
   final out = <String, String>{};
+  void add(Directory directory) {
+    final pubspec = File('${directory.path}/pubspec.yaml');
+    if (!pubspec.existsSync()) return;
+    final name = _yamlName(pubspec.readAsLinesSync());
+    if (name != null) out[name] = _norm(directory.path);
+  }
+
   for (final root in const ['apps', 'packages']) {
     final dir = Directory(root);
     if (!dir.existsSync()) continue;
-    for (final entity in dir.listSync()) {
-      if (entity is! Directory) continue;
-      final pubspec = File('${entity.path}/pubspec.yaml');
-      if (!pubspec.existsSync()) continue;
-      final name = _yamlName(pubspec.readAsLinesSync());
-      if (name != null) out[name] = _norm(entity.path);
-    }
+    dir.listSync().whereType<Directory>().forEach(add);
   }
+  add(Directory('tools/skotiq_relay'));
   return out;
 }
 
@@ -605,7 +612,7 @@ List<_Violation> _checkDartDirection(
   List<String> files,
 ) {
   final out = <_Violation>[];
-  final workspace = {...packages.keys, ..._externalWorkspacePackages};
+  final workspace = packages.keys.toSet();
   for (final MapEntry(key: name, value: dir) in packages.entries) {
     final rule = _dartPackages[name];
     if (rule == null) {

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_desktop/headless_api/handlers/equipment_handlers.dart';
+import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -27,30 +28,6 @@ void main() {
     tearDown(() {
       container.dispose();
     });
-
-    test(
-      'heartbeat start reports invalid device type as JSON bad request',
-      () async {
-        final response = await translateHandlerErrors(
-          handlers.handleStartDeviceHeartbeat(
-            Request(
-              'POST',
-              Uri.parse('http://localhost/api/device/heartbeat/start'),
-              body: jsonEncode({
-                'device_type': 'unknown',
-                'device_id': 'device-1',
-                'interval_ms': 1000,
-              }),
-            ),
-          ),
-        );
-
-        expect(response.statusCode, HttpStatus.badRequest);
-        expect(response.headers['content-type'], 'application/json');
-        final body = jsonDecode(await response.readAsString()) as Map;
-        expect(body['error'], 'Invalid device type: unknown');
-      },
-    );
 
     test(
       'status backend failures return JSON internal server errors',
@@ -109,29 +86,6 @@ void main() {
       },
     );
 
-    test(
-      'malformed heartbeat body returns JSON internal server error',
-      () async {
-        final response = await translateHandlerErrors(
-          handlers.handleStopDeviceHeartbeat(
-            Request(
-              'POST',
-              Uri.parse('http://localhost/api/device/heartbeat/stop'),
-              body: jsonEncode({}),
-            ),
-          ),
-        );
-
-        expect(
-          response.statusCode,
-          anyOf(HttpStatus.badRequest, HttpStatus.internalServerError),
-        );
-        expect(response.headers['content-type'], 'application/json');
-        final body = jsonDecode(await response.readAsString()) as Map;
-        expect(body['error'], isA<String>());
-      },
-    );
-
     test('health route decodes URL-encoded device IDs', () async {
       final backend = _MockBackend();
       when(
@@ -143,12 +97,11 @@ void main() {
       );
       handlers = EquipmentHandlers(container);
 
-      final response = await handlers.handleGetDeviceHealth(
+      final response = await RouteTable.only(handlers).handler(
         Request(
           'GET',
           Uri.parse('http://localhost/api/device/health/native%3Azwo%3A0'),
         ),
-        'native%3Azwo%3A0',
       );
 
       expect(response.statusCode, HttpStatus.ok);

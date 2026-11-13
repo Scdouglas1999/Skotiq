@@ -18,6 +18,7 @@ import '../models/settings/app_settings.dart'
     show SafetyFailMode, kDefaultAccentColorHex;
 import 'capture_format.dart';
 import 'device_retries.dart';
+import 'focuser_step_limit.dart';
 import 'preflight_strictness.dart';
 import 'setting.dart';
 
@@ -438,11 +439,40 @@ const List<Setting<Object?>> kAppSettingsTable = [
     seeded: true,
     adminOnly: AdminOnly.administration,
   ),
-  IntSetting('defaultGain', 'default_gain', 100, seeded: true),
-  IntSetting('defaultOffset', 'default_offset', 50, seeded: true),
+  /// A camera's gain, or a DSLR or mirrorless body's ISO: no camera's gain and
+  /// no body's ISO is above the bound.
+  IntSetting(
+    'defaultGain',
+    'default_gain',
+    100,
+    inputMin: 0,
+    inputMax: 1000000,
+    seeded: true,
+  ),
+
+  /// The black-level pedestal, in ADU of a 16-bit frame.
+  IntSetting(
+    'defaultOffset',
+    'default_offset',
+    50,
+    inputMin: 0,
+    inputMax: 65535,
+    seeded: true,
+  ),
   BoolSetting('enableMeridianFlip', 'enable_meridian_flip', true, seeded: true),
   BoolSetting('tempCompensation', 'temp_compensation', false, seeded: true),
-  DoubleSetting('tempCoefficient', 'temp_coefficient', -12.0, seeded: true),
+
+  /// Focuser steps per degree Celsius. Negative is common and zero tracks the
+  /// temperature without moving; a degree never asks for more than the
+  /// focuser step limit.
+  DoubleSetting(
+    'tempCoefficient',
+    'temp_coefficient',
+    -12.0,
+    inputMin: -kFocuserStepLimit * 1.0,
+    inputMax: kFocuserStepLimit * 1.0,
+    seeded: true,
+  ),
 
   /// Temperature compensation waits until the correction it owes is at least
   /// this many steps, so probe noise and slow drift do not step the focuser
@@ -451,6 +481,8 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'tempCompensationMinSteps',
     'temp_compensation_min_steps',
     5,
+    inputMin: 1,
+    inputMax: kFocuserStepLimit,
     seeded: true,
   ),
 
@@ -631,7 +663,14 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'Overshoot',
     seeded: true,
   ),
-  IntSetting('afBacklashIn', 'af_backlash_in', 0, seeded: true),
+  IntSetting(
+    'afBacklashIn',
+    'af_backlash_in',
+    0,
+    inputMin: 0,
+    inputMax: kFocuserStepLimit,
+    seeded: true,
+  ),
 
   /// Whether to offer to measure this focuser's backlash: `ask` or `never`.
   /// The operator can dismiss the offer for good — it must never become a
@@ -660,7 +699,14 @@ const List<Setting<Object?>> kAppSettingsTable = [
     sync: SettingSync.hostStore,
     seeded: true,
   ),
-  IntSetting('afBacklashOut', 'af_backlash_out', 0, seeded: true),
+  IntSetting(
+    'afBacklashOut',
+    'af_backlash_out',
+    0,
+    inputMin: 0,
+    inputMax: kFocuserStepLimit,
+    seeded: true,
+  ),
 
   /// The filter autofocus runs use. Empty: the current filter.
   TextSetting(

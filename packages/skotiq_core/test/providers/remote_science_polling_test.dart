@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/src/models/backend/remote_science_bundle.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

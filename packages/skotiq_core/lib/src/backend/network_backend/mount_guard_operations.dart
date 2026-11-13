@@ -5,7 +5,7 @@ mixin _NetworkBackendMountGuardOperations on _NetworkBackendTransport
     implements MountGuardBackend {
   @override
   Future<List<MountGuardEntry>> mountGuardState() async {
-    final json = await _get('mount/guard');
+    final json = await _get(DeviceApi.mountGuardState);
     final mounts = json['mounts'];
     if (mounts is! List) {
       throw const FormatException('The host answered without a mounts list');
@@ -18,12 +18,12 @@ mixin _NetworkBackendMountGuardOperations on _NetworkBackendTransport
 
   @override
   Future<void> mountGuardAcknowledgeFault(String deviceId) async {
-    await _post('mount/guard/acknowledge', {'deviceId': deviceId});
+    await _post(DeviceApi.mountGuardAcknowledge, body: {'deviceId': deviceId});
   }
 
   @override
   Future<void> mountGuardConfirmRehomed(String deviceId) async {
-    await _post('mount/guard/confirm-home', {'deviceId': deviceId});
+    await _post(DeviceApi.mountGuardConfirmHome, body: {'deviceId': deviceId});
   }
 
   @override
@@ -32,11 +32,14 @@ mixin _NetworkBackendMountGuardOperations on _NetworkBackendTransport
     String? cameraId,
     double exposureSecs = 5,
   }) async {
-    final json = await _post('mount/guard/solve', {
-      'deviceId': deviceId,
-      'cameraId': ?cameraId,
-      'exposureSecs': exposureSecs,
-    });
+    final json = await _post(
+      DeviceApi.mountGuardSolve,
+      body: {
+        'deviceId': deviceId,
+        'cameraId': ?cameraId,
+        'exposureSecs': exposureSecs,
+      },
+    );
     return MountGuardSolveResult.fromJson(json);
   }
 
@@ -46,11 +49,14 @@ mixin _NetworkBackendMountGuardOperations on _NetworkBackendTransport
     double raHours,
     double decDegrees,
   ) async {
-    await _post('mount/guard/recovery-sync', {
-      'deviceId': deviceId,
-      'raHours': raHours,
-      'decDegrees': decDegrees,
-    });
+    await _post(
+      DeviceApi.mountGuardRecoverySync,
+      body: {
+        'deviceId': deviceId,
+        'raHours': raHours,
+        'decDegrees': decDegrees,
+      },
+    );
   }
 
   @override

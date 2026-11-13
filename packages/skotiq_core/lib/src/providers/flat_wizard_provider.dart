@@ -108,17 +108,17 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
 
   FlatWizardNotifier(this.ref) : super(const FlatWizardState()) {
     unawaited(_hydrateGlobalSettings());
-    ref.listen(filterWheelStateProvider, (previous, next) {
-      if (previous?.deviceId != next.deviceId ||
-          !listEquals(previous?.filterNames, next.filterNames)) {
-        unawaited(loadFiltersFromWheel());
-      }
+    ref.listen(effectiveFiltersProvider, (previous, next) {
+      if (!listEquals(previous, next)) unawaited(loadFilters());
+    });
+    ref.listen(filterWheelStateProvider.select((w) => w.deviceId), (_, _) {
+      unawaited(loadFilters());
     });
     ref.listen(activeEquipmentProfileProvider.select((p) => p?.id), (_, _) {
-      unawaited(loadFiltersFromWheel());
+      unawaited(loadFilters());
     });
     ref.listen(cameraStateProvider.select((c) => c.deviceId), (_, _) {
-      unawaited(loadFiltersFromWheel());
+      unawaited(loadFilters());
     });
   }
 

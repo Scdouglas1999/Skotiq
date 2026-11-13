@@ -151,6 +151,22 @@ extension SequenceExecutionStateCapabilities on SequenceExecutionState {
     SequenceExecutionState.finalizing => false,
   };
 
+  /// The run is under way and not ending: executing, held by a pause, or
+  /// inside a recovery. A checkpoint can be written and the run paused (the
+  /// native executor accepts a pause during recovery and keeps it after).
+  bool get isLive => switch (this) {
+    SequenceExecutionState.running ||
+    SequenceExecutionState.paused ||
+    SequenceExecutionState.recovering => true,
+    SequenceExecutionState.idle ||
+    SequenceExecutionState.stopping ||
+    SequenceExecutionState.completed ||
+    SequenceExecutionState.failed ||
+    SequenceExecutionState.stopFailed ||
+    SequenceExecutionState.cleanupFailed ||
+    SequenceExecutionState.finalizing => false,
+  };
+
   /// Pause is meaningful only while the run is actively executing.
   bool get canPause => this == SequenceExecutionState.running;
 

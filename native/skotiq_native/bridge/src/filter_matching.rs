@@ -24,7 +24,7 @@ pub(crate) fn normalize_filter_name(name: &str) -> String {
 /// in it ("Ha" finds "Ha 7nm"). A blank name or request matches nothing.
 ///
 /// `matchingFilterIndex` in the Dart package `skotiq_core`
-/// (`filter_name_matching.dart`) follows the same rule, so the editor names the
+/// (`models/equipment/filter_names.dart`) follows the same rule, so the editor names the
 /// slot a run will use. Both are tested against
 /// `packages/skotiq_core/test/fixtures/filter_matching_cases.json`.
 pub(crate) fn find_filter_match(names: &[String], requested: &str) -> Option<usize> {

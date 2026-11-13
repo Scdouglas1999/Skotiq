@@ -1,7 +1,7 @@
 /// Per-device heartbeat health state.
 ///
 /// Rust's heartbeat monitor publishes [HeartbeatStatusChanged] events for
-/// every device that has `apiStartDeviceHeartbeat` running. This provider
+/// every connected device (the native connect starts its heartbeat). This provider
 /// stores the latest reported health per device id so the equipment cards can
 /// render a colored indicator (green / amber / gray) with a tooltip carrying
 /// the actual failure reason.

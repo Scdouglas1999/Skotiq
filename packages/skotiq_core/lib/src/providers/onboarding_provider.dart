@@ -7,7 +7,8 @@ import '../models/hardware_presets/hardware_preset_models.dart';
 import '../models/onboarding/onboarding_state.dart';
 import '../backend/remote_host.dart';
 import '../database/database.dart'
-    show kSimGuideCameraId,
+    show
+        kSimGuideCameraId,
         kSimGuideCameraName,
         kSimGuideFocalLengthMm,
         usesSimulatedGuideCamera;
@@ -409,16 +410,6 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       }
     }
 
-    // Persist the new equipment profile. The DAO marks the first profile
-    // as default+active on insert so the user lands on the dashboard
-    // already pointed at their new rig.
-    final hostProfiles = backend.remoteHost?.profiles;
-    final dao = hostProfiles != null
-        ? null
-        : _ref.read(equipmentProfilesDaoProvider);
-    final localProfiles = hostProfiles != null
-        ? null
-        : _ref.read(equipmentProfilesProvider.notifier);
     final focalRatio =
         (draft.focalLengthMm != null &&
             draft.apertureMm != null &&
@@ -429,7 +420,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     // A simulator rig guided by the built-in guider, restored from a draft
     // saved before the wizard asked for a guide camera, guides through the
     // simulator's own guide camera.
-    final simGuide = draft.guideCameraId == null &&
+    final simGuide =
+        draft.guideCameraId == null &&
         usesSimulatedGuideCamera(
           cameraId: draft.cameraId,
           guiderId: draft.guiderId,
@@ -449,12 +441,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       filterWheelName: draft.filterWheelName,
       guiderId: draft.guiderId,
       guiderName: draft.guiderName,
-      guideCameraId:
-          simGuide ? kSimGuideCameraId : draft.guideCameraId,
-      guideCameraName:
-          simGuide ? kSimGuideCameraName : draft.guideCameraName,
-      guideFocalLength:
-          simGuide ? kSimGuideFocalLengthMm : draft.guideFocalLengthMm,
+      guideCameraId: simGuide ? kSimGuideCameraId : draft.guideCameraId,
+      guideCameraName: simGuide ? kSimGuideCameraName : draft.guideCameraName,
+      guideFocalLength: simGuide
+          ? kSimGuideFocalLengthMm
+          : draft.guideFocalLengthMm,
       telescopeName: draft.telescopeName,
       focalLength: draft.focalLengthMm != null
           ? draft.focalLengthMm! * draft.reducerFactor
@@ -481,43 +472,15 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       filterNames: draft.filterNames,
     );
 
-    final int id;
-    if (hostProfiles != null) {
-      await hostProfiles.saveProfile(profile.toRemoteProfile());
-      requireAuthority('creating the equipment profile');
-      _ref.invalidate(equipmentProfilesProvider);
-      final createdId = hostProfiles.lastSavedProfileId;
-      if (createdId == null || createdId.isEmpty) {
-        throw StateError(
-          'Host saved onboarding profile "${profile.name}" but did not '
-          'return its created id',
-        );
-      }
-      final parsedId = int.tryParse(createdId);
-      if (parsedId == null) {
-        throw StateError(
-          'Host saved onboarding profile "${profile.name}" with non-numeric id',
-        );
-      }
-      await hostProfiles.loadProfile(createdId);
-      requireAuthority('activating the equipment profile');
-      _ref.invalidate(equipmentProfilesProvider);
-      id = parsedId;
-    } else {
-      id = await dao!.createProfile(profile.toCompanion());
-      requireAuthority('creating the equipment profile');
-      // dao.createProfile only auto-activates the FIRST profile; when older
-      // profiles already exist the new row is inserted inactive. Re-running
-      // onboarding must still leave the user pointed at the rig they just
-      // built, so route activation through the remote-aware notifier — that
-      // flips SQLite AND write-throughs the active row to the native executor
-      // store, making the terminal "active & ready" screen truthful. Idempotent
-      // for the first-profile case (already active), and it performs the native
-      // write-through a bare DAO insert skips. Local-only: this is the
-      // branch without a linked host, so [setActiveProfile] never hits one.
-      await localProfiles!.setActiveProfile(id);
-      requireAuthority('activating the equipment profile');
-    }
+    final id = await _ref
+        .read(equipmentProfilesProvider.notifier)
+        .saveProfile(profile);
+    requireAuthority('creating the equipment profile');
+    // Re-running onboarding leaves the user pointed at the rig they just
+    // built, also when older profiles exist and the new one was not made
+    // active as the first profile is.
+    await _ref.read(equipmentProfilesProvider.notifier).setActiveProfile(id);
+    requireAuthority('activating the equipment profile');
 
     await _persistAppSettings(draft, backend, requireAuthority);
 

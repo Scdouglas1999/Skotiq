@@ -57,10 +57,13 @@ class _SeededCameraNotifier extends CameraStateNotifier {
 }
 
 class _SeededFilterWheelNotifier extends FilterWheelStateNotifier {
-  // Names present (so the wizard seeds its filter list) but the wheel is
-  // disconnected, so `_moveFilterWheel` short-circuits and never drives it.
+  // A connected wheel with no device id: the wizard lists its slots, and
+  // `moveFilterWheelAndWait` has no device to drive.
   _SeededFilterWheelNotifier(super.ref, List<String> names) {
-    state = FilterWheelState(filterNames: names);
+    state = FilterWheelState(
+      connectionState: DeviceConnectionState.connected,
+      filterNames: names,
+    );
   }
 }
 
@@ -141,7 +144,7 @@ void main() {
     bool filterSubfolders = false,
   }) async {
     final notifier = container.read(flatWizardProvider.notifier);
-    await notifier.loadFiltersFromWheel();
+    await notifier.loadFilters();
     notifier.updateGlobalSettings(
       container
           .read(flatWizardProvider)
@@ -340,7 +343,7 @@ void main() {
       );
       final notifier = container.read(flatWizardProvider.notifier);
       // Seed filters manually (no wheel path needed for this negative case).
-      await notifier.loadFiltersFromWheel();
+      await notifier.loadFilters();
       notifier.updateGlobalSettings(
         container
             .read(flatWizardProvider)
@@ -370,7 +373,7 @@ void main() {
       );
       await container.read(appSettingsProvider.future);
       final notifier = container.read(flatWizardProvider.notifier);
-      await notifier.loadFiltersFromWheel();
+      await notifier.loadFilters();
       notifier.updateGlobalSettings(
         container.read(flatWizardProvider).globalSettings.copyWith(
               createDateSubfolder: false,

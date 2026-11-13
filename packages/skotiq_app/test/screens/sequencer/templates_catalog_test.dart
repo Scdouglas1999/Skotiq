@@ -205,7 +205,7 @@ void main() {
           sampleSequencesProvider.overrideWith((ref) async => [starter]),
           // The starter is matched against the wheel's filter names; no rig
           // in this test.
-          filterNamesToMatchProvider.overrideWithValue(const []),
+          effectiveFiltersProvider.overrideWithValue(const []),
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,

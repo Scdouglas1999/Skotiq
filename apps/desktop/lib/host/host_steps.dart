@@ -15,11 +15,11 @@ import 'package:skotiq_updater/skotiq_updater.dart';
 
 import '../desktop_app_bootstrap.dart';
 import '../headless/headless_disk_watchdog_bootstrap.dart';
-import '../headless/host_checkpoint_directory.dart';
 import '../headless_api/handlers/pairing_handlers.dart'
     show operatorPairingCodePath;
 import '../headless_api/update_wiring.dart';
 import 'host_auto_connect.dart';
+import 'host_checkpoint_directory.dart';
 import 'host_server.dart';
 import 'host_startup.dart';
 
@@ -30,9 +30,7 @@ const _services = HostStartupPhase.services;
 
 /// How a process that owns the hardware starts, GUI and daemon alike.
 ///
-/// The two used to be written separately and had drifted apart: each had
-/// services the other silently lacked. A step runs on both unless it names
-/// the one host it is for and says why.
+/// A step runs on both unless it names the one host it is for and says why.
 final List<HostStartupStep> hostStartupSteps = [
   HostStartupStep(
     name: 'local backend',
@@ -85,14 +83,15 @@ final List<HostStartupStep> hostStartupSteps = [
   HostStartupStep(
     name: 'sequencer checkpoints',
     phase: _core,
-    only: _daemon,
-    because:
-        'the GUI keeps its checkpoints beside the database it opened and '
-        'adopts an older location, which its shell does when it looks for an '
-        'interrupted run; the daemon uses the data directory',
+    // Before the window: its shell asks for an interrupted run as soon as it
+    // shows, and the executor finds one only in the directory set here.
+    needs: ['local backend', 'database'],
     fatalFor: {_daemon},
     run: (host) async {
-      final checkpointDir = await resolveHostCheckpointDirectory();
+      final checkpointDir = await resolveHostCheckpointDirectory(
+        logger: host.logger,
+      );
+      await host.backendReady;
       await host.container
           .read(sequenceExecutorProvider)
           .initializeCheckpoints(checkpointDir.path);

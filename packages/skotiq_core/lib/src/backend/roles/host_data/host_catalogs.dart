@@ -1,4 +1,5 @@
-import '../../network_backend.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
+import '../../../models/backend/remote_catalog_models.dart';
 
 /// The star and object catalogs installed on a linked imaging host.
 ///
@@ -15,7 +16,5 @@ abstract interface class HostCatalogs {
 
   Future<void> uninstallCatalog(String name);
 
-  Future<Map<String, RemoteCatalogVerifyResult>> verifyCatalog({
-    String? name,
-  });
+  Future<Map<String, RemoteCatalogVerifyResult>> verifyCatalog({String? name});
 }

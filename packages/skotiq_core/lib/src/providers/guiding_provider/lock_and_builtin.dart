@@ -85,8 +85,9 @@ final isBuiltinGuiderProvider = Provider<bool>((ref) {
   return guiderState.deviceId == builtinGuiderDeviceId;
 });
 
-/// Provider for the built-in guider configuration.
-/// Fetches the config from the Rust backend and allows updating it.
+/// The built-in guider's configuration on the current host. The host keeps
+/// one whether or not the guider is connected, so it is read at once and again
+/// when the guider connects or disconnects and when the host changes.
 final builtinGuiderConfigProvider =
     StateNotifierProvider<
       BuiltinGuiderConfigNotifier,
@@ -103,26 +104,15 @@ class BuiltinGuiderConfigNotifier
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
   BuiltinGuiderConfigNotifier(this.ref) : super(const AsyncValue.loading()) {
-    // Auto-fetch when the built-in guider is connected
-    final isBuiltin = ref.read(isBuiltinGuiderProvider);
-    if (isBuiltin) {
-      fetch();
-    }
-
-    // Listen for guider changes to fetch/clear config
     ref.listen<bool>(isBuiltinGuiderProvider, (previous, next) {
-      if (next && previous != true) {
-        fetch();
-      } else if (!next) {
-        state = const AsyncValue.loading();
-      }
+      if (previous != next) fetch();
     });
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (identical(previous, next)) return;
       _backendGeneration++;
-      _fetchGeneration++;
-      state = const AsyncValue.loading();
+      fetch();
     });
+    fetch();
   }
 
   /// Fetch the current config from the Rust backend.

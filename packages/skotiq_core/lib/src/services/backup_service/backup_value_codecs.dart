@@ -56,6 +56,9 @@ class _ValidatedBackup {
   final List<Map<String, dynamic>>? targets;
   final List<Sequence>? sequences;
 
+  /// A 3.x backup's tables, by table name (see [_BackupSchemaTables]).
+  final Map<String, dynamic>? tables;
+
   const _ValidatedBackup({
     required this.version,
     required this.backup,
@@ -63,6 +66,7 @@ class _ValidatedBackup {
     required this.profiles,
     required this.targets,
     required this.sequences,
+    required this.tables,
   });
 }
 

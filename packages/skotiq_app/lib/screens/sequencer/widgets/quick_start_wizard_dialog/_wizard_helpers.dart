@@ -17,9 +17,10 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
       final activeProfile = profiles.activeProfile;
       _initializedProfile = activeProfile;
-      _hasConfiguredFilters = activeProfile?.filterNames.isNotEmpty ?? false;
+      final filters = ref.read(effectiveFiltersProvider);
+      _hasConfiguredFilters = filters.isNotEmpty;
       _applyUserDefaults(settings, activeProfile);
-      _initFilterConfigs(activeProfile?.filterNames ?? const []);
+      _initFilterConfigs(filters);
       _seedScalarControllers();
       setState(() {
         _initializationError = null;
@@ -473,7 +474,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
         activeProfile.id != null &&
         _coolingTemp.isFinite &&
         activeProfile.defaultCoolingTemp != _coolingTemp) {
-      await equipmentProfiles.updateProfile(
+      await equipmentProfiles.saveProfile(
         activeProfile.copyWith(defaultCoolingTemp: _coolingTemp),
       );
     }

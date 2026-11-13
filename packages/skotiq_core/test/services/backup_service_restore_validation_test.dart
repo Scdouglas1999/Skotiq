@@ -107,7 +107,7 @@ void main() {
       await seedLiveData();
       final backup = await writeBackup(
         jsonEncode({
-          'version': '3.0',
+          'version': '3.1',
           'settings': <String, dynamic>{},
           'equipmentProfiles': <Object>[],
           'sequences': <Object>[],

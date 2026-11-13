@@ -1,5 +1,5 @@
 {
-  "comment": "Filter-name matching cases shared by bridge/src/filter_matching.rs and filter_name_matching.dart. Both tests read this file; index is 0-based, null means no match.",
+  "comment": "Filter-name matching cases shared by bridge/src/filter_matching.rs and models/equipment/filter_names.dart. Both tests read this file; index is 0-based, null means no match.",
   "cases": [
     {
       "names": [

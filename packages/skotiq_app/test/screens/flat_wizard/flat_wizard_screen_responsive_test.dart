@@ -28,7 +28,7 @@ Future<void> _pumpAndCheck(WidgetTester tester, Size size) async {
     size: size,
     settle: false,
   );
-  // Drain the post-frame loadFiltersFromWheel() and any tab animation.
+  // Drain the post-frame loadFilters() and any tab animation.
   for (var i = 0; i < 4; i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }

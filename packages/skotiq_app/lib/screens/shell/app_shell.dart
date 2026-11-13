@@ -1,7 +1,7 @@
 import 'dart:async';
 import '../../utils/snackbar_helper.dart';
 import 'dart:developer' as developer;
-import 'dart:io' show Directory, File, Platform;
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey, SystemNavigator;
@@ -11,12 +11,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/utils.dart';
 
 import '../../localization/skotiq_localizations.dart';
 import '../../router/app_routes.dart';
@@ -98,16 +96,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     _startupQueue = ref.read(startupSurfaceQueueProvider)
       ..expect(StartupSurface.checkpointRecovery);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_runStartupChecks());
+      unawaited(_checkCheckpointIfNeeded());
     });
-  }
-
-  Future<void> _runStartupChecks() {
-    return runAppStartupChecks(
-      checkCheckpoint: _checkCheckpointIfNeeded,
-      // Catalog setup is checklist step 4 on Tonight; no launch-time modal.
-      checkCatalogs: () async {},
-    );
   }
 
   Future<bool> _onCloseRequested() async {
@@ -264,36 +254,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     try {
       final backend = ref.read(sequencerBackendProvider);
 
-      // Initialize the checkpoint directory on desktop so checkpoints are
-      // actually persisted this session. The desktop GUI never set it, so no
-      // checkpoint was ever written and a mid-night crash was unrecoverable
-      // (no resume banner, all sequence state lost). Only when this process IS
-      // the backend: a remote host owns its own storage layout, and pushing
-      // this machine's support directory at it would point the rig's crash
-      // recovery at a path that does not exist there.
-      //
-      // The directory is derived from the OPEN DATABASE, not from the shared
-      // application-support folder — see [resolveGuiCheckpointDirectory] for
-      // why that distinction is the difference between "your interrupted run"
-      // and someone else's.
-      final isLocalBackend = backend.remoteHost == null;
-      if (isLocalBackend &&
-          (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-        try {
-          final checkpointDir = await resolveGuiCheckpointDirectory();
-          // Configure first, adopt second: nothing reads the directory until
-          // hasCheckpoint() below, and a slow or failing adoption must not be
-          // able to leave tonight's run with no checkpoint directory at all.
-          await backend.sequencerSetCheckpointDir(checkpointDir.path);
-          await adoptLegacyGuiCheckpoint(targetDir: checkpointDir);
-        } catch (e) {
-          ref.read(loggingServiceProvider).warning(
-              '[AppShell] Failed to initialize checkpoint directory: $e',
-              source: 'AppShell',
-              fields: {'error': e.toString()});
-        }
-      }
-
+      // The host's start-up set where its checkpoints are before this
+      // window showed.
       if (await hostRunHoldsCheckpoint(backend)) {
         return AppStartupCheckpointOutcome.noRecovery;
       }

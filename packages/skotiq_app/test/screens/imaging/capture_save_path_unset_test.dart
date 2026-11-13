@@ -19,6 +19,9 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'package:skotiq_app/services/host_folders.dart';
+
+import '../../harness/fake_host_folders.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -30,7 +33,7 @@ class _FixedBackendNotifier extends BackendNotifier {
 }
 
 ProviderContainer _container({
-  required CaptureSavePathPicker picker,
+  required FolderPick picker,
   required CaptureSavePathWriter writer,
 }) {
   final container = ProviderContainer(
@@ -39,7 +42,7 @@ ProviderContainer _container({
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, _MockNetworkBackend()),
       ),
-      captureSavePathPickerProvider.overrideWithValue(picker),
+      hostFoldersProvider.overrideWithValue(FakeHostFolders(onPick: picker)),
       captureSavePathWriterProvider.overrideWithValue(writer),
     ],
   );
@@ -71,7 +74,7 @@ Future<String?> _tapAndCaptureInitialPath(
   String? seen;
   var called = false;
   final container = _container(
-    picker: (context, {required isRemote, required initialPath}) async {
+    picker: ({required host, required initialPath}) async {
       seen = initialPath;
       called = true;
       return null;

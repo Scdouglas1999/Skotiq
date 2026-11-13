@@ -84,22 +84,24 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
   /// Accepted light frames on record for a target in a filter. The filter
   /// name is compared without case, because a goal typed as "Lum" has to
   /// count frames the wheel reported as "lum".
-  Future<int> acceptedLightFrameCount({
-    required int targetId,
-    required String filter,
-  }) async {
+  /// Accepted light frames of [targetId] by filter as filed, `''` for frames
+  /// that name none.
+  Future<Map<String, int>> acceptedLightFramesByFilter(int targetId) async {
     final count = capturedImages.id.count();
     final query = selectOnly(capturedImages)
-      ..addColumns([count])
+      ..addColumns([capturedImages.filter, count])
       ..where(
         capturedImages.targetId.equals(targetId) &
             capturedImages.frameType.equals('light') &
-            capturedImages.isAccepted.equals(true) &
-            capturedImages.filter.lower().equalsExp(
-              Variable.withString(filter).lower(),
-            ),
-      );
-    return (await query.getSingle()).read(count) ?? 0;
+            capturedImages.isAccepted.equals(true),
+      )
+      ..groupBy([capturedImages.filter]);
+    final byFilter = <String, int>{};
+    for (final row in await query.get()) {
+      final filter = row.read(capturedImages.filter) ?? '';
+      byFilter[filter] = (byFilter[filter] ?? 0) + (row.read(count) ?? 0);
+    }
+    return byFilter;
   }
 
   Future<int> insertTargetConstraint(TargetConstraintsCompanion constraint) =>

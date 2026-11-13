@@ -14,7 +14,6 @@ import '../../database/daos/images_dao.dart';
 import '../../database/daos/integrated_masters_dao.dart';
 import '../../database/daos/recipes_dao.dart';
 import '../database_provider.dart';
-import '../../database/daos/settings_dao.dart';
 import '../../database/daos/targets_dao.dart';
 import '../settings_provider.dart';
 import '../../services/color_calibration_service.dart' show StarConeSearch;
@@ -25,26 +24,11 @@ import '../../services/darkroom_autopilot/dawn_draft_builder.dart';
 import '../../services/darkroom_autopilot/dawn_master_resolver.dart';
 import '../../services/darkroom_autopilot/dawn_morning_notifier.dart';
 import '../../services/darkroom_autopilot/dawn_photometry.dart';
+import '../output_locations_provider.dart';
 import '../darkroom_pass/pass_providers.dart' show passReporterProvider;
-import '../../settings/app_settings_state.g.dart';
 import '../logging_service_provider.dart';
 import '../notification_service_provider.dart';
 import '../science/photometric_catalog_service_provider.dart';
-
-/// No directory is configured to write the night's drafts and report into.
-///
-/// The job fails with this rather than resolving a relative path against
-/// whatever directory the process happens to have been started in: a draft
-/// written into a service's working directory is a draft the operator never
-/// finds.
-class DawnOutputDirectoryException implements Exception {
-  const DawnOutputDirectoryException();
-
-  @override
-  String toString() =>
-      'No image output directory is configured, so there is nowhere to write '
-      'the night\'s drafts and report. Set one in Settings.';
-}
 
 /// The five Darkroom FFI entry points.
 final darkroomSeamProvider = Provider<DarkroomSeam>(
@@ -122,17 +106,10 @@ final dawnAutopilotServiceProvider = Provider<DawnAutopilotService>((ref) {
     photometry: ref.watch(dawnPhotometryResolverProvider),
     delivery: ref.watch(deliveryServiceProvider),
     notifier: ref.watch(dawnMorningNotifierProvider),
-    outputDirectory: () => _resolveOutputDirectory(SettingsDao(db)),
+    darkroomDirectory: () async =>
+        (await ref.read(outputLocationsProvider.future)).darkroom.path,
     logger: ref.watch(loggingServiceProvider),
     passReporter: ref.watch(passReporterProvider),
   );
 });
 
-/// The configured capture output directory, or a typed refusal.
-Future<String> _resolveOutputDirectory(SettingsDao settings) async {
-  final configured = (await settings.read(
-    AppSettingDefs.imageOutputPath,
-  )).trim();
-  if (configured.isEmpty) throw const DawnOutputDirectoryException();
-  return configured;
-}

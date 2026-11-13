@@ -35,13 +35,8 @@ final logExportTargetPickerProvider = Provider<LogExportTargetPicker>((ref) {
 /// dialog at its own default rather than failing the export.
 Future<String?> defaultLogExportDirectory() async {
   try {
-    final documents = await resolveSkotiqDocumentsDirectory();
-    final directory = Directory('${documents.path}/Skotiq/exports');
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
-    }
-    return directory.path;
-  } catch (_) {
+    return (await resolveSkotiqExportsDirectory()).path;
+  } on Exception {
     return null;
   }
 }

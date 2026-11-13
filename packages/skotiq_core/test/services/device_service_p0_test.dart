@@ -65,13 +65,6 @@ void main() {
         canSetOffset: false,
       ),
     );
-    when(
-      () => mockBackend.startDeviceHeartbeat(
-        deviceType: any(named: 'deviceType'),
-        deviceId: any(named: 'deviceId'),
-        intervalMs: any(named: 'intervalMs'),
-      ),
-    ).thenAnswer((_) async {});
 
     container = ProviderContainer(
       overrides: [
@@ -98,9 +91,6 @@ void main() {
         camNotifier.setConnecting(deviceId, 'Test Camera');
         camNotifier.setConnected();
 
-        when(
-          () => mockBackend.stopDeviceHeartbeat(deviceId),
-        ).thenAnswer((_) async {});
         when(
           () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
         ).thenAnswer((_) async {});
@@ -138,9 +128,6 @@ void main() {
         camNotifier.setConnected();
 
         when(
-          () => mockBackend.stopDeviceHeartbeat(deviceId),
-        ).thenAnswer((_) async {});
-        when(
           () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
         ).thenThrow(Exception('INDI driver rejected disconnect'));
 
@@ -159,9 +146,6 @@ void main() {
       mountNotifier.setConnecting(deviceId, 'Test Mount');
       mountNotifier.setConnected();
 
-      when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
       when(
         () => mockBackend.disconnectDevice(DeviceType.mount, deviceId),
       ).thenThrow(Exception('COM disconnect failed'));

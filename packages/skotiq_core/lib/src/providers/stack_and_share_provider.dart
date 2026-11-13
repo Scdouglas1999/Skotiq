@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
-import '../backend/network_backend.dart';
 import 'database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../services/logging_service.dart';
@@ -15,6 +14,7 @@ import 'backend_provider.dart';
 import 'logging_service_provider.dart';
 import 'stack_and_share_service_provider.dart';
 import 'stack_share_export_service_provider.dart';
+import '../models/backend/remote_stacked_result.dart';
 
 /// UI-facing state for the **Stack-and-Share Loop** orchestrator (component C7).
 ///
@@ -326,7 +326,9 @@ Future<File?> _localPreviewFile(Ref ref, StackAndShareResult result) async {
   final resultId = result.id;
   if (resultId != null) {
     final canonical = File(
-      await ref.read(stackShareExportServiceProvider).viewerPreviewPath(resultId),
+      await ref
+          .read(stackShareExportServiceProvider)
+          .viewerPreviewPath(resultId),
     );
     if (await canonical.exists()) return canonical;
   }

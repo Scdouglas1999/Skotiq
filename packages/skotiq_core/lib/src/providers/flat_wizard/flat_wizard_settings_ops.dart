@@ -139,13 +139,14 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     );
   }
 
-  /// Load filters from connected filter wheel.
+  /// Load one row per filter of [effectiveFiltersProvider], each with its
+  /// saved settings and its suggested exposure.
   ///
   /// The wheel, profile and camera listeners often fire together; a load
   /// already running absorbs those calls into one follow-up load, so a
   /// companion asks the host for each filter's flat history once, not once per
   /// listener.
-  Future<void> loadFiltersFromWheel() {
+  Future<void> loadFilters() {
     final running = _filterLoad;
     if (running != null) {
       _filterReloadRequested = true;
@@ -154,14 +155,14 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     final load = () async {
       do {
         _filterReloadRequested = false;
-        await _loadFiltersFromWheelOnce();
+        await _loadFiltersOnce();
       } while (_filterReloadRequested && mounted);
     }();
     _filterLoad = load;
     return load.whenComplete(() => _filterLoad = null);
   }
 
-  Future<void> _loadFiltersFromWheelOnce() async {
+  Future<void> _loadFiltersOnce() async {
     // No-op while a capture run holds the busy latch. This rebuilds
     // `filterSettings` from scratch (statuses reset to pending, capturedCount to
     // 0), and the screen re-invokes it on every init (postFrameCallback); doing
@@ -170,7 +171,8 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     if (_running) return;
 
     final fwState = ref.read(filterWheelStateProvider);
-    if (fwState.filterNames.isEmpty) {
+    final filterNames = ref.read(effectiveFiltersProvider);
+    if (filterNames.isEmpty) {
       _filterRevision++;
       if (_loadedFilterKey != null) {
         _loadedFilterKey = null;
@@ -215,8 +217,8 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     }
 
     final filterSettings = <FlatFilterSettings>[];
-    for (int i = 0; i < fwState.filterNames.length; i++) {
-      final filterName = fwState.filterNames[i];
+    for (int i = 0; i < filterNames.length; i++) {
+      final filterName = filterNames[i];
 
       // Get suggested exposure from history. On a remote client the local
       // `flat_history` table is empty (the master owns it), so derive the

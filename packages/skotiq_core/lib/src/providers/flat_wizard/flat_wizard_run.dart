@@ -126,6 +126,15 @@ extension FlatWizardRun on FlatWizardNotifier {
         setErrorMessage('No filters selected');
         return;
       }
+      final wheel = ref.read(filterWheelStateProvider);
+      if (queue.length > 1 &&
+          wheel.connectionState != DeviceConnectionState.connected) {
+        setErrorMessage(
+          'Connect a filter wheel to capture flats for several filters. '
+          'Without a wheel, capture one manually installed filter at a time.',
+        );
+        return;
+      }
 
       // Snapshot the run's algorithm mode ONCE, right where the filter queue is
       // latched. runCapture otherwise reads `state.mode`/`state.twilightMode`

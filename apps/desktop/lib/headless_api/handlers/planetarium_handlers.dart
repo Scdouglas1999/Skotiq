@@ -263,19 +263,9 @@ class PlanetariumHandlers implements RouteSource {
     );
 
     final database = container.read(databaseProvider);
-    final solverName =
-        await database.settingsDao.getSetting('plate_solve_solver') ?? 'ASTAP';
-    final solverPath =
-        await database.settingsDao.getSetting('plate_solve_path') ?? '';
     final timeoutStr =
         await database.settingsDao.getSetting('plate_solve_timeout') ?? '60';
-    final solverType = PlateSolverType.values.firstWhere(
-      (t) => t.name.toLowerCase() == solverName.toLowerCase(),
-      orElse: () => PlateSolverType.astap,
-    );
     final solverConfig = PlateSolverConfig(
-      type: solverType,
-      executablePath: solverPath,
       timeoutSeconds: int.tryParse(timeoutStr) ?? 60,
     );
 

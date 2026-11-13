@@ -36,7 +36,7 @@ void main() {
         native: native,
         notifications: notifications,
         calibration: calibration,
-        mastersRoot: Directory('${folder.path}/Masters'),
+        outputRoot: folder,
       ),
     );
     addTearDown(container.dispose);

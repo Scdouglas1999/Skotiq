@@ -13,7 +13,10 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     // onboarding test-connection button shows a clean result instead of a
     // red exception.
     try {
-      final response = await _get('phd2/running', {'host': host, 'port': port});
+      final response = await _get(
+        GuidingApi.phd2IsRunning,
+        query: {'host': host, 'port': port},
+      );
       final running = response['running'];
       if (running is! bool) {
         throw const FormatException(
@@ -33,7 +36,10 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     int port = 4400,
   }) async {
     try {
-      final response = await _get('phd2/probe', {'host': host, 'port': port});
+      final response = await _get(
+        GuidingApi.phd2Probe,
+        query: {'host': host, 'port': port},
+      );
       return Phd2ProbeResult.fromJson(response);
     } on ServerError catch (e) {
       if (e.httpStatus != 404) rethrow;
@@ -54,12 +60,12 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
 
   @override
   Future<void> phd2Connect({String host = 'localhost', int port = 4400}) async {
-    await _post('phd2/connect', {'host': host, 'port': port});
+    await _post(GuidingApi.phd2Connect, body: {'host': host, 'port': port});
   }
 
   @override
   Future<void> phd2Disconnect() async {
-    await _post('phd2/disconnect');
+    await _post(GuidingApi.phd2Disconnect);
   }
 
   String _requiredGuidingString(
@@ -156,7 +162,10 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
 
   @override
   Future<List<String>> phd2GetAlgoParamNames({required String axis}) async {
-    final response = await _get('phd2/algo-params', {'axis': axis});
+    final response = await _get(
+      GuidingApi.phd2GetAlgoParamNames,
+      query: {'axis': axis},
+    );
     // The server (handlePhd2GetAlgoParamNames) emits the list under the key
     // 'names' (alongside 'axis'); decoding 'params' here always yielded null and
     // threw on cast. Match the actual response envelope so the names decode.
@@ -169,10 +178,10 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     required String axis,
     required String name,
   }) async {
-    final response = await _get('phd2/algo-param', {
-      'axis': axis,
-      'name': name,
-    });
+    final response = await _get(
+      GuidingApi.phd2GetAlgoParam,
+      query: {'axis': axis, 'name': name},
+    );
     return (response['value'] as num).toDouble();
   }
 
@@ -182,21 +191,20 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     required String name,
     required double value,
   }) async {
-    await _post('phd2/algo-param', {
-      'axis': axis,
-      'name': name,
-      'value': value,
-    });
+    await _post(
+      GuidingApi.phd2SetAlgoParam,
+      body: {'axis': axis, 'name': name, 'value': value},
+    );
   }
 
   @override
   Future<void> phd2ClearCalibration({String which = 'both'}) async {
-    await _post('phd2/clear-calibration', {'which': which});
+    await _post(GuidingApi.phd2ClearCalibration, body: {'which': which});
   }
 
   @override
   Future<void> phd2FlipCalibration() async {
-    await _post('phd2/flip-calibration', {});
+    await _post(GuidingApi.phd2FlipCalibration, body: {});
   }
 
   Phd2CalibrationData _calibrationFromJson(Map<String, dynamic> response) {
@@ -216,16 +224,19 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     double settleTime = 10.0,
     double settleTimeout = 60.0,
   }) async {
-    await _post('guider/start-guiding', {
-      'settlePixels': settlePixels,
-      'settleTime': settleTime,
-      'settleTimeout': settleTimeout,
-    });
+    await _post(
+      GuidingApi.guiderStartGuiding,
+      body: {
+        'settlePixels': settlePixels,
+        'settleTime': settleTime,
+        'settleTimeout': settleTimeout,
+      },
+    );
   }
 
   @override
   Future<void> guiderStopGuiding() async {
-    await _post('guider/stop-guiding', {});
+    await _post(GuidingApi.guiderStopGuiding, body: {});
   }
 
   @override
@@ -236,28 +247,31 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     double settleTime = 10.0,
     double settleTimeout = 60.0,
   }) async {
-    await _post('guider/dither', {
-      'amount': amount,
-      'raOnly': raOnly,
-      'settlePixels': settlePixels,
-      'settleTime': settleTime,
-      'settleTimeout': settleTimeout,
-    });
+    await _post(
+      GuidingApi.guiderDither,
+      body: {
+        'amount': amount,
+        'raOnly': raOnly,
+        'settlePixels': settlePixels,
+        'settleTime': settleTime,
+        'settleTimeout': settleTimeout,
+      },
+    );
   }
 
   @override
   Future<void> guiderLoop() async {
-    await _post('guider/loop', {});
+    await _post(GuidingApi.guiderLoop, body: {});
   }
 
   @override
   Future<void> guiderSetPaused(bool paused) async {
-    await _post('guider/pause', {'paused': paused});
+    await _post(GuidingApi.guiderSetPaused, body: {'paused': paused});
   }
 
   @override
   Future<(double, double)> guiderFindStar() async {
-    final response = await _post('guider/find-star', {});
+    final response = await _post(GuidingApi.guiderFindStar, body: {});
     return (
       (response['x'] as num).toDouble(),
       (response['y'] as num).toDouble(),
@@ -270,12 +284,15 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     required double y,
     bool exact = false,
   }) async {
-    await _post('guider/set-lock-position', {'x': x, 'y': y, 'exact': exact});
+    await _post(
+      GuidingApi.guiderSetLockPosition,
+      body: {'x': x, 'y': y, 'exact': exact},
+    );
   }
 
   @override
   Future<(double, double)> guiderGetLockPosition() async {
-    final response = await _get('guider/lock-position');
+    final response = await _get(GuidingApi.guiderGetLockPosition);
     return (
       (response['x'] as num).toDouble(),
       (response['y'] as num).toDouble(),
@@ -284,19 +301,22 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
 
   @override
   Future<void> guiderDeselectStar() async {
-    await _post('guider/deselect-star', {});
+    await _post(GuidingApi.guiderDeselectStar, body: {});
   }
 
   @override
   Future<Phd2StarImage> guiderGetStarImage({int size = 50}) async {
-    final response = await _get('guider/star-image', {'size': size});
+    final response = await _get(
+      GuidingApi.guiderGetStarImage,
+      query: {'size': size},
+    );
     return _starImageFromJson(response);
   }
 
   @override
   Future<Phd2Status> guiderGetStatus() async {
     const endpoint = 'guider/status';
-    final response = await _get(endpoint);
+    final response = await _get(GuidingApi.guiderGetStatus);
     return Phd2Status(
       deviceId: response['deviceId'] as String?,
       state: _requiredGuidingString(response, 'state', endpoint),
@@ -321,18 +341,18 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
 
   @override
   Future<Phd2CalibrationData> guiderGetCalibration() async {
-    final response = await _get('guider/calibration');
+    final response = await _get(GuidingApi.guiderGetCalibration);
     return _calibrationFromJson(response);
   }
 
   @override
   Future<BuiltinGuiderConfig> builtinGuiderGetConfig() async {
-    final response = await _get('builtin-guider/config');
+    final response = await _get(GuidingApi.builtinGuiderGetConfig);
     return BuiltinGuiderConfig.fromJson(response);
   }
 
   @override
   Future<void> builtinGuiderSetConfig(BuiltinGuiderConfig config) async {
-    await _post('builtin-guider/config', config.toJson());
+    await _post(GuidingApi.builtinGuiderSetConfig, body: config.toJson());
   }
 }

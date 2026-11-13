@@ -8,9 +8,12 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_app/screens/onboarding/steps/capture_dir_step.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
+
+import '../../harness/fake_host_folders.dart';
 
 const _suggested = '/home/astro/Pictures/Skotiq';
 
@@ -25,9 +28,10 @@ Future<ProviderContainer> _pump(
       databaseProvider.overrideWithValue(db),
       onboardingDefaultCaptureDirectoryProvider
           .overrideWithValue(() async => _suggested),
-      onboardingCaptureDirectoryValidatorProvider.overrideWithValue(
+      hostFoldersProvider.overrideWithValue(FakeHostFolders(
+        onCheck: folderCheckFrom(
         (path) async => null,
-      ),
+      ))),
     ],
   );
   addTearDown(container.dispose);

@@ -23,9 +23,10 @@ mixin _NetworkBackendReplayDebugOperations on _NetworkBackendTransport {
     if (runId <= 0) {
       throw ArgumentError.value(runId, 'runId', 'must be positive');
     }
-    final response = await _get('sequencer/replay-debug/decisions', {
-      'runId': runId,
-    });
+    final response = await _get(
+      ReplayDebugApi.listDecisions,
+      query: {'runId': runId},
+    );
     final decisions = _rowsFromJson(
       response['items'],
       (row) => ReplayDecision.fromWireJson(row),
@@ -70,9 +71,10 @@ mixin _NetworkBackendReplayDebugOperations on _NetworkBackendTransport {
     if (runId <= 0) {
       throw ArgumentError.value(runId, 'runId', 'must be positive');
     }
-    final response = await _get('sequencer/replay-debug/decisions/count', {
-      'runId': runId,
-    });
+    final response = await _get(
+      ReplayDebugApi.countDecisions,
+      query: {'runId': runId},
+    );
     final count = response['count'];
     if (count is! int || count < 0) {
       throw FormatException(
@@ -90,7 +92,7 @@ mixin _NetworkBackendReplayDebugOperations on _NetworkBackendTransport {
   /// thrown error — the caller states that it does not know the size rather
   /// than showing a made-up one.
   Future<int> replayCountAllDecisions() async {
-    final response = await _get('sequencer/replay-debug/decisions/count');
+    final response = await _get(ReplayDebugApi.countDecisions);
     final count = response['count'];
     if (count is! int || count < 0) {
       throw FormatException(
@@ -103,7 +105,7 @@ mixin _NetworkBackendReplayDebugOperations on _NetworkBackendTransport {
 
   /// Read the host's authoritative replay settings (enabled + retention).
   Future<ReplayDebugSettings> replayGetSettings() async {
-    final response = await _get('sequencer/replay-debug/settings');
+    final response = await _get(ReplayDebugApi.getSettings);
     return ReplayDebugSettings.fromWireJson(response);
   }
 
@@ -112,9 +114,10 @@ mixin _NetworkBackendReplayDebugOperations on _NetworkBackendTransport {
   /// (the host handler rolls the persist back if the executor update
   /// fails). Never touches the remote client's local database.
   Future<void> replaySetEnabled(bool enabled) async {
-    final response = await _post('sequencer/replay-debug/settings/enabled', {
-      'enabled': enabled,
-    });
+    final response = await _post(
+      ReplayDebugApi.setEnabled,
+      body: {'enabled': enabled},
+    );
     if (response['status'] != 'ok' || response['enabled'] != enabled) {
       throw const FormatException(
         'POST /api/sequencer/replay-debug/settings/enabled returned an '
@@ -128,9 +131,10 @@ mixin _NetworkBackendReplayDebugOperations on _NetworkBackendTransport {
     if (days < 1 || days > 3650) {
       throw ArgumentError.value(days, 'days', 'must be between 1 and 3650');
     }
-    final response = await _post('sequencer/replay-debug/settings/retention', {
-      'days': days,
-    });
+    final response = await _post(
+      ReplayDebugApi.setRetention,
+      body: {'days': days},
+    );
     if (response['status'] != 'ok' || response['retentionDays'] != days) {
       throw const FormatException(
         'POST /api/sequencer/replay-debug/settings/retention returned an '
@@ -141,7 +145,7 @@ mixin _NetworkBackendReplayDebugOperations on _NetworkBackendTransport {
 
   /// Ask the host to delete every decision row. Returns the number removed.
   Future<int> replayClearHistory() async {
-    final response = await _post('sequencer/replay-debug/clear');
+    final response = await _post(ReplayDebugApi.clear);
     final removed = response['removed'];
     if (removed is! int || removed < 0) {
       throw FormatException(

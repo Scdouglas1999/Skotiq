@@ -1,4 +1,5 @@
-import '../../network_backend.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
+import '../../../models/backend/remote_update_models.dart';
 
 /// The software version of a linked imaging host and its update flow.
 ///

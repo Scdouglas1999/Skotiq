@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
+import 'package:skotiq_core/src/models/backend/backend_connection_state.dart';
 
 void main() {
   test('an older failed connect cannot disconnect a newer live host', () async {

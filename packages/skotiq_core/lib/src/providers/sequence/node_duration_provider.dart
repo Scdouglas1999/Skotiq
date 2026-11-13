@@ -2,11 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sequence/sequence_models.dart';
 import '../../services/sequence_rollup.dart';
-import '../../services/sequence_time_estimator.dart';
 import '../sequence_provider.dart' show currentSequenceProvider;
-import '../settings_provider.dart' show appSettingsProvider, siteLocationIsSet;
-import 'plan_run_end.dart';
-import 'sequencer_defaults.dart' show sequencerOverheadConfigProvider;
+import 'plan_timer_provider.dart';
 
 /// Per-node estimated *integration + overhead* roll-up.
 ///
@@ -68,41 +65,12 @@ final nodeRollupOpenEndProvider = Provider.family<NodeOpenEnd?, String>((
 final _nodeRollupMapProvider = Provider<NodeRollups>((ref) {
   final sequence = ref.watch(currentSequenceProvider);
   if (sequence == null) return NodeRollups.empty;
-  // ONE engine and ONE overhead model, shared with the timeline, the node
-  // timing panel and the pre-flight simulation. A second per-node cost table
-  // here would let the Builder's estimate chip and the Pre-Flight "Duration"
-  // disagree about the same sequence.
-  final estimator = SequenceTimeEstimator(
-    overhead: ref.watch(sequencerOverheadConfigProvider),
+  final timer = ref.watch(planTimerProvider);
+  return computeNodeRollups(
+    sequence,
+    timer.estimator,
+    tonight: timer.site == null
+        ? null
+        : ref.watch(currentPlanTimingProvider)?.timings,
   );
-  final site = ref.watch(
-    appSettingsProvider.select((async) {
-      final s = async.valueOrNull;
-      if (s == null || !siteLocationIsSet(s.latitude, s.longitude)) {
-        return null;
-      }
-      return (
-        latitude: s.latitude,
-        longitude: s.longitude,
-        parkBeforeDawn: s.parkBeforeDawn,
-      );
-    }),
-  );
-  List<NodeTiming>? tonight;
-  if (site != null) {
-    final now = DateTime.now();
-    tonight = estimator.estimateSequenceTiming(
-      sequence,
-      now,
-      latitude: site.latitude,
-      longitude: site.longitude,
-      runEndsBy: planRunEndsBy(
-        parkBeforeDawn: site.parkBeforeDawn,
-        latitude: site.latitude,
-        longitude: site.longitude,
-        now: now,
-      ),
-    );
-  }
-  return computeNodeRollups(sequence, estimator, tonight: tonight);
 });

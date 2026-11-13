@@ -592,7 +592,8 @@
           "action": "Autofocus",
           "condition": {
             "HfrAbove": 3.5
-          }
+          },
+          "debounce_secs": 45.0
         }
       ]
     },

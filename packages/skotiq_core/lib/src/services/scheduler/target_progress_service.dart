@@ -15,9 +15,8 @@ typedef _Clock = DateTime Function();
 /// Joins three sources:
 ///   * `integration_goals` (filter + per-frame exposure + desired frame
 ///     count) via [IntegrationGoalService].
-///   * `captured_images` (accepted light frames) via raw SQL — counts and
-///     `MAX(captured_at)` per target+filter, with no DAO layer in between
-///     so the bulk path stays linear-time.
+///   * `captured_images` (accepted light frames): counts per filter, which
+///     a goal counts by [goalFrameCount], and `MAX(captured_at)`.
 ///   * Wall-clock `now` (injectable for tests) to compute the rolling
 ///     "frames per night" pace.
 ///
@@ -96,8 +95,7 @@ class TargetProgressService {
     var totalCapturedSeconds = 0.0;
 
     for (final g in goals) {
-      final captured =
-          aggregates.framesByFilterLower[g.filter.toLowerCase()] ?? 0;
+      final captured = goalFrameCount(g.filter, aggregates.framesByFilter);
       perFilter.add(
         FilterProgress(
           filter: g.filter,
@@ -161,7 +159,7 @@ class TargetProgressService {
       now,
     ).start.subtract(const Duration(days: TargetProgress.etaWindowNights));
 
-    final framesByFilterLower = <String, int>{};
+    final framesByFilter = <String, int>{};
     var totalCapturedAny = 0;
     DateTime? lastImagedAt;
     final distinctNights = <DateTime>{};
@@ -171,10 +169,8 @@ class TargetProgressService {
       if (frame.frameType.toLowerCase() != 'light') continue;
       if (!frame.isAccepted) continue;
 
-      final filter = frame.filter;
-      if (filter == null || filter.isEmpty) continue;
-      final key = filter.toLowerCase();
-      framesByFilterLower[key] = (framesByFilterLower[key] ?? 0) + 1;
+      final filter = frame.filter ?? '';
+      framesByFilter[filter] = (framesByFilter[filter] ?? 0) + 1;
       totalCapturedAny += 1;
 
       final capturedAt = frame.capturedAt;
@@ -189,7 +185,7 @@ class TargetProgressService {
     }
 
     return _CaptureAggregates(
-      framesByFilterLower: framesByFilterLower,
+      framesByFilter: framesByFilter,
       totalCapturedAny: totalCapturedAny,
       lastImagedAt: lastImagedAt,
       windowFrameCount: windowFrameCount,
@@ -209,25 +205,10 @@ class TargetProgressService {
     // captured_at comparison and re-hydration both use seconds.
     final windowStartSec = windowStart.toUtc().millisecondsSinceEpoch ~/ 1000;
 
-    // Per-filter accepted-light counts.
-    final perFilterRows = await _db
-        .customSelect(
-          "SELECT LOWER(filter) AS filter_lower, COUNT(*) AS c "
-          "FROM captured_images "
-          "WHERE target_id = ? AND frame_type = 'light' AND is_accepted = 1 "
-          "AND filter IS NOT NULL "
-          "GROUP BY LOWER(filter)",
-          variables: [Variable.withInt(targetId)],
-        )
-        .get();
-    final framesByFilterLower = <String, int>{};
-    var totalCapturedAny = 0;
-    for (final row in perFilterRows) {
-      final f = row.read<String>('filter_lower');
-      final c = row.read<int>('c');
-      framesByFilterLower[f] = c;
-      totalCapturedAny += c;
-    }
+    final framesByFilter = await _db.planningDao.acceptedLightFramesByFilter(
+      targetId,
+    );
+    final totalCapturedAny = framesByFilter.values.fold(0, (a, b) => a + b);
 
     // Most recent accepted light frame for the target. Stored as Unix
     // seconds by drift's DateTimeColumn (default mapping).
@@ -275,7 +256,7 @@ class TargetProgressService {
     }
 
     return _CaptureAggregates(
-      framesByFilterLower: framesByFilterLower,
+      framesByFilter: framesByFilter,
       totalCapturedAny: totalCapturedAny,
       lastImagedAt: lastImagedAt,
       windowFrameCount: windowRows.length,
@@ -286,14 +267,15 @@ class TargetProgressService {
 
 /// Internal carrier for the three queries that feed [TargetProgress].
 class _CaptureAggregates {
-  final Map<String, int> framesByFilterLower;
+  /// Accepted light frames by filter as filed, `''` for none.
+  final Map<String, int> framesByFilter;
   final int totalCapturedAny;
   final DateTime? lastImagedAt;
   final int windowFrameCount;
   final int windowDistinctNights;
 
   const _CaptureAggregates({
-    required this.framesByFilterLower,
+    required this.framesByFilter,
     required this.totalCapturedAny,
     required this.lastImagedAt,
     required this.windowFrameCount,

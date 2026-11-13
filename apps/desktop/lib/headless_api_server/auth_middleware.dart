@@ -330,7 +330,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             '[AUTH][$requestId] Rejected request to $path - '
             'scope=${headlessTokenScopeName(tokenGrant.coarseScope)} '
             'required=${headlessTokenScopeName(requiredScope)} '
-            'resource=${headlessResourceName(requiredCapability.resource)} '
+            'resource=${requiredCapability.resource.wireName} '
             'level=${headlessAccessLevelName(requiredCapability.level)}',
           );
           // The body is built from the grant and the endpoint that decided the

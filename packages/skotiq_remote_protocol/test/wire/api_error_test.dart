@@ -35,7 +35,7 @@ void main() {
       );
     });
 
-    test('reads a coded body and a prose body, and leaves the rest', () {
+    test('reads every layout the host writes, and nothing else', () {
       final coded = ApiErrorBody.tryParse({
         'error': 'Too slow',
         'code': 'handler_timeout',
@@ -51,11 +51,25 @@ void main() {
       expect(prose.message, 'Device not found');
       expect(prose.layout, ApiErrorLayout.prose);
 
-      // `{error: <category>, message}` has no code; the caller decides.
-      expect(
-        ApiErrorBody.tryParse({'error': 'Access denied', 'message': 'No'}),
-        isNull,
-      );
+      final thrown = ApiErrorBody.tryParse({
+        'error': 'backup_create_failed',
+        'code': 'backup_create_failed',
+        'message': 'The disk is full',
+      }, httpStatus: 500)!;
+      expect(thrown.layout, ApiErrorLayout.codeAsError);
+
+      final uncoded = ApiErrorBody.tryParse({
+        'error': 'no_camera',
+        'message': 'No camera is connected',
+      }, httpStatus: 409)!;
+      expect(uncoded.code, 'no_camera');
+      expect(uncoded.message, 'No camera is connected');
+      expect(uncoded.layout, ApiErrorLayout.errorAsCode);
+      expect(uncoded.toJson(), {
+        'error': 'no_camera',
+        'message': 'No camera is connected',
+      });
+
       expect(ApiErrorBody.tryParse({'status': 'ok'}), isNull);
     });
   });

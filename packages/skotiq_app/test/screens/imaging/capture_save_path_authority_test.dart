@@ -8,6 +8,9 @@ import 'package:skotiq_app/screens/imaging/widgets/capture_panel.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/services/host_folders.dart';
+
+import '../../harness/fake_host_folders.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -22,7 +25,7 @@ class _SwitchingBackendNotifier extends BackendNotifier {
 
 ({ProviderContainer container, _SwitchingBackendNotifier backendNotifier})
     _container({
-  required CaptureSavePathPicker picker,
+  required FolderPick picker,
   required CaptureSavePathWriter writer,
 }) {
   late _SwitchingBackendNotifier backendNotifier;
@@ -33,7 +36,7 @@ class _SwitchingBackendNotifier extends BackendNotifier {
         return backendNotifier =
             _SwitchingBackendNotifier(ref, _MockNetworkBackend());
       }),
-      captureSavePathPickerProvider.overrideWithValue(picker),
+      hostFoldersProvider.overrideWithValue(FakeHostFolders(onPick: picker)),
       captureSavePathWriterProvider.overrideWithValue(writer),
     ],
   );
@@ -67,8 +70,7 @@ void main() {
     var pickCalls = 0;
     final writes = <String>[];
     final h = _container(
-      picker: (context, {required isRemote, required initialPath}) {
-        expect(isRemote, isTrue);
+      picker: ({required host, required initialPath}) {
         expect(initialPath, '/host-a/captures');
         pickCalls++;
         return pickCalls == 1 ? firstPick.future : secondPick.future;
@@ -109,7 +111,7 @@ void main() {
     var pickCalls = 0;
     final writes = <String>[];
     final h = _container(
-      picker: (context, {required isRemote, required initialPath}) async {
+      picker: ({required host, required initialPath}) async {
         pickCalls++;
         if (pickCalls == 1) throw StateError('directory service unavailable');
         return '/host/recovered';

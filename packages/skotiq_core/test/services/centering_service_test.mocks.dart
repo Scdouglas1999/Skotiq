@@ -213,30 +213,6 @@ class MockPlateSolveService extends _i1.Mock implements _i9.PlateSolveService {
   }
 
   @override
-  _i8.Future<_i3.PlateSolveResult> parseWcsFileForTest(String? wcsPath) =>
-      (super.noSuchMethod(
-            Invocation.method(#parseWcsFileForTest, [wcsPath]),
-            returnValue: _i8.Future<_i3.PlateSolveResult>.value(
-              _FakePlateSolveResult_1(
-                this,
-                Invocation.method(#parseWcsFileForTest, [wcsPath]),
-              ),
-            ),
-          )
-          as _i8.Future<_i3.PlateSolveResult>);
-
-  @override
-  _i3.PlateSolveResult parseAstrometryOutputForTest(String? output) =>
-      (super.noSuchMethod(
-            Invocation.method(#parseAstrometryOutputForTest, [output]),
-            returnValue: _FakePlateSolveResult_1(
-              this,
-              Invocation.method(#parseAstrometryOutputForTest, [output]),
-            ),
-          )
-          as _i3.PlateSolveResult);
-
-  @override
   _i8.Future<_i3.PlateSolveResult> solve(
     String? imagePath,
     _i9.PlateSolverConfig? config,

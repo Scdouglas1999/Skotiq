@@ -68,9 +68,6 @@ const _hostOnlyEntryPoints = <String>[
 /// now?" from the connection ON PURPOSE, about something other than opening a
 /// host-only surface, and that claim has to be written down beside the path.
 const _allowed = <String, String>{
-  'lib/screens/shell/app_shell.dart':
-      'decides whether this process keeps the checkpoint directory, which is '
-          'a fact about where the sequencer runs now, not about the Darkroom',
   'lib/screens/stack_result/stack_result_screen.dart':
       'decides whether to stamp a stack result into the local database, which '
           'only exists to stamp when the database is this machine\'s',

@@ -30,7 +30,7 @@ extension _SequencerCheckpoints on SequencerHandlers {
 
     final Directory directory;
     try {
-      directory = await resolveHostCheckpointDirectory();
+      directory = await resolveHostCheckpointDirectory(logger: _logger);
     } on FileSystemException catch (error) {
       return jsonBadRequest({
         'error':

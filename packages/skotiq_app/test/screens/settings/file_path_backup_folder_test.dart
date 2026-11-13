@@ -5,7 +5,9 @@
 // "Managed automatically in Skotiq's application data folder". Nothing
 // anywhere named the directory the bundles were written to — while the
 // retention setting DELETED the oldest bundles out of it.
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/file_path_settings.dart';
 import 'package:skotiq_core/providers.dart';
@@ -19,6 +21,16 @@ class _LoadedAppSettings extends AppSettingsNotifier {
         imageOutputPath: '/images',
         sequencesPath: '/sequences',
       );
+}
+
+class _Folders extends FakeHostFolders {
+  _Folders(this.reveals, {super.onPick});
+
+  final List<(String, String)>? reveals;
+
+  @override
+  Future<void> reveal(BuildContext context, String path) async =>
+      reveals?.add(('reveal', path));
 }
 
 Future<HarnessHandle> _pump(
@@ -46,13 +58,10 @@ Future<HarnessHandle> _pump(
         backupDirectoryWriterProvider.overrideWithValue((p) async {
           moves.add(p);
         }),
-      filePathSettingsPickerProvider.overrideWithValue(
-        (context, {required isRemote, required currentPath}) async => picks,
-      ),
-      if (reveals != null)
-        backupFolderRevealerProvider.overrideWithValue(
-          (context, p) async => reveals.add(('reveal', p)),
-        ),
+      hostFoldersProvider.overrideWithValue(_Folders(
+        reveals,
+        onPick: ({required host, required initialPath}) async => picks,
+      )),
     ],
   );
   await tester.pump();

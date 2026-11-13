@@ -794,6 +794,7 @@ fn build_exposure_config(plan: &FilterPlan, batch_size: u32) -> ExposureConfig {
         // The node owns the plan's dither cadence (see `execute`); a burst
         // counting its own frames would dither on the wrong frames.
         dither_every: None,
+        save_to: plan.save_to.clone(),
         ..ExposureConfig::default()
     }
 }
@@ -1001,8 +1002,10 @@ mod tests {
             binning: Binning::Two,
             dither_every: Some(2),
             depth_goal: None,
+            save_to: Some("${filter}/${frame:04}".into()),
         };
         let cfg = build_exposure_config(&p, 2);
+        assert_eq!(cfg.save_to.as_deref(), Some("${filter}/${frame:04}"));
         assert_eq!(cfg.duration_secs, 300.0);
         // The burst takes batch_size frames, not the plan total
         assert_eq!(cfg.count, 2);

@@ -1618,8 +1618,11 @@ class SequenceExecutor {
       throw Exception('Pause/Resume operation already in progress');
     }
 
+    // A run inside a recovery takes a pause too: the native executor holds
+    // it once the recovery ends instead of carrying on.
     final currentState = _ref.read(sequenceExecutionStateProvider);
-    if (currentState != SequenceExecutionState.running) {
+    if (currentState != SequenceExecutionState.running &&
+        currentState != SequenceExecutionState.recovering) {
       throw Exception('Cannot pause: sequence is not running');
     }
 
@@ -1664,11 +1667,14 @@ class SequenceExecutor {
 
       final confirmed = await _awaitStateChange(SequenceExecutionState.running);
       if (!confirmed) {
-        final status = await backend.sequencerGetStatus();
-        if (status.state.toLowerCase() != 'running') {
+        // A pause placed during a recovery that is still under way only
+        // withdraws: the run goes back to `recovering`, not `running`.
+        final state = (await backend.sequencerGetStatus()).state.toLowerCase();
+        if (state == 'running') {
+          _setExecutionState(SequenceExecutionState.running);
+        } else if (state != 'recovering') {
           throw Exception('Resume operation timed out - state not confirmed');
         }
-        _setExecutionState(SequenceExecutionState.running);
       }
 
       _notePausedByExecutor(false);
