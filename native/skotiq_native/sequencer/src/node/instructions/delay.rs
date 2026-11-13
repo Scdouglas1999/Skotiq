@@ -2,7 +2,7 @@
 
 use crate::instructions::execute_delay;
 use crate::node::context::ExecutionContext;
-use crate::node::progress::text_progress;
+use crate::node::progress::step_progress;
 use crate::node::registry::InstructionNode;
 use crate::{NodeStatus, NodeType};
 use async_trait::async_trait;
@@ -24,7 +24,7 @@ impl InstructionNode for DelayInstruction {
 
         let ctx = context.to_instruction_context(node_id).await;
 
-        let progress_fn = text_progress(context.progress_callback.as_ref(), node_id, "Delay");
+        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Delay");
 
         execute_delay(config, context, Some(&progress_fn))
             .await

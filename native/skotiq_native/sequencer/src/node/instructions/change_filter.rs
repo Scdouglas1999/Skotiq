@@ -2,7 +2,7 @@
 
 use crate::instructions::execute_filter_change;
 use crate::node::context::ExecutionContext;
-use crate::node::progress::{text_progress, ProgressDetail, ProgressUpdate};
+use crate::node::progress::{step_progress, ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
 use crate::{NodeStatus, NodeType};
 use async_trait::async_trait;
@@ -23,7 +23,7 @@ impl InstructionNode for ChangeFilterInstruction {
         };
 
         let ctx = context.to_instruction_context(node_id).await;
-        let progress_fn = text_progress(context.progress_callback.as_ref(), node_id, "Filter");
+        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Filter");
         let result = execute_filter_change(config, &ctx, Some(&progress_fn)).await;
         if result.status == NodeStatus::Success {
             context.send_progress(ProgressUpdate::instruction_progress(

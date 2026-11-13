@@ -553,21 +553,37 @@ impl ProgressDetail {
     }
 }
 
-/// The progress callback for an instruction that reports in words: each line
-/// reaches the step as the instruction wrote it.
-pub(crate) fn text_progress<'a>(
+/// The progress callback an instruction reports through: each report reaches
+/// the step as the kind it converts to (an instruction's words as `Generic`).
+pub(crate) fn step_progress<'a, T: Into<ProgressDetail>>(
     callback: Option<&'a crate::node::context::ProgressCallback>,
     node_id: &'a str,
     instruction: &'static str,
-) -> impl Fn(f64, String) + Send + Sync + 'a {
-    move |percent, text| {
+) -> impl Fn(f64, T) + Send + Sync + 'a {
+    move |percent, report| {
         if let Some(callback) = callback {
             callback(ProgressUpdate::instruction_progress(
                 node_id.to_string(),
                 instruction,
                 percent,
-                ProgressDetail::Generic(text),
+                report.into(),
             ));
+        }
+    }
+}
+
+impl From<String> for ProgressDetail {
+    fn from(text: String) -> Self {
+        Self::Generic(text)
+    }
+}
+
+impl From<crate::instructions::ThermalReading> for ProgressDetail {
+    fn from(reading: crate::instructions::ThermalReading) -> Self {
+        Self::Thermal {
+            current_temp_c: reading.sensor_temp_c,
+            target_temp_c: reading.target_temp_c,
+            cooler_power_percent: reading.cooler_power_percent,
         }
     }
 }
