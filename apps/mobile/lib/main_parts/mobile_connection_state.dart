@@ -20,7 +20,12 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   final GlobalKey<NavigatorState> _connectionNavigatorKey =
       GlobalKey<NavigatorState>();
 
-  DiscoveredServer? _connectedServer;
+  /// The rig this phone is linked to; [connectedRigProvider] holds it, so
+  /// the rest of the app names the same one.
+  DiscoveredServer? get _connectedServer => ref.read(connectedRigProvider);
+  set _connectedServer(DiscoveredServer? server) =>
+      ref.read(connectedRigProvider.notifier).state = server;
+
   // v4 couch-grade remote: when connected via a self-hosted relay, this holds
   // the loopback tunnel that the whole session rides on. It MUST outlive the
   // backend connect (it is the transport) and be torn down whenever the
@@ -103,8 +108,12 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   Future<void> _autoConnect();
 
   /// Implemented by the (re)connect/disconnect ops mixin. The discovery /
-  /// pairing flows hand a resolved [DiscoveredServer] to it.
-  Future<void> _connectToServer(DiscoveredServer server);
+  /// pairing flows hand a resolved [DiscoveredServer] to it; it is also the
+  /// [rigConnectProvider] every other connect goes through.
+  Future<bool> _connectToServer(
+    DiscoveredServer server, {
+    String? savedServerId,
+  });
 
   /// Implemented by the (re)connect/disconnect ops mixin. The relay-connect
   /// dialog (discovery group) routes through it. The concrete override adds

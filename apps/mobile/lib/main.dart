@@ -35,6 +35,7 @@ import 'services/battery_service.dart';
 import 'services/network_service.dart';
 import 'services/notification_service.dart';
 import 'services/push_registration_service.dart';
+import 'services/rig_connection.dart';
 import 'services/voice_control_lifecycle_provider.dart';
 import 'services/voice_control_service.dart';
 import 'utils/error_snackbar.dart';
@@ -296,6 +297,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(relayReconnectProvider.notifier).state = _reconnectSavedRelay;
+      ref.read(rigConnectProvider.notifier).state = _connectToServer;
     });
     _autoConnect();
 
@@ -372,11 +374,9 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           return;
         }
       });
-      // A rig switch from Saved Servers swaps in a fresh NetworkBackend
-      // without routing through _connectToServer, so re-arm the WS monitor
-      // on the new link. Idempotent — it cancels any prior subscription
-      // first. This follows the link, not the backend: a backend listener
-      // runs before the link is rebuilt.
+      // The monitor follows the link, whoever made it. Idempotent — it
+      // cancels any prior subscription first. A backend listener would run
+      // before the link is rebuilt.
       ref.listen<HostLink?>(linkedHostLinkProvider, (previous, next) {
         if (!mounted) return;
         if (next != null && !identical(previous, next)) {

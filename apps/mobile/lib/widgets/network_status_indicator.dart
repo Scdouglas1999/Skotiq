@@ -9,6 +9,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/network_service.dart';
+import '../services/rig_connection.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 
@@ -240,6 +241,7 @@ class _NetworkStatusIndicatorState
     _CombinedConnectionStatus status,
     _TransportTier transport,
   ) {
+    final rig = ref.watch(connectedRigProvider);
     final color = _statusColor(context, status);
     final icon = _statusIcon(status, transport);
 
@@ -288,19 +290,19 @@ class _NetworkStatusIndicatorState
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (osState.connectedServer != null || _shouldShowLatency(status))
+              if (rig != null || _shouldShowLatency(status))
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (osState.connectedServer != null)
+                    if (rig != null)
                       Text(
-                        osState.connectedServer!.name,
+                        rig.name,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: color.withValues(alpha: 0.8),
                         ),
                       ),
                     if (_shouldShowLatency(status) && _latency != null) ...[
-                      if (osState.connectedServer != null)
+                      if (rig != null)
                         Text(
                           ' · ',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -522,11 +524,8 @@ class _ConnectionDetailsSheetState
     }
   }
 
-  /// Run the discovery cascade and, on a hit, connect the backend to the rig.
-  /// Stamping last-server and NetworkService status alone — what
-  /// `NetworkService().rediscoverServer()` does — leaves the WebSocket session
-  /// down, so the button would report success while the app still could not
-  /// drive the rig.
+  /// Run the discovery cascade and, on a hit, link to the rig through the
+  /// app's one connect flow.
   Future<void> _handleSearchForServers() async {
     setState(() => _searching = true);
     DiscoveredServer? server;
@@ -546,24 +545,14 @@ class _ConnectionDetailsSheetState
       );
       return;
     }
-    try {
-      await ref
-          .read(backendProvider.notifier)
-          .connect(
-            server.host,
-            server.webPort,
-            authToken: server.authToken,
-            scheme: server.scheme,
-            pinnedFingerprint: server.fingerprint,
-          );
-      await EnhancedSkotiqDiscovery.saveLastServer(server);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _searching = false);
-      context.showErrorSnackBar('Failed to connect: $e');
+    final connect = ref.read(rigConnectProvider);
+    final linked = connect != null && await connect(server);
+    if (!mounted) return;
+    setState(() => _searching = false);
+    if (!linked) {
+      context.showErrorSnackBar('Could not connect to ${server.name}.');
       return;
     }
-    if (!mounted) return;
     Navigator.pop(context);
   }
 
@@ -572,7 +561,6 @@ class _ConnectionDetailsSheetState
     setState(() => _disconnecting = true);
     try {
       await ref.read(backendProvider.notifier).disconnect();
-      await NetworkService().disconnect();
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -587,6 +575,7 @@ class _ConnectionDetailsSheetState
     final colors = SkotiqColors.of(context);
     final status = widget.status;
     final osState = widget.osState;
+    final rig = ref.watch(connectedRigProvider);
 
     return Container(
       decoration: BoxDecoration(
@@ -624,7 +613,7 @@ class _ConnectionDetailsSheetState
                       ),
                     ),
                     Text(
-                      _statusDescription(status, osState),
+                      _statusDescription(status, rig),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -637,16 +626,16 @@ class _ConnectionDetailsSheetState
           const SizedBox(height: 24),
 
           // Connection Details
-          if (osState.connectedServer != null) ...[
-            _DetailRow(label: 'Server', value: osState.connectedServer!.name),
-            _DetailRow(label: 'Host', value: osState.connectedServer!.host),
+          if (rig != null) ...[
+            _DetailRow(label: 'Server', value: rig.name),
+            _DetailRow(label: 'Host', value: rig.host),
             _DetailRow(
               label: 'Port',
-              value: osState.connectedServer!.webPort.toString(),
+              value: rig.webPort.toString(),
             ),
             _DetailRow(
               label: 'Version',
-              value: osState.connectedServer!.version,
+              value: rig.version,
             ),
           ],
 
@@ -788,14 +777,14 @@ class _ConnectionDetailsSheetState
 
   String _statusDescription(
     _CombinedConnectionStatus status,
-    NetworkServiceState osState,
+    DiscoveredServer? rig,
   ) {
     switch (status) {
       case _CombinedConnectionStatus.connected:
-        return 'Connected to ${osState.connectedServer?.name ?? "server"}';
+        return 'Connected to ${rig?.name ?? "server"}';
       case _CombinedConnectionStatus.connecting:
         return 'Connecting to '
-            '${osState.connectedServer?.name ?? "the server"}...';
+            '${rig?.name ?? "the server"}...';
       case _CombinedConnectionStatus.reconnecting:
         return 'Attempting to reconnect...';
       case _CombinedConnectionStatus.serverOffline:

@@ -249,9 +249,27 @@ mixin _MobileReconnectOps on _MobileConnectionState {
     }
   }
 
+  /// Stamp a Saved Servers row as just connected. Best-effort, as
+  /// [_upsertSavedServer].
+  Future<void> _touchSavedServer(String id) async {
+    try {
+      await ref.read(savedServersServiceProvider).touchLastConnected(id);
+    } catch (e, st) {
+      Log.error(
+        'saved_servers: failed to stamp $id as connected: $e',
+        source: 'Discovery',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   @override
-  Future<void> _connectToServer(DiscoveredServer server) async {
-    if (!mounted) return;
+  Future<bool> _connectToServer(
+    DiscoveredServer server, {
+    String? savedServerId,
+  }) async {
+    if (!mounted) return false;
     final operationGeneration = ++_connectionOperationGeneration;
     setState(() {
       _statusMessage = 'Connecting to ${server.name}...';
@@ -265,8 +283,12 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       // to connect for this session but refuse to write the server to
       // disk (next launch should re-discover or re-prompt).
       final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
-      if (!_isCurrentConnectionOperation(operationGeneration)) return;
+      if (!_isCurrentConnectionOperation(operationGeneration)) return false;
       var enrichedServer = fetched ?? server;
+      // A saved row is shown by the name the operator gave it.
+      if (savedServerId != null && fetched != null) {
+        enrichedServer = enrichedServer.copyWith(name: server.name);
+      }
       final compatibility = SkotiqServerCompatibility.check(
         enrichedServer.apiVersion ?? enrichedServer.version,
       );
@@ -276,7 +298,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           _statusMessage = '';
           _error = compatibility.message;
         });
-        return;
+        return false;
       }
 
       var authToken = enrichedServer.authToken;
@@ -303,7 +325,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
               pinnedFingerprint: enrichedServer.fingerprint,
             );
             final lanResult = await lanPairing.lanClaim();
-            if (!_isCurrentConnectionOperation(operationGeneration)) return;
+            if (!_isCurrentConnectionOperation(operationGeneration)) return false;
             if (lanResult != null &&
                 lanResult.success &&
                 lanResult.token != null &&
@@ -321,13 +343,13 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             // Fail-closed: the lan-claim pre-flight refused the identity.
             // Surface it rather than silently dropping to the code dialog —
             // a mismatch means the host we reached is not the one we trust.
-            if (!_isCurrentConnectionOperation(operationGeneration)) return;
+            if (!_isCurrentConnectionOperation(operationGeneration)) return false;
             setState(() {
               _isDiscovering = false;
               _statusMessage = '';
               _error = e.message;
             });
-            return;
+            return false;
           } on RemotePairingException catch (e) {
             // Transport / unexpected error from the one-tap path. Log and fall
             // through to the code dialog — the operator can still pair by code.
@@ -338,7 +360,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           }
         }
 
-        if (!_isCurrentConnectionOperation(operationGeneration)) return;
+        if (!_isCurrentConnectionOperation(operationGeneration)) return false;
 
         if (authToken == null || authToken.isEmpty) {
           final pairedToken = await _pairWithServer(
@@ -351,9 +373,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             // path.
             pinnedFingerprint: enrichedServer.fingerprint,
           );
-          if (!_isCurrentConnectionOperation(operationGeneration)) return;
+          if (!_isCurrentConnectionOperation(operationGeneration)) return false;
           if (pairedToken == null) {
-            return;
+            return false;
           }
           authToken = pairedToken;
           enrichedServer = enrichedServer.copyWith(authToken: authToken);
@@ -370,7 +392,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // rigs keep scheme=='http' and probe unchanged.
         scheme: enrichedServer.scheme,
       );
-      if (!_isCurrentConnectionOperation(operationGeneration)) return;
+      if (!_isCurrentConnectionOperation(operationGeneration)) return false;
 
       if (isReachable) {
         Log.info('Connection successful!', source: 'Discovery');
@@ -389,7 +411,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         final collabIdentity = await _buildCollaborationIdentity(
           enrichedServer.authToken,
         );
-        if (!_isCurrentConnectionOperation(operationGeneration)) return;
+        if (!_isCurrentConnectionOperation(operationGeneration)) return false;
         final backendNotifier = ref.read(backendProvider.notifier);
         await backendNotifier.connect(
           enrichedServer.host,
@@ -410,7 +432,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         final connectedBackend = backendNotifier.currentBackend;
         if (!_isCurrentConnectionOperation(operationGeneration) ||
             !backendNotifier.isCurrentBackend(connectedBackend)) {
-          return;
+          return false;
         }
 
         // A reachable /api/info probe is not a live session. Publish the
@@ -445,16 +467,19 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           }
           if (!_isCurrentConnectionOperation(operationGeneration) ||
               !backendNotifier.isCurrentBackend(connectedBackend)) {
-            return;
+            return false;
           }
+          // A saved row keeps the name and address the operator gave it.
           // Relay sessions are persisted by _connectViaRelay under their
           // stable relay identity, not their ephemeral loopback port.
-          if (_activeRelayTunnel == null) {
+          if (savedServerId != null) {
+            await _touchSavedServer(savedServerId);
+          } else if (_activeRelayTunnel == null) {
             await _upsertSavedServer(enrichedServer);
           }
           if (!_isCurrentConnectionOperation(operationGeneration) ||
               !backendNotifier.isCurrentBackend(connectedBackend)) {
-            return;
+            return false;
           }
         } else {
           Log.warning(
@@ -481,6 +506,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           ref.invalidate(appSettingsProvider);
           ref.invalidate(equipmentProfilesProvider);
         });
+        return true;
       } else {
         final authMessage =
             enrichedServer.authRequired &&
@@ -496,9 +522,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         });
       }
     } on BackendTransitionSupersededException {
-      return;
+      return false;
     } catch (e, stackTrace) {
-      if (!_isCurrentConnectionOperation(operationGeneration)) return;
+      if (!_isCurrentConnectionOperation(operationGeneration)) return false;
       Log.error(
         'Connection error: $e',
         source: 'Discovery',
@@ -511,6 +537,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         _error = 'Connection error: ${userFacingError(e)}';
       });
     }
+    return false;
   }
 
   Future<void> _skipConnection() async {

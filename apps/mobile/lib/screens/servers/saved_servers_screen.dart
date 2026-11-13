@@ -33,6 +33,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../services/rig_connection.dart';
 import '../../services/saved_servers_service.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'package:skotiq_core/services.dart';
@@ -244,7 +245,6 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
     final scheme = server.scheme;
     try {
       final service = ref.read(savedServersServiceProvider);
-      final backendNotifier = ref.read(backendProvider.notifier);
       final token = await service.tokenFor(server.id);
       // Sanity-check reachability before swapping backends — a fail-
       // fast here keeps the dashboard from booting into a hung WS.
@@ -283,55 +283,28 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
             .setStatus(server.id, authExpired);
         return;
       }
-      final viewerId = (token != null && token.isNotEmpty)
-          ? computeServerFingerprint(token)
-          : server.id;
-      await backendNotifier.connect(
-        host,
-        server.port,
-        authToken: token,
-        scheme: scheme,
-        pinnedFingerprint: server.pinnedFingerprint,
-        collaborationViewerId: viewerId,
-        collaborationDeviceName: server.id,
-        collaborationDisplayName: server.displayName,
-      );
-      final connectedBackend = backendNotifier.currentBackend;
-      // Mirror the active server into the legacy single-slot record so
-      // auto-reconnect on cold start still works. Also re-stamp our
-      // own lastConnectedAt + reachability cache.
-      final discovered = DiscoveredServer(
-        name: server.displayName,
-        host: host,
-        webPort: server.port,
-        mode: 'headless',
-        scheme: scheme,
-        authToken: token,
-        authRequired: token != null,
-        pairingSupported: true,
-        fingerprint: server.pinnedFingerprint,
-      );
-      try {
-        await EnhancedSkotiqDiscovery.saveLastServer(discovered);
-      } catch (e, stackTrace) {
-        Log.error(
-          'Could not cache the active server for startup reconnect: $e',
-          source: 'SavedServersScreen',
-          error: e,
-          stackTrace: stackTrace,
-        );
+      final connect = ref.read(rigConnectProvider);
+      if (connect == null) {
+        throw StateError('The app has not finished starting.');
       }
-      try {
-        await service.touchLastConnected(server.id);
-      } catch (e, stackTrace) {
-        Log.error(
-          'Could not update last-connected time for ${server.id}: $e',
-          source: 'SavedServersScreen',
-          error: e,
-          stackTrace: stackTrace,
-        );
+      final linked = await connect(
+        DiscoveredServer(
+          name: server.displayName,
+          host: host,
+          webPort: server.port,
+          mode: 'headless',
+          scheme: scheme,
+          authToken: token,
+          authRequired: token != null,
+          pairingSupported: true,
+          fingerprint: server.pinnedFingerprint,
+        ),
+        savedServerId: server.id,
+      );
+      if (!linked) {
+        // The connect flow said why on the connection screen.
+        return;
       }
-      if (!backendNotifier.isCurrentBackend(connectedBackend)) return;
       ref.read(_reachabilityProvider.notifier).setStatus(server.id, true);
       ref.invalidate(_savedServersListProvider);
       if (!mounted) return;
