@@ -1,22 +1,23 @@
 //! The ZWO drivers against the fake SDKs that model ASICamera2.h, EAF_focuser.h
-//! and EFW_filter.h (`ASI_FAKE_SDK`, `EAF_FAKE_SDK`, `EFW_FAKE_SDK` in
-//! `native_driver_tests.rs`).
-//!
-//! The tests share one loaded SDK and the fakes' environment switches, so they
-//! run in one process, one at a time:
-//!
-//! ```sh
-//! python3 native/tests/fake_sdk_linux/build_fakes.py /tmp/fakes
-//! cargo test --release -p skotiq_native --test zwo_fake_sdk --no-run
-//! LD_LIBRARY_PATH=/tmp/fakes/zwo <test binary> --ignored --test-threads 1
-//! ```
+//! and EFW_filter.h (`tests/fake_sdk/{asi,eaf,efw}.rs`). The tests share one
+//! loaded SDK and the fakes' environment switches, so they run in one child
+//! process, one at a time.
 
-#![cfg(unix)]
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::SubFrame;
 use skotiq_device::{BayerPattern, CameraDriver, DeviceDriver, DriverError};
 use skotiq_device::{ExposureParams, FilterWheelDriver, FocuserDriver, FrameType, ImageData};
 use skotiq_native::vendor::zwo::{self, ZwoCamera, ZwoFilterWheel, ZwoFocuser};
+
+#[test]
+fn zwo_drivers_against_the_fake_sdks() {
+    harness::FakeSdk::build("zwo", &[harness::ASI, harness::EAF, harness::EFW])
+        .run_ignored("", &[]);
+}
 
 const COOLED_MONO: i32 = 0;
 const UNCOOLED_COLOR: i32 = 1;
@@ -63,7 +64,7 @@ fn sensor_origin(frame: &ImageData) -> (u32, u32) {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_focuser_connects_from_a_saved_profile_before_any_scan() {
     // Runs first (libtest orders tests by name): nothing has called EAFGetNum yet.
     let mut focuser = ZwoFocuser::new(0);
@@ -73,7 +74,7 @@ async fn a_focuser_connects_from_a_saved_profile_before_any_scan() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_wheel_connects_while_it_is_still_counting_its_slots() {
     let mut wheel = ZwoFilterWheel::new(0);
     wheel.connect().await.expect("connect");
@@ -82,7 +83,7 @@ async fn a_wheel_connects_while_it_is_still_counting_its_slots() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn binning_is_limited_to_the_bins_the_camera_lists() {
     let mut color = connected(UNCOOLED_COLOR).await;
     assert_eq!(color.capabilities().max_bin_x, 2);
@@ -111,7 +112,7 @@ async fn binning_is_limited_to_the_bins_the_camera_lists() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn an_exposure_longer_than_the_camera_takes_is_refused_not_shortened() {
     let mut camera = connected(COOLED_MONO).await;
     assert_eq!(
@@ -128,7 +129,7 @@ async fn an_exposure_longer_than_the_camera_takes_is_refused_not_shortened() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_subframe_is_read_where_the_frame_says_it_was() {
     let mut mono = connected(COOLED_MONO).await;
     // The SDK takes widths in multiples of 8 and heights in multiples of 2.
@@ -162,7 +163,7 @@ async fn a_subframe_is_read_where_the_frame_says_it_was() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_color_subframe_starts_on_the_cell_its_bayer_pattern_names() {
     let mut color = connected(UNCOOLED_COLOR).await;
     let frame = take(&mut color, exposure(1.0, 1, Some(roi(3, 5, 21, 9)))).await;
@@ -174,7 +175,7 @@ async fn a_color_subframe_starts_on_the_cell_its_bayer_pattern_names() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_color_frame_names_the_pattern_the_camera_delivered() {
     let mut color = connected(UNCOOLED_COLOR).await;
 
@@ -199,7 +200,7 @@ async fn a_color_frame_names_the_pattern_the_camera_delivered() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_wheel_unplugged_while_connected_and_replaced_is_seen_as_the_new_wheel() {
     let mut wheel = ZwoFilterWheel::new(0);
     wheel.connect().await.expect("connect");
@@ -214,7 +215,7 @@ async fn a_wheel_unplugged_while_connected_and_replaced_is_seen_as_the_new_wheel
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_camera_without_16_bit_readout_connects_in_8_bit() {
     let mut camera = connected(EIGHT_BIT_MONO).await;
     let sensor = camera.get_sensor_info();
@@ -235,7 +236,7 @@ const COOLER_ON: &str = "17";
 /// earlier session, so its cooler is unknown until this connection sets it,
 /// never "off at -10 C".
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_cooler_that_cannot_be_read_back_is_unknown_until_it_is_set() {
     let mut camera = connected(COOLED_MONO).await;
     std::env::set_var("FAKE_ASI_UNREADABLE", format!("{TARGET_TEMP},{COOLER_ON}"));
@@ -252,7 +253,7 @@ async fn a_cooler_that_cannot_be_read_back_is_unknown_until_it_is_set() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_camera_unplugged_while_connected_reads_as_disconnected() {
     let mut camera = connected(COOLED_MONO).await;
     std::env::set_var("FAKE_ASI_GONE", "1");
@@ -278,7 +279,7 @@ async fn a_camera_unplugged_while_connected_reads_as_disconnected() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_focuser_unplugged_while_connected_reads_as_disconnected() {
     let mut focuser = ZwoFocuser::new(0);
     focuser.connect().await.expect("connect");
@@ -295,7 +296,7 @@ async fn a_focuser_unplugged_while_connected_reads_as_disconnected() {
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_wheel_unplugged_while_connected_reads_as_disconnected() {
     let mut wheel = ZwoFilterWheel::new(0);
     wheel.connect().await.expect("connect");

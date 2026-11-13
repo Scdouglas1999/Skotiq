@@ -2,20 +2,15 @@
 //! which answers like libgphoto2 2.5 for a Canon EOS, a Nikon Z, a Sony A7 and
 //! a Fujifilm X-T5, each capture holding a real raw file of its maker.
 //!
-//! The tests share one loaded library and its bodies, so they run in one
-//! process, one at a time:
-//!
-//! ```sh
-//! python3 native/tests/fake_sdk_linux/build_fakes.py /tmp/fakes
-//! cargo test --release -p skotiq_native --test gphoto2_fake_sdk --no-run
-//! SKOTIQ_RAW_SAMPLES=<raw samples> LD_LIBRARY_PATH=/tmp/fakes/gphoto2 \
-//!     <test binary> --ignored --test-threads 1
-//! ```
-//!
-//! `SKOTIQ_RAW_SAMPLES` is the folder of public raw samples that
-//! imaging/tests/camera_raw.rs reads.
+//! The captures are the public raw samples imaging/tests/camera_raw.rs reads,
+//! too large to commit: `gphoto2_driver_against_the_fake_sdk` runs the tests
+//! when `SKOTIQ_RAW_SAMPLES` names their folder. They share one loaded library
+//! and its bodies, so they run in one child process, one at a time.
 
-#![cfg(unix)]
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{
     BayerPattern, CameraDriver, CameraState, DeviceDriver, ExposureParams, FrameType, ImageData,
@@ -23,6 +18,15 @@ use skotiq_device::{
 use skotiq_native::vendor::gphoto2::{detect_gphoto2_cameras, GPhoto2Camera};
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::time::{Duration, Instant};
+
+#[test]
+fn gphoto2_driver_against_the_fake_sdk() {
+    if std::env::var_os("SKOTIQ_RAW_SAMPLES").is_none() {
+        eprintln!("SKOTIQ_RAW_SAMPLES is not set; the gPhoto2 fake-SDK tests were not run");
+        return;
+    }
+    harness::FakeSdk::build("gphoto2", &[harness::GPHOTO2]).run_ignored("", &[]);
+}
 
 const CANON: &str = "Canon EOS 6d Mark II";
 const NIKON: &str = "Nikon Z6_2";
@@ -207,7 +211,7 @@ fn recorded(sample: &str) -> (Option<f64>, Option<f32>) {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn two_attached_bodies_each_open_as_themselves() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -243,7 +247,7 @@ async fn two_attached_bodies_each_open_as_themselves() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_replugged_body_connects_on_its_new_port() {
     let fake = Fake::new();
     fake.attach(NIKON, NIKON_PORT);
@@ -262,7 +266,7 @@ async fn a_replugged_body_connects_on_its_new_port() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn another_body_of_the_model_reports_its_own_serial_number() {
     let fake = Fake::new();
     fake.attach(NIKON, NIKON_PORT);
@@ -282,7 +286,7 @@ async fn another_body_of_the_model_reports_its_own_serial_number() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn canon_step_labels_are_timed_speeds_of_their_nominal_seconds() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -304,7 +308,7 @@ async fn canon_step_labels_are_timed_speeds_of_their_nominal_seconds() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn an_unplugged_body_is_noticed_while_idle() {
     let fake = Fake::new();
     fake.attach(NIKON, NIKON_PORT);
@@ -315,7 +319,7 @@ async fn an_unplugged_body_is_noticed_while_idle() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn an_exposure_between_shutter_speeds_is_bulb_for_the_request() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -349,7 +353,7 @@ async fn an_exposure_between_shutter_speeds_is_bulb_for_the_request() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_timed_frame_records_the_exposure_and_iso_the_camera_made() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -372,7 +376,7 @@ async fn a_timed_frame_records_the_exposure_and_iso_the_camera_made() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_nikon_reads_its_seconds_speeds_and_holds_bulb_with_its_toggle() {
     let fake = Fake::new();
     fake.attach(NIKON, NIKON_PORT);
@@ -401,7 +405,7 @@ async fn a_nikon_reads_its_seconds_speeds_and_holds_bulb_with_its_toggle() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_raw_and_jpeg_body_hands_over_its_raw_file() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -416,7 +420,7 @@ async fn a_raw_and_jpeg_body_hands_over_its_raw_file() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_body_in_a_mode_without_bulb_refuses_a_bulb_exposure() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -434,7 +438,7 @@ async fn a_body_in_a_mode_without_bulb_refuses_a_bulb_exposure() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn an_aborted_exposure_leaves_no_frame_behind() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -460,7 +464,7 @@ async fn an_aborted_exposure_leaves_no_frame_behind() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_stray_file_from_an_earlier_capture_is_not_taken_as_the_frame() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -479,7 +483,7 @@ async fn a_stray_file_from_an_earlier_capture_is_not_taken_as_the_frame() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_busy_camera_is_asked_again() {
     let fake = Fake::new();
     fake.attach(CANON, CANON_PORT);
@@ -490,7 +494,7 @@ async fn a_busy_camera_is_asked_again() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_timed_capture_leaves_the_caller_free_and_resets_a_sony_session() {
     let fake = Fake::new();
     fake.attach(SONY, SONY_PORT);
@@ -518,7 +522,7 @@ async fn a_timed_capture_leaves_the_caller_free_and_resets_a_sony_session() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+#[ignore = "run by gphoto2_driver_against_the_fake_sdk"]
 async fn a_fujifilm_xt5_takes_timed_and_bulb_frames() {
     let fake = Fake::new();
     fake.attach(FUJI, FUJI_PORT);

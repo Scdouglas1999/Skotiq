@@ -1,12 +1,11 @@
-//! The FLI drivers against the fake libfli (`FLI_FAKE_SDK` in
-//! `native_driver_tests.rs`), which answers the way libfli does where the
-//! driver depends on it. Each test checks what the camera was told and what
-//! the app was told back.
-//!
-//! Run: build the fakes with `tests/fake_sdk_linux/build_fakes.py <dir>`, then
-//! `LD_LIBRARY_PATH=<dir>/fli cargo test --release -p skotiq_native --test fli_fake_sdk -- --ignored --test-threads 1`.
+//! The FLI drivers against the fake libfli (`tests/fake_sdk/fli.rs`), which
+//! answers the way libfli does where the driver depends on it. Each test checks
+//! what the camera was told and what the app was told back.
 
-#![cfg(unix)]
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{
     CameraDriver, DeviceDriver, ExposureParams, FocuserDriver, FrameType, SubFrame,
@@ -15,6 +14,11 @@ use skotiq_native::vendor::fli;
 use skotiq_native::vendor::serial_link::sanitize_port_name;
 use std::ffi::{c_double, c_long};
 use std::time::Duration;
+
+#[test]
+fn fli_drivers_against_the_fake_sdk() {
+    harness::FakeSdk::build("fli", &[harness::FLI]).run_ignored("", &[]);
+}
 
 /// The tests share the fake's state and its environment switches.
 static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -126,7 +130,7 @@ async fn connected_camera() -> fli::FliCamera {
 /// file name with `/` replaced: FLI's Linux driver names `/dev/fliusb0`
 /// arrived at FLIOpen as `_dev_fliusb0`, so no FLI device could connect.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn devices_listed_under_linux_driver_names_connect() {
     let _guard = SERIAL.lock().await;
     switches(&["SK_FLI_KERNEL_NAMES"]);
@@ -159,7 +163,7 @@ async fn devices_listed_under_linux_driver_names_connect() {
 
 /// USB cameras answer FLIGetPixelSize in meters.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn pixel_size_is_in_microns() {
     let _guard = SERIAL.lock().await;
     switches(&[]);
@@ -173,7 +177,7 @@ async fn pixel_size_is_in_microns() {
 /// size; the fake refuses a readout past the sensor, as the unbinned corner
 /// asked for at bin 2.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn binned_frames_ask_for_the_binned_area() {
     let _guard = SERIAL.lock().await;
     switches(&[]);
@@ -220,7 +224,7 @@ async fn binned_frames_ask_for_the_binned_area() {
 /// A camera that cannot report its status answers all ones, data-ready bit
 /// included: the frame is read only when no exposure time is left.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn camera_without_status_waits_out_the_exposure() {
     let _guard = SERIAL.lock().await;
     switches(&["SK_FLI_STATUS_UNKNOWN"]);
@@ -242,7 +246,7 @@ async fn camera_without_status_waits_out_the_exposure() {
 
 /// The frame records the milliseconds the camera was given.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn exposure_time_is_what_the_camera_was_given() {
     let _guard = SERIAL.lock().await;
     switches(&[]);
@@ -265,7 +269,7 @@ async fn exposure_time_is_what_the_camera_was_given() {
 /// A failed row read discards the frame in the camera, and the next
 /// exposure works.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn failed_download_discards_the_frame() {
     let _guard = SERIAL.lock().await;
     switches(&[]);
@@ -289,7 +293,7 @@ async fn failed_download_discards_the_frame() {
 
 /// The heartbeat reads the status: an unplugged camera must fail it.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn unplugged_camera_fails_its_status() {
     let _guard = SERIAL.lock().await;
     switches(&[]);
@@ -304,7 +308,7 @@ async fn unplugged_camera_fails_its_status() {
 
 /// "Off" parks the set-point where the cooler stops working.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn cooler_off_parks_the_setpoint() {
     let _guard = SERIAL.lock().await;
     switches(&[]);
@@ -322,7 +326,7 @@ async fn cooler_off_parks_the_setpoint() {
 /// with the power the camera reports. Once set, the state is what was set, and
 /// cooling without a set-point is refused rather than given an invented one.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn a_cooler_libfli_cannot_read_is_unknown_until_set() {
     let _guard = SERIAL.lock().await;
     switches(&[]);
@@ -353,7 +357,7 @@ async fn a_cooler_libfli_cannot_read_is_unknown_until_set() {
 
 /// A focuser target outside its travel is refused before it is sent.
 #[tokio::test]
-#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+#[ignore = "run by fli_drivers_against_the_fake_sdk"]
 async fn focuser_refuses_targets_outside_its_travel() {
     let _guard = SERIAL.lock().await;
     switches(&[]);
