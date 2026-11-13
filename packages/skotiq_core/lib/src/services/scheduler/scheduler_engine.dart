@@ -28,7 +28,8 @@ part 'scheduler_engine/scoring.dart';
 /// filter, any other needs a slot the filter-name rule matches ("Ha" is the
 /// wheel's "Ha 7nm", as the run will find it).
 bool _wheelTakes(IntegrationGoal goal, List<String> wheel) =>
-    goal.filter.trim().isEmpty || matchingFilterIndex(goal.filter, wheel) != null;
+    goal.filter.trim().isEmpty ||
+    matchingFilterIndex(goal.filter, wheel) != null;
 
 /// The dynamic RoboTarget-class scheduler.
 ///

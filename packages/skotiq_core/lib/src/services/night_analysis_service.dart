@@ -2,8 +2,7 @@ import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/night_reports_dao.dart';

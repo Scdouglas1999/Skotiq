@@ -347,59 +347,19 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     }
   }
 
-  /// The catalog-powered annotation layer over the finished master.
-  ///
-  /// Building it needs the master's solved WCS (RA/Dec reference + pixel scale),
-  /// which is not plumbed onto the [IntegratedMaster] row at this layer yet —
-  /// so without a WCS source this fail-softs to null and the overlay simply
-  /// shows no annotation toggle. The [MasterAnnotationService] seam is wired
-  /// here so the layer fills in automatically once a master WCS is surfaced.
+  /// The catalog annotation layer over the finished master, or null when the
+  /// master has no solved WCS or nothing from the catalog falls in its field.
   Future<AnnotationLayer?> _loadAnnotationLayer(IntegratedMaster master) async {
-    final wcs = _resolveMasterWcs(master);
+    final wcs = master.solvedWcs;
     if (wcs == null) return null;
     try {
-      final service = _ref.read(masterAnnotationServiceProvider);
-      final (fovW, fovH) = wcs.fieldOfView(master.width, master.height);
-      final layer = await service.annotate(
-        wcs: wcs,
-        width: master.width,
-        height: master.height,
-        fovDeg: fovW > fovH ? fovW : fovH,
-      );
+      final layer =
+          await _ref.read(masterAnnotationServiceProvider).annotate(wcs: wcs);
       return layer.items.isEmpty ? null : layer;
     } catch (e) {
       _logSoftFailure('annotating the master', e);
       return null;
     }
-  }
-
-  /// Resolve the reviewed master's solved WCS, or null when none is persisted.
-  ///
-  /// The master row carries its plate-solved WCS as the eight CD-matrix
-  /// scalars (v44), written by the post-session integration's fail-soft
-  /// plate-solve step; [WcsOverlay.fromCd] turns them into the overlay with
-  /// the matrix's parity. Returns null until a WCS is persisted, which keeps
-  /// the annotation overlay and colour calibration cleanly un-lit.
-  WcsOverlay? _resolveMasterWcs(IntegratedMaster master) {
-    if (!master.hasWcs) return null;
-    final cd11 = master.wcsCd1_1;
-    final cd12 = master.wcsCd1_2;
-    final cd21 = master.wcsCd2_1;
-    final cd22 = master.wcsCd2_2;
-    if (cd11 == null || cd12 == null || cd21 == null || cd22 == null) {
-      return null;
-    }
-
-    return WcsOverlay.fromCd(
-      crpix1: master.wcsCrpix1 ?? master.width / 2,
-      crpix2: master.wcsCrpix2 ?? master.height / 2,
-      crval1: master.wcsCrval1!,
-      crval2: master.wcsCrval2!,
-      cd1_1: cd11,
-      cd1_2: cd12,
-      cd2_1: cd21,
-      cd2_2: cd22,
-    );
   }
 
   /// Log a part of the review that failed. The panel that shows it

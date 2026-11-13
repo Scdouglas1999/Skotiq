@@ -21,7 +21,7 @@ import 'package:skotiq_core/src/services/calibration_library_service.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/post_session_integration_service.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart';
-import 'package:skotiq_core/src/services/wcs_overlay.dart';
+import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
 
 /// Records the args of every call and returns scriptable results, so the
 /// orchestration services run end-to-end without native code.
@@ -1465,18 +1465,16 @@ void main() {
           ({
             required String masterFits,
             required String outputFits,
-            required WcsOverlay wcs,
+            required SolvedWcs wcs,
             required int channels,
           }) async {
             calls.add(<String, dynamic>{
               'masterFits': masterFits,
               'outputFits': outputFits,
               'channels': channels,
-              // The overlay must carry the solved reference, derived from the CD
-              // matrix (RA cdelt negative, |cd| magnitude).
-              'crval1': wcs.crval1,
-              'crval2': wcs.crval2,
-              'cdelt1': wcs.cdelt1,
+              'crval1': wcs.raHours * 15.0,
+              'crval2': wcs.decDegrees,
+              'cd1_1': wcs.cd1_1,
             });
             return outputFits;
           },
@@ -1491,8 +1489,7 @@ void main() {
     );
 
     // The calibrator was invoked once against the master FITS, with the
-    // suffixed output path, the fake seam's channel count, and a WCS overlay
-    // reconstructed from the solved CD matrix.
+    // suffixed output path, the fake seam's channel count, and the solved WCS.
     expect(calls, hasLength(1));
     final c = calls.single;
     expect(c['masterFits'], '/out/master.fits');
@@ -1500,7 +1497,7 @@ void main() {
     expect(c['channels'], 1);
     expect(c['crval1'], closeTo(202.4696, 1e-9));
     expect(c['crval2'], closeTo(47.1952, 1e-9));
-    expect(c['cdelt1'] as double, lessThan(0)); // RA cdelt is negative.
+    expect(c['cd1_1'], -0.000352);
 
     // The calibrated FITS path landed on the v42 color_calibrated_path column.
     final master = await mastersDao.getById(outcomes.single.masterId);
@@ -1520,7 +1517,7 @@ void main() {
             ({
               required String masterFits,
               required String outputFits,
-              required WcsOverlay wcs,
+              required SolvedWcs wcs,
               required int channels,
             }) async {
               called = true;
@@ -1554,7 +1551,7 @@ void main() {
             ({
               required String masterFits,
               required String outputFits,
-              required WcsOverlay wcs,
+              required SolvedWcs wcs,
               required int channels,
             }) async => null,
       );

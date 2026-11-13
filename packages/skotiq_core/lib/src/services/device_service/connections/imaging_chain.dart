@@ -31,10 +31,7 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       final activeProfile = _ref.read(activeEquipmentProfileProvider);
       if (activeProfile?.defaultGain != null && !keepsOwnIso) {
         try {
-          await _backend.cameraSetGain(
-            deviceId,
-            activeProfile!.defaultGain!,
-          );
+          await _backend.cameraSetGain(deviceId, activeProfile!.defaultGain!);
         } catch (e) {
           _safeLog(
             (l) => l.warning(
@@ -524,12 +521,9 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     // computes its focuser delta against 0 — double-applying an offset
     // that is already physically embodied in the focuser position (the
     // rig was focused with the current filter in place).
-    if (status.position >= 0 &&
-        status.position < status.filterNames.length) {
+    if (status.position >= 0 && status.position < status.filterNames.length) {
       _lastAppliedFilterOffsetByWheel[deviceId] =
-          _resolveConfiguredFilterOffset(
-            status.filterNames[status.position],
-          );
+          _resolveConfiguredFilterOffset(status.filterNames[status.position]);
     }
 
     // After connection, sync profile/session filter names to the native

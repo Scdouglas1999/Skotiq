@@ -23,7 +23,9 @@ class FilterIntegration {
 /// Filters are matched case-insensitively, as the scheduler matches goals, and
 /// each group is named by its most common spelling (ties alphabetical), so
 /// 'L' and 'l' are one row.
-List<FilterIntegration> acceptedLightsByFilter(Iterable<db.DbCapturedImage> frames) {
+List<FilterIntegration> acceptedLightsByFilter(
+  Iterable<db.DbCapturedImage> frames,
+) {
   final buckets = <String, _FilterBucket>{};
   for (final frame in frames) {
     if (!_isAcceptedLight(frame)) continue;
@@ -66,13 +68,22 @@ List<FilterIntegration> _goalGroups(
   String goalFilter,
 ) {
   if (goalFilter.trim().isEmpty) {
-    return [for (final f in accepted) if (f.filter == _unfiltered) f];
+    return [
+      for (final f in accepted)
+        if (f.filter == _unfiltered) f,
+    ];
   }
-  final named = [for (final f in accepted) if (f.filter != _unfiltered) f];
+  final named = [
+    for (final f in accepted)
+      if (f.filter != _unfiltered) f,
+  ];
   final matched = matchingFilterNames(goalFilter, [
     for (final f in named) f.filter,
   ]).toSet();
-  return [for (final f in named) if (matched.contains(f.filter)) f];
+  return [
+    for (final f in named)
+      if (matched.contains(f.filter)) f,
+  ];
 }
 
 /// What each of [goals] counts as done, in the order given.
@@ -99,8 +110,7 @@ List<FilterIntegration> acceptedPerGoal(
           return (seconds: all.seconds, frames: all.frames);
         }();
         final wanted = goal.frameCount * goal.exposureSeconds;
-        final takesRest =
-            lastInFilter[key] == i || available.seconds <= wanted;
+        final takesRest = lastInFilter[key] == i || available.seconds <= wanted;
         final seconds = takesRest ? available.seconds : wanted;
         final frames = takesRest
             ? available.frames

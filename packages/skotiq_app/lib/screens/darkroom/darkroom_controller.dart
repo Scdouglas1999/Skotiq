@@ -256,7 +256,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       unawaited(_loadSiblings(masterId));
     } catch (error) {
       if (!mounted) return;
-      _fail('The Darkroom could not read this master or its recipes: ${userFacingError(error)}');
+      _fail(
+          'The Darkroom could not read this master or its recipes: ${userFacingError(error)}');
     }
   }
 
@@ -518,16 +519,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         masterChannels: master.channels,
         masterCalibration: DawnMasterStats.parse(master.statsJson),
       );
-      final wcs = overlayFromMasterWcs(
-        crval1: master.wcsCrval1,
-        crval2: master.wcsCrval2,
-        crpix1: master.wcsCrpix1,
-        crpix2: master.wcsCrpix2,
-        cd11: master.wcsCd1_1,
-        cd12: master.wcsCd1_2,
-        cd21: master.wcsCd2_1,
-        cd22: master.wcsCd2_2,
-      );
+      final wcs = master.solvedWcs;
       final masterPath = master.masterFitsPath;
       final photometry = await _photometry.resolve(
         master: DawnMaster(
@@ -685,7 +677,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       if (!mounted) return;
       state = state.copyWith(
         offerBusy: false,
-        offerError: 'The automatic edit could not be created: ${userFacingError(error)}',
+        offerError:
+            'The automatic edit could not be created: ${userFacingError(error)}',
       );
       return;
     }
@@ -783,7 +776,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       if (!mounted) return;
       state = state.copyWith(
         offerBusy: false,
-        offerError: 'The recipe could not be created: ${userFacingError(error)}',
+        offerError:
+            'The recipe could not be created: ${userFacingError(error)}',
       );
     }
   }
@@ -1881,7 +1875,8 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       if (!mounted) return;
       state = state.copyWith(
         savePending: false,
-        saveError: 'This edit could not be written to the recipe: ${userFacingError(error)}',
+        saveError:
+            'This edit could not be written to the recipe: ${userFacingError(error)}',
       );
     }
   }

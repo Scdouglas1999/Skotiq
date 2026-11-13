@@ -615,7 +615,8 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     EonSettings config,
     EonReport report,
   ) async {
-    final groups = <(String, int, int?, int?, int, int), List<DbCapturedImage>>{};
+    final groups =
+        <(String, int, int?, int?, int, int), List<DbCapturedImage>>{};
     for (final frame in frames) {
       final type = frame.frameType.toLowerCase();
       if (type != 'dark' && type != 'bias') continue;

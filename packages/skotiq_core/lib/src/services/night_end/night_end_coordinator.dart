@@ -137,7 +137,12 @@ Future<void> Function({
   EonReport? calibration,
 })
 _nightEndHandler(Ref ref) =>
-    ({required sessionId, required generation, required reason, calibration}) async {
+    ({
+      required sessionId,
+      required generation,
+      required reason,
+      calibration,
+    }) async {
       try {
         final run = await ref
             .read(nightEndRunnerProvider)

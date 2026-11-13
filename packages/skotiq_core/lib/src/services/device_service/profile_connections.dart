@@ -221,13 +221,10 @@ extension _DeviceServiceProfileConnections on DeviceService {
       }
     }
     final typeOf = {for (final slot in slots) slot.label: slot.type};
-    final resolutions = resolveProfileSlots(
-      [
-        for (final slot in slots)
-          (label: slot.label, savedId: slot.savedId, savedName: slot.savedName),
-      ],
-      (label) => discovered[typeOf[label]] ?? const [],
-    );
+    final resolutions = resolveProfileSlots([
+      for (final slot in slots)
+        (label: slot.label, savedId: slot.savedId, savedName: slot.savedName),
+    ], (label) => discovered[typeOf[label]] ?? const []);
 
     if (_slotExpectationsProfileId != profile.id) {
       _slotExpectations.clear();
@@ -378,9 +375,7 @@ extension _DeviceServiceProfileConnections on DeviceService {
       return connect(type, deviceId);
     }
     await _retryFailedConnects(only: label);
-    final outcome = _ref
-        .read(deviceConnectionProgressProvider)
-        .byDevice[label];
+    final outcome = _ref.read(deviceConnectionProgressProvider).byDevice[label];
     if (outcome?.status == DeviceConnectProgressStatus.failed) {
       throw outcome!.error ??
           StateError(outcome.errorMessage ?? 'The $label did not connect.');

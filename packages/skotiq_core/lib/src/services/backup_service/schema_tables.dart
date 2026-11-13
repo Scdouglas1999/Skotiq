@@ -200,8 +200,7 @@ extension _BackupSchemaTables on BackupService {
         if (await _writeRow(name, row, replace: replace) > 0) {
           written++;
         } else if (shape.primaryKey case final key?
-            when row[key] != null &&
-                !await _liveRowEquals(name, key, row)) {
+            when row[key] != null && !await _liveRowEquals(name, key, row)) {
           (keptLive[name] ??= {}).add(row[key]!);
           skipped++;
         }
@@ -284,9 +283,8 @@ extension _BackupSchemaTables on BackupService {
   }
 
   Future<Set<(String, int)>> _foreignKeyViolations() async => {
-    for (final v in await database
-        .customSelect('PRAGMA foreign_key_check')
-        .get())
+    for (final v
+        in await database.customSelect('PRAGMA foreign_key_check').get())
       if (v.readNullable<int>('rowid') case final rowid?)
         (v.read<String>('table'), rowid),
   };

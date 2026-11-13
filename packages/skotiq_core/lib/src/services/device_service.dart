@@ -464,6 +464,7 @@ class DeviceService {
   /// when a cooler command of your own follows immediately.
   void cancelWarmCamera({bool restorePriorSetting = true}) =>
       _cancelWarmCamera(restorePriorSetting: restorePriorSetting);
+
   /// Connect the camera the built-in guider takes its frames with. It is a
   /// second camera: it never takes the imaging camera's place, so the
   /// imaging camera stays connected and selected.

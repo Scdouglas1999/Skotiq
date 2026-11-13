@@ -5,7 +5,7 @@ import 'database_provider.dart';
 import 'darkroom_pass/pass_providers.dart' show passReporterProvider;
 import '../services/color_calibration_service.dart';
 import '../services/plate_solve_service.dart';
-import '../services/wcs_overlay.dart';
+import '../services/wcs/gnomonic_projection.dart';
 import '../services/post_session_integration_service.dart';
 import 'calibration_library_service_providers.dart';
 import 'color_calibration_service_provider.dart';
@@ -46,7 +46,7 @@ final postSessionIntegrationServiceProvider = Provider<PostSessionIntegrationSer
         ({
           required String masterFits,
           required String outputFits,
-          required WcsOverlay wcs,
+          required SolvedWcs wcs,
           required int channels,
         }) async {
           final service = ref.read(colorCalibrationServiceProvider);

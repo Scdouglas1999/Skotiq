@@ -172,7 +172,11 @@ bool discoveryHoldsProfileDevice({
 }
 
 /// One profile slot to resolve: its label, saved id and saved name.
-typedef ProfileSlotRequest = ({String label, String savedId, String? savedName});
+typedef ProfileSlotRequest = ({
+  String label,
+  String savedId,
+  String? savedName,
+});
 
 /// Resolve several slots of one profile together, against one discovery list
 /// per slot.

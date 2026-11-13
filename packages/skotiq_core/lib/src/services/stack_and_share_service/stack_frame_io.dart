@@ -30,7 +30,10 @@ extension _StackFrameIo on StackAndShareService {
       );
       _ensureSameHost();
       if (match != null) {
-        darkData = await _loadMatchingPixels(match.calibrationPath, raw.pixelCount);
+        darkData = await _loadMatchingPixels(
+          match.calibrationPath,
+          raw.pixelCount,
+        );
         _ensureSameHost();
       }
     }

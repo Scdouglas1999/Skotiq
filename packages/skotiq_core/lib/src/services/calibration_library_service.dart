@@ -63,6 +63,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
   final SkotiqDatabase _db;
   final FlatLibraryDao _flatDao;
   final CalibrationTagsDao _tagsDao;
+
   /// The host this service was built for; null in wirings without one.
   final AsyncScope<SkotiqBackend>? _host;
 
@@ -527,5 +528,4 @@ class CalibrationLibraryService implements CalibrationLibrary {
   }
 
   static double _clampScore(double score) => score.clamp(0.0, 100.0);
-
 }

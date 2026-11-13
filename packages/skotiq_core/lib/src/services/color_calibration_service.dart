@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/imaging/color_calibration_result.dart';
 import '../models/imaging/star_photometry.dart';
 import 'post_session_seam.dart';
-import 'wcs_overlay.dart';
+import 'wcs/gnomonic_projection.dart';
 
 /// A cone search over a photometric star catalog: returns the catalog [Star]s
 /// within [radiusDegrees] of [center], optionally magnitude-limited.
@@ -55,7 +54,7 @@ class MatchedColorStar {
 ///     [PostSessionSeam.detectStarsPhotometry] — each detection carries its
 ///     centroid, SNR, shape, and per-channel aperture flux.
 ///  2. **Project** each detection's pixel centroid to (RA, Dec) with the
-///     supplied [WcsOverlay].
+///     supplied [SolvedWcs].
 ///  3. **Cone-search** the photometric catalog over the master's field and
 ///     **cross-match** each detection to the nearest catalog star within an
 ///     arcsecond tolerance, keeping only well-measured, unsaturated, single
@@ -140,7 +139,7 @@ class ColorCalibrationService {
   Future<ColorCalibrationResult> calibrate({
     required String masterFits,
     required String outputFits,
-    required WcsOverlay? wcs,
+    required SolvedWcs? wcs,
     required int channels,
     double? whiteRefBv,
     double matchToleranceArcsec = defaultMatchToleranceArcsec,
@@ -148,7 +147,7 @@ class ColorCalibrationService {
     int? aperture,
   }) async {
     // No WCS → we cannot place detections on the sky. Skip, keep the master.
-    if (wcs == null) return skipped(outputFits);
+    if (wcs == null || !wcs.isValid) return skipped(outputFits);
 
     final photometry = await _seam.detectStarsPhotometry(
       inputFits: masterFits,
@@ -160,7 +159,7 @@ class ColorCalibrationService {
     final matched = crossMatch(
       photometry: photometry,
       wcs: wcs,
-      catalog: await _coneSearchForField(photometry, wcs),
+      catalog: await _coneSearchForField(wcs),
       matchToleranceArcsec: matchToleranceArcsec,
       channels: channels,
     );
@@ -176,23 +175,13 @@ class ColorCalibrationService {
     );
   }
 
-  /// Cone-search the catalog over the master's field: centre on the WCS
-  /// reference, radius = half the frame diagonal (with a small margin).
-  Future<List<Star>> _coneSearchForField(
-    StarPhotometryResult photometry,
-    WcsOverlay wcs,
-  ) {
-    final halfDiagDeg =
-        0.5 *
-        math.sqrt(
-          math.pow(photometry.width * wcs.cdelt1, 2) +
-              math.pow(photometry.height * wcs.cdelt2, 2),
-        );
-    final radiusDeg = (halfDiagDeg.abs() * 1.1).clamp(0.05, 30.0);
-    // `getStarsNear` takes RA in *hours* on its `CelestialCoordinate`; the WCS
-    // reference RA (`crval1`) is in degrees.
-    final center = CelestialCoordinate(ra: wcs.crval1 / 15.0, dec: wcs.crval2);
-    return _starSearch(center, radiusDeg);
+  /// Cone-search the catalog over the master's field.
+  Future<List<Star>> _coneSearchForField(SolvedWcs wcs) {
+    final centre = GnomonicProjection(wcs).imageCentre;
+    return _starSearch(
+      CelestialCoordinate(ra: centre.raDegrees / 15.0, dec: centre.decDegrees),
+      wcs.coneSearchRadiusDegrees,
+    );
   }
 
   /// Cross-match detected stars to [catalog] stars with a known colour index.
@@ -217,7 +206,7 @@ class ColorCalibrationService {
   /// Exposed for testing.
   List<MatchedColorStar> crossMatch({
     required StarPhotometryResult photometry,
-    required WcsOverlay wcs,
+    required SolvedWcs wcs,
     required List<Star> catalog,
     required int channels,
     double matchToleranceArcsec = defaultMatchToleranceArcsec,
@@ -230,12 +219,18 @@ class ColorCalibrationService {
 
     // Usable detections, paired with their projected sky position and a stable
     // index. Order-independence below relies on these indices, not list order.
+    final projection = GnomonicProjection(wcs);
     final detections =
         <({int idx, DetectedStarPhotometry star, double ra, double dec})>[];
     for (final star in photometry.stars) {
       if (!_isUsableDetection(star, channels)) continue;
-      final (ra, dec) = wcs.pixelToCelestial(star.x, star.y);
-      detections.add((idx: detections.length, star: star, ra: ra, dec: dec));
+      final sky = projection.pixelToWorld(x: star.x, y: star.y);
+      detections.add((
+        idx: detections.length,
+        star: star,
+        ra: sky.raDegrees,
+        dec: sky.decDegrees,
+      ));
     }
     if (detections.isEmpty) return const [];
 

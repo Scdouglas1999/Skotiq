@@ -88,8 +88,9 @@ void main() {
             wcs: null,
           );
       expect(result.hasStars, isTrue, reason: result.unavailableReason);
-      expect(catalog.requests.single[0], closeTo(35.6336, 1e-7));
-      expect(catalog.requests.single[1], closeTo(42.3604, 1e-7));
+      // The cone is centered on the image, half a pixel from CRPIX here.
+      expect(catalog.requests.single[0], closeTo(35.6336, 2e-4));
+      expect(catalog.requests.single[1], closeTo(42.3604, 2e-4));
       expect(result.stars.single, {
         'raDeg': 35.63,
         'decDeg': 42.36,

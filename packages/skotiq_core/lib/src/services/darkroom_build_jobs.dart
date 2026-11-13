@@ -891,7 +891,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     if (frames == null || frames.isEmpty) {
       throw StateError('No captured lights for $target.');
     }
-    final directory = await ref.read(targetMastersFolderProvider(target).future);
+    final directory = await ref.read(
+      targetMastersFolderProvider(target).future,
+    );
     _begin(
       DarkroomBuildJob(
         target: target,

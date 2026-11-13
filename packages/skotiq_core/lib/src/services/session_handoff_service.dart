@@ -3,7 +3,8 @@ import 'dart:convert';
 import '../database/daos/images_dao.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/targets_dao.dart';
-import '../database/database.dart' show DbCapturedImage, ImagingSession, DbTarget;
+import '../database/database.dart'
+    show DbCapturedImage, ImagingSession, DbTarget;
 import '../models/sequence/sequence_models.dart';
 import 'quick_start_service.dart';
 

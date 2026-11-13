@@ -35,12 +35,10 @@ class ProfileService {
 
   /// Read through the container: a continuation that outlives a backend swap
   /// must not touch this service's own `Ref`.
-  _BackendAuthority get _authority =>
-      _ref.container.backendScopes().begin();
+  _BackendAuthority get _authority => _ref.container.backendScopes().begin();
 
   EquipmentProfilesNotifier get _profilesNotifier =>
       _ref.read(equipmentProfilesProvider.notifier);
-
 
   /// Load and activate a profile, optionally connecting devices
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {

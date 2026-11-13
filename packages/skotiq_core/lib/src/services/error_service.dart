@@ -244,5 +244,4 @@ class ErrorService {
   bool get hasCriticalErrors {
     return _errorHistory.any((e) => e.severity == ErrorSeverity.critical);
   }
-
 }
