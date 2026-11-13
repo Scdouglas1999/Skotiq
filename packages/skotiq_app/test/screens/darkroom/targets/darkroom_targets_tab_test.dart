@@ -273,8 +273,10 @@ Future<_Harness> _pump(
       darkroomBuildJobsProvider.overrideWith(() => jobs),
       darkroomTargetCalibrationProvider
           .overrideWith((ref, key) async => _library()),
-      darkroomMastersRootProvider
-          .overrideWith((ref) async => Directory('/data/Masters')),
+      outputLocationsProvider.overrideWith(
+        (ref) async =>
+            OutputLocations(captureFolder: '/data', documents: Directory('/home')),
+      ),
       darkroomFileExistsProvider.overrideWithValue((_) => true),
       subThumbnailProvider.overrideWith(
         (ref, id) => Future<Uint8List>.error(StateError('no thumbnail')),

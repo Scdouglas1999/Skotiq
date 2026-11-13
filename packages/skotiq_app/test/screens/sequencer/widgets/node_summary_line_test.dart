@@ -81,6 +81,12 @@ Future<void> _pump(
   await tester.pump();
 }
 
+class _StubFilterWheel extends FilterWheelStateNotifier {
+  _StubFilterWheel(super.ref, FilterWheelState initial) {
+    state = initial;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -127,6 +133,37 @@ void main() {
 
       // The C3 inline editor titles its count section "Exposure count".
       expect(find.text('Exposure count'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'the inline filter menu offers the connected wheel\'s slots when the '
+    'profile names none, as the inspector does',
+    (tester) async {
+      await _pump(
+        tester,
+        ExposureNode(count: 12, durationSecs: 180, filter: 'R'),
+        executionState: SequenceExecutionState.idle,
+        extraOverrides: [
+          activeEquipmentProfileProvider.overrideWithValue(null),
+          filterWheelStateProvider.overrideWith(
+            (ref) => _StubFilterWheel(
+              ref,
+              const FilterWheelState(
+                connectionState: DeviceConnectionState.connected,
+                filterNames: ['L', 'R', 'G'],
+              ),
+            ),
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('R'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('L'), findsOneWidget);
+      expect(find.text('G'), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
     },
   );
 

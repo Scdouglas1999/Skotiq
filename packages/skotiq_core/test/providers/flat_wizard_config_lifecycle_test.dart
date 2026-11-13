@@ -95,7 +95,10 @@ class _SeededCameraNotifier extends CameraStateNotifier {
 
 class _SeededFilterWheelNotifier extends FilterWheelStateNotifier {
   _SeededFilterWheelNotifier(super.ref, List<String> names) {
-    state = FilterWheelState(filterNames: names);
+    state = FilterWheelState(
+      connectionState: DeviceConnectionState.connected,
+      filterNames: names,
+    );
   }
 }
 
@@ -367,7 +370,7 @@ void main() {
     double? histogramTarget,
   }) async {
     final notifier = container.read(flatWizardProvider.notifier);
-    await notifier.loadFiltersFromWheel();
+    await notifier.loadFilters();
     var gs = container
         .read(flatWizardProvider)
         .globalSettings

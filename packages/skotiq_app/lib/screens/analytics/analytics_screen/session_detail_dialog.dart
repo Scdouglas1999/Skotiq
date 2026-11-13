@@ -857,11 +857,7 @@ Future<String> _saveRemoteExport(
   String format,
 ) async {
   final bytes = await backend.files.downloadSessionExport(sessionId, format);
-  final docsDir = await resolveSkotiqDocumentsDirectory();
-  final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
-  if (!await exportDir.exists()) {
-    await exportDir.create(recursive: true);
-  }
+  final exportDir = await resolveSkotiqExportsDirectory();
   final fileName =
       'session_${sessionId}_${DateTime.now().millisecondsSinceEpoch}.$format';
   final filePath = path.join(exportDir.path, fileName);

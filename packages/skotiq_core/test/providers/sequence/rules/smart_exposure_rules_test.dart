@@ -111,11 +111,8 @@ void main() {
     ]);
 
     test(
-      'connected wheel + empty profile filters does not claim the wheel is missing',
+      'a connected wheel\'s slots are the rows\' filters when the profile names none',
       () {
-        // The reported defect: the wheel was connected and green on the
-        // Equipment screen while pre-flight headed the error "No filter
-        // wheel for SmartExposure".
         final container = _container(
           profileFilters: const [],
           wheel: const FilterWheelState(
@@ -125,21 +122,25 @@ void main() {
           ),
         );
 
-        final issues = _runWheelRule(container, _sequenceWith(node));
-        expect(issues, hasLength(1));
-        final issue = issues.single;
-        expect(issue.severity, ValidationSeverity.error);
-        expect(issue.title, 'No filters configured for SmartExposure');
-        expect(issue.title, isNot(contains('No filter wheel')));
-        // The message must reconcile with the Equipment screen, not
-        // contradict it.
-        expect(issue.description, contains('Simulated Filter Wheel'));
-        expect(issue.description, contains('is connected'));
-        expect(issue.description, contains('lists no filters'));
-        // And it should hand over the slots the driver reported.
-        expect(issue.resolutionHint, contains('Slot 1, Slot 2, Slot 3'));
+        expect(_runWheelRule(container, _sequenceWith(node)), isEmpty);
       },
     );
+
+    test('a connected wheel reporting no slots is not called missing', () {
+      final container = _container(
+        profileFilters: const [],
+        wheel: const FilterWheelState(
+          connectionState: DeviceConnectionState.connected,
+          deviceName: 'Simulated Filter Wheel',
+        ),
+      );
+
+      final issue = _runWheelRule(container, _sequenceWith(node)).single;
+      expect(issue.severity, ValidationSeverity.error);
+      expect(issue.title, 'No filters configured for SmartExposure');
+      expect(issue.description, contains('Simulated Filter Wheel'));
+      expect(issue.description, contains('reports no filter slots'));
+    });
 
     test('profile assigns a wheel but lists no filters = same wording', () {
       final container = _container(
@@ -180,6 +181,20 @@ void main() {
   });
 
   group('SmartExposureFilterUnknownRule', () {
+    test('rows check against the connected wheel\'s slots', () {
+      final container = _container(
+        profileFilters: const ['L'],
+        wheel: const FilterWheelState(
+          connectionState: DeviceConnectionState.connected,
+          filterNames: ['L', 'Ha', 'OIII'],
+        ),
+      );
+      final node = _smartNode([
+        const FilterPlan(filterName: 'Ha', count: 5, durationSecs: 300),
+      ]);
+      expect(_runRule(container, _sequenceWith(node)), isEmpty);
+    });
+
     test('row with filter present in profile = no issue', () {
       final container = _container(profileFilters: ['L', 'R', 'G', 'B']);
       final node = _smartNode([
@@ -206,7 +221,7 @@ void main() {
       );
       expect(oiii.severity, ValidationSeverity.error);
       expect(oiii.category, ValidationCategory.equipment);
-      expect(oiii.title, 'SmartExposure plan filter not in profile');
+      expect(oiii.title, 'SmartExposure plan filter not available');
       expect(oiii.affectedNodeId, node.id);
       // Per-row diagnostics: must cite the 1-based row index and the
       // available set so the user knows exactly what's wrong.
@@ -258,10 +273,8 @@ void main() {
       expect(_runRule(container, _sequenceWith(node)), isEmpty);
     });
 
-    test('no active profile = silent (the missing-wheel rule reports it)', () {
-      // When the profile is null, SmartExposureFilterWheelMissingRule emits an
-      // info issue explaining that the check is skipped. This rule defers to it
-      // rather than double-reporting.
+    test('no active profile and no wheel = silent (the missing-wheel rule '
+        'reports it)', () {
       final container = _container(profileFilters: null);
       final node = _smartNode([
         const FilterPlan(filterName: 'OIII', count: 5, durationSecs: 300),

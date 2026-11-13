@@ -20,7 +20,6 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../../widgets/accessible_dropdown.dart';
 import '../../../widgets/sensitivity_field.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
-import '../filter_source.dart';
 import 'delete_node_confirmation.dart';
 import 'live_stacking_properties.dart';
 import 'meridian_flip_edit_helper.dart';

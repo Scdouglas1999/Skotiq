@@ -152,6 +152,7 @@ void main() {
     test('builds LRGB sequence from a single target', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -212,6 +213,7 @@ void main() {
       ];
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -231,6 +233,7 @@ void main() {
     test('dark time left after the last target is named in the warnings', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -251,6 +254,7 @@ void main() {
     test('SmartNightPlan JSON round-trips for draft persistence', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext().copyWith(
@@ -293,6 +297,7 @@ void main() {
     test('emits TargetSchedulerNode for >=3 targets', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -321,6 +326,7 @@ void main() {
     test('build uses shared exposure context when supplied', () {
       final baseline = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -330,6 +336,7 @@ void main() {
       );
       final lowFullWell = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -371,6 +378,7 @@ void main() {
     test('narrowband-only profile + SHO strategy emits Ha+OIII+SII rows', () {
       final plan = service.build(
         profile: narrowbandProfile,
+        availableFilters: narrowbandProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -398,6 +406,7 @@ void main() {
     test('OSC strategy works on a no-wheel profile', () {
       final plan = service.build(
         profile: oscProfile,
+        availableFilters: oscProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -422,6 +431,7 @@ void main() {
       expect(
         () => service.build(
           profile: monoProfile,
+          availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: baseContext(),
@@ -437,6 +447,7 @@ void main() {
       expect(
         () => service.build(
           profile: monoProfile,
+          availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: baseContext(),
@@ -465,6 +476,7 @@ void main() {
       expect(
         () => service.build(
           profile: monoProfile,
+          availableFilters: monoProfile.filterNames,
           latitudeDeg: 0.0,
           longitudeDeg: 0.0,
           context: baseContext(),
@@ -481,6 +493,7 @@ void main() {
       expect(
         () => service.build(
           profile: oscProfile,
+          availableFilters: oscProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: baseContext(),
@@ -502,6 +515,7 @@ void main() {
 
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: context,
@@ -530,6 +544,7 @@ void main() {
         PolarAlignmentNode polarNodeFor(double latitudeDeg) {
           final plan = service.build(
             profile: monoProfile,
+            availableFilters: monoProfile.filterNames,
             latitudeDeg: latitudeDeg,
             longitudeDeg: -73.0,
             context: staleContext(),
@@ -559,6 +574,7 @@ void main() {
 
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: context,
@@ -578,6 +594,7 @@ void main() {
     test('honors per-target integration budget setting', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -631,6 +648,7 @@ void main() {
       );
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -667,6 +685,7 @@ void main() {
       expect(
         () => service.build(
           profile: monoProfile,
+          availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: tightContext,
@@ -681,6 +700,7 @@ void main() {
     test('emitted sequence passes structural invariants', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -704,6 +724,7 @@ void main() {
 
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: tightContext,
@@ -721,6 +742,7 @@ void main() {
     test('Smart Exposure node embeds per-target integration budget', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -1438,6 +1460,7 @@ void main() {
       () {
         final plan = service.build(
           profile: monoProfile,
+          availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: darkGapContext(
@@ -1476,6 +1499,7 @@ void main() {
         'and no dark library warning emitted', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: darkGapContext(),
@@ -1517,6 +1541,7 @@ void main() {
       ];
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: darkGapContext(
@@ -1585,6 +1610,7 @@ void main() {
       ];
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: darkGapContext(requirements: requirements),
@@ -1631,6 +1657,7 @@ void main() {
       ];
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: darkGapContext(requirements: requirements),
@@ -1668,6 +1695,7 @@ void main() {
       ];
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: darkGapContext(requirements: requirements),
@@ -1701,6 +1729,7 @@ void main() {
       ];
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: darkGapContext(requirements: requirements),
@@ -1764,6 +1793,7 @@ void main() {
       );
       final tightPlan = service.build(
         profile: narrowbandProfile,
+        availableFilters: narrowbandProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -1794,6 +1824,7 @@ void main() {
       // a sloppy mount — confirming the ceiling actually scales with RMS.
       final loosePlan = service.build(
         profile: narrowbandProfile,
+        availableFilters: narrowbandProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -1829,6 +1860,7 @@ void main() {
         'nor the exposure context carry guide RMS', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -1862,6 +1894,7 @@ void main() {
       expect(
         () => service.build(
           profile: unknownCameraProfile,
+          availableFilters: unknownCameraProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: baseContext(),
@@ -1887,6 +1920,7 @@ void main() {
       // and not depend on an exposure context.
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -1903,6 +1937,7 @@ void main() {
         'calibration is available', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -1970,6 +2005,7 @@ void main() {
 
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -2046,6 +2082,7 @@ void main() {
 
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: baseContext(),
@@ -2140,6 +2177,7 @@ void main() {
     test('preset default ON: emitted node carries swap threshold 80', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: contextWith(),
@@ -2164,6 +2202,7 @@ void main() {
     test('adaptiveTargetSwap=false leaves swap disabled (null)', () {
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: contextWith(),
@@ -2194,6 +2233,7 @@ void main() {
 
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: contextWith(horizon: horizon),
@@ -2224,6 +2264,7 @@ void main() {
       () {
         final plan = service.build(
           profile: monoProfile,
+          availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: contextWith(),
@@ -2248,6 +2289,7 @@ void main() {
       );
       final plan = service.build(
         profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: contextWith(horizon: horizon),

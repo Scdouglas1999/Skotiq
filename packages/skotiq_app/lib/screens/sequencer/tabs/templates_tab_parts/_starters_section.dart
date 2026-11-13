@@ -235,7 +235,7 @@ class _StarterCard extends ConsumerWidget {
     final starter = service.cloneForUse(sample);
     final filterRenames = filterRenamesFor(
       starter,
-      ref.read(filterNamesToMatchProvider),
+      ref.read(effectiveFiltersProvider),
     );
     final cloned = renameFilters(starter, filterRenames);
     try {

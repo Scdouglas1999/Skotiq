@@ -493,7 +493,7 @@ void main() {
             transportFactory ?? (destination, jobId) => _RefusingTransport(),
       ),
       notifier: notifier,
-      outputDirectory: () async => output.path,
+      darkroomDirectory: () async => '${output.path}/darkroom',
     );
   }
 
@@ -1731,7 +1731,7 @@ void main() {
         transportFactory: (destination, jobId) => _RefusingTransport(),
       ),
       notifier: notifier,
-      outputDirectory: () async => crashDir.path,
+      darkroomDirectory: () async => '${crashDir.path}/darkroom',
     );
 
     final outcomes = await service.drainQueue();

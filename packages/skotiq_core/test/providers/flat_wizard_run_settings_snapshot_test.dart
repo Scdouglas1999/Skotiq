@@ -35,7 +35,10 @@ class _SeededCameraNotifier extends CameraStateNotifier {
 
 class _SeededFilterWheelNotifier extends FilterWheelStateNotifier {
   _SeededFilterWheelNotifier(super.ref, List<String> names) {
-    state = FilterWheelState(filterNames: names);
+    state = FilterWheelState(
+      connectionState: DeviceConnectionState.connected,
+      filterNames: names,
+    );
   }
 }
 
@@ -213,7 +216,7 @@ void main() {
     required int frameCount,
   }) async {
     final notifier = container.read(flatWizardProvider.notifier);
-    await notifier.loadFiltersFromWheel();
+    await notifier.loadFilters();
     notifier.updateGlobalSettings(
       container
           .read(flatWizardProvider)
@@ -371,7 +374,7 @@ void main() {
               frameCountOverride: 2,
             ),
       );
-      await notifier.loadFiltersFromWheel();
+      await notifier.loadFilters();
       expect(
         container.read(flatWizardProvider).filterSettings[1].gainOverride,
         139,
@@ -385,7 +388,7 @@ void main() {
       }
       expect(await db.settingsDao.getSetting(key), contains('139'));
       final fresh = makeContainer(backend);
-      await fresh.read(flatWizardProvider.notifier).loadFiltersFromWheel();
+      await fresh.read(flatWizardProvider.notifier).loadFilters();
       final restored = fresh.read(flatWizardProvider).filterSettings[1];
       expect(
         (
@@ -402,7 +405,7 @@ void main() {
         1,
         restored.copyWith(gainOverride: null),
       );
-      await freshNotifier.loadFiltersFromWheel();
+      await freshNotifier.loadFilters();
       expect(
         fresh.read(flatWizardProvider).filterSettings[1].gainOverride,
         isNull,

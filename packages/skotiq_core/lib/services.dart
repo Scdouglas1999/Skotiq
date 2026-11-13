@@ -192,6 +192,7 @@ export 'src/services/target_suggestion_service.dart';
 export 'src/services/transient_alert_service.dart';
 export 'src/services/sequence_time_estimator.dart';
 export 'src/services/pre_session_simulator.dart';
+export 'src/services/plan_timer.dart';
 export 'src/services/science/astrometric_residuals.dart';
 export 'src/services/science/nearest_neighbour_matching.dart';
 export 'src/services/science/science_backend.dart';
@@ -237,6 +238,7 @@ export 'src/services/stack_share_export_service.dart';
 // accumulation + master-flat library.
 export 'src/services/post_session_seam.dart';
 export 'src/services/darkroom_build_jobs.dart';
+export 'src/services/output_locations.dart';
 export 'src/services/darkroom_state_store.dart';
 export 'src/services/night_end/night_end_coordinator.dart';
 export 'src/services/night_end/night_end_run.dart';

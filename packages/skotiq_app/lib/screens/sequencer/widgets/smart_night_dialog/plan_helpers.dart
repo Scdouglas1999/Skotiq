@@ -216,28 +216,22 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
   }
 
   bool _validateStrategy() {
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final fits = _strategyFitsProfile(_strategy, profile);
+    final fits = _strategyFits(_strategy, ref.read(effectiveFiltersProvider));
     if (!fits) {
       context.showWarningSnackBar(
-        'The selected strategy needs filters this profile doesn\'t '
-        'have. Pick a different strategy or add filters to the profile.',
+        'The selected strategy needs filters this rig doesn\'t have. Pick '
+        'a different strategy or add filters to the wheel or the profile.',
       );
       return false;
     }
     return true;
   }
 
-  /// True if the selected strategy can find at least one usable filter
-  /// in the active profile. We do a simple set intersection rather than
-  /// reusing the service's internal helper because we want a synchronous
-  /// validation before kicking the builder.
-  bool _strategyFitsProfile(
-    SmartNightStrategy strategy,
-    EquipmentProfileModel? profile,
-  ) {
-    if (profile == null) return false;
-    final names = profile.filterNames.map((n) => n.toLowerCase()).toSet();
+  /// True if [strategy] can find at least one usable filter in [filters]
+  /// (the rig's list, `effectiveFiltersProvider`). A plain set intersection
+  /// so the step validates synchronously before the builder runs.
+  bool _strategyFits(SmartNightStrategy strategy, List<String> filters) {
+    final names = filters.map((n) => n.toLowerCase()).toSet();
     bool any(Iterable<String> wanted) => wanted.any(names.contains);
     switch (strategy) {
       case SmartNightStrategy.autoLrgb:

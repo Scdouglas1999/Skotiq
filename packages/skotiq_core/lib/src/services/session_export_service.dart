@@ -310,16 +310,8 @@ class SessionExportService {
       ? ''
       : '<div class="muted" style="font-size:11px;margin-top:4px">$note</div>';
 
-  Future<Directory> _getExportDirectory() async {
-    final docsDir = await _documentsDirectoryProvider();
-    final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
-
-    if (!await exportDir.exists()) {
-      await exportDir.create(recursive: true);
-    }
-
-    return exportDir;
-  }
+  Future<Directory> _getExportDirectory() =>
+      resolveSkotiqExportsDirectory(documents: _documentsDirectoryProvider);
 
   /// Export session summary (lightweight text format)
   ///

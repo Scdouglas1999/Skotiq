@@ -1,23 +1,18 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import '../../database/daos/settings_dao.dart';
-import '../../settings/app_settings_state.g.dart' show AppSettingDefs;
 import '../backend_provider.dart';
-import '../database_provider.dart';
-import '../../utils/skotiq_data_directory.dart';
 import '../../services/darkroom_pass/pass_log.dart';
 import '../../services/darkroom_pass/pass_recorder.dart';
 import '../../services/darkroom_pass/pass_timeline.dart';
+import '../../services/output_locations.dart';
+import '../output_locations_provider.dart';
 
 /// The one recorder of Darkroom passes, listening for as long as the app runs.
 ///
-/// Records live next to the Darkroom's drafts (`<image output>/darkroom`) when
-/// an image output directory is set, else under the app's data directory.
+/// Records live next to the Darkroom's drafts, in [OutputLocations.darkroom].
 ///
 /// Read, never watched: a recorder rebuilt on a backend change would drop the
 /// live logs and, through every service that reports to it, rebuild those
@@ -26,16 +21,9 @@ final darkroomPassRecorderProvider = Provider<DarkroomPassRecorder>((ref) {
   final recorder = DarkroomPassRecorder(
     events: ref.read(backendProvider).eventStream,
     baseDirectory: () async {
-      final db = ref.read(databaseProvider);
-      final configured = (await SettingsDao(
-        db,
-      ).read(AppSettingDefs.imageOutputPath)).trim();
-      final base = configured.isNotEmpty
-          ? configured
-          : (await resolveSkotiqDataDirectory()).path;
-      final dir = p.join(base, 'darkroom');
-      await Directory(dir).create(recursive: true);
-      return dir;
+      final locations = await ref.read(outputLocationsProvider.future);
+      final dir = await locations.darkroom.create(recursive: true);
+      return dir.path;
     },
   );
   ref.listen(backendProvider, (previous, next) {

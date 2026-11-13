@@ -283,6 +283,7 @@ void main() {
     }) {
       return service.build(
         profile: profile,
+        availableFilters: profile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
         context: SmartNightContext(

@@ -114,7 +114,7 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
     TemplateSnippet snippet, {
     String? parentId,
     int? index,
-    List<String>? profileFilterNames,
+    List<String>? availableFilters,
   }) {
     if (snippet.nodeData.isEmpty) return;
     _ensureEditable('insert snippet');
@@ -129,7 +129,7 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
         snippet,
         parentId: parentId,
         index: index,
-        profileFilterNames: profileFilterNames,
+        availableFilters: availableFilters,
       );
     });
   }
@@ -138,7 +138,7 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
     TemplateSnippet snippet, {
     String? parentId,
     int? index,
-    List<String>? profileFilterNames,
+    List<String>? availableFilters,
   }) {
     final newNodes = Map<String, SequenceNode>.from(_currentSequence!.nodes);
     final idMapping = <String, String>{};
@@ -214,10 +214,10 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
     }
 
     developer.log(
-      'insertSnippet: profileFilterNames=$profileFilterNames, createdNodes=${createdNodes.length}',
+      'insertSnippet: availableFilters=$availableFilters, createdNodes=${createdNodes.length}',
       name: 'Sequence',
     );
-    if (profileFilterNames != null && profileFilterNames.isNotEmpty) {
+    if (availableFilters != null && availableFilters.isNotEmpty) {
       for (int i = 0; i < createdNodes.length; i++) {
         final node = createdNodes[i];
         if (node is ExposureNode &&
@@ -225,26 +225,26 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
             node.filter!.isNotEmpty) {
           final matchedIndex = matchingFilterIndex(
             node.filter!,
-            profileFilterNames,
+            availableFilters,
           );
           if (matchedIndex != null) {
             createdNodes[i] = node.copyWith(
-              filter: profileFilterNames[matchedIndex],
+              filter: availableFilters[matchedIndex],
               filterIndex: matchedIndex,
             );
             developer.log(
-              'insertSnippet: Mapped filter "${node.filter}" -> "${profileFilterNames[matchedIndex]}" (index $matchedIndex)',
+              'insertSnippet: Mapped filter "${node.filter}" -> "${availableFilters[matchedIndex]}" (index $matchedIndex)',
               name: 'Sequence',
             );
           }
         } else if (node is FilterChangeNode) {
           final matchedIndex = matchingFilterIndex(
             node.filterName,
-            profileFilterNames,
+            availableFilters,
           );
           if (matchedIndex != null) {
             createdNodes[i] = node.copyWith(
-              filterName: profileFilterNames[matchedIndex],
+              filterName: availableFilters[matchedIndex],
               filterPosition: matchedIndex,
             );
           }

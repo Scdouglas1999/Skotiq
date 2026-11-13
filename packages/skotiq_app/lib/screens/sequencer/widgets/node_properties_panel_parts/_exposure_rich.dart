@@ -1,6 +1,6 @@
 part of '../node_properties_panel.dart';
 
-/// Marker index for the synthetic "stored filter not in this profile" dropdown
+/// Marker index for the synthetic "stored filter not available" dropdown
 /// row. It is display-only — selecting it never rewrites the node.
 const int _kMissingFilterSentinel = -999;
 
@@ -420,7 +420,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
           _AdaptiveExposureSection(
             colors: colors,
             node: node,
-            profile: profile,
           ),
 
           const SizedBox(height: 12),
@@ -475,10 +474,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     final colors = widget.colors;
     final node = widget.node;
 
-    // The profile's filters, falling back to the connected wheel's — the
-    // builder must not deny a filter the capture path is already writing into
-    // the filenames.
-    final filterNames = builderFilterSource(ref).names;
+    final filterNames = ref.watch(effectiveFiltersProvider);
 
     final filterOptions = <({int index, String name})>[
       (index: -1, name: ''), // No filter option
@@ -498,22 +494,22 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
           (node.filterIndex == null && f.name == (node.filter ?? '')),
     );
 
-    // If the stored filter is no longer in the profile, surface it as an
-    // explicit "(not in profile)" option and select it, rather than silently
+    // If the stored filter is no longer available, surface it as an
+    // explicit "(not available)" option and select it, rather than silently
     // snapping to the first filter (which would quietly rewrite the node).
     // `_kMissingFilterSentinel` marks that synthetic row so the renderer and
     // onChanged handler can treat it specially.
     final storedFilterName = node.filter ?? '';
-    final bool missingFromProfile = matched == null &&
+    final bool missingFromList = matched == null &&
         (node.filterIndex != null || storedFilterName.isNotEmpty);
-    if (missingFromProfile) {
+    if (missingFromList) {
       final label = storedFilterName.isNotEmpty
-          ? '$storedFilterName (not in profile)'
-          : 'Filter #${node.filterIndex} (not in profile)';
+          ? '$storedFilterName (not available)'
+          : 'Filter #${node.filterIndex} (not available)';
       filterOptions.add((index: _kMissingFilterSentinel, name: label));
     }
     final currentFilter = matched ??
-        (missingFromProfile ? filterOptions.last : filterOptions.first);
+        (missingFromList ? filterOptions.last : filterOptions.first);
     if (kDebugMode) {
       developer.log(
           '_buildFilterDropdown: currentFilter=(index:${currentFilter.index}, name:"${currentFilter.name}")',
@@ -531,7 +527,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               ? NodeTextInput(
                   colors: colors,
                   value: node.filter ?? '',
-                  hint: BuilderFilterSource.emptyHint,
+                  hint: noFiltersToPickHint,
                   onChanged: (value) {
                     final filter = value.isEmpty ? null : value;
                     ref.read(currentSequenceProvider.notifier).updateNode(
@@ -583,7 +579,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                       }).toList(),
                       onChanged: (newValue) {
                         if (newValue != null) {
-                          // The synthetic "not in profile" row is display-only;
+                          // The synthetic "not available" row is display-only;
                           // re-selecting it must not rewrite the node.
                           if (newValue.index == _kMissingFilterSentinel) return;
                           final isNone = newValue.index < 0;
@@ -607,7 +603,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                   ),
                 ),
         ),
-        if (missingFromProfile) ...[
+        if (missingFromList) ...[
           const SizedBox(height: SkotiqTokens.spaceXs),
           // ONE inline line, not a paragraph: it says what is wrong and what
           // to do, and the button beside it is the doing.
@@ -617,7 +613,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               const SizedBox(width: SkotiqTokens.spaceXs),
               Expanded(
                 child: Text(
-                  'Filter is not in this profile.',
+                  'Filter is not on the wheel or in the profile.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.warning,
                   ),

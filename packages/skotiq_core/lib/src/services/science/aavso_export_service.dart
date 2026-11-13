@@ -305,14 +305,8 @@ class AavsoExportService {
     return value.replaceAll(',', ' ').trim();
   }
 
-  Future<Directory> _getExportDirectory() async {
-    final docs = await _documentsDirectoryProvider();
-    final exportDir = Directory(path.join(docs.path, 'Skotiq', 'exports'));
-    if (!await exportDir.exists()) {
-      await exportDir.create(recursive: true);
-    }
-    return exportDir;
-  }
+  Future<Directory> _getExportDirectory() =>
+      resolveSkotiqExportsDirectory(documents: _documentsDirectoryProvider);
 }
 
 /// Error thrown when AAVSO export fails due to missing data or configuration.

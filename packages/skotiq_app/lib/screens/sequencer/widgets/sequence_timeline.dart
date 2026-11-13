@@ -49,27 +49,9 @@ class SequenceTimeline extends ConsumerWidget {
     final sessionStart =
         isRunning ? ref.watch(sessionStateProvider).startTime : null;
     final timelineStart = startTime ?? sessionStart ?? DateTime.now();
-    final settings = ref.watch(appSettingsProvider).valueOrNull;
-    final hasLocation = settings != null && settings.hasObserverLocation;
-    final estimator = SequenceTimeEstimator(
-      overhead: ref.watch(sequencerOverheadConfigProvider),
-    );
-    final segments = _buildTimelineSegments(
-      sequence,
-      estimator,
-      timelineStart,
-      latitude: hasLocation ? settings.latitude : null,
-      longitude: hasLocation ? settings.longitude : null,
-    );
-    final totalDuration = estimator
-            .estimateTotalDuration(
-              sequence,
-              timelineStart,
-              latitude: hasLocation ? settings.latitude : null,
-              longitude: hasLocation ? settings.longitude : null,
-            )
-            .inMilliseconds /
-        1000.0;
+    final timing = ref.watch(planTimerProvider).time(sequence, timelineStart);
+    final segments = _buildTimelineSegments(sequence, timing);
+    final totalDuration = timing.total.inMilliseconds / 1000.0;
 
     final renderedDuration = segments.fold<double>(
       0,
@@ -129,20 +111,11 @@ class SequenceTimeline extends ConsumerWidget {
 
   List<TimelineSegment> _buildTimelineSegments(
     Sequence sequence,
-    SequenceTimeEstimator estimator,
-    DateTime timelineStart, {
-    double? latitude,
-    double? longitude,
-  }) {
-    final timings = estimator.estimateSequenceTiming(
-      sequence,
-      timelineStart,
-      latitude: latitude,
-      longitude: longitude,
-    );
+    PlanTiming plan,
+  ) {
     final segments = <TimelineSegment>[];
-    var cursor = timelineStart;
-    for (final timing in timings) {
+    var cursor = plan.start;
+    for (final timing in plan.timings) {
       if (timing.estimatedStart.isAfter(cursor)) {
         segments.add(
           TimelineSegment(

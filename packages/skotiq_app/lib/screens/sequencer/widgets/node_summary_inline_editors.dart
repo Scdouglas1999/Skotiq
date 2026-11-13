@@ -45,7 +45,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/sensitivity_field.dart';
-import '../filter_source.dart';
 
 import 'node_summary.dart';
 
@@ -699,11 +698,9 @@ class _ExposureFilterEditor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
-    final filterNames = profile?.filterNames ?? const <String>[];
+    final filterNames = ref.watch(effectiveFiltersProvider);
 
-    // Errors-are-a-feature: with no profile filters we offer explicit free-text
-    // (mirroring the panel) rather than guessing a filter name.
+    // With no filters to pick, the name is typed, as in the inspector.
     if (filterNames.isEmpty) {
       return _FreeTextFilterEditor(
         initialValue: node.filter ?? '',
@@ -765,8 +762,7 @@ class _FilterChangeEditor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
-    final filterNames = profile?.filterNames ?? const <String>[];
+    final filterNames = ref.watch(effectiveFiltersProvider);
 
     if (filterNames.isEmpty) {
       return _FreeTextFilterEditor(
@@ -805,7 +801,7 @@ class _FilterChangeEditor extends ConsumerWidget {
   }
 }
 
-/// Free-text filter entry shown when the active profile defines no filters.
+/// Free-text filter entry shown when there are no filters to pick.
 class _FreeTextFilterEditor extends StatefulWidget {
   final String initialValue;
   final ValueChanged<String> onCommit;
@@ -853,7 +849,7 @@ class _FreeTextFilterEditorState extends State<_FreeTextFilterEditor> {
       child: SkotiqTextField(
         controller: _controller,
         focusNode: _focusNode,
-        hint: BuilderFilterSource.emptyHint,
+        hint: noFiltersToPickHint,
         onChanged: (value) => widget.onCommit(value.trim()),
       ),
     );

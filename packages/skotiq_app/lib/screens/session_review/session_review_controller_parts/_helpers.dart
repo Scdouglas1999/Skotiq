@@ -534,13 +534,11 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     return null;
   }
 
-  Future<String> _outputDir() async {
-    final configured = await _ref
-        .read(settingsDaoProvider)
-        .read(AppSettingDefs.imageOutputPath);
-    if (configured.trim().isNotEmpty) {
-      return p.join(configured.trim(), 'masters');
-    }
-    return (await _ref.read(darkroomMastersRootProvider.future)).path;
+  /// This target's masters folder ([OutputLocations.mastersOf]), the one a
+  /// Darkroom build of the same target writes into.
+  Future<String> _mastersFolder() async {
+    final locations = await _ref.read(outputLocationsProvider.future);
+    final folder = await locations.mastersOf(state.targetName ?? state.title);
+    return (await folder.create(recursive: true)).path;
   }
 }

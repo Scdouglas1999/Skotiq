@@ -35,6 +35,7 @@ export 'src/providers/sequence/run_dither_event.dart';
 // Sequencer events, typed once at the Dart boundary.
 export 'src/providers/sequence/sequencer_run_event.dart';
 export 'src/providers/sequence/plan_run_end.dart';
+export 'src/providers/sequence/plan_timer_provider.dart';
 // The one vocabulary for an exposure node's per-frame progress line.
 // Whether a finished run's report interrupts the operator or waits for them.
 export 'src/providers/sequence/session_report_presentation.dart';
@@ -203,6 +204,7 @@ export 'src/providers/centering_service_providers.dart';
 export 'src/providers/color_calibration_service_provider.dart';
 export 'src/providers/imaging_service_providers.dart';
 export 'src/providers/darkroom_build_jobs_provider.dart';
+export 'src/providers/output_locations_provider.dart';
 export 'src/providers/darkroom_build_service_provider.dart';
 export 'src/providers/darkroom_state_store_provider.dart';
 export 'src/providers/device_commands_provider.dart';

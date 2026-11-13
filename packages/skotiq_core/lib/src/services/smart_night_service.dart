@@ -270,11 +270,14 @@ class SmartNightService {
   /// [buildSingleTargetSequence] plans one, so the night moves on to the next
   /// target once they are met.
   ///
+  /// [availableFilters] is the rig's filter list (`effectiveFiltersProvider`).
+  ///
   /// Validates required inputs and throws [SmartNightBuildException] when an
   /// essential field is missing, rather than planning a night around a
   /// substituted value.
   SmartNightPlan build({
     required EquipmentProfileModel profile,
+    required List<String> availableFilters,
     required double latitudeDeg,
     required double longitudeDeg,
     required SmartNightContext context,
@@ -302,15 +305,15 @@ class SmartNightService {
 
     final activeFilters = _resolveFilterSet(
       strategy: strategy,
-      availableFilters: profile.filterNames,
+      availableFilters: availableFilters,
     );
     if (activeFilters.isEmpty) {
       throw SmartNightBuildException(
-        'No filters from strategy "${strategy.name}" matched profile '
-        '"${profile.name}" (available filters: '
-        '${profile.filterNames.isEmpty ? "<none>" : profile.filterNames.join(", ")}). '
+        'No filters from strategy "${strategy.name}" matched the available '
+        'filters (${availableFilters.isEmpty ? "<none>" : availableFilters.join(", ")}). '
         'Either switch strategies (the OSC One-Shot strategy works without '
-        'a wheel) or add the required filters to the equipment profile.',
+        'a wheel) or add the required filters to the wheel or the equipment '
+        'profile.',
       );
     }
 
@@ -431,7 +434,7 @@ class SmartNightService {
         recentGuideSamples: recentGuideSamples,
         settings: settings,
         integrationGoalProgress: integrationGoals[suggestion.targetId],
-        availableFiltersForGoals: profile.filterNames,
+        availableFiltersForGoals: availableFilters,
       );
       if (filterPlans.isEmpty) continue;
 

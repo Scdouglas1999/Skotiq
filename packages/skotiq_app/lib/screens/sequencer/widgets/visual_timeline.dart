@@ -34,34 +34,13 @@ final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
   final sequence = ref.watch(currentSequenceProvider);
   if (sequence == null) return null;
 
-  final settings = ref.watch(appSettingsProvider).valueOrNull;
   final twilight = ref.watch(preSessionTwilightTimesProvider);
-  final hasLocation = settings != null && settings.hasObserverLocation;
-  final now = DateTime.now();
-  // Shared overhead model — see the same construction in
-  // preflight_validation_dialog.dart. Two surfaces describing one sequence
-  // must not bill it differently.
-  return PreSessionSimulator(
-    estimator: SequenceTimeEstimator(
-      overhead: ref.watch(sequencerOverheadConfigProvider),
-    ),
-  ).simulate(
-    sequence,
-    start: now,
-    latitude: hasLocation ? settings.latitude : null,
-    longitude: hasLocation ? settings.longitude : null,
-    minAltitude: settings?.effectiveHorizonDeg ?? 20.0,
-    darkWindowStart: twilight?.astronomicalDusk,
-    darkWindowEnd: twilight?.astronomicalDawn,
-    runEndsBy: hasLocation
-        ? planRunEndsBy(
-            parkBeforeDawn: settings.parkBeforeDawn,
-            latitude: settings.latitude,
-            longitude: settings.longitude,
-            now: now,
-          )
-        : null,
-  );
+  return ref.watch(planTimerProvider).simulate(
+        sequence,
+        start: DateTime.now(),
+        darkWindowStart: twilight?.astronomicalDusk,
+        darkWindowEnd: twilight?.astronomicalDawn,
+      );
 });
 
 /// Horizontal timeline view showing each node as a colored bar.

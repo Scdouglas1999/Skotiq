@@ -1,9 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../models/equipment/equipment_models.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../equipment_provider.dart';
-import '../profiles_provider.dart';
 
 /// The validation issue code of a step naming a filter the wheel or the
 /// equipment profile does not list by that name.
@@ -105,15 +100,3 @@ Sequence renameFilters(Sequence sequence, Map<String, String> renames) {
     },
   );
 }
-
-/// The filter names a plan is checked and matched against: the connected
-/// wheel's when it reports them, else the active equipment profile's.
-final filterNamesToMatchProvider = Provider<List<String>>((ref) {
-  final wheel = ref.watch(filterWheelStateProvider);
-  if (wheel.connectionState == DeviceConnectionState.connected &&
-      wheel.filterNames.isNotEmpty) {
-    return wheel.filterNames;
-  }
-  return ref.watch(activeEquipmentProfileProvider)?.filterNames ??
-      const <String>[];
-});

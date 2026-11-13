@@ -320,12 +320,11 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
   Future<void> _build(DarkroomBuildJob job, DarkroomFramingSession? session) =>
       _run(() async {
         final chosen = session?.folder;
-        final parent = chosen != null
-            ? Directory(chosen)
-            : await ref.read(darkroomMastersRootProvider.future);
         // The same per-target folder the night-end builds use, so a build
         // started here and the next night's fold update one set of masters.
-        final directory = darkroomTargetBuildDirectory(parent, _key);
+        final directory = chosen != null
+            ? OutputLocations.targetFolder(Directory(chosen), _key)
+            : await ref.read(targetMastersFolderProvider(_key).future);
         unawaited(
           _jobs.accept(directory).catchError((Object e) {
             if (mounted) setState(() => _error = userFacingError(e));

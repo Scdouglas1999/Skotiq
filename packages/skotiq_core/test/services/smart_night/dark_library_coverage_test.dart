@@ -59,6 +59,7 @@ void main() {
 
         final notes = await coverage.missingNotes(
           profile: profile,
+          availableFilters: profile.filterNames,
           strategy: SmartNightStrategy.oscOneShot,
           settings: const SmartNightSettings(),
           exposureContext: exposureContext,
@@ -105,6 +106,7 @@ void main() {
 
       final notes = await coverage.missingNotes(
         profile: profile,
+        availableFilters: profile.filterNames,
         strategy: SmartNightStrategy.autoLrgb,
         settings: const SmartNightSettings(),
         exposureContext: exposureContext,
@@ -138,6 +140,7 @@ void main() {
 
       final result = await coverage.missing(
         profile: profileWithDifferentDefault,
+        availableFilters: profileWithDifferentDefault.filterNames,
         strategy: SmartNightStrategy.autoLrgb,
         settings: const SmartNightSettings(coolDownTargetC: -10),
         exposureContext: exposureContext,

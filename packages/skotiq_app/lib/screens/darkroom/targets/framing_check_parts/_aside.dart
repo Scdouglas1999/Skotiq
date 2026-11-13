@@ -667,11 +667,11 @@ class _FolderRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final root = session.folder ??
-        ref.watch(darkroomMastersRootProvider).valueOrNull?.path ??
-        'Documents';
-    final folder =
-        darkroomTargetBuildDirectory(Directory(root), targetKey).path;
+    final chosen = session.folder;
+    final folder = chosen != null
+        ? OutputLocations.targetFolder(Directory(chosen), targetKey).path
+        : ref.watch(targetMastersFolderProvider(targetKey)).valueOrNull?.path ??
+            'Masters';
     // The last folders name the place; the full path is in the tooltip.
     final parts = p.split(folder);
     final shown = parts.length > 3

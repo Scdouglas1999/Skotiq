@@ -265,8 +265,14 @@ List<String> resolveEffectiveFilterNames({
   return wheelNames;
 }
 
-/// Connected filter wheel names when online; otherwise profile filter names.
-/// Generic wheel slot labels fall back to profile names when available.
+/// The filters a plan can use, in slot order: the one list every filter
+/// picker, check and plan builder reads.
+///
+/// A connected wheel that reports its slots decides the list, because those
+/// are the filters a run can reach (connecting writes the profile's names into
+/// a wheel that holds names). A wheel that labels its slots only "Filter 1",
+/// "Filter 2"... takes the profile's names slot by slot. With no wheel
+/// connected the active profile's filters are the list.
 final effectiveFiltersProvider = Provider<List<String>>((ref) {
   final wheel = ref.watch(filterWheelStateProvider);
   final profileFilters = ref.watch(profileFiltersProvider);
@@ -279,6 +285,10 @@ final effectiveFiltersProvider = Provider<List<String>>((ref) {
   }
   return profileFilters;
 });
+
+/// What a filter picker says when [effectiveFiltersProvider] is empty.
+const String noFiltersToPickHint =
+    'No filters — connect a filter wheel or add them to the profile';
 
 /// Session-only filter names (no profile required).
 ///
