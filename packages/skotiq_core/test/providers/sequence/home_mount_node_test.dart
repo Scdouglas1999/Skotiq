@@ -97,7 +97,7 @@ void main() {
   test('the node survives a database save and load', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = SequenceRepository(SequencesDao(db));
+    final repository = LocalSequenceRepository(SequencesDao(db));
 
     final id = await repository.saveSequence(_sequenceWithHome());
     final loaded = await repository.loadSequence(id);
@@ -111,7 +111,7 @@ void main() {
   test('a commented side-effect-only step can be saved', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repository = SequenceRepository(SequencesDao(db));
+    final repository = LocalSequenceRepository(SequencesDao(db));
 
     final id = await repository.saveSequence(
       Sequence.create(

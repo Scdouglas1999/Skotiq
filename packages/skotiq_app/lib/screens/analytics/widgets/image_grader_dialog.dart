@@ -264,7 +264,7 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog>
           .read(scienceSettingsProvider.notifier)
           .setFrameGradeRules(_rules);
       if (host.isStale) return;
-      final repo = ref.read(imagingRecordsRepositoryProvider);
+      final repo = ref.read(imagingRecordsProvider);
       for (final r in preview.rejections) {
         if (host.isStale) return;
         await repo.rejectImage(r.frame.id, r.reason);

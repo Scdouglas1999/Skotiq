@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'host_role.dart';
 
 import '../database/database.dart';
 import '../models/backend/sequencer_status.dart';
@@ -10,8 +11,6 @@ import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/session_diagnostics_dao.dart';
 import 'package:skotiq_astro/format.dart';
-import 'backend_provider.dart';
-import '../backend/remote_host.dart';
 import '../backend/roles/host_data/host_records.dart';
 import 'database_provider.dart';
 import 'sequence/run_record.dart';
@@ -496,10 +495,9 @@ final completedImagingRunProvider = runRecordProvider.select(
 );
 
 /// The recorded sequence runs of whichever machine is the imaging host.
-final runHistoryProvider = Provider<RunHistory>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(sequenceRunsDaoProvider),
+final runHistoryProvider = hostRoleProvider<RunHistory>(
+  here: (ref) => ref.watch(sequenceRunsDaoProvider),
+  linked: (ref, host) => host.records,
 );
 
 /// Every sequence run on the imaging host, newest first. The dashboard recap,

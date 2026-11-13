@@ -10,8 +10,10 @@ export 'src/backend/network_backend.dart';
 export 'src/backend/disconnected_backend.dart';
 export 'src/backend/remote_host.dart';
 export 'src/backend/roles/host_data/calibration_library.dart';
+export 'src/backend/roles/host_data/notes_journal.dart';
 export 'src/backend/roles/host_data/observation_log.dart';
 export 'src/backend/roles/host_data/observing_lists_store.dart';
+export 'src/backend/roles/host_data/polar_alignment_log.dart';
 export 'src/backend/roles/host_data/science_products.dart';
 export 'src/backend/roles/host_data/host_records.dart';
 // Typed bridge events. `SkotiqEvent`, `EventCategory` and `EventSeverity` share
@@ -28,6 +30,6 @@ export 'src/backend/frame_capture_metadata.dart';
 // caught error as copy without importing package:skotiq_bridge.
 export 'src/backend/bridge_error_message.dart';
 export 'src/backend/device_connect_exception.dart';
-export 'src/backend/network_backend/host_data/remote_host_records.dart'
-    show fetchAllRemoteSequenceRuns;
+export 'src/backend/network_backend/host_data/remote_imaging_records.dart';
+export 'src/backend/roles/host_data/imaging_records.dart';
 export 'src/backend/bridge_event_mapper.dart';

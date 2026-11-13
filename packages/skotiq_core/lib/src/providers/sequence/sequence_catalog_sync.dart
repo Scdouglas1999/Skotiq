@@ -111,7 +111,7 @@ final sequenceLibrarySyncProvider = Provider<void>((ref) {
 
   void onCatalogUpdate(SequenceCatalogUpdate update) {
     invalidateLibrary();
-    unawaited(reloadOpenSequenceIfIdle(ref, update.sequenceId));
+    unawaited(reloadOpenSequenceIfIdle(ref.container, update.sequenceId));
   }
 
   void attachBus() {
@@ -258,19 +258,22 @@ void _emitSequenceCatalogUpdate({
 /// The host's open plan itself, edited or not, reaches a client through the
 /// `openPlan` runtime channel. This reload covers a save that changed only
 /// the stored copy; both keep a client operator's unsaved work.
-Future<void> reloadOpenSequenceIfIdle(Ref ref, int sequenceId) async {
-  final current = ref.read(currentSequenceProvider);
+Future<void> reloadOpenSequenceIfIdle(
+  ProviderContainer container,
+  int sequenceId,
+) async {
+  final current = container.read(currentSequenceProvider);
   if (current?.databaseId != sequenceId) {
     return;
   }
 
-  final editor = ref.read(currentSequenceProvider.notifier);
+  final editor = container.read(currentSequenceProvider.notifier);
   if (editor.isDirty) {
     return;
   }
 
   try {
-    final loaded = await ref
+    final loaded = await container
         .read(sequenceRepositoryProvider)
         .loadSequence(sequenceId);
     if (loaded != null) {

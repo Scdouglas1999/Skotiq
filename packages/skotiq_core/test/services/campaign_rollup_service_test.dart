@@ -7,7 +7,7 @@ import 'package:skotiq_core/src/database/daos/targets_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/services/campaign_rollup_service.dart';
-import 'package:skotiq_core/src/services/imaging_records_repository.dart';
+import 'package:skotiq_core/src/services/local_imaging_records.dart';
 import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart';
 
 void main() {
@@ -28,7 +28,7 @@ void main() {
       targetsDao = TargetsDao(db);
       goalService = IntegrationGoalService(db);
       service = CampaignRollupService(
-        records: ImagingRecordsRepository.local(
+        records: LocalImagingRecords(
           sessionsDao: sessionsDao,
           imagesDao: imagesDao,
         ),

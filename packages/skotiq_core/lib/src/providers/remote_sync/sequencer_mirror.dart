@@ -1,48 +1,44 @@
 part of '../remote_sync_handler.dart';
 
-/// Mirror one of the host's sequencer events onto this client's run record.
-///
-/// A host folds its own run's events (the executor attached to the run, or
-/// the always-on pump), so on a host only the library notice is acted on.
-void _applySequencerEvent(
-  Object reader,
-  SkotiqEvent event, {
-  SkotiqBackend? networkBackend,
-}) {
-  if (event.eventType == sequenceUpdatedEventType) {
-    _invalidateSequenceLibrary(
-      reader,
-      sequenceId: event.data['sequenceId'] as int?,
-    );
-    return;
-  }
-  if (networkBackend == null) return;
+/// Re-reads the sequence library when [event] says a sequence changed.
+/// Returns whether it was that notice.
+bool _applySequenceLibraryNotice(ProviderContainer container, SkotiqEvent event) {
+  if (event.eventType != sequenceUpdatedEventType) return false;
+  _invalidateSequenceLibrary(
+    container,
+    sequenceId: event.data['sequenceId'] as int?,
+  );
+  return true;
+}
 
+/// Fold one of the host's sequencer events into this client's run record.
+void _mirrorHostRunEvent(
+  ProviderContainer container,
+  SkotiqBackend backend,
+  SkotiqEvent event,
+) {
   final typed = SequencerRunEvent.fromSkotiqEvent(event);
   if (typed != null) {
-    foldRunEvent(_read(reader, runRecordProvider.notifier), typed);
+    foldRunEvent(container.read(runRecordProvider.notifier), typed);
   }
   switch (event.eventType) {
     case 'NodeStarted':
-      // A new node/target means the host autopilot's live pick likely changed;
-      // refresh the mirrored preview so the banner here tracks the switch
-      // (no-op when the banner isn't mounted — it's autoDispose).
-      _invalidate(reader, schedulerPreviewDecisionProvider);
+      // A new node or target usually changes what the host's autopilot would
+      // pick next, which the banner here shows.
+      container.invalidate(schedulerPreviewDecisionProvider);
     case 'ProgressUpdated':
     case 'InstructionProgress':
-      unawaited(_refreshSequencerStatus(reader, networkBackend));
+      unawaited(_refreshSequencerStatus(container, backend));
   }
 }
 
 /// Mirror a run-control change the host announced (started, paused, resumed,
-/// stopped, or a state it names). A host's own run state comes from its
-/// executor, so the announcement is acted on only by a linked client.
-void _applySequencerMutationFromHost(
-  Object reader,
+/// stopped, or a state it names).
+void _mirrorHostRunControl(
+  ProviderContainer container,
   String action,
   Map<String, dynamic> data,
 ) {
-  if (_read(reader, backendProvider).remoteHost == null) return;
   final String? rawState = switch (action) {
     HostMutationAction.started || HostMutationAction.resumed => 'running',
     HostMutationAction.paused => 'paused',
@@ -50,10 +46,9 @@ void _applySequencerMutationFromHost(
     _ => data['state'] as String?,
   };
   if (rawState == null) return;
-  _read(
-    reader,
-    runRecordProvider.notifier,
-  ).mirrorHostState(rawState, message: data['message'] as String?);
+  container
+      .read(runRecordProvider.notifier)
+      .mirrorHostState(rawState, message: data['message'] as String?);
 }
 
 int? _parseSequenceId(Map<String, dynamic> data) {
@@ -67,28 +62,28 @@ int? _parseSequenceId(Map<String, dynamic> data) {
   return null;
 }
 
-void _invalidateSequenceLibrary(Object reader, {int? sequenceId}) {
-  _invalidate(reader, savedSequencesProvider);
-  _invalidate(reader, savedSequenceSummariesProvider);
-  if (sequenceId != null && reader is Ref) {
-    unawaited(reloadOpenSequenceIfIdle(reader, sequenceId));
+void _invalidateSequenceLibrary(ProviderContainer container, {int? sequenceId}) {
+  container.invalidate(savedSequencesProvider);
+  container.invalidate(savedSequenceSummariesProvider);
+  if (sequenceId != null) {
+    unawaited(reloadOpenSequenceIfIdle(container, sequenceId));
   }
 }
 
 Future<void> _refreshSequencerStatus(
-  Object reader,
+  ProviderContainer container,
   SkotiqBackend backend,
 ) async {
   try {
     final status = await backend.sequencerGetStatus();
-    _applySequencerStatus(reader, status);
+    _applySequencerStatus(container, status);
   } catch (_) {
     // Fail closed on the event path — hydration/polling will recover.
   }
 }
 
-void _applySequencerStatus(Object reader, SequencerStatus status) {
-  _read(reader, runRecordProvider.notifier).mirrorHostState(
+void _applySequencerStatus(ProviderContainer container, SequencerStatus status) {
+  container.read(runRecordProvider.notifier).mirrorHostState(
     status.state,
     message: status.message,
     currentNodeId: status.currentNodeId,
@@ -100,16 +95,14 @@ void _applySequencerStatus(Object reader, SequencerStatus status) {
   // without this the Vitals tile reads idle next to a live progress bar. Null
   // vitals (idle host, or a host build that doesn't emit them) clears the tile.
   final vitals = status.runVitals;
-  _read(
-    reader,
-    runRecordProvider.notifier,
+  container.read(runRecordProvider.notifier,
   ).setStats(vitals == null ? null : SequenceRunStats.fromRemoteVitals(vitals));
 
   // Why the host's guiding is stopped. Live StopReason events carry it too,
   // but only to a client that was listening when it was set: one that joined
   // during a tracking-limit hold read "Guider needs a look" with no reason.
   if (status.reportsGuidingStopReason) {
-    _read(reader, guidingStopReasonProvider.notifier).state =
+    container.read(guidingStopReasonProvider.notifier).state =
         status.guidingStopReason;
   }
 }

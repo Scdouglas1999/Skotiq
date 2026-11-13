@@ -127,7 +127,7 @@ final hostRuntimeMirrorProvider = Provider<void>((ref) {
     final store = ref.read(hostRuntimeStateStoreProvider);
     final Map<String, dynamic>? value;
     try {
-      value = channel.encodeCurrent(ref);
+      value = channel.encodeCurrent(ref.container);
     } catch (e, st) {
       ref
           .read(loggingServiceProvider)

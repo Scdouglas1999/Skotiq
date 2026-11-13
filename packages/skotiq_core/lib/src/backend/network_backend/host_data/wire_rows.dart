@@ -1,10 +1,7 @@
-part of '../imaging_records_repository.dart';
+import '../../../database/database.dart' as db;
+import '../../../utils/utc_timestamp.dart';
 
 /// Decode a `/api/sessions` wire row into the Drift [db.ImagingSession] shape.
-///
-/// One copy on purpose: this repository and the remote `databaseProvider`
-/// streams hydrate the same endpoint into the same row, and two hand-maintained
-/// copies of one wire contract drift apart silently.
 db.ImagingSession imagingSessionFromWireJson(Map<String, dynamic> json) {
   return db.ImagingSession(
     id: json['id'] as int,
@@ -48,59 +45,4 @@ DateTime wireTimestamp(Object? value) {
         DateTime.fromMillisecondsSinceEpoch(0);
   }
   return DateTime.fromMillisecondsSinceEpoch(0);
-}
-
-bool _thumbnailListsEqual(
-  List<ProducingNodeThumbnail> previous,
-  List<ProducingNodeThumbnail> next,
-) {
-  if (identical(previous, next)) return true;
-  if (previous.length != next.length) return false;
-  for (var index = 0; index < previous.length; index++) {
-    final a = previous[index];
-    final b = next[index];
-    if (a.id != b.id ||
-        a.filePath != b.filePath ||
-        a.fileName != b.fileName ||
-        a.filter != b.filter ||
-        a.frameType != b.frameType ||
-        a.hfr != b.hfr ||
-        a.eccentricity != b.eccentricity ||
-        a.fwhm != b.fwhm ||
-        a.starCount != b.starCount ||
-        a.exposureDuration != b.exposureDuration ||
-        a.capturedAt != b.capturedAt ||
-        a.isAccepted != b.isAccepted ||
-        a.rejectionReason != b.rejectionReason ||
-        a.runtimeGrade != b.runtimeGrade ||
-        a.producingNodeId != b.producingNodeId ||
-        a.producingRunId != b.producingRunId) {
-      return false;
-    }
-  }
-  return true;
-}
-
-ProducingNodeThumbnail _producingThumbnailFromApiJson(
-  Map<String, dynamic> json,
-) {
-  final image = db.DbCapturedImage.fromJson(json);
-  return ProducingNodeThumbnail(
-    id: image.id,
-    filePath: image.filePath,
-    fileName: image.fileName,
-    filter: image.filter,
-    frameType: image.frameType,
-    hfr: image.hfr,
-    eccentricity: (json['eccentricity'] as num?)?.toDouble(),
-    fwhm: (json['fwhm'] as num?)?.toDouble(),
-    starCount: image.starCount,
-    exposureDuration: image.exposureDuration,
-    capturedAt: image.capturedAt,
-    isAccepted: image.isAccepted,
-    rejectionReason: image.rejectionReason,
-    runtimeGrade: json['runtimeGrade'] as String?,
-    producingNodeId: json['producingNodeId'] as String? ?? '',
-    producingRunId: json['producingRunId'] as String?,
-  );
 }

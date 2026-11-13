@@ -55,7 +55,7 @@ extension _DeviceServiceSlots on DeviceService {
   /// slot is empty. `setDisconnected()` resets the state object, so a
   /// non-null id here means a device still owns the slot.
   String? _slotDeviceIdFor(DeviceType type) =>
-      readDeviceSlot(_ref, type).deviceId;
+      readDeviceSlot(_ref.container, type).deviceId;
 
   /// The id of the device of [type] that is connected RIGHT NOW, or `null`.
   ///
@@ -69,7 +69,7 @@ extension _DeviceServiceSlots on DeviceService {
   /// wrappers all delegate here; four of them keep a `Future` return type
   /// purely because ~20 call sites `await` them.
   String? _connectedDeviceIdFor(DeviceType type) {
-    final slot = readDeviceSlot(_ref, type);
+    final slot = readDeviceSlot(_ref.container, type);
     final deviceId = slot.deviceId;
     if (slot.connectionState == DeviceConnectionState.connected &&
         deviceId != null &&
@@ -83,7 +83,7 @@ extension _DeviceServiceSlots on DeviceService {
   /// long-running move/verify loop re-checks between polls, so a disconnect (or
   /// a swap to a different device in the same slot) stops it.
   bool _isStillConnectedTo(DeviceType type, String deviceId) {
-    final slot = readDeviceSlot(_ref, type);
+    final slot = readDeviceSlot(_ref.container, type);
     return slot.connectionState == DeviceConnectionState.connected &&
         slot.deviceId == deviceId;
   }

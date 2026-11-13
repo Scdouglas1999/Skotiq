@@ -1,14 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/notes/journal_note.dart';
 import '../services/notes_service.dart';
 import '../services/sequence_diff_service.dart';
-import '../utils/resilient_poll_stream.dart';
-import '../backend/remote_host.dart';
-import 'backend_provider.dart';
+import '../backend/roles/host_data/notes_journal.dart';
+import 'host_role.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart'
     show SmartNightSettingsSection, appSettingsProvider;
@@ -32,196 +30,27 @@ final notesServiceProvider = Provider<NotesService>((ref) {
   return service;
 });
 
-/// Host-authoritative mutation surface for journal notes.
-///
-/// Read providers already poll the imaging host in remote mode. Routing edits
-/// through this repository keeps create/update/delete on that same authority
-/// instead of reporting success after writing to the controller's unused
-/// local database.
-class NotesRepository {
-  final NotesService? _local;
-  final HostNotes? _remote;
-  final void Function()? _afterRemoteMutation;
+/// The notes journal of whichever machine is the imaging host.
+final notesJournalProvider = hostRoleProvider<NotesJournal>(
+  here: (ref) => ref.watch(notesServiceProvider),
+  linked: (ref, host) => host.notesJournal,
+);
 
-  NotesRepository.local(NotesService local)
-    : _local = local,
-      _remote = null,
-      _afterRemoteMutation = null;
-
-  NotesRepository.remote(
-    HostNotes remote, {
-    required void Function() afterMutation,
-  }) : _local = null,
-       _remote = remote,
-       _afterRemoteMutation = afterMutation;
-
-  bool get isRemote => _remote != null;
-
-  Future<JournalNote> addNote({
-    required String targetId,
-    int? sequenceRunId,
-    required String body,
-    String? title,
-    List<String> tags = const <String>[],
-    List<String> attachments = const <String>[],
-    String? sentiment,
-  }) async {
-    final remote = _remote;
-    if (remote == null) {
-      return _local!.addNote(
-        targetId: targetId,
-        sequenceRunId: sequenceRunId,
-        body: body,
-        title: title,
-        tags: tags,
-        attachments: attachments,
-        sentiment: sentiment,
-      );
-    }
-    final note = await remote.createJournalNote(
-      targetId: targetId,
-      sequenceRunId: sequenceRunId,
-      body: body,
-      title: title,
-      tags: tags,
-      attachments: attachments,
-      sentiment: sentiment,
-    );
-    _afterRemoteMutation!();
-    return note;
-  }
-
-  Future<JournalNote> updateNote(
-    String id, {
-    String? body,
-    String? title,
-    List<String>? tags,
-    List<String>? attachments,
-    String? sentiment,
-    bool clearTitle = false,
-    bool clearSentiment = false,
-  }) async {
-    final remote = _remote;
-    if (remote == null) {
-      return _local!.updateNote(
-        id,
-        body: body,
-        title: title,
-        tags: tags,
-        attachments: attachments,
-        sentiment: sentiment,
-        clearTitle: clearTitle,
-        clearSentiment: clearSentiment,
-      );
-    }
-    final note = await remote.updateJournalNote(
-      id,
-      body: body,
-      title: title,
-      tags: tags,
-      attachments: attachments,
-      sentiment: sentiment,
-      clearTitle: clearTitle,
-      clearSentiment: clearSentiment,
-    );
-    _afterRemoteMutation!();
-    return note;
-  }
-
-  Future<int> deleteNote(String id) async {
-    final remote = _remote;
-    if (remote == null) return _local!.deleteNote(id);
-    await remote.deleteJournalNote(id);
-    _afterRemoteMutation!();
-    return 1;
-  }
-}
-
-final notesRepositoryProvider = Provider<NotesRepository>((ref) {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.notes;
-  if (remote != null) {
-    return NotesRepository.remote(
-      remote,
-      afterMutation: () {
-        ref.invalidate(notesForTargetProvider);
-        ref.invalidate(notesForRunProvider);
-        ref.invalidate(allNotesProvider);
-      },
-    );
-  }
-  return NotesRepository.local(ref.watch(notesServiceProvider));
-});
-
-/// Live notes for a target. Family-keyed by the logical target id
-/// string (catalog id or display name).
-///
-/// On a linked client the journal lives only on the
-/// master; the slave's local `notes_journal` table is never populated. We
-/// poll the host's `GET /api/db/notes?targetId=`. The local `NotesService`
-/// path is unchanged for the host backend.
+/// Live notes for a target, keyed by the logical target id (catalog id or
+/// display name).
 final notesForTargetProvider = StreamProvider.family<List<JournalNote>, String>(
-  (ref, targetId) {
-    final backend = ref.watch(backendProvider);
-    final remote = backend.remoteHost?.notes;
-    if (remote != null) {
-      return _pollRemoteNotes(remote, targetId: targetId);
-    }
-    final service = ref.watch(notesServiceProvider);
-    return service.watchTargetNotes(targetId);
-  },
+  (ref, targetId) => ref.watch(notesJournalProvider).watchTargetNotes(targetId),
 );
 
-/// Live notes for a specific sequence run row id.
-final notesForRunProvider = StreamProvider.family<List<JournalNote>, int>((
-  ref,
-  runId,
-) {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.notes;
-  if (remote != null) {
-    return _pollRemoteNotes(remote, runId: runId);
-  }
-  final service = ref.watch(notesServiceProvider);
-  return service.watchRunNotes(runId);
-});
-
-/// Live stream of every note (for global search / debug views).
-final allNotesProvider = StreamProvider<List<JournalNote>>((ref) {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.notes;
-  if (remote != null) {
-    return _pollRemoteNotes(remote);
-  }
-  final service = ref.watch(notesServiceProvider);
-  return service.watchAllNotes();
-});
-
-/// Polls the host's journal notes, emitting only on change (mirrors the
-/// `_pollRemote` change-guard in `database_provider.dart`). [targetId] /
-/// [runId] scope the poll for the family variants.
-Stream<List<JournalNote>> _pollRemoteNotes(
-  HostNotes remote, {
-  String? targetId,
-  int? runId,
-  Duration interval = const Duration(seconds: 10),
-}) => resilientDistinctPoll(
-  fetch: () => _fetchRemoteNotes(remote, targetId: targetId, runId: runId),
-  unchanged: listEquals,
-  interval: interval,
+/// Live notes for a sequence run row id.
+final notesForRunProvider = StreamProvider.family<List<JournalNote>, int>(
+  (ref, runId) => ref.watch(notesJournalProvider).watchRunNotes(runId),
 );
 
-Future<List<JournalNote>> _fetchRemoteNotes(
-  HostNotes remote, {
-  String? targetId,
-  int? runId,
-}) async {
-  final page = await remote.fetchJournalNotes(targetId: targetId, runId: runId);
-  final mapped = [...page.items]
-    // Host serves created_at desc; keep newest-first.
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  return mapped;
-}
+/// Every note, for the global search.
+final allNotesProvider = StreamProvider<List<JournalNote>>(
+  (ref) => ref.watch(notesJournalProvider).watchAllNotes(),
+);
 
 /// Singleton diff engine. Stateless, no setup cost.
 final sequenceDiffServiceProvider = Provider<SequenceDiffService>(

@@ -85,7 +85,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
       if (event.eventType == 'BackendReconnected') {
         requestHydration(next);
       } else {
-        unawaited(applyRemoteSyncEvent(ref, event, networkBackend: next));
+        applyHostEventOnClient(ref.container, next, event);
       }
     });
 
@@ -104,7 +104,7 @@ Future<void> _hydrate(
 
   try {
     await hydrateRemoteSessionState(
-      ref,
+      ref.container,
       backend,
       refreshCurrentFrame: refreshCurrentFrame,
     );

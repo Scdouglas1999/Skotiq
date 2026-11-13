@@ -535,7 +535,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                   producingNodeId != null &&
                   producingNodeId.isNotEmpty) {
                 try {
-                  final records = _ref.read(imagingRecordsRepositoryProvider);
+                  final records = _ref.read(imagingRecordsProvider);
                   await records.stampProducingNode(
                     imageId: dbImageId,
                     producingNodeId: producingNodeId,
@@ -652,7 +652,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
               if (dbImageId != null && effectiveFilePath != savedFilePath) {
                 await _ref
-                    .read(imagingRecordsRepositoryProvider)
+                    .read(imagingRecordsProvider)
                     .updateImageFilePath(dbImageId, effectiveFilePath);
                 if (!_hasBackendAuthority(backend)) return null;
               }
