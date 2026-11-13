@@ -185,7 +185,7 @@ impl Dispatcher {
             id,
             name,
             &RecoveryAction::Recenter,
-            "Recenter",
+            TriggerFiredAction::Recenter,
             format!("{name} fired: recenter"),
             None,
         );
@@ -284,7 +284,7 @@ impl Dispatcher {
             fired,
             ..
         } = dispatch;
-        let action_str = fired.wire_label();
+        let trigger_action = fired.trigger_action();
         let summary = fired.decision_summary(&trigger_name);
         let stop = fired
             .parks_and_ends_run()
@@ -301,7 +301,7 @@ impl Dispatcher {
             &trigger_id,
             &trigger_name,
             &action,
-            &action_str,
+            trigger_action,
             summary,
             stop,
         );
@@ -389,7 +389,7 @@ impl Dispatcher {
         trigger_id: &str,
         trigger_name: &str,
         action: &RecoveryAction,
-        action_str: &str,
+        trigger_action: TriggerFiredAction,
         summary: String,
         stop: Option<crate::decision::RunStop>,
     ) {
@@ -411,7 +411,7 @@ impl Dispatcher {
         self.run.send(ExecutorEvent::TriggerFired {
             trigger_id: trigger_id.to_string(),
             trigger_name: trigger_name.to_string(),
-            action: action_str.to_string(),
+            action: trigger_action,
         });
         let mut row = crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::TriggerFired,
@@ -419,7 +419,7 @@ impl Dispatcher {
             serde_json::json!({
                 "trigger_id": trigger_id,
                 "trigger_name": trigger_name,
-                "action": action_str,
+                "action": trigger_action,
             }),
         );
         row.stop = stop;

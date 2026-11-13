@@ -90,10 +90,6 @@ impl DeviceManager {
         loop {
             check_interval.tick().await;
 
-            if *self.stop_reconnect.read().await {
-                break;
-            }
-
             if !self.reconnect_config.enabled {
                 continue;
             }
@@ -264,12 +260,6 @@ impl DeviceManager {
         devices.contains_key(device_id)
     }
 
-    /// Get the display name for a registered device, if it exists.
-    pub async fn get_device_display_name(&self, device_id: &str) -> Option<String> {
-        let devices = self.devices.read().await;
-        devices.get(device_id).map(|d| d.info.display_name.clone())
-    }
-
     /// Connect to a device on request (the user, a profile, the API).
     ///
     /// A requested connect starts with its own un-tripped cancel token. A
@@ -333,7 +323,7 @@ impl DeviceManager {
 
         // Update state to connecting. Capture the prior state first: a connect
         // arriving from `ConnectionState::Error` is an *unplanned reconnect*
-        // (heartbeat-lost or report_error path), and on success we must
+        // (the heartbeat-lost path), and on success we must
         // re-apply the essential device state the driver loses across a
         // physical reconnect (camera cooling setpoint, mount tracking). A
         // fresh user-initiated connect from Disconnected does NOT re-apply —
@@ -1067,31 +1057,6 @@ impl DeviceManager {
         }
     }
 
-    /// Report a connection error (triggers auto-reconnect if enabled)
-    pub async fn report_error(&self, device_id: &str, error: String) {
-        crate::device_capabilities::cache::invalidate_capability_cache_for_device(device_id).await;
-
-        let device_type = {
-            let mut devices = self.devices.write().await;
-            if let Some(dev) = devices.get_mut(device_id) {
-                dev.connection_state = ConnectionState::Error;
-                dev.last_error = Some(error.clone());
-                dev.info.device_type
-            } else {
-                return;
-            }
-        };
-
-        self.app_state.publish_equipment_event(
-            EquipmentEvent::Error {
-                device_type: device_type.as_str().to_string(),
-                device_id: device_id.to_string(),
-                message: error,
-            },
-            EventSeverity::Error,
-        );
-    }
-
     /// Heartbeat threshold reached: mark the device unhealthy.
     ///
     /// Real reconnection is handled exclusively by `reconnection_loop` when
@@ -1211,11 +1176,6 @@ impl DeviceManager {
             }
             _ => {}
         }
-    }
-
-    /// Stop the reconnection background task
-    pub async fn shutdown(&self) {
-        *self.stop_reconnect.write().await = true;
     }
 
     pub async fn unregister_device(&self, device_id: &str) {

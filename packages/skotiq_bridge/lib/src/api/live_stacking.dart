@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `acquire_stacker`, `color_ingest`, `ingest`, `install`, `not_started`, `parse_bayer_pattern`, `parse_demosaic_quality`, `parse_sensor_mode`, `result`, `save_master_fits`, `stacker_config`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ColorIngest`, `StackerSession`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Start live stacking with a reference image file; every later frame is
 /// aligned to it.

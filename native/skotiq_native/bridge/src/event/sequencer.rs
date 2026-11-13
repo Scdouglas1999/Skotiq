@@ -120,6 +120,56 @@ impl From<skotiq_sequencer::RunStop> for SequencerStop {
     }
 }
 
+/// What a fired trigger did. Mirrors `skotiq_sequencer::TriggerFiredAction`.
+#[frb]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SequencerTriggerAction {
+    Continue,
+    Pause,
+    Autofocus,
+    NextTarget,
+    Retry,
+    /// Parked the mount and ended the run.
+    ParkAndAbort,
+    CustomBranch,
+    MeridianFlip,
+    Dither,
+    Recenter,
+    PauseAndWaitForClear,
+    SlewToGapAndContinue,
+    SwitchTargetOrFilter,
+    /// Told the operator and kept imaging.
+    Notify,
+    /// Ended the run without parking.
+    Abort,
+    /// Skipped a target whose end condition was already met.
+    SkipTarget,
+}
+
+impl From<skotiq_sequencer::TriggerFiredAction> for SequencerTriggerAction {
+    fn from(action: skotiq_sequencer::TriggerFiredAction) -> Self {
+        use skotiq_sequencer::TriggerFiredAction as Action;
+        match action {
+            Action::Continue => Self::Continue,
+            Action::Pause => Self::Pause,
+            Action::Autofocus => Self::Autofocus,
+            Action::NextTarget => Self::NextTarget,
+            Action::Retry => Self::Retry,
+            Action::ParkAndAbort => Self::ParkAndAbort,
+            Action::CustomBranch => Self::CustomBranch,
+            Action::MeridianFlip => Self::MeridianFlip,
+            Action::Dither => Self::Dither,
+            Action::Recenter => Self::Recenter,
+            Action::PauseAndWaitForClear => Self::PauseAndWaitForClear,
+            Action::SlewToGapAndContinue => Self::SlewToGapAndContinue,
+            Action::SwitchTargetOrFilter => Self::SwitchTargetOrFilter,
+            Action::Notify => Self::Notify,
+            Action::Abort => Self::Abort,
+            Action::SkipTarget => Self::SkipTarget,
+        }
+    }
+}
+
 /// What a `MeridianFlipOutcome` event reports. Mirrors
 /// `skotiq_sequencer::meridian_flip_executor::FlipOutcome`.
 #[frb]
@@ -244,8 +294,7 @@ pub enum SequencerEvent {
         trigger_id: String,
         /// Human-readable trigger name
         trigger_name: String,
-        /// Action taken (e.g., "Autofocus", "Dither", "PauseSequence")
-        action: String,
+        action: SequencerTriggerAction,
     },
     /// Progress update for long-running instructions (cooling, autofocus, slewing)
     InstructionProgress {

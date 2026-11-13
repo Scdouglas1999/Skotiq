@@ -437,7 +437,10 @@ class RunEventHandler {
 
   void _onTriggerFired(TriggerFired event, RunRecordNotifier progressNotifier) {
     final triggerName = event.triggerName ?? 'Unknown trigger';
-    final action = triggerActionText(event.action ?? '');
+    final action = switch (event.action) {
+      final known? => triggerActionText(known),
+      null => 'an action this app does not know',
+    };
     _stats.update((stats) => stats.recordTriggerFire());
     // A target dropped by its own end_when costs the operator a whole target,
     // so it goes on the run record, not only into the trigger feed.

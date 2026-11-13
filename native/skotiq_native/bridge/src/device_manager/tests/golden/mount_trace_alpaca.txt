@@ -42,9 +42,6 @@
   GET declination
   GET rightascension
 < ok (5.5, 22.0)
-> can_park
-  GET canpark
-< ok true
 > can_set_park
   GET cansetpark
 < ok true
@@ -57,8 +54,6 @@
 > set_tracking off
   PUT tracking Tracking=false
 < ok ()
-> tracking_rate
-< err Getting tracking rate is not supported by this driver type
 > set_tracking_rate lunar
 < err Setting tracking rate is not supported by this driver type
 > slew 6.25h +35
@@ -165,7 +160,7 @@
 > move_axis 1 at -1
   PUT moveaxis Axis=1&Rate=-1
 < ok ()
-> stop
+> abort
   PUT abortslew
 < ok ()
 > slew_alt_az 50 120

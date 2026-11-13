@@ -188,7 +188,7 @@ class NightFlipTracker extends Notifier<NightFlipState> {
             :final action,
           )
           when triggerId == 'meridian_flip' ||
-              action.startsWith('MeridianFlip'):
+              action == sk_events.SequencerTriggerAction.meridianFlip:
         _start(at);
       case sk_events.SequencerEvent_InstructionProgress(:final nodeId)
           when nodeId == kMeridianFlipProgressNodeId:

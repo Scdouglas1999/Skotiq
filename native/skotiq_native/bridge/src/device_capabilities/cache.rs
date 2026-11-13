@@ -19,12 +19,6 @@ pub(crate) fn capability_cache() -> &'static Mutex<HashMap<String, CapabilityCac
     CAPABILITY_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-#[cfg(test)]
-pub(crate) async fn invalidate_capability_cache() {
-    let mut cache = capability_cache().lock().await;
-    cache.clear();
-}
-
 pub(crate) async fn invalidate_capability_cache_for_device(device_id: &str) {
     if let Some(cache) = CAPABILITY_CACHE.get() {
         cache.lock().await.remove(device_id);

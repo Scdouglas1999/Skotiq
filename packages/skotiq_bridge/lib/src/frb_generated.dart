@@ -13500,7 +13500,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return SequencerEvent_TriggerFired(
           triggerId: dco_decode_String(raw[1]),
           triggerName: dco_decode_String(raw[2]),
-          action: dco_decode_String(raw[3]),
+          action: dco_decode_sequencer_trigger_action(raw[3]),
         );
       case 16:
         return SequencerEvent_InstructionProgress(
@@ -13774,6 +13774,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw Exception("unreachable");
     }
+  }
+
+  @protected
+  SequencerTriggerAction dco_decode_sequencer_trigger_action(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SequencerTriggerAction.values[raw as int];
   }
 
   @protected
@@ -18466,7 +18472,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 15:
         var var_triggerId = sse_decode_String(deserializer);
         var var_triggerName = sse_decode_String(deserializer);
-        var var_action = sse_decode_String(deserializer);
+        var var_action = sse_decode_sequencer_trigger_action(deserializer);
         return SequencerEvent_TriggerFired(
           triggerId: var_triggerId,
           triggerName: var_triggerName,
@@ -18932,6 +18938,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  SequencerTriggerAction sse_decode_sequencer_trigger_action(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SequencerTriggerAction.values[inner];
   }
 
   @protected
@@ -19576,6 +19591,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
+  int cst_encode_sequencer_trigger_action(SequencerTriggerAction raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -23161,7 +23182,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(15, serializer);
         sse_encode_String(triggerId, serializer);
         sse_encode_String(triggerName, serializer);
-        sse_encode_String(action, serializer);
+        sse_encode_sequencer_trigger_action(action, serializer);
       case SequencerEvent_InstructionProgress(
         nodeId: final nodeId,
         instruction: final instruction,
@@ -23587,6 +23608,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(triggerId, serializer);
         sse_encode_String(triggerName, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_sequencer_trigger_action(
+    SequencerTriggerAction self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

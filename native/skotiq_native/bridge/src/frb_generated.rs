@@ -7325,6 +7325,30 @@ impl CstDecode<crate::event::sequencer::SequencerErrorKind> for i32 {
         }
     }
 }
+impl CstDecode<crate::event::sequencer::SequencerTriggerAction> for i32 {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> crate::event::sequencer::SequencerTriggerAction {
+        match self {
+            0 => crate::event::sequencer::SequencerTriggerAction::Continue,
+            1 => crate::event::sequencer::SequencerTriggerAction::Pause,
+            2 => crate::event::sequencer::SequencerTriggerAction::Autofocus,
+            3 => crate::event::sequencer::SequencerTriggerAction::NextTarget,
+            4 => crate::event::sequencer::SequencerTriggerAction::Retry,
+            5 => crate::event::sequencer::SequencerTriggerAction::ParkAndAbort,
+            6 => crate::event::sequencer::SequencerTriggerAction::CustomBranch,
+            7 => crate::event::sequencer::SequencerTriggerAction::MeridianFlip,
+            8 => crate::event::sequencer::SequencerTriggerAction::Dither,
+            9 => crate::event::sequencer::SequencerTriggerAction::Recenter,
+            10 => crate::event::sequencer::SequencerTriggerAction::PauseAndWaitForClear,
+            11 => crate::event::sequencer::SequencerTriggerAction::SlewToGapAndContinue,
+            12 => crate::event::sequencer::SequencerTriggerAction::SwitchTargetOrFilter,
+            13 => crate::event::sequencer::SequencerTriggerAction::Notify,
+            14 => crate::event::sequencer::SequencerTriggerAction::Abort,
+            15 => crate::event::sequencer::SequencerTriggerAction::SkipTarget,
+            _ => unreachable!("Invalid variant for SequencerTriggerAction: {}", self),
+        }
+    }
+}
 impl CstDecode<crate::device::ShutterState> for i32 {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> crate::device::ShutterState {
@@ -11452,7 +11476,8 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
             15 => {
                 let mut var_triggerId = <String>::sse_decode(deserializer);
                 let mut var_triggerName = <String>::sse_decode(deserializer);
-                let mut var_action = <String>::sse_decode(deserializer);
+                let mut var_action =
+                    <crate::event::sequencer::SequencerTriggerAction>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerEvent::TriggerFired {
                     trigger_id: var_triggerId,
                     trigger_name: var_triggerName,
@@ -11936,6 +11961,32 @@ impl SseDecode for crate::event::sequencer::SequencerStop {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseDecode for crate::event::sequencer::SequencerTriggerAction {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::event::sequencer::SequencerTriggerAction::Continue,
+            1 => crate::event::sequencer::SequencerTriggerAction::Pause,
+            2 => crate::event::sequencer::SequencerTriggerAction::Autofocus,
+            3 => crate::event::sequencer::SequencerTriggerAction::NextTarget,
+            4 => crate::event::sequencer::SequencerTriggerAction::Retry,
+            5 => crate::event::sequencer::SequencerTriggerAction::ParkAndAbort,
+            6 => crate::event::sequencer::SequencerTriggerAction::CustomBranch,
+            7 => crate::event::sequencer::SequencerTriggerAction::MeridianFlip,
+            8 => crate::event::sequencer::SequencerTriggerAction::Dither,
+            9 => crate::event::sequencer::SequencerTriggerAction::Recenter,
+            10 => crate::event::sequencer::SequencerTriggerAction::PauseAndWaitForClear,
+            11 => crate::event::sequencer::SequencerTriggerAction::SlewToGapAndContinue,
+            12 => crate::event::sequencer::SequencerTriggerAction::SwitchTargetOrFilter,
+            13 => crate::event::sequencer::SequencerTriggerAction::Notify,
+            14 => crate::event::sequencer::SequencerTriggerAction::Abort,
+            15 => crate::event::sequencer::SequencerTriggerAction::SkipTarget,
+            _ => unreachable!("Invalid variant for SequencerTriggerAction: {}", inner),
+        };
     }
 }
 
@@ -16467,6 +16518,41 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerStop>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerTriggerAction {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Continue => 0.into_dart(),
+            Self::Pause => 1.into_dart(),
+            Self::Autofocus => 2.into_dart(),
+            Self::NextTarget => 3.into_dart(),
+            Self::Retry => 4.into_dart(),
+            Self::ParkAndAbort => 5.into_dart(),
+            Self::CustomBranch => 6.into_dart(),
+            Self::MeridianFlip => 7.into_dart(),
+            Self::Dither => 8.into_dart(),
+            Self::Recenter => 9.into_dart(),
+            Self::PauseAndWaitForClear => 10.into_dart(),
+            Self::SlewToGapAndContinue => 11.into_dart(),
+            Self::SwitchTargetOrFilter => 12.into_dart(),
+            Self::Notify => 13.into_dart(),
+            Self::Abort => 14.into_dart(),
+            Self::SkipTarget => 15.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::event::sequencer::SequencerTriggerAction
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerTriggerAction>
+    for crate::event::sequencer::SequencerTriggerAction
+{
+    fn into_into_dart(self) -> crate::event::sequencer::SequencerTriggerAction {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::device::ShutterState {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -20119,7 +20205,7 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
                 <i32>::sse_encode(15, serializer);
                 <String>::sse_encode(trigger_id, serializer);
                 <String>::sse_encode(trigger_name, serializer);
-                <String>::sse_encode(action, serializer);
+                <crate::event::sequencer::SequencerTriggerAction>::sse_encode(action, serializer);
             }
             crate::event::sequencer::SequencerEvent::InstructionProgress {
                 node_id,
@@ -20575,6 +20661,36 @@ impl SseEncode for crate::event::sequencer::SequencerStop {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseEncode for crate::event::sequencer::SequencerTriggerAction {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::event::sequencer::SequencerTriggerAction::Continue => 0,
+                crate::event::sequencer::SequencerTriggerAction::Pause => 1,
+                crate::event::sequencer::SequencerTriggerAction::Autofocus => 2,
+                crate::event::sequencer::SequencerTriggerAction::NextTarget => 3,
+                crate::event::sequencer::SequencerTriggerAction::Retry => 4,
+                crate::event::sequencer::SequencerTriggerAction::ParkAndAbort => 5,
+                crate::event::sequencer::SequencerTriggerAction::CustomBranch => 6,
+                crate::event::sequencer::SequencerTriggerAction::MeridianFlip => 7,
+                crate::event::sequencer::SequencerTriggerAction::Dither => 8,
+                crate::event::sequencer::SequencerTriggerAction::Recenter => 9,
+                crate::event::sequencer::SequencerTriggerAction::PauseAndWaitForClear => 10,
+                crate::event::sequencer::SequencerTriggerAction::SlewToGapAndContinue => 11,
+                crate::event::sequencer::SequencerTriggerAction::SwitchTargetOrFilter => 12,
+                crate::event::sequencer::SequencerTriggerAction::Notify => 13,
+                crate::event::sequencer::SequencerTriggerAction::Abort => 14,
+                crate::event::sequencer::SequencerTriggerAction::SkipTarget => 15,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -32412,7 +32528,7 @@ mod io {
     pub struct wire_cst_SequencerEvent_TriggerFired {
         trigger_id: *mut wire_cst_list_prim_u_8_strict,
         trigger_name: *mut wire_cst_list_prim_u_8_strict,
-        action: *mut wire_cst_list_prim_u_8_strict,
+        action: i32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

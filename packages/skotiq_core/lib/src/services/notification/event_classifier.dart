@@ -256,7 +256,7 @@ class NotificationEventClassifier {
         // A trigger whose action is to carry on (a filter change in a rotating
         // Smart Exposure fires one every frame) changed nothing; notifying it
         // buried the real alerts on a linked client.
-        if (action.trim().toLowerCase() == 'continue') return null;
+        if (action == typed.SequencerTriggerAction.continue_) return null;
         return (
           NotificationCategory.triggerFired,
           <String, String>{'trigger.name': triggerName},
