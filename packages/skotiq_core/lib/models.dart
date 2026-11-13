@@ -8,6 +8,7 @@ library;
 export 'src/models/equipment/equipment_models.dart';
 export 'src/models/equipment/unified_device.dart';
 export 'src/models/equipment/discovery_state.dart';
+export 'src/models/equipment/filter_names.dart';
 export 'src/models/mount_guard.dart';
 export 'src/models/mount_site_reconciliation.dart';
 export 'src/models/equipment_profile.dart';

@@ -198,8 +198,8 @@ class IntegrationGoalService {
   /// Compute the captured-frame count for one (target, filter) pair.
   ///
   /// Counts only frames with frame_type='light' and is_accepted=1 so
-  /// rejected subs do not artificially advance the goal. Filter matching
-  /// is case-insensitive.
+  /// rejected subs do not artificially advance the goal; which filters count
+  /// is [goalFrameCount]'s rule.
   Future<int> capturedFrameCount({
     required int targetId,
     required String filter,
@@ -210,9 +210,9 @@ class IntegrationGoalService {
       // empty local DB, or every goal looks 0/N and ranking/dwell is wrong.
       return remote.getCapturedFrameCount(targetId: targetId, filter: filter);
     }
-    return _db.planningDao.acceptedLightFrameCount(
-      targetId: targetId,
-      filter: filter,
+    return goalFrameCount(
+      filter,
+      await _db.planningDao.acceptedLightFramesByFilter(targetId),
     );
   }
 

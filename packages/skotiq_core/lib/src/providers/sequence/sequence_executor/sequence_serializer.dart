@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../models/equipment/filter_names.dart';
 import '../../../models/imaging/imaging_models.dart';
 import '../../../models/meridian_flip_settings.dart' show TrackingLimitPolicy;
 import '../../../models/sequence/sequence_models.dart';
@@ -345,11 +346,8 @@ class SequenceSerializer {
       );
       return null;
     }
-    for (int i = 0; i < filterNames.length; i++) {
-      if (filterNames[i].toLowerCase() == filterName.toLowerCase()) {
-        return i;
-      }
-    }
+    final index = matchingFilterIndex(filterName, filterNames);
+    if (index != null) return index;
     _surfaceFilterLookupWarning(
       'Filter "$filterName" not found in active profile '
       '(available: ${filterNames.join(", ")}); node will use the literal '

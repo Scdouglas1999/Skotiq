@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/roles/device_backend.dart';
 import '../models/backend/device_types.dart';
 import '../models/equipment/equipment_models.dart';
+import '../models/equipment/filter_names.dart';
 import '../providers/backend_provider.dart';
 import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/switch_state_provider.dart';
@@ -57,13 +58,14 @@ class DeviceCommands {
   }
 
   /// Move to the slot named [name]. The slot wheel resolves the name against
-  /// the names the wheel reports and moves as [filterWheelSetPosition] does,
-  /// so the focus offset follows the filter whichever way it was asked for.
+  /// the names the wheel reports by the filter-name rule ("Ha" is "Ha 7nm")
+  /// and moves as [filterWheelSetPosition] does, so the focus offset follows
+  /// the filter whichever way it was asked for.
   Future<void> filterWheelSetByName(String deviceId, String name) async {
     if (isSlotDevice(DeviceType.filterWheel, deviceId)) {
       final names = (await _backend.getFilterWheelStatus(deviceId)).filterNames;
-      final slot = names.indexOf(name);
-      if (slot >= 0) return _service.setFilterWheelPosition(slot);
+      final slot = matchingFilterIndex(name, names);
+      if (slot != null) return _service.setFilterWheelPosition(slot);
     }
     return _backend.filterWheelSetByName(deviceId, name);
   }
