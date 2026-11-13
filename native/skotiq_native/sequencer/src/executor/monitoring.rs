@@ -291,24 +291,14 @@ impl FiredTriggerAction {
     /// The action as the trigger-fired event and decision row name it. The
     /// app reads `ParkAndAbort` there as "the trigger ended the run and parked
     /// the mount", so a run ended without parking must not say it.
-    ///
-    /// It is the action's name alone. The `Debug` form it used to be carried
-    /// the action's whole config into the operator's Log ("MeridianFlip(
-    /// MeridianFlipConfig { trigger_method: MinutesPastMeridian, ... })").
-    pub(crate) fn wire_label(&self) -> String {
+    pub(crate) fn trigger_action(&self) -> TriggerFiredAction {
         if self.notify_only {
-            return "Notify".to_string();
+            TriggerFiredAction::Notify
+        } else if self.end_without_parking {
+            TriggerFiredAction::Abort
+        } else {
+            TriggerFiredAction::from(&self.action)
         }
-        if self.end_without_parking {
-            return "Abort".to_string();
-        }
-        match &self.action {
-            RecoveryAction::Retry { .. } => "Retry",
-            RecoveryAction::MeridianFlip(_) => "MeridianFlip",
-            RecoveryAction::Dither(_) => "Dither",
-            other => return format!("{other:?}"),
-        }
-        .to_string()
     }
 
     /// Whether running this ends the run with the mount parked.
@@ -325,23 +315,23 @@ impl FiredTriggerAction {
         {
             return format!("Meridian flip trigger: {}", flip_trigger_point(config));
         }
-        let action = match self.wire_label().as_str() {
-            "Notify" => "notify only".to_string(),
-            "Abort" => "end the run".to_string(),
-            "Continue" => "continue".to_string(),
-            "Pause" => "pause the run".to_string(),
-            "Autofocus" => "run autofocus".to_string(),
-            "NextTarget" => "skip to the next target".to_string(),
-            "ParkAndAbort" => "park and end the run".to_string(),
-            "Dither" => "dither".to_string(),
-            "Recenter" => "recenter".to_string(),
-            "Retry" => match self.action {
+        let action = match self.trigger_action() {
+            TriggerFiredAction::Notify => "notify only".to_string(),
+            TriggerFiredAction::Abort => "end the run".to_string(),
+            TriggerFiredAction::Continue => "continue".to_string(),
+            TriggerFiredAction::Pause => "pause the run".to_string(),
+            TriggerFiredAction::Autofocus => "run autofocus".to_string(),
+            TriggerFiredAction::NextTarget => "skip to the next target".to_string(),
+            TriggerFiredAction::ParkAndAbort => "park and end the run".to_string(),
+            TriggerFiredAction::Dither => "dither".to_string(),
+            TriggerFiredAction::Recenter => "recenter".to_string(),
+            TriggerFiredAction::Retry => match self.action {
                 RecoveryAction::Retry { max_attempts } => {
                     format!("retry (up to {max_attempts} times)")
                 }
                 _ => "retry".to_string(),
             },
-            other => other.to_string(),
+            other => format!("{other:?}"),
         };
         format!("{trigger_name} fired: {action}")
     }
@@ -1119,7 +1109,7 @@ mod fired_label_tests {
             minutes_past_meridian: 20.0,
             ..Default::default()
         }));
-        assert_eq!(flip.wire_label(), "MeridianFlip");
+        assert_eq!(flip.trigger_action(), TriggerFiredAction::MeridianFlip);
         assert_eq!(
             flip.decision_summary("Meridian Flip"),
             "Meridian flip trigger: 20 min past the meridian"
@@ -1127,7 +1117,7 @@ mod fired_label_tests {
     }
 
     #[test]
-    fn no_action_label_carries_its_config() {
+    fn no_action_summary_carries_its_config() {
         for action in [
             RecoveryAction::Retry { max_attempts: 3 },
             RecoveryAction::Dither(crate::DitherConfig::default()),
@@ -1135,8 +1125,6 @@ mod fired_label_tests {
             RecoveryAction::ParkAndAbort,
         ] {
             let fired = fired(action);
-            let label = fired.wire_label();
-            assert!(label.chars().all(|c| c.is_ascii_alphanumeric()), "{label}");
             let summary = fired.decision_summary("Some Trigger");
             assert!(
                 !summary.contains('{') && !summary.contains("Config"),

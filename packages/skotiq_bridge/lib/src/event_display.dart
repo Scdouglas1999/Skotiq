@@ -899,33 +899,26 @@ String propertyChangeText(String property, String value) {
   return '$property=$value';
 }
 
-/// A fired trigger's action label in plain words.
-///
-/// The label is the executor's name for the action ("ParkAndAbort",
-/// "MeridianFlip"). Older hosts sent the action's Rust debug form, which
-/// carried its whole config into the Log ("MeridianFlip(MeridianFlipConfig {
-/// trigger_method: MinutesPastMeridian, ... })"); only the name is kept.
-String triggerActionText(String action) {
-  final name = action.split(RegExp(r'[\s({]')).first;
-  return switch (name) {
-    'Continue' => 'continue',
-    'Notify' => 'notify only',
-    'Pause' => 'pause the run',
-    'Autofocus' => 'run autofocus',
-    'NextTarget' => 'skip to the next target',
-    'Retry' => 'retry',
-    'ParkAndAbort' => 'park and end the run',
-    'Abort' => 'end the run',
-    'MeridianFlip' => 'flip the mount',
-    'Dither' => 'dither',
-    'Recenter' => 'recenter',
-    'PauseAndWaitForClear' => 'pause until the sky clears',
-    'SlewToGapAndContinue' => 'slew to clear sky',
-    'SwitchTargetOrFilter' => 'switch to the backup target or filter',
-    '' => action,
-    _ => name,
-  };
-}
+/// A fired trigger's action in plain words.
+String triggerActionText(SequencerTriggerAction action) => switch (action) {
+  SequencerTriggerAction.continue_ => 'continue',
+  SequencerTriggerAction.notify => 'notify only',
+  SequencerTriggerAction.pause => 'pause the run',
+  SequencerTriggerAction.autofocus => 'run autofocus',
+  SequencerTriggerAction.nextTarget => 'skip to the next target',
+  SequencerTriggerAction.retry => 'retry',
+  SequencerTriggerAction.parkAndAbort => 'park and end the run',
+  SequencerTriggerAction.abort => 'end the run',
+  SequencerTriggerAction.customBranch => 'run its recovery branch',
+  SequencerTriggerAction.meridianFlip => 'flip the mount',
+  SequencerTriggerAction.dither => 'dither',
+  SequencerTriggerAction.recenter => 'recenter',
+  SequencerTriggerAction.pauseAndWaitForClear => 'pause until the sky clears',
+  SequencerTriggerAction.slewToGapAndContinue => 'slew to clear sky',
+  SequencerTriggerAction.switchTargetOrFilter =>
+    'switch to the backup target or filter',
+  SequencerTriggerAction.skipTarget => 'skip the target',
+};
 
 /// A filter wheel slot by its name, or by its 1-based number without one.
 String _filterSlot(int slot, String? name) {

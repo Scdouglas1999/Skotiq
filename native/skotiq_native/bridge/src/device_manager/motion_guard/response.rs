@@ -669,7 +669,7 @@ async fn auto_recover(device_id: &str) -> Result<(), String> {
         solve.separation_deg
     );
     recovery_sync(device_id, solve.ra_hours, solve.dec_deg).await?;
-    crate::api::sequencer::lifecycle::api_sequencer_resume()
+    crate::sequence_run::resume()
         .await
         .map_err(|e| format!("The run did not resume: {e}"))?;
     Ok(())

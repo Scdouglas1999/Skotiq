@@ -1,5 +1,12 @@
 use super::*;
 
+async fn display_name(manager: &DeviceManager, device_id: &str) -> Option<String> {
+    manager
+        .get_device(device_id)
+        .await
+        .map(|device| device.info.display_name)
+}
+
 /// A connect must read identity back off the driver and replace the
 /// id-derived placeholder name with it.
 ///
@@ -22,7 +29,7 @@ async fn connect_replaces_the_id_derived_name_with_the_drivers_own() {
         .expect("connect should succeed");
 
     assert_eq!(
-        manager.get_device_display_name(&info.id).await.as_deref(),
+        display_name(&manager, &info.id).await.as_deref(),
         Some("ZWO ASI1600MM-Cool"),
         "the driver's own name must replace the id-derived placeholder"
     );
@@ -172,7 +179,7 @@ async fn a_driver_echoing_its_own_id_does_not_become_the_name() {
         .expect("connect should succeed");
 
     assert_eq!(
-        manager.get_device_display_name(&info.id).await.as_deref(),
+        display_name(&manager, &info.id).await.as_deref(),
         Some("ZWO 1"),
         "the placeholder must survive a driver that only echoed the device id"
     );
@@ -231,10 +238,7 @@ async fn expected_model_follows_a_camera_that_moved_ids() {
         .await
         .expect("the main camera connects at its new id");
     assert_eq!(
-        manager
-            .get_device_display_name(SIM_GUIDE_CAMERA_ID)
-            .await
-            .as_deref(),
+        display_name(&manager, SIM_GUIDE_CAMERA_ID).await.as_deref(),
         Some("Simulated Camera")
     );
 

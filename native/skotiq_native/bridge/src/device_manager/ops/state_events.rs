@@ -28,8 +28,6 @@ pub(crate) mod property {
     // back after the change.
     pub const GAIN: &str = "Gain";
     pub const OFFSET: &str = "Offset";
-    /// Value `"<x>x<y>"`, for example `"2x2"`.
-    pub const BINNING: &str = "Binning";
     pub const READOUT_MODE: &str = "ReadoutMode";
     /// Value is a JSON array of the slot names.
     pub const FILTER_NAMES: &str = "FilterNames";
