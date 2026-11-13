@@ -20,14 +20,9 @@ impl PlateSolveOps for UnifiedDeviceOps {
         let temp_path = temp_file.to_string_lossy().to_string();
 
         // The optics, so the solver is told the field scale instead of hunting
-        // for it. With `focal_length` and the pixel pitch left as None, ASTAP
-        // gets a header with no scale information and falls back to sweeping
-        // the field of view downward from ~9.5°. Observed live on a 0.37°
-        // field: one run reached the bottom rung and solved in 0.3 s (still
-        // warning "scale was inaccurate"), and the next three never converged
-        // and exited non-zero on all five centering attempts. Same code, same
-        // catalogs, same sensor — the only variable was whether the blind
-        // sweep happened to land.
+        // for it. With no focal length or pixel pitch ASTAP sweeps the field of
+        // view down from ~9.5°, and on a small field whether that sweep lands
+        // is chance.
         //
         // Gathered by the shared helper so this is the same header every other
         // production solve path writes.
@@ -134,12 +129,10 @@ impl PlateSolveOps for UnifiedDeviceOps {
         }
         let _ = std::fs::remove_file(&temp_path);
 
-        // What this rig's own optics measure, remembered for the next solve.
-        // A run whose profile carries no focal length gets exactly one blind
-        // sweep and is hinted from then on — which is the difference between
-        // the drift-recenter that timed out on 2026-09-15 and one that solves
-        // in under a second. Recorded only from a solve that reported success
-        // AND a usable scale; a failed solve measures nothing.
+        // What this rig's own optics measure, remembered for the next solve,
+        // so a run whose profile carries no focal length sweeps blind once and
+        // is hinted from then on. Recorded only from a solve that reported
+        // success and a usable scale; a failed solve measures nothing.
         if let Ok(solved) = result.as_ref() {
             if solved.success {
                 scale.record_measured_scale(solved.pixel_scale);

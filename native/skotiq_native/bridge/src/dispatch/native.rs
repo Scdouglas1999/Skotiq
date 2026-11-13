@@ -2,8 +2,7 @@
 //!
 //! Methods in this module are additional impl blocks on `DeviceManager` and
 //! provide native-SDK-only connect logic. Invoked from the dispatcher methods
-//! in `crate::device_manager`. No behavior or signature has changed relative to the
-//! previous monolithic `devices.rs`.
+//! in `crate::device_manager`.
 
 use crate::device::{DeviceInfo, DeviceType};
 use crate::device_manager::handle::DeviceHandle;

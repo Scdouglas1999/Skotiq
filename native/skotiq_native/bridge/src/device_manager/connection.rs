@@ -4,8 +4,7 @@
 //! contain the cross-driver lifecycle logic. Driver-specific `connect_*`
 //! helpers continue to live in `crate::dispatch::{ascom,alpaca,indi,native}`
 //! (also split-impl-block) and are invoked from `connect_device_internal`
-//! below. No behavior or signature has changed relative to the previous
-//! monolithic `devices.rs`.
+//! below.
 
 use crate::device::{ConnectionState, DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::handle::{device_noun, protocol_label};
