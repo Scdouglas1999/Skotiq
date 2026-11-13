@@ -288,7 +288,7 @@ impl AlpacaClient {
 
         Err(AlpacaError::RetryExhausted {
             attempts: self.retry_config.max_attempts,
-            last_error: last_error.to_string(),
+            last_error: Box::new(last_error),
         })
     }
 

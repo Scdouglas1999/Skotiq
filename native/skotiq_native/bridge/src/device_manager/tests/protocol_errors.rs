@@ -226,3 +226,34 @@ async fn a_reading_an_alpaca_mount_does_not_have_is_unsupported_not_an_error() {
     );
     assert_eq!(status.altitude, Some(1.5));
 }
+
+/// An Alpaca server that is gone (nothing listens at its address) was a
+/// hardware fault, a 500 a client retries, although the device is simply
+/// not there any more: 409, and the sequencer reconnects.
+#[tokio::test]
+async fn an_alpaca_mount_whose_server_is_gone_is_not_connected() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let base_url = format!("http://{}", listener.local_addr().expect("address"));
+    drop(listener);
+    let manager = build_device_manager();
+    let device_id = "alpaca:protocol-errors-server-gone";
+    register_alpaca_mount(&manager, device_id, &base_url).await;
+
+    let error = manager
+        .mount(device_id)
+        .await
+        .expect("the mount")
+        .coordinates()
+        .await
+        .expect_err("nothing answers");
+    assert!(
+        matches!(error, DeviceOpError::NotConnected { .. }),
+        "{error:?}"
+    );
+    assert!(
+        error.to_string().contains("Connection refused"),
+        "the client's own words stay in the message: {error}"
+    );
+}
