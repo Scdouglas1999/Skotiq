@@ -529,16 +529,16 @@ pub(crate) async fn run_sequencer_event_loop(
                     trigger_name,
                     action,
                 } => {
-                    if action == "Continue" {
+                    if *action == skotiq_sequencer::TriggerFiredAction::Continue {
                         tracing::debug!(
-                            "Trigger fired: {} ({}) - {}",
+                            "Trigger fired: {} ({}) - {:?}",
                             trigger_name,
                             trigger_id,
                             action
                         );
                     } else {
                         tracing::info!(
-                            "Trigger fired: {} ({}) - {}",
+                            "Trigger fired: {} ({}) - {:?}",
                             trigger_name,
                             trigger_id,
                             action
@@ -550,7 +550,7 @@ pub(crate) async fn run_sequencer_event_loop(
                         EventPayload::Sequencer(SequencerEvent::TriggerFired {
                             trigger_id: trigger_id.clone(),
                             trigger_name: trigger_name.clone(),
-                            action: action.clone(),
+                            action: (*action).into(),
                         }),
                     ))
                 }

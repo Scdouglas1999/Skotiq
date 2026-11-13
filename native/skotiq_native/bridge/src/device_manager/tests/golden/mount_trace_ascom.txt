@@ -25,9 +25,6 @@
 > coordinates
   GetCoordinates
 < ok (5.5, 22.0)
-> can_park
-  CanPark
-< ok true
 > can_set_park
   GetCapabilities
   CanPark
@@ -43,9 +40,6 @@
 > set_tracking off
   SetTracking false
 < ok ()
-> tracking_rate
-  GetTrackingRate
-< ok 0
 > set_tracking_rate lunar
   SetTrackingRate 1
 < ok ()
@@ -111,8 +105,8 @@
 > move_axis 1 at -1
   MoveAxis 1 -1
 < ok ()
-> stop
-  Stop
+> abort
+  AbortSlew
 < ok ()
 > slew_alt_az 50 120
   SlewToAltAz 50.0000 120.0000

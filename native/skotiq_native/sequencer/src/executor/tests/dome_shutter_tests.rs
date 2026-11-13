@@ -133,7 +133,7 @@ impl DomeRun {
                 match self.events.recv().await {
                     Ok(ExecutorEvent::TriggerFired {
                         trigger_id, action, ..
-                    }) => fired.push(format!("{trigger_id} -> {action}")),
+                    }) => fired.push(format!("{trigger_id} -> {action:?}")),
                     Ok(
                         ExecutorEvent::Warning { message }
                         | ExecutorEvent::NoticedWarning { message, .. },

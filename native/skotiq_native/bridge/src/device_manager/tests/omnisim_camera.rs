@@ -100,7 +100,7 @@ async fn capabilities_report_the_cameras_own_controls() {
     let id = connected_camera(&manager, &base_url).await;
 
     let crate::device_capabilities::types::DeviceCapabilities::Camera(caps) =
-        crate::device_capabilities::alpaca::get_alpaca_capabilities(&id)
+        crate::device_capabilities::get_device_capabilities(&id)
             .await
             .expect("capabilities")
     else {

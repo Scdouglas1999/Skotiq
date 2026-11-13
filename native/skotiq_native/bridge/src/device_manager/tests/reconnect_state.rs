@@ -4,7 +4,7 @@ use crate::device::DriverType;
 // Hot-plug reconnect: re-apply essential device state.
 //
 // After an *unplanned* reconnect (the device's connection_state was Error,
-// i.e. heartbeat-lost / report_error), `connect_device_internal` must
+// i.e. heartbeat-lost), `connect_device_internal` must
 // re-apply the last commanded camera cooling setpoint and mount tracking
 // state — the driver comes back in power-on defaults and would otherwise
 // silently warm the sensor / leave the mount parked while the sequence

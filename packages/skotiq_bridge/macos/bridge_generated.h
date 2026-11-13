@@ -1183,7 +1183,7 @@ typedef struct wire_cst_SequencerEvent_MeridianFlipOutcome {
 typedef struct wire_cst_SequencerEvent_TriggerFired {
   struct wire_cst_list_prim_u_8_strict *trigger_id;
   struct wire_cst_list_prim_u_8_strict *trigger_name;
-  struct wire_cst_list_prim_u_8_strict *action;
+  int32_t action;
 } wire_cst_SequencerEvent_TriggerFired;
 
 typedef struct wire_cst_SequencerEvent_InstructionProgress {
