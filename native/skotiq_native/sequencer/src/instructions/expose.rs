@@ -4,35 +4,9 @@
 //! see them, and `super::*` supplies the imports the original file had.
 
 use super::*;
+use crate::frame_naming::{FrameSavePathRenderer, FrameToName};
 
 // Exposure instruction
-
-/// Per-frame save-path renderer for the `ExposureConfig.save_to` template.
-/// Built once in the expose-instruction wrapper (which has ExecutionContext
-/// access) and invoked per frame, so the same engine resolves `${frame:04}`
-/// and `${exposure.duration:.0f}`.
-///
-/// Returns `Ok((dir, filename))` where:
-/// * `dir` is the directory portion (absolute, with any user-specified
-///   sub-directories from the template already expanded), and
-/// * `filename` is the rendered file-name portion.
-///
-/// Errors surface as `InstructionResult::failure` from the caller — a
-/// broken save-path template must abort the exposure rather than silently
-/// drop frames into the wrong place.
-pub type FrameSavePathRenderer =
-    Box<dyn Fn(&FrameToName) -> Result<(PathBuf, String), String> + Send + Sync>;
-
-/// What the save-path renderer knows of the frame it names.
-#[derive(Debug, Clone, Copy)]
-pub struct FrameToName {
-    pub index_in_burst: u32,
-    pub burst_total: u32,
-    /// When the shutter opened: the date and time a frame's name carries.
-    pub started_at: chrono::DateTime<chrono::Utc>,
-    /// The sensor temperature the camera reported with the frame.
-    pub sensor_temp_c: Option<f64>,
-}
 
 /// Arms an asynchronous camera abort while an exposure future is in flight.
 ///

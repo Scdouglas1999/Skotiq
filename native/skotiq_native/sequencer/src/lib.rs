@@ -28,6 +28,7 @@ pub mod flat_wizard;
 // Measuring a focuser's mechanical backlash instead of asking the operator
 // for a figure the app has never been able to work out for itself.
 pub mod focuser_calibration;
+mod frame_naming;
 pub mod frame_watch;
 pub mod guiding_stop;
 pub mod instructions;

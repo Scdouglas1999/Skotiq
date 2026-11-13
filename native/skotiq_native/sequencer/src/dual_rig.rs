@@ -562,11 +562,10 @@ pub async fn run_secondary_loop(
         "secondary rig has no save directory; refusing to write into the process directory"
             .to_string()
     })?;
-    let safe_rig_dir = sanitize_component(&config.rig_label);
-    let save_dir = save_base.join(if safe_rig_dir.is_empty() {
-        "Secondary"
+    let save_dir = save_base.join(if config.rig_label.trim().is_empty() {
+        "Secondary".to_string()
     } else {
-        &safe_rig_dir
+        crate::frame_naming::path_segment(&config.rig_label)
     });
     tokio::fs::create_dir_all(&save_dir).await.map_err(|e| {
         format!(
@@ -689,7 +688,7 @@ async fn capture_secondary_frame(
     barrier: &DitherBarrier,
     cancel: &AtomicBool,
     meta: &SecondaryFrameMeta,
-    name_frame: &crate::instructions::FrameSavePathRenderer,
+    name_frame: &crate::frame_naming::FrameSavePathRenderer,
     frame_index: u32,
 ) -> Result<SecondaryFrameOutcome, String> {
     if cancel.load(Ordering::Acquire) {
@@ -782,7 +781,7 @@ async fn capture_secondary_frame(
     // Frame attribution: tag the rig so multi-rig sessions can split subs.
     ctx.rig_label = Some(config.rig_label.clone());
 
-    let (dir, file_name) = name_frame(&crate::instructions::FrameToName {
+    let (dir, file_name) = name_frame(&crate::frame_naming::FrameToName {
         index_in_burst: frame_index,
         burst_total: config.frame_count.unwrap_or(0),
         started_at: exposure_started_at,
@@ -819,7 +818,7 @@ fn secondary_frame_namer(
     device_ops: &SharedDeviceOps,
     meta: &SecondaryFrameMeta,
     save_dir: std::path::PathBuf,
-) -> Result<crate::instructions::FrameSavePathRenderer, String> {
+) -> Result<crate::frame_naming::FrameSavePathRenderer, String> {
     let mut naming = crate::node::ExecutionContext::new(
         format!("secondary:{}", config.rig_label),
         device_ops.clone(),
@@ -832,36 +831,23 @@ fn secondary_frame_namer(
             .unwrap_or_else(|| "Untitled".to_string()),
     );
     naming.current_filter = config.filter_name.clone();
-    let frames = crate::ExposureConfig {
-        count: config.frame_count.unwrap_or(0),
-        gain: config.gain,
-        offset: config.offset,
-        binning: match config.bin_x {
-            2 => crate::Binning::Two,
-            3 => crate::Binning::Three,
-            4 => crate::Binning::Four,
-            _ => crate::Binning::One,
-        },
-        save_to: config.save_to.clone(),
-        ..crate::ExposureConfig::default()
-    };
-    crate::node::instructions::expose::build_save_path_renderer(
+    crate::frame_naming::frame_namer(
         &naming,
-        &frames,
-        config.exposure_secs,
+        crate::frame_naming::BurstNaming {
+            save_to: config.save_to.as_deref(),
+            frame_type: crate::FrameType::Light,
+            gain: config.gain,
+            offset: config.offset,
+            binning: match config.bin_x {
+                2 => crate::Binning::Two,
+                3 => crate::Binning::Three,
+                4 => crate::Binning::Four,
+                _ => crate::Binning::One,
+            },
+            filter_index: None,
+            duration_secs: config.exposure_secs,
+        },
     )
-}
-
-fn sanitize_component(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
 }
 
 #[cfg(test)]

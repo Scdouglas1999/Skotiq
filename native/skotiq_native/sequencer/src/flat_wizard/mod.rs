@@ -31,7 +31,7 @@ use crate::instructions::{
     execute_exposure_with_renderer, resolve_frame_filter, BurstControl, InstructionContext,
     InstructionResult, Setback,
 };
-use crate::node::instructions::expose::build_save_path_renderer;
+use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::wizard::{
     BorrowedProgressReporter, Wizard, WizardExecutor, WizardProgressReporter, WizardRunStatus,
     WizardStepOutcome,
@@ -514,7 +514,7 @@ pub(crate) async fn capture_converged_flats(
     template_ctx.current_filter = filter_name;
     template_ctx.current_filter_index = filter_index;
 
-    let renderer = match build_save_path_renderer(&template_ctx, &capture_config, exposure_secs) {
+    let renderer = match frame_namer(&template_ctx, BurstNaming::of(&capture_config, exposure_secs)) {
         Ok(renderer) => renderer,
         Err(message) => {
             tracing::error!("{}", message);
