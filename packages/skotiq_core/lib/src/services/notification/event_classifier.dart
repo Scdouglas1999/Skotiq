@@ -1,33 +1,13 @@
-// Single source of truth: backend event -> NotificationCategory.
+// Which notification, if any, a backend event raises: one classifier, called
+// only by [NotificationRouter], which feeds every transport (in-app, mobile
+// push, the external ones). The per-category push toggle keys off the same
+// category, so a routing rule and a push toggle cannot disagree about what an
+// event is. The run dashboard's critical alerts read the typed event in their
+// own file and take criticality from [NotificationCategory.isCritical].
 //
-// Before this file existed, the same "which NotificationCategory does this
-// raw event belong to" logic was hand-written THREE times with subtly
-// different coverage:
-//
-//   * NotificationRouter._categoryForEvent / _classify*Event
-//   * PushNotificationService._eventToNotification / _handle*Event
-//   * (bridge-typed) run_dashboard isCriticalEvent / _toDashboardEvent
-//
-// The first two operated on the core [SkotiqEvent] (string `eventType`
-// + `data` map). They are unified here as the ONE classifier.
-//
-// Architecture-unification, Subsystem 3 (collapsed): the mobile-push feed no
-// longer classifies at all — [PushNotificationService] is now a pure
-// broadcaster and the [NotificationRouter] is the single producer of every
-// transport (in-app, mobile push, and the external ones). The router is the
-// sole caller of this classifier; the per-category mobile-push toggle now
-// lives in [SystemPushTransport] keyed off the SAME category this classifier
-// assigns, so a routing rule and a push toggle can never disagree about what
-// an event *is*.
-//
-// The dashboard bridge runs on the freezed bridge-union event (a different
-// representation that carries richer typed payloads) and stays in its own
-// file; it forwards only the criticals this classifier does NOT route (e.g.
-// generic system errors) into the router, and derives criticality from
-// [NotificationCategory.isCritical] via the shared matrix so the two never
-// drift on *which* events are critical.
-//
-// This classifier is intentionally pure and side-effect free.
+// The classifier switches over the typed event unions without a default arm,
+// so a new event variant does not compile until someone decides whether it
+// notifies. It is pure and has no side effects.
 
 import '../../backend/bridge_event_codec.dart';
 import '../../backend/bridge_events.dart' as typed;
@@ -100,8 +80,6 @@ class ClassifiedNotification {
 /// or `null` when the event is not one the cross-platform notification
 /// system surfaces (those events are consumed by dedicated UI surfaces).
 ///
-/// This is the ONE classifier both [NotificationRouter] and
-/// [PushNotificationService] call.
 class NotificationEventClassifier {
   const NotificationEventClassifier._();
 
