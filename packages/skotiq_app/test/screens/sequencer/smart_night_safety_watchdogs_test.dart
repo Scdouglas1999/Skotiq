@@ -286,6 +286,7 @@ void main() {
         availableFilters: profile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: const PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: SmartNightContext(
           windowStart: DateTime(2026, 5, 17, 22),
           windowEnd: DateTime(2026, 5, 18, 5),

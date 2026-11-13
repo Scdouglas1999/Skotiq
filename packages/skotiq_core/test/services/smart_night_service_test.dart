@@ -2,8 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show TargetVisibilityInfo;
+import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 
 class _MockLoggingService extends Mock implements LoggingService {}
 
@@ -155,6 +154,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -197,38 +197,72 @@ void main() {
       expect(plan.sequence.nodes.values.whereType<ParkNode>(), isNotEmpty);
     });
 
-    test('a target with integration goals is planned to the frames they still need', () {
-      final goals = [
-        IntegrationGoalProgress(
-          goal: IntegrationGoal(
-            id: 1,
-            targetId: 7,
-            filter: 'L',
-            exposureSeconds: 105,
-            frameCount: 20,
-            createdAt: DateTime.utc(2026, 1, 1),
-          ),
-          capturedCount: 0,
-        ),
-      ];
-      final plan = service.build(
+    test('the night is timed by the rig\'s plan timer: its autofocus runs '
+        'count toward the run length', () {
+      SmartNightPlan buildWith(PlanTimer timer) => service.build(
         profile: monoProfile,
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: timer,
         context: baseContext(),
-        selectedSuggestions: [fakeSuggestion(id: 7, name: 'M33')],
+        selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
         settings: const SmartNightSettings(subExposureFloorSecs: 1),
-        integrationGoals: {7: goals},
+      );
+      const site = (latitude: 41.0, longitude: -73.0);
+
+      final plain = buildWith(const PlanTimer(site: site));
+      final withAutofocus = buildWith(
+        const PlanTimer(
+          site: site,
+          autoFocusOnFilterChange: true,
+          autoFocusEveryMinutes: 30,
+        ),
       );
 
-      final l = plan.plannedTargets.single.filterPlans.firstWhere(
-        (p) => p.filterName == 'L',
+      expect(
+        withAutofocus.estimatedWallClockSecs,
+        greaterThan(plain.estimatedWallClockSecs),
       );
-      expect(l.count, 20);
-      expect(l.durationSecs, 105);
     });
+
+    test(
+      'a target with integration goals is planned to the frames they still need',
+      () {
+        final goals = [
+          IntegrationGoalProgress(
+            goal: IntegrationGoal(
+              id: 1,
+              targetId: 7,
+              filter: 'L',
+              exposureSeconds: 105,
+              frameCount: 20,
+              createdAt: DateTime.utc(2026, 1, 1),
+            ),
+            capturedCount: 0,
+          ),
+        ];
+        final plan = service.build(
+          profile: monoProfile,
+          availableFilters: monoProfile.filterNames,
+          latitudeDeg: 41.0,
+          longitudeDeg: -73.0,
+          planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
+          context: baseContext(),
+          selectedSuggestions: [fakeSuggestion(id: 7, name: 'M33')],
+          strategy: SmartNightStrategy.autoLrgb,
+          settings: const SmartNightSettings(subExposureFloorSecs: 1),
+          integrationGoals: {7: goals},
+        );
+
+        final l = plan.plannedTargets.single.filterPlans.firstWhere(
+          (p) => p.filterName == 'L',
+        );
+        expect(l.count, 20);
+        expect(l.durationSecs, 105);
+      },
+    );
 
     test('dark time left after the last target is named in the warnings', () {
       final plan = service.build(
@@ -236,6 +270,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -257,6 +292,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext().copyWith(
           rainOrCloudProbability: 0.55,
           missingDarkLibraryNotes: const ['Missing 120s @ G100'],
@@ -300,6 +336,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [
           fakeSuggestion(id: 1, name: 'M31'),
@@ -329,6 +366,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -339,6 +377,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -381,6 +420,7 @@ void main() {
         availableFilters: narrowbandProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [
           fakeSuggestion(
@@ -409,6 +449,7 @@ void main() {
         availableFilters: oscProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [
           fakeSuggestion(
@@ -434,6 +475,7 @@ void main() {
           availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
+          planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: const [],
           strategy: SmartNightStrategy.autoLrgb,
@@ -450,6 +492,7 @@ void main() {
           availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
+          planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
           strategy: SmartNightStrategy.autoLrgb,
@@ -479,6 +522,7 @@ void main() {
           availableFilters: monoProfile.filterNames,
           latitudeDeg: 0.0,
           longitudeDeg: 0.0,
+          planTimer: PlanTimer(site: (latitude: 0.0, longitude: 0.0)),
           context: baseContext(),
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
           strategy: SmartNightStrategy.autoLrgb,
@@ -496,6 +540,7 @@ void main() {
           availableFilters: oscProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
+          planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'NGC 7000')],
           strategy: SmartNightStrategy.narrowbandSho,
@@ -518,6 +563,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: context,
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -547,6 +593,9 @@ void main() {
             availableFilters: monoProfile.filterNames,
             latitudeDeg: latitudeDeg,
             longitudeDeg: -73.0,
+            planTimer: PlanTimer(
+              site: (latitude: latitudeDeg, longitude: -73.0),
+            ),
             context: staleContext(),
             selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
             strategy: SmartNightStrategy.autoLrgb,
@@ -577,6 +626,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: context,
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -597,6 +647,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -651,6 +702,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -688,6 +740,7 @@ void main() {
           availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
+          planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: tightContext,
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
           strategy: SmartNightStrategy.autoLrgb,
@@ -703,6 +756,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [
           fakeSuggestion(id: 1, name: 'M31'),
@@ -727,6 +781,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: tightContext,
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -745,6 +800,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -812,21 +868,18 @@ void main() {
       },
     );
 
-    test(
-      'calculateWindow after a remote site\'s dawn is the coming night',
-      () {
-        // 21:15 UTC: the dark at 155.66 E ended near 18:45 UTC.
-        final now = DateTime.utc(2026, 11, 11, 21, 15);
-        final w = service.calculateWindow(
-          latitudeDeg: 40.0,
-          longitudeDeg: 155.66,
-          now: now,
-        );
-        expect(w.start.isAfter(now), isTrue);
-        expect(w.start.difference(now), lessThan(const Duration(hours: 12)));
-        expect(w.end.isAfter(w.start), isTrue);
-      },
-    );
+    test('calculateWindow after a remote site\'s dawn is the coming night', () {
+      // 21:15 UTC: the dark at 155.66 E ended near 18:45 UTC.
+      final now = DateTime.utc(2026, 11, 11, 21, 15);
+      final w = service.calculateWindow(
+        latitudeDeg: 40.0,
+        longitudeDeg: 155.66,
+        now: now,
+      );
+      expect(w.start.isAfter(now), isTrue);
+      expect(w.start.difference(now), lessThan(const Duration(hours: 12)));
+      expect(w.end.isAfter(w.start), isTrue);
+    });
 
     test('calculateWindow rejects polar midnight sun as a dark window', () {
       expect(
@@ -1463,8 +1516,11 @@ void main() {
           availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
+          planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: darkGapContext(
-            notes: const ['120 s darks at gain 100, offset 10, -10.0°C, binning 1x1'],
+            notes: const [
+              '120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
+            ],
             requirements: const [
               DarkFrameRequirement(
                 gain: 100,
@@ -1502,6 +1558,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -1544,6 +1601,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(
           notes: const [
             '120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
@@ -1613,6 +1671,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(requirements: requirements),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -1660,6 +1719,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(requirements: requirements),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -1698,6 +1758,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(requirements: requirements),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -1732,6 +1793,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: darkGapContext(requirements: requirements),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -1796,6 +1858,7 @@ void main() {
         availableFilters: narrowbandProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [emissionTarget],
         strategy: SmartNightStrategy.narrowbandSho,
@@ -1827,6 +1890,7 @@ void main() {
         availableFilters: narrowbandProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [emissionTarget],
         strategy: SmartNightStrategy.narrowbandSho,
@@ -1863,6 +1927,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -1897,6 +1962,7 @@ void main() {
           availableFilters: unknownCameraProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
+          planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: baseContext(),
           selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
           strategy: SmartNightStrategy.autoLrgb,
@@ -1923,6 +1989,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -1940,6 +2007,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -2008,6 +2076,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -2085,6 +2154,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: baseContext(),
         selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
         strategy: SmartNightStrategy.autoLrgb,
@@ -2180,6 +2250,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: contextWith(),
         selectedSuggestions: threeTargets(),
         strategy: SmartNightStrategy.autoLrgb,
@@ -2205,6 +2276,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: contextWith(),
         selectedSuggestions: threeTargets(),
         strategy: SmartNightStrategy.autoLrgb,
@@ -2236,6 +2308,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: contextWith(horizon: horizon),
         selectedSuggestions: threeTargets(),
         strategy: SmartNightStrategy.autoLrgb,
@@ -2267,6 +2340,7 @@ void main() {
           availableFilters: monoProfile.filterNames,
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
+          planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
           context: contextWith(),
           selectedSuggestions: threeTargets(),
           strategy: SmartNightStrategy.autoLrgb,
@@ -2292,6 +2366,7 @@ void main() {
         availableFilters: monoProfile.filterNames,
         latitudeDeg: 41.0,
         longitudeDeg: -73.0,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
         context: contextWith(horizon: horizon),
         selectedSuggestions: threeTargets(),
         strategy: SmartNightStrategy.autoLrgb,

@@ -575,6 +575,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
         selectedSuggestions: selected,
         strategy: _strategy,
         settings: effectiveSettings,
+        planTimer: ref.read(planTimerProvider),
         exposureContext: exposureContext,
         integrationGoals: integrationGoals,
       );
