@@ -97,12 +97,18 @@ Stream<List<T>> remoteSnapshotStream<T>({
 
   StreamSubscription<SkotiqEvent>? sub;
   controller.onListen = () {
+    try {
+      sub = backend.eventStream.listen((event) {
+        if (!shouldRefetch(event)) return;
+        pending = true;
+        maybeStart();
+      });
+    } on Object catch (error, stackTrace) {
+      // No events to follow: the list is an error, as a failed first read is.
+      controller.addError(error, stackTrace);
+      return;
+    }
     unawaited(run());
-    sub = backend.eventStream.listen((event) {
-      if (!shouldRefetch(event)) return;
-      pending = true;
-      maybeStart();
-    });
   };
   controller.onCancel = () {
     debounce?.cancel();
