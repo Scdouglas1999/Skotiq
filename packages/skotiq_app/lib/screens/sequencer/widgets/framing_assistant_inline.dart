@@ -1,31 +1,20 @@
-// Inline framing assistant for the sequencer.
+// The sequencer's Frame target dialog: the framing sky of Plan > Framing on
+// the selected TargetHeaderNode, with a rotation control. It frames on the one
+// framing session (framingProvider), so the field of view, survey and
+// overlays are the Framing tab's own; Apply writes the session's rotation
+// back to the node.
 //
-// Wraps the planetarium's `FramingView` widget in a sequencer-friendly
-// modal. The user picks a target from the properties panel, taps
-// "Frame target", and gets a full-screen framing view with the
-// target's sky context. Rotating the FOV on the assistant writes
-// directly back to the selected TargetHeaderNode.rotation.
-//
-// The dialog activates `equipmentFovBindingProvider`, which keeps the
-// planetarium's equipmentFOVProvider fed from the active equipment
-// profile / connected camera, so the rendered FOV matches the rig the
-// user is about to use. That binding is the single source of truth for
-// the overlay; this dialog only overrides the *rotation*.
-//
-// The "Use current rotator" button reads `rotatorStateProvider` and
-// applies the live mechanical angle — useful when the rotator is
-// already on-target and the user just wants to lock the sequence to
-// what's installed.
+// "Use live rotator" reads rotatorStateProvider and applies the live
+// mechanical angle, for a rotator already on target.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import '../../../services/equipment_fov_binding.dart';
+import '../../../utils/snackbar_helper.dart';
+import '../../framing/widgets/framing_sky_canvas.dart';
 
 /// Public entry point: open the framing assistant for a TargetHeader.
 /// Returns the resulting rotation if the user applied a change, or
@@ -35,16 +24,13 @@ Future<double?> showFramingAssistantDialog({
   required WidgetRef ref,
   required TargetHeaderNode target,
 }) async {
-  // Activate the equipment binding before the dialog opens so the FOV box
-  // reflects the user's rig from the first paint. It is idempotent — the
-  // planetarium screen activates the same provider — and it keeps tracking
-  // profile/camera changes for as long as the container lives.
-  ref.read(equipmentFovBindingProvider);
-
-  final initialRotation = target.rotation ?? 0;
-  ref
-      .read(equipmentFOVProvider.notifier)
-      .setRotation(initialRotation.toDouble());
+  ref.read(framingProvider.notifier)
+    ..setTargetCoordinates(
+      target.raHours,
+      target.decDegrees,
+      name: target.targetName,
+    )
+    ..setRotation((target.rotation ?? 0).toDouble());
 
   return showDialog<double?>(
     context: context,
@@ -53,46 +39,20 @@ Future<double?> showFramingAssistantDialog({
   );
 }
 
-class FramingAssistantDialog extends ConsumerStatefulWidget {
+class FramingAssistantDialog extends ConsumerWidget {
   final TargetHeaderNode target;
 
   const FramingAssistantDialog({super.key, required this.target});
 
   @override
-  ConsumerState<FramingAssistantDialog> createState() =>
-      _FramingAssistantDialogState();
-}
-
-class _FramingAssistantDialogState
-    extends ConsumerState<FramingAssistantDialog> {
-  late double _rotation;
-
-  @override
-  void initState() {
-    super.initState();
-    _rotation = widget.target.rotation ?? 0;
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    final equipmentFOV = ref.watch(equipmentFOVProvider);
-    final fovTuple = equipmentFOV.fov;
-    // Sensor geometry only exists once a camera is connected and has reported
-    // its capabilities. Say which half of the rig is missing instead of
-    // substituting a typical sensor and drawing a framing box the user would
-    // reasonably read as measured.
-    final config = ref.watch(opticalConfigProvider);
-    final missingOptics = fovTuple != null
-        ? null
-        : (config == null || config.focalLength == null
-            ? 'No equipment profile with a focal length — set one in Settings '
-                'to size the framing box.'
-            : 'No camera connected, so the sensor size is unknown. Connect the '
-                'camera to see the real framing box.');
+    final rotation = ref.watch(framingProvider.select((s) => s.rotation));
+    final equipment = ref.watch(framingFOVProvider).valueOrNull;
+    final framing = ref.read(framingProvider.notifier);
 
     return SkotiqDialog(
-      title: 'Frame target — ${widget.target.targetName}',
+      title: 'Frame target — ${target.targetName}',
       icon: LucideIcons.scanLine,
       width: 900,
       height: 720,
@@ -106,7 +66,8 @@ class _FramingAssistantDialogState
           size: ButtonSize.small,
         ),
         SkotiqButton(
-          onPressed: () => Navigator.of(context).pop(_rotation),
+          onPressed: () =>
+              Navigator.of(context).pop(ref.read(framingProvider).rotation),
           icon: SkotiqIcons.check,
           label: 'Apply rotation',
           variant: ButtonVariant.primary,
@@ -127,56 +88,36 @@ class _FramingAssistantDialogState
                 children: [
                   _ContextCard(
                     colors: colors,
-                    target: widget.target,
-                    fov: fovTuple,
-                    missingOptics: missingOptics,
+                    target: target,
+                    equipment: equipment,
                   ),
                   const SizedBox(height: 12),
                   _RotationControls(
                     colors: colors,
-                    rotation: _rotation,
-                    onChanged: (v) {
-                      setState(() => _rotation = v);
-                      ref.read(equipmentFOVProvider.notifier).setRotation(v);
-                    },
+                    rotation: rotation,
+                    onChanged: framing.setRotation,
                     onUseLiveRotator: () {
-                      final rotatorState = ref.read(rotatorStateProvider);
-                      final live = rotatorState.position;
+                      final live = ref.read(rotatorStateProvider).position;
                       if (live == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'No rotator connected; cannot read live angle.')),
+                        context.showInfoSnackBar(
+                          'No rotator connected; cannot read live angle.',
                         );
                         return;
                       }
-                      setState(() => _rotation = live);
-                      ref.read(equipmentFOVProvider.notifier).setRotation(live);
+                      framing.setRotation(live);
                     },
                   ),
                 ],
               ),
             ),
           ),
-          Expanded(
+          const Expanded(
             child: ClipRRect(
-              borderRadius: const BorderRadius.only(
+              borderRadius: BorderRadius.only(
                 topRight: Radius.circular(SkotiqTokens.radiusLg),
                 bottomRight: Radius.circular(SkotiqTokens.radiusLg),
               ),
-              child: FramingView(
-                target: CelestialCoordinate(
-                  ra: widget.target.raHours,
-                  dec: widget.target.decDegrees,
-                ),
-                onRotationChanged: (value) {
-                  // The framing view drives the planetarium FOV
-                  // rotation directly when the user drags the
-                  // rotation handle; mirror it into our local state
-                  // so the slider stays in sync.
-                  setState(() => _rotation = value);
-                },
-              ),
+              child: FramingSkyCanvas(),
             ),
           ),
         ],
@@ -188,23 +129,25 @@ class _FramingAssistantDialogState
 class _ContextCard extends StatelessWidget {
   final SkotiqColors colors;
   final TargetHeaderNode target;
-  final (double, double)? fov;
 
-  /// Why the framing box can't be drawn, or null when [fov] is known.
-  final String? missingOptics;
+  /// The framing session's equipment; null while it loads.
+  final FramingEquipmentResult? equipment;
 
   const _ContextCard({
     required this.colors,
     required this.target,
-    required this.fov,
-    required this.missingOptics,
+    required this.equipment,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fovLabel = fov == null
+    final rig = equipment?.isReady == true ? equipment!.equipment : null;
+    final fovLabel = rig == null
         ? 'Field of view unknown'
-        : '${fov!.$1.toStringAsFixed(2)}° × ${fov!.$2.toStringAsFixed(2)}°';
+        : '${rig.fovWidthDeg.toStringAsFixed(2)}° × '
+            '${rig.fovHeightDeg.toStringAsFixed(2)}°';
+    // Why the framing box can't be drawn, in the framing session's words.
+    final missingOptics = rig == null ? equipment?.message : null;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -265,7 +208,7 @@ class _ContextCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    missingOptics!,
+                    missingOptics,
                     style: TextStyle(
                       fontSize: SkotiqTypography.fontSize10,
                       color: colors.warning,
@@ -343,8 +286,8 @@ class _RotationControls extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Drag the FOV rotation handle on the sky view to adjust the '
-            'framing angle visually.',
+            'Drag the rotation handle of the frame on the sky to turn it '
+            'there instead.',
             style: TextStyle(
                 fontSize: SkotiqTypography.fontSize10, color: colors.textMuted),
           ),
