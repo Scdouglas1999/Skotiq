@@ -1,142 +1,8 @@
-use crate::device_capabilities::types::DeviceCapabilities;
-use crate::error::SkotiqError;
-#[cfg(windows)]
-use {
-    crate::device::DeviceType,
-    crate::device_capabilities::types::{CameraCapabilities, MountCapabilities},
-    crate::device_id::cache::parse_device_id_cached,
-    skotiq_device::{ascom::AscomDeviceType, DeviceDriver},
-};
+//! What an ASCOM camera's or mount's own capability read means for the app.
 
-#[cfg(windows)]
-pub(crate) fn normalize_ascom_capability_device_type(value: &str) -> Option<DeviceType> {
-    let normalized = value
-        .trim()
-        .to_ascii_lowercase()
-        .replace([' ', '-', '_'], "");
-    // A driver may answer with the interface name (`ICameraV3`) or with
-    // Skotiq's word for the kind.
-    let name = normalized
-        .strip_prefix('i')
-        .unwrap_or(&normalized)
-        .trim_end_matches(|c: char| c.is_ascii_digit())
-        .trim_end_matches('v');
-    match name {
-        "mount" => Some(DeviceType::Mount),
-        "weather" => Some(DeviceType::Weather),
-        name => AscomDeviceType::from_name(name).map(|t| DeviceType::from(t.kind())),
-    }
-}
+use crate::device_capabilities::types::{CameraCapabilities, MountCapabilities};
 
-#[cfg(windows)]
-pub(crate) fn classify_ascom_capability_device_type(prog_id: &str) -> Result<DeviceType, String> {
-    let _ = skotiq_ascom::init_com();
-    if let Ok(device) = skotiq_ascom::AscomDeviceConnection::new(prog_id) {
-        if let Ok(device_type) =
-            skotiq_ascom::com::ComDispatch::get::<String>(&device, "DeviceType")
-        {
-            if let Some(device_type) = normalize_ascom_capability_device_type(&device_type) {
-                return Ok(device_type);
-            }
-        }
-    }
-
-    // Only a camera or a mount is read here (see `read_capabilities`).
-    for (device_type, registry_type) in [
-        (DeviceType::Camera, AscomDeviceType::Camera),
-        (DeviceType::Mount, AscomDeviceType::Telescope),
-    ] {
-        if skotiq_ascom::discover_devices(registry_type)
-            .iter()
-            .any(|device| device.prog_id.eq_ignore_ascii_case(prog_id))
-        {
-            return Ok(device_type);
-        }
-    }
-
-    Err(format!(
-        "Could not determine ASCOM device type for ProgID '{}': DeviceType property was unavailable and the ProgID was not found in ASCOM driver registry",
-        prog_id
-    ))
-}
-
-/// Get capabilities for an ASCOM camera or mount (Windows only)
-///
-/// # Silent-fallback contract
-///
-/// ASCOM drivers raise `PropertyNotImplementedException` (HRESULT `0x80040400`)
-/// when asked for an optional property they don't implement. The COM wrappers
-/// in `skotiq_ascom` translate that to `Err`. Each `unwrap_or(false / 0)`
-/// below therefore preserves the documented ASCOM "feature absent" semantics —
-/// the per-site `// Why:` annotations cite the specific COM property each
-/// fallback represents. Forwarding these errors as `?` would prevent the
-/// connection dialog from ever populating for partially-conforming drivers.
-#[cfg(windows)]
-pub(crate) async fn get_ascom_capabilities(
-    device_id: &str,
-) -> Result<DeviceCapabilities, SkotiqError> {
-    use crate::ascom_wrapper::camera::AscomCameraWrapper;
-    use crate::ascom_wrapper::mount::AscomMountWrapper;
-
-    let parsed = parse_device_id_cached(device_id)?;
-    let prog_id = match &parsed.connection_info {
-        crate::device_id::ConnectionInfo::Ascom { prog_id } => prog_id.clone(),
-        _ => {
-            return Err(SkotiqError::invalid_device_id(
-                device_id,
-                "Not an ASCOM device",
-            ))
-        }
-    };
-
-    let device_type = classify_ascom_capability_device_type(&prog_id)
-        .map_err(|e| SkotiqError::not_supported(device_id, &e))?;
-
-    if device_type == DeviceType::Camera {
-        // Only an unconnected camera is probed with a COM object of its
-        // own: a connected one answers through its handle
-        // (`read_capabilities`), because many ASCOM local servers share
-        // Connected state and disconnecting a second object disconnects (or
-        // wedges) the live camera.
-        let mut wrapper = AscomCameraWrapper::new(prog_id.clone())
-            .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
-        wrapper
-            .connect()
-            .await
-            .map_err(|e| SkotiqError::connection_failed(device_id, format!("{:?}", e)))?;
-        let ascom_caps = wrapper
-            .get_capabilities()
-            .await
-            .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?;
-        let _ = wrapper.disconnect().await;
-
-        Ok(DeviceCapabilities::Camera(camera_capabilities_from_ascom(
-            ascom_caps,
-        )))
-    } else if device_type == DeviceType::Mount {
-        let mut wrapper = AscomMountWrapper::new(prog_id.clone())
-            .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
-        wrapper
-            .connect()
-            .await
-            .map_err(|e| SkotiqError::connection_failed(device_id, format!("{:?}", e)))?;
-        let ascom_caps = wrapper
-            .get_capabilities()
-            .await
-            .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?;
-        let _ = wrapper.disconnect().await;
-
-        Ok(DeviceCapabilities::Mount(mount_capabilities_from_ascom(
-            ascom_caps,
-        )))
-    } else {
-        // The other types answer through their handle once connected
-        // (`read_capabilities`); an id that reaches here was never registered.
-        Err(SkotiqError::DeviceNotFound(device_id.to_string()))
-    }
-}
 /// What an ASCOM camera's own capability read means for the app.
-#[cfg(windows)]
 pub(crate) fn camera_capabilities_from_ascom(
     ascom_caps: crate::ascom_wrapper::camera::AscomCameraCapabilities,
 ) -> CameraCapabilities {
@@ -178,7 +44,6 @@ pub(crate) fn camera_capabilities_from_ascom(
 }
 
 /// What an ASCOM mount's own capability read means for the app.
-#[cfg(windows)]
 pub(crate) fn mount_capabilities_from_ascom(
     ascom_caps: crate::ascom_wrapper::mount::AscomMountCapabilities,
 ) -> MountCapabilities {
@@ -206,14 +71,4 @@ pub(crate) fn mount_capabilities_from_ascom(
         max_pulse_guide_ms: None,
         ..Default::default()
     }
-}
-
-#[cfg(not(windows))]
-pub(crate) async fn get_ascom_capabilities(
-    device_id: &str,
-) -> Result<DeviceCapabilities, SkotiqError> {
-    Err(SkotiqError::not_supported(
-        device_id,
-        "ASCOM is only available on Windows",
-    ))
 }

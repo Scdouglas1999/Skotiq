@@ -104,35 +104,27 @@ class _TargetEditorOverlay extends ConsumerWidget {
                                         targetId: targetId,
                                         targetName: name,
                                         onChanged: () {
-                                          if (ref.read(
-                                                  linkedHostPlanningProvider)
-                                              case final hostPlanning?) {
-                                            unawaited(() async {
-                                              try {
-                                                await hostPlanning.controlScheduler(
-                                                  'evaluate',
-                                                );
-                                                if (!context.mounted) return;
-                                                ref.invalidate(
-                                                  schedulerRemoteSnapshotProvider,
-                                                );
-                                                ref.invalidate(
-                                                  schedulerPreviewDecisionProvider,
-                                                );
-                                              } catch (error) {
-                                                if (!context.mounted) return;
-                                                context.showErrorSnackBar(
-                                                  'Could not re-evaluate scheduler: ${userFacingError(error)}',
-                                                );
-                                              }
-                                            }());
-                                          } else {
-                                            ref
-                                                .read(schedulerEngineProvider)
-                                                .evaluateNow(
-                                                  reason: 'constraint edit',
-                                                );
-                                          }
+                                          final scheduler = ref
+                                              .read(schedulerControlProvider);
+                                          unawaited(() async {
+                                            try {
+                                              await scheduler.evaluate(
+                                                reason: 'constraint edit',
+                                              );
+                                              if (!context.mounted) return;
+                                              ref.invalidate(
+                                                schedulerRemoteSnapshotProvider,
+                                              );
+                                              ref.invalidate(
+                                                schedulerPreviewDecisionProvider,
+                                              );
+                                            } catch (error) {
+                                              if (!context.mounted) return;
+                                              context.showErrorSnackBar(
+                                                'Could not re-evaluate scheduler: ${userFacingError(error)}',
+                                              );
+                                            }
+                                          }());
                                         },
                                       ),
                                     ],

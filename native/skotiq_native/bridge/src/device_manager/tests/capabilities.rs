@@ -50,15 +50,17 @@ async fn a_simulated_switch_box_lists_the_channels_it_switches() {
 
     let caps = get_device_capabilities(id).await;
     let count = manager.switch_get_max(id).await.expect("switch count");
+    let switch = manager.switch(id).await.expect("switch handle");
     let mut channels = Vec::new();
     for index in 0..count {
         channels.push((
             manager.switch_get_name(id, index).await.expect("name"),
-            manager.switch_can_write(id, index).await.expect("can write"),
-            manager.switch_get_min_value(id, index).await.expect("min"),
-            manager.switch_get_max_value(id, index).await.expect("max"),
+            switch.can_write(index).await.expect("can write"),
+            switch.min_value(index).await.expect("min"),
+            switch.max_value(index).await.expect("max"),
         ));
     }
+    drop(switch);
     release(manager, id).await;
 
     let DeviceCapabilities::Switch(caps) = caps.expect("switch capabilities") else {
@@ -111,14 +113,21 @@ async fn a_registered_accessory_that_is_not_connected_answers_not_connected() {
     );
 }
 
-/// The camera and mount keep their per-protocol capability source until they
-/// have a handle: a simulated one answers whether or not it is connected.
+/// A camera or mount id nobody registered names no device to ask, the same
+/// answer an accessory's gets.
 #[tokio::test]
-async fn a_simulated_camera_and_mount_answer_without_a_handle() {
-    let camera = get_device_capabilities("sim_camera_43").await;
-    let mount = get_device_capabilities("sim_mount_43").await;
-    assert!(matches!(camera, Ok(DeviceCapabilities::Camera(_))), "got {camera:?}");
-    assert!(matches!(mount, Ok(DeviceCapabilities::Mount(_))), "got {mount:?}");
+async fn an_unregistered_camera_or_mount_is_not_found() {
+    for id in [
+        "sim_camera_43",
+        "sim_mount_43",
+        "alpaca:http://127.0.0.1:9:camera:0",
+    ] {
+        let answer = get_device_capabilities(id).await;
+        assert!(
+            matches!(answer, Err(SkotiqError::DeviceNotFound(_))),
+            "{id}: got {answer:?}"
+        );
+    }
 }
 
 /// Every simulated accessory with a handle answers once connected, with the

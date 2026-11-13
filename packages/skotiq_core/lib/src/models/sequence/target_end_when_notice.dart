@@ -31,11 +31,6 @@ library;
 /// byte-identical to `TARGET_END_WHEN_TRIGGER_ID` in `target_header.rs`.
 const String kTargetEndWhenTriggerId = 'target_end_when';
 
-/// Action string that skip publishes. Kept next to the id so a future
-/// `end_when` action (pause instead of skip, say) is a visible edit here
-/// rather than a silently mis-worded warning.
-const String kTargetEndWhenSkipAction = 'SkipTarget';
-
 /// True when this `TriggerFired` event is a target dropped by its `end_when`.
 ///
 /// Matched on the machine id, never on the human name: the name carries the

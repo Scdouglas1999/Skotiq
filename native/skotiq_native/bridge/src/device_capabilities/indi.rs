@@ -2,7 +2,6 @@ use crate::device::TrackingRate;
 use crate::device_capabilities::types::{
     CameraCapabilities, DeviceCapabilities, MountCapabilities,
 };
-use crate::device_id::cache::parse_device_id_cached;
 use crate::error::SkotiqError;
 use skotiq_indi::names as indi;
 use std::sync::Arc;
@@ -23,33 +22,6 @@ pub(crate) fn indi_readout_mode_label(mode: &skotiq_indi::IndiReadoutMode) -> St
     } else {
         mode.label.clone()
     }
-}
-
-/// Capabilities of an INDI camera or mount that has no handle, read through
-/// its server's shared connection.
-pub(crate) async fn get_indi_capabilities(
-    device_id: &str,
-) -> Result<DeviceCapabilities, SkotiqError> {
-    let parsed = parse_device_id_cached(device_id)?;
-    let (host, port, device_name) = match &parsed.connection_info {
-        crate::device_id::ConnectionInfo::Indi {
-            host,
-            port,
-            device_name,
-        } => (host.clone(), *port, device_name.clone()),
-        _ => {
-            return Err(SkotiqError::invalid_device_id(
-                device_id,
-                "Not an INDI device",
-            ))
-        }
-    };
-
-    let client = crate::device_manager::get_device_manager()
-        .indi_server(&host, port)
-        .await
-        .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
-    indi_capabilities(&client, &device_name, device_id).await
 }
 
 /// What the INDI camera or mount `device_name` supports, from the property

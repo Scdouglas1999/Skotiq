@@ -728,7 +728,7 @@ fn emit_end_when_skipped_at_entry(
         let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
             trigger_id: TARGET_END_WHEN_TRIGGER_ID.to_string(),
             trigger_name: trigger_name.clone(),
-            action: "SkipTarget".to_string(),
+            action: crate::executor::TriggerFiredAction::SkipTarget,
         });
     }
     // Paint the reason onto the target node itself as well, so the tree shows
@@ -1672,7 +1672,7 @@ mod tests {
             trigger_id, TARGET_END_WHEN_TRIGGER_ID,
             "the Dart run-stats layer keys on this id"
         );
-        assert_eq!(action, "SkipTarget");
+        assert_eq!(action, crate::executor::TriggerFiredAction::SkipTarget);
         assert!(
             trigger_name.contains("Dusk Field"),
             "the reason must name the target that was dropped, got: {trigger_name}"

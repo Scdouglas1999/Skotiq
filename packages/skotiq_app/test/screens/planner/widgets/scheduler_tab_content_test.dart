@@ -170,7 +170,9 @@ void main() {
     when(backend.getSchedulerState).thenAnswer(
       (_) async => _remoteSchedulerState(),
     );
-    when(() => backend.controlScheduler('start')).thenAnswer(
+    when(
+      () => backend.controlScheduler('start', confirmWarnings: false),
+    ).thenAnswer(
       (_) async => _remoteSchedulerState(state: SchedulerState.running),
     );
 
@@ -202,7 +204,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    verify(() => backend.controlScheduler('start')).called(1);
+    verify(
+      () => backend.controlScheduler('start', confirmWarnings: false),
+    ).called(1);
   });
 
   testWidgets('remote readiness blocker disables Run and never calls host',
@@ -259,7 +263,12 @@ void main() {
     );
     expect(button.onPressed, isNull);
     expect(find.textContaining('Camera'), findsOneWidget);
-    verifyNever(() => backend.controlScheduler('start'));
+    verifyNever(
+      () => backend.controlScheduler(
+        'start',
+        confirmWarnings: any(named: 'confirmWarnings'),
+      ),
+    );
   });
 
   testWidgets('remote warnings require cancel or explicit confirmation',
@@ -374,7 +383,12 @@ void main() {
     );
     expect(button.onPressed, isNull);
     expect(find.textContaining('Host readiness unavailable'), findsOneWidget);
-    verifyNever(() => backend.controlScheduler('start'));
+    verifyNever(
+      () => backend.controlScheduler(
+        'start',
+        confirmWarnings: any(named: 'confirmWarnings'),
+      ),
+    );
   });
 
   testWidgets('empty scheduler explains why unattended start is disabled',
@@ -421,7 +435,12 @@ void main() {
       find.textContaining('Add at least one target'),
       findsOneWidget,
     );
-    verifyNever(() => backend.controlScheduler('start'));
+    verifyNever(
+      () => backend.controlScheduler(
+        'start',
+        confirmWarnings: any(named: 'confirmWarnings'),
+      ),
+    );
   });
 
   testWidgets(
@@ -443,10 +462,14 @@ void main() {
     when(newBackend.getSchedulerState).thenAnswer(
       (_) async => _remoteSchedulerState(),
     );
-    when(() => oldBackend.controlScheduler('start')).thenAnswer(
+    when(
+      () => oldBackend.controlScheduler('start', confirmWarnings: false),
+    ).thenAnswer(
       (_) => oldCommand.future,
     );
-    when(() => newBackend.controlScheduler('start')).thenAnswer(
+    when(
+      () => newBackend.controlScheduler('start', confirmWarnings: false),
+    ).thenAnswer(
       (_) async => _remoteSchedulerState(state: SchedulerState.running),
     );
     late _SwappableBackendNotifier notifier;
@@ -479,7 +502,9 @@ void main() {
         find.widgetWithText(SkotiqButton, 'Run unattended all night');
     await tester.tap(runButton);
     await tester.pump();
-    verify(() => oldBackend.controlScheduler('start')).called(1);
+    verify(
+      () => oldBackend.controlScheduler('start', confirmWarnings: false),
+    ).called(1);
 
     notifier.switchTo(newBackend);
     await tester.pumpAndSettle();
@@ -488,7 +513,9 @@ void main() {
     // host busy.
     await tester.tap(runButton);
     await tester.pumpAndSettle();
-    verify(() => newBackend.controlScheduler('start')).called(1);
+    verify(
+      () => newBackend.controlScheduler('start', confirmWarnings: false),
+    ).called(1);
 
     oldCommand.completeError(StateError('old host went away'));
     await tester.pump();
