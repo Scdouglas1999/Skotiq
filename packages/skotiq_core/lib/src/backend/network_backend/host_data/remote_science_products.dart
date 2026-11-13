@@ -202,6 +202,10 @@ final class RemoteScienceProducts implements ScienceProducts {
       watchSessionlessTransparencyRecent().first;
 
   @override
+  Future<List<PsfFieldTileRow>> getPsfTilesForSession(int sessionId) =>
+      _host.getSessionPsfTiles(sessionId);
+
+  @override
   Future<List<PsfFieldTileRow>> getAllSessionlessPsfTiles() =>
       watchSessionlessPsfTilesRecent().first;
 

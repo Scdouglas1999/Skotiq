@@ -103,7 +103,7 @@ class _TargetConstraintsEditorState
   }
 
   bool _isCurrentAuthority(_LoadedConstraints loaded) =>
-      mounted && identical(ref.read(backendProvider), loaded.authority);
+      mounted && ref.backendScopeOver(loaded.authority).isCurrent;
 
   void _showAuthorityChanged() {
     if (!mounted) return;

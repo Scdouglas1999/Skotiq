@@ -1,3 +1,4 @@
+import '../analytics_exports.dart';
 import 'dart:math' as math;
 import 'dart:io';
 
@@ -13,9 +14,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:path/path.dart' as path;
 
 import '../../../services/host_folders.dart';
 import '../../../utils/exported_file_reveal.dart';
@@ -73,21 +72,23 @@ class _ScienceSectionKeys {
 /// that only recorded darks or aborted before its first light left the whole
 /// tab reading "Science idle — waiting for the first captured frame" while
 /// nights of photometry sat one row below it.
-final latestScienceSessionProvider = FutureProvider<int?>((ref) async {
-  final backend = ref.watch(backendProvider);
-  // A linked client asks the same question of the host's frames, so both
-  // machines open on the same session. Returning null here opened the client
-  // on the quick captures while the host opened on its last night.
-  if (backend.remoteHost != null) {
-    final rows = await ref.watch(allDbImagesProvider.future);
-    return latestSessionIdWithLightFrames(rows);
-  }
-  // Watching the session stream reruns the query whenever a session row is
-  // written — including the status/end-time update a run makes when it
-  // finishes, which is the moment the answer changes.
-  await ref.watch(allSessionsProvider.future);
-  return ref.read(imagesDaoProvider).getLatestSessionIdWithLightFrames();
-});
+final latestScienceSessionProvider = FutureProvider<int?>(
+  (ref) => ref.watch(_latestScienceSessionProvider),
+);
+
+final _latestScienceSessionProvider = hostRoleProvider<Future<int?>>(
+  here: (ref) async {
+    // Watching the session stream reruns the query whenever a session row is
+    // written, including the status and end time a run sets when it
+    // finishes, which is the moment the answer changes.
+    await ref.watch(allSessionsProvider.future);
+    return ref.read(imagesDaoProvider).getLatestSessionIdWithLightFrames();
+  },
+  // The same question of the host's frames, so both machines open on the
+  // same session.
+  linked: (ref, host) async =>
+      latestSessionIdWithLightFrames(await ref.watch(allDbImagesProvider.future)),
+);
 
 /// The session of the newest light frame that belongs to one, the question
 /// `ImagesDao.getLatestSessionIdWithLightFrames` answers on the host.
@@ -113,8 +114,7 @@ int? latestSessionIdWithLightFrames(Iterable<DbCapturedImage> rows) {
 /// the product timestamps, so "most recent" means the same thing here as in
 /// the session picker beside it.
 final latestScienceProductSessionProvider = FutureProvider<int?>((ref) async {
-  final backend = ref.watch(backendProvider);
-  if (backend.remoteHost != null) return null;
+  if (ref.watch(isRemoteModeProvider)) return null;
   final sessions = await ref.watch(allSessionsProvider.future);
   if (sessions.isEmpty) return null;
   final withProducts = <int>{

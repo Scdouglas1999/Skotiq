@@ -653,114 +653,43 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     );
   }
 
-  Future<void> _exportJson(BuildContext context, WidgetRef ref) async {
-    try {
-      final backend = ref.read(backendProvider);
-      if (backend.remoteHost case final linkedHost?) {
-        final filePath = await _saveRemoteExport(linkedHost, session.id, 'json');
-        if (context.mounted) {
-          await revealExportedFile(
-            context,
-            filePath,
-            subject: 'Skotiq session data',
-          );
-        }
-        return;
-      }
-      final clock = ref.read(clockProvider);
-      final exportService = SessionExportService(
-        sessionsDao: ref.read(sessionsDaoProvider),
-        imagesDao: ref.read(imagesDaoProvider),
-        nowProvider: clock.now,
-      );
-
-      // The export lands in resolveSkotiqDocumentsDirectory(), which is the
-      // private sandbox on Android/iOS — an "Exported to: <path>" line there
-      // names a file the user cannot open, so hand it to the share sheet.
-      final filePath = await exportService.exportToJson(session.id);
-
-      if (context.mounted) {
-        await revealExportedFile(
-          context,
-          filePath,
-          subject: 'Skotiq session data',
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
-      }
-    }
-  }
-
-  Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
-    try {
-      final backend = ref.read(backendProvider);
-      if (backend.remoteHost case final linkedHost?) {
-        final filePath = await _saveRemoteExport(linkedHost, session.id, 'csv');
-        if (context.mounted) {
-          await revealExportedFile(
-            context,
-            filePath,
-            subject: 'Skotiq session data',
-          );
-        }
-        return;
-      }
-      final clock = ref.read(clockProvider);
-      final exportService = SessionExportService(
-        sessionsDao: ref.read(sessionsDaoProvider),
-        imagesDao: ref.read(imagesDaoProvider),
-        nowProvider: clock.now,
-      );
-
-      // Same sandbox problem as the JSON export: reveal rather than announce
-      // a path the phone user can never reach.
-      final filePath = await exportService.exportToCsv(session.id);
-
-      if (context.mounted) {
-        await revealExportedFile(
-          context,
-          filePath,
-          subject: 'Skotiq session data',
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
-      }
-    }
-  }
-
-  /// Export the session to CSV and hand it to the platform's reachable
-  /// destination.
-  ///
-  /// Routed through [revealExportedFile] — share sheet on Android/iOS, path
-  /// snackbar on desktop — because `Share.shareXFiles` is unimplemented on the
-  /// shipping desktop build.
-  Future<void> _exportAndShare(BuildContext context, WidgetRef ref) async {
-    try {
-      final backend = ref.read(backendProvider);
-      final String filePath;
-      if (backend.remoteHost case final linkedHost?) {
-        filePath = await _saveRemoteExport(linkedHost, session.id, 'csv');
-      } else {
-        final clock = ref.read(clockProvider);
-        final exportService = SessionExportService(
-          sessionsDao: ref.read(sessionsDaoProvider),
-          imagesDao: ref.read(imagesDaoProvider),
-          nowProvider: clock.now,
-        );
-        // CSV is the most universal format to hand off.
-        filePath = await exportService.exportToCsv(session.id);
-      }
-
-      if (!context.mounted) return;
-      await revealExportedFile(
+  Future<void> _exportJson(BuildContext context, WidgetRef ref) => _export(
         context,
-        filePath,
+        ref,
+        SessionExportFormat.json,
+        subject: 'Skotiq session data',
+      );
+
+  Future<void> _exportCsv(BuildContext context, WidgetRef ref) => _export(
+        context,
+        ref,
+        SessionExportFormat.csv,
+        subject: 'Skotiq session data',
+      );
+
+  /// CSV is the most universal format to hand off.
+  Future<void> _exportAndShare(BuildContext context, WidgetRef ref) => _export(
+        context,
+        ref,
+        SessionExportFormat.csv,
         subject: 'Session data for ${session.name ?? "session"}',
       );
+
+  /// Writes the export and hands it to [revealExportedFile]: the share sheet
+  /// on Android and iOS, where the file is in the app's private folder, and
+  /// a snackbar with the path on desktop.
+  Future<void> _export(
+    BuildContext context,
+    WidgetRef ref,
+    SessionExportFormat format, {
+    required String subject,
+  }) async {
+    try {
+      final filePath = await ref
+          .read(analyticsExportsProvider)
+          .sessionExport(session.id, format);
+      if (!context.mounted) return;
+      await revealExportedFile(context, filePath, subject: subject);
     } catch (e) {
       if (context.mounted) {
         context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
@@ -770,27 +699,9 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
 
   Future<void> _exportReport(BuildContext context, WidgetRef ref) async {
     try {
-      final backend = ref.read(backendProvider);
-      if (backend.remoteHost case final linkedHost?) {
-        final filePath = await _saveRemoteExport(linkedHost, session.id, 'html');
-        if (context.mounted) {
-          await revealExportedFile(
-            context,
-            filePath,
-            subject: 'Skotiq session report',
-          );
-        }
-        return;
-      }
-      final clock = ref.read(clockProvider);
-      final exportService = SessionExportService(
-        sessionsDao: ref.read(sessionsDaoProvider),
-        imagesDao: ref.read(imagesDaoProvider),
-        nowProvider: clock.now,
-      );
-
-      final filePath = await exportService.exportToHtml(session.id);
-
+      final filePath = await ref
+          .read(analyticsExportsProvider)
+          .sessionExport(session.id, SessionExportFormat.html);
       if (context.mounted) {
         await revealExportedFile(
           context,
@@ -805,62 +716,4 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     }
   }
-}
-
-Stream<List<DbCapturedImage>> _pollRemoteSessionImages(
-  RemoteHost backend,
-  int sessionId, {
-  required Duration interval,
-}) =>
-    _pollRemoteImages(
-      () => _fetchRemoteSessionImages(backend, sessionId),
-      interval: interval,
-    );
-
-Stream<List<DbCapturedImage>> _pollRemoteStandaloneImages(
-  RemoteHost backend, {
-  required Duration interval,
-}) =>
-    _pollRemoteImages(
-      () => _fetchRemoteStandaloneImages(backend),
-      interval: interval,
-    );
-
-Stream<List<DbCapturedImage>> _pollRemoteImages(
-  Future<List<DbCapturedImage>> Function() fetch, {
-  required Duration interval,
-}) =>
-    resilientDistinctPoll(
-      fetch: fetch,
-      unchanged: listEquals,
-      interval: interval,
-    );
-
-Future<List<DbCapturedImage>> _fetchRemoteSessionImages(
-  RemoteHost backend,
-  int sessionId,
-) async {
-  final rows = await backend.imagingRecords.getSessionImageRows(sessionId);
-  return rows.map(DbCapturedImage.fromJson).toList(growable: false);
-}
-
-Future<List<DbCapturedImage>> _fetchRemoteStandaloneImages(
-  RemoteHost backend,
-) async {
-  final rows = await backend.imagingRecords.getStandaloneImageRows();
-  return rows.map(DbCapturedImage.fromJson).toList(growable: false);
-}
-
-Future<String> _saveRemoteExport(
-  RemoteHost backend,
-  int sessionId,
-  String format,
-) async {
-  final bytes = await backend.files.downloadSessionExport(sessionId, format);
-  final exportDir = await resolveSkotiqExportsDirectory();
-  final fileName =
-      'session_${sessionId}_${DateTime.now().millisecondsSinceEpoch}.$format';
-  final filePath = path.join(exportDir.path, fileName);
-  await File(filePath).writeAsBytes(bytes, flush: true);
-  return filePath;
 }

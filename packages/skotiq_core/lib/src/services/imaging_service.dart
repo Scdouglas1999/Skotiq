@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:path/path.dart' as path;
+import '../errors/error_text.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart';
 import '../providers/clock_provider.dart';
@@ -757,6 +758,9 @@ class ExposureProgressNotifier extends StateNotifier<ExposureProgress> {
       isDownloading: true,
     );
   }
+
+  /// Shows the countdown another process reported.
+  void show(ExposureProgress progress) => state = progress;
 
   void reset() {
     state = ExposureProgress.idle();

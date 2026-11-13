@@ -516,7 +516,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
   bool _isCurrentOperation(int revision, SkotiqBackend backend) =>
       mounted &&
       revision == _operationRevision &&
-      identical(ref.read(backendProvider), backend);
+      ref.backendScopeOver(backend).isCurrent;
 }
 
 /// Internal version of CenteringDialog that returns the result

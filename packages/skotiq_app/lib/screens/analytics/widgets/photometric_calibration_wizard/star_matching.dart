@@ -366,8 +366,6 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
 
     final imageSize = await _resolveImagePixelSize(
       filePath: image.filePath,
-      stars: stars,
-      pixelScale: image.solvedPixelScale,
       authority: authority,
       generation: generation,
     );
@@ -569,51 +567,15 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
 
   Future<({double width, double height})> _resolveImagePixelSize({
     required String filePath,
-    required List<StarMeasurement> stars,
-    double? pixelScale,
     required SkotiqBackend authority,
     required int generation,
   }) async {
     if (!_isCurrentOperation(generation, authority)) {
       throw StateError('Photometric calibration operation was retired.');
     }
-    final linkedHost = authority.remoteHost;
-    if (linkedHost == null) {
-      final fits = await ref
-          .read(imagingBackendProvider)
-          .readFitsFile(filePath: filePath);
-      return (width: fits.width.toDouble(), height: fits.height.toDouble());
-    }
-
-    // Remote: ask the host for the TRUE dimensions (it reads the real FITS
-    // header) rather than estimating from the star bounding box. The estimate
-    // below remains only as a last resort if the host can't read the file.
-    final dims = await linkedHost.science.getFitsDimensions(filePath);
-    if (dims != null) {
-      return (width: dims.width.toDouble(), height: dims.height.toDouble());
-    }
-
-    if (stars.isNotEmpty) {
-      final maxX = stars.map((s) => s.x).reduce(math.max);
-      final maxY = stars.map((s) => s.y).reduce(math.max);
-      final minX = stars.map((s) => s.x).reduce(math.min);
-      final minY = stars.map((s) => s.y).reduce(math.min);
-      const margin = 64.0;
-      return (
-        width: (maxX - minX) + margin * 2,
-        height: (maxY - minY) + margin * 2,
-      );
-    }
-
-    final scale = pixelScale;
-    if (scale != null && scale > 0) {
-      const fieldDeg = 1.0;
-      final px = fieldDeg * 3600.0 / scale;
-      return (width: px, height: px);
-    }
-
-    throw StateError(
-      'Cannot determine image dimensions for remote catalog matching',
-    );
+    final fits = await ref
+        .read(imagingBackendProvider)
+        .readFitsFile(filePath: filePath);
+    return (width: fits.width.toDouble(), height: fits.height.toDouble());
   }
 }

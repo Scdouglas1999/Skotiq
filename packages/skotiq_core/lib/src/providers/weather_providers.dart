@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -10,7 +11,7 @@ import '../services/weather/weather_alert_service.dart';
 import '../database/database.dart' as db;
 import '../services/safety_config_service.dart';
 import '../backend/remote_host.dart';
-import 'backend_provider.dart';
+import 'host_role.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
 import '../services/logging_service.dart';
@@ -50,32 +51,135 @@ final weatherAlertServiceProvider = Provider<WeatherAlertService>((ref) {
 ///
 /// Returns the current weather settings model, converting from the database
 /// row type. Returns default settings if database settings are not yet loaded.
-final weatherSettingsDataProvider = StreamProvider<WeatherSettings>((ref) {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.weather;
-  if (remote != null) {
-    return Stream.fromFuture(
-      remote.getWeatherSettings().then(_weatherSettingsFromWire),
-    );
-  }
-  final database = ref.watch(databaseProvider);
-  return database.weatherSettingsDao.watchSettings().map(
-    (row) => row == null
-        ? WeatherSettings.defaultSettings
-        : _weatherSettingsFromRow(row),
-  );
+final weatherSettingsDataProvider = StreamProvider<WeatherSettings>(
+  (ref) => ref.watch(weatherRulesProvider).watchSettings(),
+);
+
+/// How weather verdicts act on a run (see [WeatherDecisionPolicy]).
+final weatherDecisionPolicyProvider = FutureProvider<WeatherDecisionPolicy>(
+  (ref) => ref.watch(weatherRulesProvider).decisionPolicy(),
+);
+
+/// The weather thresholds and decision switches of whichever machine is the
+/// imaging host, where the weather watch runs.
+abstract interface class WeatherRules {
+  Stream<WeatherSettings> watchSettings();
+
+  Future<WeatherDecisionPolicy> decisionPolicy();
+
+  /// Stores the given settings; a null one is left as it is.
+  Future<void> updateSettings(WeatherSettingsChange change);
+
+  Future<void> setDecisionPolicy({
+    bool? forecastHoldsRun,
+    bool? starEvidenceOverridesForecast,
+  });
+}
+
+typedef WeatherSettingsChange = ({
+  double? triggerDistanceKm,
+  double? cloudDensityThreshold,
+  int? leadTimeMinutes,
+  bool? weatherSafetyEnabled,
+  double? maxHumidityPercent,
+  double? maxWindSpeedKph,
+  double? maxCloudCoverPercent,
+  bool? autoParkEnabled,
+  bool? autoResumeEnabled,
+  RadarProviderType? preferredProvider,
+  int? refreshIntervalSeconds,
 });
 
-/// How weather verdicts act on a run (see [WeatherDecisionPolicy]). Read from
-/// the host's settings; a linked client reads the host's through the weather
-/// settings endpoint.
-final weatherDecisionPolicyProvider = FutureProvider<WeatherDecisionPolicy>((
-  ref,
-) async {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.weather;
-  if (remote != null) {
-    final wire = await remote.getWeatherSettings();
+final weatherRulesProvider = hostRoleProvider<WeatherRules>(
+  here: (ref) => _LocalWeatherRules(ref.watch(databaseProvider)),
+  linked: (ref, host) => _HostWeatherRules(host.weather),
+);
+
+final class _LocalWeatherRules implements WeatherRules {
+  _LocalWeatherRules(this._database);
+
+  final db.SkotiqDatabase _database;
+
+  @override
+  Stream<WeatherSettings> watchSettings() =>
+      _database.weatherSettingsDao.watchSettings().map(
+        (row) => row == null
+            ? WeatherSettings.defaultSettings
+            : _weatherSettingsFromRow(row),
+      );
+
+  @override
+  Future<WeatherDecisionPolicy> decisionPolicy() =>
+      SafetyConfigStore(_database).loadDecisionPolicy();
+
+  @override
+  Future<void> updateSettings(WeatherSettingsChange change) =>
+      _database.weatherSettingsDao.updateSettings(
+        triggerDistanceKm: change.triggerDistanceKm,
+        cloudDensityThreshold: change.cloudDensityThreshold,
+        leadTimeMinutes: change.leadTimeMinutes,
+        weatherSafetyEnabled: change.weatherSafetyEnabled,
+        maxHumidityPercent: change.maxHumidityPercent,
+        maxWindSpeedKph: change.maxWindSpeedKph,
+        maxCloudCoverPercent: change.maxCloudCoverPercent,
+        autoParkEnabled: change.autoParkEnabled,
+        autoResumeEnabled: change.autoResumeEnabled,
+        preferredProvider: change.preferredProvider?.name,
+        refreshIntervalSeconds: change.refreshIntervalSeconds,
+      );
+
+  @override
+  Future<void> setDecisionPolicy({
+    bool? forecastHoldsRun,
+    bool? starEvidenceOverridesForecast,
+  }) async {
+    final store = SafetyConfigStore(_database);
+    if (forecastHoldsRun != null) {
+      await store.setForecastHoldsRun(forecastHoldsRun);
+    }
+    if (starEvidenceOverridesForecast != null) {
+      await store.setStarEvidenceOverridesForecast(
+        starEvidenceOverridesForecast,
+      );
+    }
+  }
+}
+
+final class _HostWeatherRules implements WeatherRules {
+  _HostWeatherRules(this._host);
+
+  final HostWeather _host;
+  final _watchers = <StreamController<WeatherSettings>>{};
+
+  /// The host's settings as read when listened to, and again after a change
+  /// made from here.
+  @override
+  Stream<WeatherSettings> watchSettings() {
+    late final StreamController<WeatherSettings> controller;
+    controller = StreamController<WeatherSettings>(
+      onListen: () {
+        _watchers.add(controller);
+        unawaited(_read(controller));
+      },
+      onCancel: () => _watchers.remove(controller),
+    );
+    return controller.stream;
+  }
+
+  Future<void> _read(StreamController<WeatherSettings> to) async {
+    try {
+      final settings = _weatherSettingsFromWire(
+        await _host.getWeatherSettings(),
+      );
+      if (_watchers.contains(to)) to.add(settings);
+    } on Object catch (error, stackTrace) {
+      if (_watchers.contains(to)) to.addError(error, stackTrace);
+    }
+  }
+
+  @override
+  Future<WeatherDecisionPolicy> decisionPolicy() async {
+    final wire = await _host.getWeatherSettings();
     const defaults = WeatherDecisionPolicy.defaults;
     final safeSecs = wire['requiredSafeDurationSeconds'];
     return WeatherDecisionPolicy(
@@ -91,8 +195,46 @@ final weatherDecisionPolicyProvider = FutureProvider<WeatherDecisionPolicy>((
           : defaults.requiredSafeDurationSeconds,
     );
   }
-  return SafetyConfigStore(ref.watch(databaseProvider)).loadDecisionPolicy();
-});
+
+  @override
+  Future<void> updateSettings(WeatherSettingsChange change) async {
+    await _host.updateWeatherSettings({
+      if (change.triggerDistanceKm != null)
+        'triggerDistanceKm': change.triggerDistanceKm,
+      if (change.cloudDensityThreshold != null)
+        'cloudDensityThreshold': change.cloudDensityThreshold,
+      if (change.leadTimeMinutes != null)
+        'leadTimeMinutes': change.leadTimeMinutes,
+      if (change.weatherSafetyEnabled != null)
+        'weatherSafetyEnabled': change.weatherSafetyEnabled,
+      if (change.maxHumidityPercent != null)
+        'maxHumidityPercent': change.maxHumidityPercent,
+      if (change.maxWindSpeedKph != null)
+        'maxWindSpeedKph': change.maxWindSpeedKph,
+      if (change.maxCloudCoverPercent != null)
+        'maxCloudCoverPercent': change.maxCloudCoverPercent,
+      if (change.autoParkEnabled != null)
+        'autoParkEnabled': change.autoParkEnabled,
+      if (change.autoResumeEnabled != null)
+        'autoResumeEnabled': change.autoResumeEnabled,
+      if (change.preferredProvider != null)
+        'preferredProvider': change.preferredProvider!.name,
+      if (change.refreshIntervalSeconds != null)
+        'refreshIntervalSeconds': change.refreshIntervalSeconds,
+    });
+    await Future.wait(_watchers.toList().map(_read));
+  }
+
+  @override
+  Future<void> setDecisionPolicy({
+    bool? forecastHoldsRun,
+    bool? starEvidenceOverridesForecast,
+  }) => _host.updateWeatherSettings({
+    if (forecastHoldsRun != null) 'forecastHoldsRun': forecastHoldsRun,
+    if (starEvidenceOverridesForecast != null)
+      'starEvidenceOverridesForecast': starEvidenceOverridesForecast,
+  });
+}
 
 final weatherSettingsProvider = Provider<WeatherSettings>((ref) {
   return ref.watch(weatherSettingsDataProvider).valueOrNull ??
@@ -175,6 +317,20 @@ WeatherSettings _weatherSettingsFromWire(Map<String, dynamic> json) {
   );
 }
 
+const WeatherSettingsChange _noWeatherChange = (
+  triggerDistanceKm: null,
+  cloudDensityThreshold: null,
+  leadTimeMinutes: null,
+  weatherSafetyEnabled: null,
+  maxHumidityPercent: null,
+  maxWindSpeedKph: null,
+  maxCloudCoverPercent: null,
+  autoParkEnabled: null,
+  autoResumeEnabled: null,
+  preferredProvider: null,
+  refreshIntervalSeconds: null,
+);
+
 class WeatherSettingsActions {
   final Ref _ref;
 
@@ -193,49 +349,21 @@ class WeatherSettingsActions {
     RadarProviderType? preferredProvider,
     int? refreshIntervalSeconds,
   }) async {
-    final payload = <String, dynamic>{
-      if (triggerDistanceKm != null) 'triggerDistanceKm': triggerDistanceKm,
-      if (cloudDensityThreshold != null)
-        'cloudDensityThreshold': cloudDensityThreshold,
-      if (leadTimeMinutes != null) 'leadTimeMinutes': leadTimeMinutes,
-      if (weatherSafetyEnabled != null)
-        'weatherSafetyEnabled': weatherSafetyEnabled,
-      if (maxHumidityPercent != null) 'maxHumidityPercent': maxHumidityPercent,
-      if (maxWindSpeedKph != null) 'maxWindSpeedKph': maxWindSpeedKph,
-      if (maxCloudCoverPercent != null)
-        'maxCloudCoverPercent': maxCloudCoverPercent,
-      if (autoParkEnabled != null) 'autoParkEnabled': autoParkEnabled,
-      if (autoResumeEnabled != null) 'autoResumeEnabled': autoResumeEnabled,
-      if (preferredProvider != null)
-        'preferredProvider': preferredProvider.name,
-      if (refreshIntervalSeconds != null)
-        'refreshIntervalSeconds': refreshIntervalSeconds,
-    };
-    if (payload.isEmpty) return;
-
-    final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.weather;
-    if (remote != null) {
-      await remote.updateWeatherSettings(payload);
-      _ref.invalidate(weatherSettingsDataProvider);
-      return;
-    }
-    await _ref
-        .read(databaseProvider)
-        .weatherSettingsDao
-        .updateSettings(
-          triggerDistanceKm: triggerDistanceKm,
-          cloudDensityThreshold: cloudDensityThreshold,
-          leadTimeMinutes: leadTimeMinutes,
-          weatherSafetyEnabled: weatherSafetyEnabled,
-          maxHumidityPercent: maxHumidityPercent,
-          maxWindSpeedKph: maxWindSpeedKph,
-          maxCloudCoverPercent: maxCloudCoverPercent,
-          autoParkEnabled: autoParkEnabled,
-          autoResumeEnabled: autoResumeEnabled,
-          preferredProvider: preferredProvider?.name,
-          refreshIntervalSeconds: refreshIntervalSeconds,
-        );
+    final change = (
+      triggerDistanceKm: triggerDistanceKm,
+      cloudDensityThreshold: cloudDensityThreshold,
+      leadTimeMinutes: leadTimeMinutes,
+      weatherSafetyEnabled: weatherSafetyEnabled,
+      maxHumidityPercent: maxHumidityPercent,
+      maxWindSpeedKph: maxWindSpeedKph,
+      maxCloudCoverPercent: maxCloudCoverPercent,
+      autoParkEnabled: autoParkEnabled,
+      autoResumeEnabled: autoResumeEnabled,
+      preferredProvider: preferredProvider,
+      refreshIntervalSeconds: refreshIntervalSeconds,
+    );
+    if (change == _noWeatherChange) return;
+    await _ref.read(weatherRulesProvider).updateSettings(change);
   }
 
   /// Write "park the mount when conditions go unsafe" as the ONE logical
@@ -255,25 +383,12 @@ class WeatherSettingsActions {
     bool? forecastHoldsRun,
     bool? starEvidenceOverridesForecast,
   }) async {
-    final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.weather;
-    if (remote != null) {
-      await remote.updateWeatherSettings({
-        if (forecastHoldsRun != null) 'forecastHoldsRun': forecastHoldsRun,
-        if (starEvidenceOverridesForecast != null)
-          'starEvidenceOverridesForecast': starEvidenceOverridesForecast,
-      });
-    } else {
-      final store = SafetyConfigStore(_ref.read(databaseProvider));
-      if (forecastHoldsRun != null) {
-        await store.setForecastHoldsRun(forecastHoldsRun);
-      }
-      if (starEvidenceOverridesForecast != null) {
-        await store.setStarEvidenceOverridesForecast(
-          starEvidenceOverridesForecast,
+    await _ref
+        .read(weatherRulesProvider)
+        .setDecisionPolicy(
+          forecastHoldsRun: forecastHoldsRun,
+          starEvidenceOverridesForecast: starEvidenceOverridesForecast,
         );
-      }
-    }
     _ref.invalidate(weatherDecisionPolicyProvider);
   }
 

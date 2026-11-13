@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -178,7 +177,7 @@ class _LinkedCard extends ConsumerWidget {
     final rig = ref.watch(launchLinkedRigProvider);
     final status = ref.watch(remoteLaunchStatusProvider);
     final name = rig?.name ?? target.name ?? target.host;
-    final live = ref.watch(backendProvider).remoteHost != null &&
+    final live = ref.watch(isRemoteModeProvider) &&
         status.phase != RemoteLaunchPhase.failed;
 
     final String access;

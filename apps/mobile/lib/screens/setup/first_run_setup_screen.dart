@@ -138,7 +138,7 @@ class _FirstRunSetupGateState extends ConsumerState<FirstRunSetupGate> {
   }
 
   Future<void> _check() async {
-    final linked = ref.read(backendProvider).remoteHost != null;
+    final linked = ref.read(isRemoteModeProvider);
     FirstRunSetupNeeds needs;
     try {
       needs = await ref.read(shouldRunFirstRunSetupProvider.future);

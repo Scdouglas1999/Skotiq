@@ -351,7 +351,7 @@ class _FramingTelescopeSectionState
   bool _ownsSolve(SkotiqBackend backend, int revision) =>
       mounted &&
       revision == _solveRevision &&
-      identical(ref.read(backendProvider), backend);
+      ref.backendScopeOver(backend).isCurrent;
 }
 
 /// The solve action, its precondition line and the inline outcome.

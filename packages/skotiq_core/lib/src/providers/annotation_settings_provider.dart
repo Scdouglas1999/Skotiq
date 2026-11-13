@@ -1,3 +1,4 @@
+import 'async_scope.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/annotation_settings.dart';
@@ -91,7 +92,7 @@ class AnnotationSettingsNotifier extends AsyncNotifier<AnnotationSettings> {
     final dao = ref.read(settingsDaoProvider);
     final jsonStr = jsonEncode(settings.toJson());
     await dao.write(StoreSettings.annotationSettings, jsonStr);
-    if (!identical(ref.read(settingsDaoProvider), dao)) {
+    if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
       throw StateError(
         'The settings database changed while saving annotation settings.',
       );
@@ -248,7 +249,7 @@ class AnnotationMarkerStyleNotifier
     final dao = ref.read(settingsDaoProvider);
     final jsonStr = jsonEncode(style.toJson());
     await dao.write(StoreSettings.annotationMarkerStyle, jsonStr);
-    if (!identical(ref.read(settingsDaoProvider), dao)) {
+    if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
       throw StateError(
         'The settings database changed while saving annotation marker style.',
       );
@@ -359,7 +360,7 @@ class AnnotationPresetsNotifier extends AsyncNotifier<List<AnnotationPreset>> {
     final dao = ref.read(settingsDaoProvider);
     final jsonStr = jsonEncode(presets.map((p) => p.toJson()).toList());
     await dao.write(StoreSettings.annotationPresets, jsonStr);
-    if (!identical(ref.read(settingsDaoProvider), dao)) {
+    if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
       throw StateError(
         'The settings database changed while saving annotation presets.',
       );

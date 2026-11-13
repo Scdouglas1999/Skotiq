@@ -253,7 +253,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
       mounted &&
       generation == _testGeneration &&
       _activeTest == test &&
-      identical(ref.read(backendProvider), authority);
+      ref.backendScopeOver(authority).isCurrent;
 
   @override
   Widget build(BuildContext context) {

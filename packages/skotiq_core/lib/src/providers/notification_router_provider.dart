@@ -29,6 +29,7 @@
 // (say, the user pasted invalid JSON into a webhook header field) only
 // disables that one transport rather than the whole routing system.
 
+import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -92,7 +93,7 @@ mixin _SerializedAsyncWrites<T> on AsyncNotifier<T> {
     SecretsStore? secrets,
     required String transport,
   }) {
-    final daoChanged = !identical(ref.read(settingsDaoProvider), dao);
+    final daoChanged = ref.scopeOver(settingsDaoProvider, dao).isStale;
     final secretsChanged =
         secrets != null && !identical(ref.read(secretsStoreProvider), secrets);
     if (daoChanged || secretsChanged) {
@@ -185,7 +186,7 @@ const _legacySenderRows = [
 /// transport configs down with it.
 final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
   await ref.read(notificationSecretsMigrationProvider.future);
-  if (ref.read(diagnosticsBackendProvider).remoteHost != null) return;
+  if (ref.read(isRemoteModeProvider)) return;
   final dao = ref.read(settingsDaoProvider);
   final secrets = ref.read(secretsStoreProvider);
   try {
@@ -791,7 +792,7 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
       StoreSettings.notificationRouting,
       jsonEncode(matrix.toJson()),
     );
-    if (!identical(ref.read(settingsDaoProvider), dao)) {
+    if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
       throw StateError(
         'The settings database changed while saving notification routing.',
       );
@@ -986,7 +987,7 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   ref.listen(appSettingsProvider, (prev, next) {
     // On a linked client these settings mirror the host's, as markers when
     // the link has no admin access; they are not this computer's credentials.
-    if (ref.read(diagnosticsBackendProvider).remoteHost != null) return;
+    if (ref.read(isRemoteModeProvider)) return;
     final before = prev?.valueOrNull;
     final after = next.valueOrNull;
     if (before == null || after == null) return;

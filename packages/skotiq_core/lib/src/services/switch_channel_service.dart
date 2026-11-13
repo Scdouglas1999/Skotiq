@@ -1,10 +1,10 @@
+import '../providers/async_scope.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
-import '../providers/backend_provider.dart';
 import '../providers/equipment_provider.dart';
 import 'device_exceptions.dart';
 import 'error_service.dart';
@@ -66,7 +66,7 @@ class SwitchChannelService {
   bool _stillOwnsDevice(String deviceId) {
     try {
       final current = _ref.read(switchStateProvider);
-      return identical(_ref.read(backendProvider), _backend) &&
+      return _ref.backendScopeOver(_backend).isCurrent &&
           current.connectionState == DeviceConnectionState.connected &&
           current.deviceId == deviceId;
     } on Object {

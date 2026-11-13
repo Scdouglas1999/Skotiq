@@ -131,7 +131,7 @@ class _EquipmentOnboardingLauncherState
   bool _isCurrentCheck(SkotiqBackend authority, int generation) {
     return mounted &&
         generation == _checkGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 
   @override

@@ -1,7 +1,7 @@
+import 'package:skotiq_core/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
@@ -364,14 +364,8 @@ class _SolveStats {
 /// rebuild from any other state change doesn't refetch the session row.
 final scienceSessionTargetIdProvider =
     FutureProvider.family<int?, int>((ref, sessionId) async {
-  final backend = ref.watch(backendProvider);
-  if (backend.remoteHost case final linkedHost?) {
-    final session = await linkedHost.imagingRecords.getSessionById(sessionId);
-    final targetId = session?['targetId'] ?? session?['target_id'];
-    return (targetId as num?)?.toInt();
-  }
-  final dao = ref.watch(sessionsDaoProvider);
-  final session = await dao.getSessionById(sessionId);
+  final session =
+      await ref.watch(imagingRecordsProvider).getSessionById(sessionId);
   return session?.targetId;
 });
 

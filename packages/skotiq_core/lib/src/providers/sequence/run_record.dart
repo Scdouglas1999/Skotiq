@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/remote_host.dart';
 import '../../models/backend/sequencer_status.dart' show CheckpointInfo;
 import '../../models/sequence/instruction_progress_detail.dart';
 import '../../models/sequence/sequence_models.dart';
@@ -238,7 +237,7 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
   }
 
   bool _followsHostRecord(Ref ref) =>
-      ref.read(backendProvider).remoteHost != null &&
+      ref.read(isRemoteModeProvider) &&
       ref
           .read(clientRuntimeMirrorStateProvider)
           .hasApplied(runRecordChannelKey);

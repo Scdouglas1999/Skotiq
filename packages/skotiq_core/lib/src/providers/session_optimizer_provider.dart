@@ -1,3 +1,4 @@
+import 'async_scope.dart';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -257,7 +258,7 @@ class _DismissedInsightsNotifier extends AsyncNotifier<Set<String>> {
         StoreSettings.dismissedSessionInsights,
         updated.join(','),
       );
-      if (!identical(ref.read(settingsDaoProvider), dao)) {
+      if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
         throw StateError(
           'The settings database changed while saving dismissed insights.',
         );

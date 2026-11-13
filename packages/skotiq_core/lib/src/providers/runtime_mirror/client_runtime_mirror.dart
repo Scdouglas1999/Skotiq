@@ -143,7 +143,7 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
   final lastSent = <String, String>{};
 
   void send(SkotiqBackend backend, RuntimeMirrorChannel<Object?> channel) {
-    if (!identical(ref.read(backendProvider), backend)) return;
+    if (ref.backendScopeOver(backend).isStale) return;
     final Map<String, dynamic>? value;
     try {
       value = channel.encodeCurrent(ref.container);

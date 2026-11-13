@@ -330,7 +330,7 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
     // On a companion every frame is the imaging host's, and a solve requested
     // here runs on the host's solver. The host solves the frames it shows;
     // this machine never adds a second, often blind, solve per frame.
-    if (ref.read(backendProvider).remoteHost != null) return;
+    if (ref.read(isRemoteModeProvider)) return;
     _put(FrameSolveVm(frameCapturedAt: key, status: FrameSolveStatus.waiting));
     if (_inFlight != null) {
       final replaced = _queued;

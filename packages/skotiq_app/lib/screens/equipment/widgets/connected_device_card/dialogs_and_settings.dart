@@ -629,7 +629,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     final backend = ref.read(backendProvider);
     await backend.calibratorOn(deviceId, brightness);
     if (!mounted ||
-        !identical(ref.read(backendProvider), backend) ||
+        ref.backendScopeOver(backend).isStale ||
         ref.read(coverCalibratorStateProvider).deviceId != deviceId) {
       return;
     }

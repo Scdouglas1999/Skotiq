@@ -72,7 +72,6 @@ import 'narrator_context.dart';
 import 'narrator_detectors.dart';
 import 'narrator_engine.dart';
 import 'narrator_event.dart';
-import '../../../backend/remote_host.dart';
 import '../../../providers/logging_service_provider.dart';
 
 /// Caps on the rolling per-input history the service keeps in memory between
@@ -193,7 +192,7 @@ class NarratorService {
   Future<void> start() async {
     // On a companion the narrator runs on the imaging host, which owns the
     // frames and the events table; the companion reads the host's feed.
-    if (_ref.read(backendProvider).remoteHost != null) return;
+    if (_ref.read(isRemoteModeProvider)) return;
     try {
       final seeded = await _dao.dedupeKeysForSession(_sessionId);
       if (!_disposed) _engine.seedDedupeKeys(seeded);

@@ -63,3 +63,17 @@ final hostLocalSyncProvider = Provider<void>((ref) {
 
   bindIfNeeded();
 });
+
+/// Keeps the host's camera card and exposure countdown on every exposure of
+/// its camera that its capture service did not start: the frames of a run, a
+/// linked client's snapshot, an API capture. A daemon runs it too, so what it
+/// tells its clients ([ExposureChannel]) is what a host window shows.
+final hostExposureFollowProvider = Provider<void>((ref) {
+  final backend = ref.watch(diagnosticsBackendProvider);
+  if (!backend.ownsDeviceBridge) return;
+  final events = backend.eventStream.listen((event) {
+    if (event.category != EventCategory.imaging) return;
+    followHostCameraExposure(ref.container, event);
+  });
+  ref.onDispose(events.cancel);
+});

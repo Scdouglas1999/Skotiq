@@ -129,6 +129,14 @@ final class AsyncScopes<T> {
 
 /// Scopes tied to the current backend, for owners that hold a [Ref].
 extension BackendScopeRef on Ref {
+  /// A scope over [value], which the caller was handed as [authority]'s
+  /// value when its work began.
+  AsyncScope<T> scopeOver<T>(ProviderListenable<T> authority, T value) =>
+      AsyncScopes(read, authority).over(value);
+
+  AsyncScope<SkotiqBackend> backendScopeOver(SkotiqBackend backend) =>
+      scopeOver(backendProvider, backend);
+
   AsyncScopes<SkotiqBackend> backendScopes({bool Function()? alive}) =>
       AsyncScopes(read, backendProvider, alive: alive);
 
@@ -156,6 +164,12 @@ extension BackendScopeRef on Ref {
 
 /// Scopes tied to the current backend, for widgets.
 extension BackendScopeWidgetRef on WidgetRef {
+  AsyncScope<T> scopeOver<T>(ProviderListenable<T> authority, T value) =>
+      AsyncScopes(read, authority).over(value);
+
+  AsyncScope<SkotiqBackend> backendScopeOver(SkotiqBackend backend) =>
+      scopeOver(backendProvider, backend);
+
   AsyncScopes<SkotiqBackend> backendScopes({bool Function()? alive}) =>
       AsyncScopes(read, backendProvider, alive: alive);
 

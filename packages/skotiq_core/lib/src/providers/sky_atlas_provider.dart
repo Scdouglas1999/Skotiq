@@ -5,8 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/remote_host.dart';
-import '../backend/skotiq_backend.dart';
 import 'database_provider.dart';
+import '../database/daos/sky_atlas_dao.dart';
 import '../database/database.dart';
 import '../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
 import '../models/backend/host_mutation_event.dart';
@@ -17,6 +17,7 @@ import '../services/sky_atlas/sky_atlas_service.dart';
 import '../settings/store_settings.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
+import 'host_role.dart';
 import 'remote_snapshot_stream.dart';
 import 'science_provider.dart' show scienceSettingsProvider;
 import '../database/daos/settings_dao.dart';
@@ -96,37 +97,123 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
   );
 });
 
-/// Authority-aware writer for the atlas's named-region metadata.
+/// The Your Sky atlas of whichever machine is the imaging host: its regions,
+/// tiles and fold history.
 ///
-/// A desktop host writes its local atlas service; a companion writes through
-/// the host it is linked to. A disconnected client fails explicitly instead
-/// of populating its throwaway local database and pretending the host changed.
-final skyAtlasRegionWriterProvider = Provider<SkyAtlasRegionWriter>((ref) {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.skyAtlas;
-  if (remote != null) {
-    return SkyAtlasRegionWriter.remote(remote);
+/// The host reads its own atlas database and renders through the native
+/// atlas. A linked client reads the host's atlas routes, again whenever the
+/// host says the atlas changed.
+abstract interface class YourSkyAtlas {
+  /// Per-tile coverage, deepest first.
+  Stream<List<AtlasTileCoverage>> watchCoverage();
+
+  Stream<List<SkyAtlasRegionRow>> watchRegions();
+
+  Future<SkyAtlasRegionRow?> region(int regionId);
+
+  /// A region's tiles, deepest first.
+  Future<List<SkyTileRow>> regionTiles(int regionId);
+
+  /// A region's folds, oldest first.
+  Stream<List<SkyAtlasFoldRow>> watchRegionTimeline(int regionId);
+
+  Future<AtlasGrowthCurve> regionGrowth(int regionId);
+
+  /// How the region's deepest tile came to be, or null when it has no tile.
+  Future<TileProvenanceView?> regionProvenance(int regionId);
+
+  /// The co-added region at its latest depth.
+  Future<AtlasRegionCutoutImage> regionCutout(int regionId);
+
+  /// Names a region of the atlas and returns its id.
+  Future<int> ensureRegion({
+    required String name,
+    required double centerRaDeg,
+    required double centerDecDeg,
+    required double radiusDeg,
+    String kind = 'custom',
+    int? targetId,
+  });
+}
+
+final yourSkyAtlasProvider = hostRoleProvider<YourSkyAtlas>(
+  here: (ref) => _LocalYourSkyAtlas(
+    ref.watch(skyAtlasServiceProvider),
+    ref.watch(skyAtlasDaoProvider),
+    // A client that is not connected has no host to name a region on, and
+    // its own database is one no host reads.
+    writable: ref.watch(backendProvider).ownsDeviceBridge,
+  ),
+  linked: (ref, host) => _HostYourSkyAtlas(ref, host.skyAtlas),
+);
+
+final class _LocalYourSkyAtlas implements YourSkyAtlas {
+  _LocalYourSkyAtlas(this._service, this._dao, {required this.writable});
+
+  final SkyAtlasService _service;
+  final SkyAtlasDao _dao;
+  final bool writable;
+
+  /// The tile index in the database (the same numbers, no sidecar reads),
+  /// read again whenever a fold changes the tiles.
+  @override
+  Stream<List<AtlasTileCoverage>> watchCoverage() =>
+      _dao.watchAllTiles().asyncMap((_) => _service.coverageFromIndex());
+
+  @override
+  Stream<List<SkyAtlasRegionRow>> watchRegions() => _service.watchRegions();
+
+  @override
+  Future<SkyAtlasRegionRow?> region(int regionId) =>
+      _service.getRegion(regionId);
+
+  @override
+  Future<List<SkyTileRow>> regionTiles(int regionId) =>
+      _service.tilesForRegion(regionId);
+
+  @override
+  Stream<List<SkyAtlasFoldRow>> watchRegionTimeline(int regionId) =>
+      _service.watchRegionTimeline(regionId);
+
+  @override
+  Future<AtlasGrowthCurve> regionGrowth(int regionId) async {
+    final region = await _service.getRegion(regionId);
+    if (region == null) return AtlasGrowthCurve.empty;
+    return AtlasGrowthCurve.fromJson(
+      await _service.growth(
+        centerRaDeg: region.centerRaDeg,
+        centerDecDeg: region.centerDecDeg,
+        radiusDeg: region.radiusDeg,
+      ),
+    );
   }
-  if (backend.ownsDeviceBridge) {
-    return SkyAtlasRegionWriter.local(ref.watch(skyAtlasServiceProvider));
+
+  @override
+  Future<TileProvenanceView?> regionProvenance(int regionId) async {
+    final tiles = await _service.tilesForRegion(regionId);
+    if (tiles.isEmpty) return null;
+    return _service.tileInfo(tiles.first.tileId);
   }
-  return const SkyAtlasRegionWriter.unavailable();
-});
 
-class SkyAtlasRegionWriter {
-  final SkyAtlasService? _local;
-  final HostSkyAtlas? _remote;
+  @override
+  Future<AtlasRegionCutoutImage> regionCutout(int regionId) async {
+    final region = await _service.getRegion(regionId);
+    if (region == null) {
+      throw StateError('region $regionId not found');
+    }
+    final result = await _service.cutout(
+      centerRaDeg: region.centerRaDeg,
+      centerDecDeg: region.centerDecDeg,
+      radiusDeg: region.radiusDeg,
+    );
+    final pngPath = result['pngPath'] as String?;
+    if (pngPath == null || pngPath.trim().isEmpty) {
+      throw StateError('cutout produced no PNG for region $regionId');
+    }
+    return AtlasRegionCutoutImage.file(pngPath);
+  }
 
-  const SkyAtlasRegionWriter.local(SkyAtlasService service)
-    : _local = service,
-      _remote = null;
-
-  const SkyAtlasRegionWriter.remote(HostSkyAtlas atlas)
-    : _local = null,
-      _remote = atlas;
-
-  const SkyAtlasRegionWriter.unavailable() : _local = null, _remote = null;
-
+  @override
   Future<int> ensureRegion({
     required String name,
     required double centerRaDeg,
@@ -135,30 +222,152 @@ class SkyAtlasRegionWriter {
     String kind = 'custom',
     int? targetId,
   }) {
-    final remote = _remote;
-    if (remote != null) {
-      return remote.createAtlasRegion(
-        name: name,
-        centerRaDeg: centerRaDeg,
-        centerDecDeg: centerDecDeg,
-        radiusDeg: radiusDeg,
-        kind: kind,
-        targetId: targetId,
+    if (!writable) {
+      throw StateError(
+        'Connect to an imaging host before naming a sky region.',
       );
     }
-    final local = _local;
-    if (local != null) {
-      return local.ensureRegion(
-        name: name,
-        centerRaDeg: centerRaDeg,
-        centerDecDeg: centerDecDeg,
-        radiusDeg: radiusDeg,
-        kind: kind,
-        targetId: targetId,
-      );
-    }
-    throw StateError('Connect to an imaging host before naming a sky region.');
+    return _service.ensureRegion(
+      name: name,
+      centerRaDeg: centerRaDeg,
+      centerDecDeg: centerDecDeg,
+      radiusDeg: radiusDeg,
+      kind: kind,
+      targetId: targetId,
+    );
   }
+}
+
+final class _HostYourSkyAtlas implements YourSkyAtlas {
+  _HostYourSkyAtlas(this._ref, this._host);
+
+  final Ref _ref;
+  final HostSkyAtlas _host;
+
+  /// A list read from the host, read again on an atlas-changing host event
+  /// ([isAtlasChangingEvent]) at most once every
+  /// [remoteAtlasRefetchMinInterval].
+  Stream<List<T>> _watch<T>(
+    Future<List<Map<String, dynamic>>> Function() fetch,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    final logger = _ref.read(loggingServiceProvider);
+    return remoteSnapshotStream<T>(
+      backend: _ref.read(backendProvider),
+      fetch: fetch,
+      decode: fromJson,
+      shouldRefetch: isAtlasChangingEvent,
+      minInterval: remoteAtlasRefetchMinInterval,
+      onRefetchError: (e) => logger.debug(
+        'Remote atlas snapshot refetch failed; keeping last good snapshot: $e',
+        source: 'SkyAtlasProvider',
+      ),
+    );
+  }
+
+  Future<List<SkyTileRow>> _tiles(int regionId) async {
+    final raw = (await _host.getAtlasRegion(regionId))['tiles'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(skyTileRowFromWireJson)
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> _folds(int regionId) async {
+    final raw = (await _host.getAtlasRegionTimeline(regionId))['folds'];
+    if (raw is! List) return const [];
+    return raw.whereType<Map<String, dynamic>>().toList(growable: false);
+  }
+
+  @override
+  Stream<List<AtlasTileCoverage>> watchCoverage() =>
+      _watch(_host.getAtlasCoverage, AtlasTileCoverage.fromJson);
+
+  @override
+  Stream<List<SkyAtlasRegionRow>> watchRegions() =>
+      _watch(_host.getAtlasRegions, skyAtlasRegionFromWireJson);
+
+  @override
+  Future<SkyAtlasRegionRow?> region(int regionId) async {
+    final region = (await _host.getAtlasRegion(regionId))['region'];
+    if (region is! Map<String, dynamic>) return null;
+    return skyAtlasRegionFromWireJson(region);
+  }
+
+  @override
+  Future<List<SkyTileRow>> regionTiles(int regionId) => _tiles(regionId);
+
+  @override
+  Stream<List<SkyAtlasFoldRow>> watchRegionTimeline(int regionId) =>
+      _watch(() => _folds(regionId), skyAtlasFoldRowFromWireJson);
+
+  @override
+  Future<AtlasGrowthCurve> regionGrowth(int regionId) async {
+    final growth = (await _host.getAtlasRegionTimeline(regionId))['growth'];
+    if (growth is! Map<String, dynamic>) return AtlasGrowthCurve.empty;
+    return AtlasGrowthCurve.fromJson(growth);
+  }
+
+  /// Built from the region's deepest tile and the folds of that tile in the
+  /// region timeline, the two payloads the host already serves.
+  @override
+  Future<TileProvenanceView?> regionProvenance(int regionId) async {
+    final tiles = await _tiles(regionId);
+    if (tiles.isEmpty) return null;
+    final deepest = tiles.reduce(
+      (a, b) => a.integrationSeconds >= b.integrationSeconds ? a : b,
+    );
+    final folds = (await _folds(regionId))
+        .map(skyAtlasFoldRowFromWireJson)
+        .where((f) => f.tileId == deepest.tileId)
+        .toList(growable: false);
+    return TileProvenanceView(
+      tileId: deepest.tileId,
+      centerRaDeg: deepest.centerRaDeg,
+      centerDecDeg: deepest.centerDecDeg,
+      channels: deepest.channels,
+      coverageMean: deepest.coverageMean,
+      totalFrames: deepest.totalFrames,
+      totalIntegrationSeconds: deepest.integrationSeconds,
+      contributors: <String>{
+        for (final f in folds)
+          if (f.contributor.trim().isNotEmpty) f.contributor.trim(),
+      }.toList(growable: false),
+      folds: [
+        for (final f in folds)
+          TileFoldView(
+            framesAdded: f.framesAdded,
+            weightAdded: f.weightAdded,
+            integrationSecondsAdded: f.integrationSecondsAdded,
+            rejected: f.rejected,
+            label: f.label,
+            contributor: f.contributor,
+          ),
+      ],
+    );
+  }
+
+  @override
+  Future<AtlasRegionCutoutImage> regionCutout(int regionId) async =>
+      AtlasRegionCutoutImage.bytes(await _host.getAtlasRegionCutout(regionId));
+
+  @override
+  Future<int> ensureRegion({
+    required String name,
+    required double centerRaDeg,
+    required double centerDecDeg,
+    required double radiusDeg,
+    String kind = 'custom',
+    int? targetId,
+  }) => _host.createAtlasRegion(
+    name: name,
+    centerRaDeg: centerRaDeg,
+    centerDecDeg: centerDecDeg,
+    radiusDeg: radiusDeg,
+    kind: kind,
+    targetId: targetId,
+  );
 }
 
 /// Whether Your Sky is on: the user's choice, off until they turn it on. Null
@@ -174,7 +383,7 @@ final skyAtlasEnabledProvider = Provider<bool?>((ref) {
 /// there is nothing on disk to tell the user about (then it is settled
 /// silently).
 final skyAtlasOffNoticeProvider = FutureProvider.autoDispose<int?>((ref) async {
-  if (ref.watch(backendProvider).remoteHost != null) return null;
+  if (ref.watch(isRemoteModeProvider)) return null;
   final settings = ref.read(settingsDaoProvider);
   if (await settings.read(StoreSettings.scienceSkyAtlasOffNotice) !=
       'pending') {
@@ -197,7 +406,7 @@ Future<void> markSkyAtlasOffNoticeShown(WidgetRef ref) async {
 /// Bytes the Your Sky atlas takes on this machine's disk. Null on a companion,
 /// whose atlas lives on the imaging host.
 final skyAtlasStorageBytesProvider = FutureProvider.autoDispose<int?>((ref) {
-  if (ref.watch(backendProvider).remoteHost != null) return null;
+  if (ref.watch(isRemoteModeProvider)) return null;
   return ref.watch(skyAtlasServiceProvider).storageBytes();
 });
 
@@ -206,27 +415,9 @@ final skyAtlasStorageBytesProvider = FutureProvider.autoDispose<int?>((ref) {
 /// a backend event arrives (a fold is exactly what changes coverage); host mode
 /// queries the native bridge directly.
 final skyAtlasCoverageProvider =
-    StreamProvider.autoDispose<List<AtlasTileCoverage>>((ref) {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.skyAtlas;
-      if (remote != null) {
-        return _remoteAtlasSnapshotStream<AtlasTileCoverage>(
-          ref,
-          backend,
-          remote.getAtlasCoverage,
-          AtlasTileCoverage.fromJson,
-        );
-      }
-      // Host coverage reads the SkyTiles DB index (same scalars, zero sidecar
-      // I/O) rather than the native full-scan of every `.skt` sidecar, and
-      // reads it again whenever a fold changes the tiles: read once, Your sky
-      // stayed dark after a solved frame until Refresh.
-      final service = ref.watch(skyAtlasServiceProvider);
-      return ref
-          .watch(skyAtlasDaoProvider)
-          .watchAllTiles()
-          .asyncMap((_) => service.coverageFromIndex());
-    });
+    StreamProvider.autoDispose<List<AtlasTileCoverage>>(
+      (ref) => ref.watch(yourSkyAtlasProvider).watchCoverage(),
+    );
 
 /// Atlas-wide totals counted once per frame, for the Your Sky headline. Host
 /// only (the fold timeline lives in the host database); null on a companion,
@@ -234,7 +425,7 @@ final skyAtlasCoverageProvider =
 final skyAtlasTotalsProvider = FutureProvider.autoDispose<AtlasTotals?>((
   ref,
 ) async {
-  if (ref.watch(backendProvider).remoteHost != null) return null;
+  if (ref.watch(isRemoteModeProvider)) return null;
   // Recount whenever coverage refreshes (a fold is what changes both).
   ref.watch(skyAtlasCoverageProvider);
   final totals = await ref.watch(skyAtlasDaoProvider).atlasTotals();
@@ -245,19 +436,9 @@ final skyAtlasTotalsProvider = FutureProvider.autoDispose<AtlasTotals?>((
 /// mode reads the host's regions over REST (event-refreshed); host mode watches
 /// the local atlas DB live.
 final skyAtlasRegionsProvider =
-    StreamProvider.autoDispose<List<SkyAtlasRegionRow>>((ref) {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.skyAtlas;
-      if (remote != null) {
-        return _remoteAtlasSnapshotStream<SkyAtlasRegionRow>(
-          ref,
-          backend,
-          remote.getAtlasRegions,
-          skyAtlasRegionFromWireJson,
-        );
-      }
-      return ref.watch(skyAtlasServiceProvider).watchRegions();
-    });
+    StreamProvider.autoDispose<List<SkyAtlasRegionRow>>(
+      (ref) => ref.watch(yourSkyAtlasProvider).watchRegions(),
+    );
 
 /// Reconstruct a [SkyAtlasRegionRow] from the wire JSON the appliance's
 /// `/api/atlas/regions` endpoint emits (see `AtlasHandlers._regionToJson`).
@@ -297,30 +478,6 @@ bool isAtlasChangingEvent(SkotiqEvent event) {
       entity == HostMutationEntity.capturedImage;
 }
 
-/// REST snapshot stream for a remote atlas read, re-fetched on an
-/// atlas-changing host event ([isAtlasChangingEvent]) at most once every
-/// [remoteAtlasRefetchMinInterval].
-Stream<List<T>> _remoteAtlasSnapshotStream<T>(
-  Ref ref,
-  SkotiqBackend backend,
-  Future<List<Map<String, dynamic>>> Function() fetch,
-  T Function(Map<String, dynamic>) fromJson,
-) {
-  final logger = ref.read(loggingServiceProvider);
-  return remoteSnapshotStream<T>(
-    ref: ref,
-    backend: backend,
-    fetch: fetch,
-    decode: fromJson,
-    shouldRefetch: isAtlasChangingEvent,
-    minInterval: remoteAtlasRefetchMinInterval,
-    onRefetchError: (e) => logger.debug(
-      'Remote atlas snapshot refetch failed; keeping last good snapshot: $e',
-      source: 'SkyAtlasProvider',
-    ),
-  );
-}
-
 /// Query key for [skyTileProvider]: a tile id plus an optional time-scrub
 /// anchor. Value-equal so the same query reuses one cached cutout future.
 class SkyTileQuery {
@@ -356,196 +513,36 @@ final skyTileProvider = FutureProvider.family<String, SkyTileQuery>((
 // already-advertised `/api/atlas/region/<id>[/timeline]` routes; a host reads
 // the local DAO/seam.
 
-/// One region's row by id. Remote: from the host region-detail payload; host:
-/// the local DAO.
-final atlasRegionProvider = FutureProvider.family<SkyAtlasRegionRow?, int>((
-  ref,
-  regionId,
-) async {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.skyAtlas;
-  if (remote != null) {
-    final json = await remote.getAtlasRegion(regionId);
-    final region = json['region'];
-    if (region is! Map<String, dynamic>) return null;
-    return skyAtlasRegionFromWireJson(region);
-  }
-  return ref.watch(skyAtlasServiceProvider).getRegion(regionId);
-});
+final atlasRegionProvider = FutureProvider.family<SkyAtlasRegionRow?, int>(
+  (ref, regionId) => ref.watch(yourSkyAtlasProvider).region(regionId),
+);
 
-/// A region's tiles (deepest first). Remote has no per-tile route, so the host's
-/// region-detail payload carries a `tiles` array (added additively to
-/// `GET /api/atlas/region/<id>`); host reads the local DAO.
-final atlasRegionTilesProvider = FutureProvider.family<List<SkyTileRow>, int>((
-  ref,
-  regionId,
-) async {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.skyAtlas;
-  if (remote != null) {
-    final json = await remote.getAtlasRegion(regionId);
-    final raw = json['tiles'];
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map<String, dynamic>>()
-        .map(skyTileRowFromWireJson)
-        .toList(growable: false);
-  }
-  return ref.watch(skyAtlasServiceProvider).tilesForRegion(regionId);
-});
+final atlasRegionTilesProvider = FutureProvider.family<List<SkyTileRow>, int>(
+  (ref, regionId) => ref.watch(yourSkyAtlasProvider).regionTiles(regionId),
+);
 
-/// A region's fold timeline (oldest first). Remote: decode the host timeline
-/// payload's `folds` array; host: watch the local DAO live.
 final atlasRegionTimelineProvider = StreamProvider.autoDispose
-    .family<List<SkyAtlasFoldRow>, int>((ref, regionId) {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.skyAtlas;
-      if (remote != null) {
-        return _remoteAtlasSnapshotStream<SkyAtlasFoldRow>(
-          ref,
-          backend,
-          () async {
-            final json = await remote.getAtlasRegionTimeline(regionId);
-            final raw = json['folds'];
-            if (raw is! List) return const [];
-            return raw.whereType<Map<String, dynamic>>().toList(
-              growable: false,
-            );
-          },
-          skyAtlasFoldRowFromWireJson,
-        );
-      }
-      return ref.watch(skyAtlasServiceProvider).watchRegionTimeline(regionId);
-    });
+    .family<List<SkyAtlasFoldRow>, int>(
+      (ref, regionId) =>
+          ref.watch(yourSkyAtlasProvider).watchRegionTimeline(regionId),
+    );
 
-/// A region's deepening growth curve (cumulative integration vs. night).
-///
-/// Host: the native bridge `growth` action over the region cone. Remote: the
-/// `growth` block the host already ships inside the
-/// `/api/atlas/region/<id>/timeline` payload (no extra round-trip, no new
-/// route) — so the curve plots identically on a slave companion.
-final atlasRegionGrowthProvider = FutureProvider.family<AtlasGrowthCurve, int>((
-  ref,
-  regionId,
-) async {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.skyAtlas;
-  if (remote != null) {
-    final json = await remote.getAtlasRegionTimeline(regionId);
-    final growth = json['growth'];
-    if (growth is! Map<String, dynamic>) return AtlasGrowthCurve.empty;
-    return AtlasGrowthCurve.fromJson(growth);
-  }
-  final region = await ref.watch(skyAtlasServiceProvider).getRegion(regionId);
-  if (region == null) return AtlasGrowthCurve.empty;
-  final raw = await ref
-      .watch(skyAtlasServiceProvider)
-      .growth(
-        centerRaDeg: region.centerRaDeg,
-        centerDecDeg: region.centerDecDeg,
-        radiusDeg: region.radiusDeg,
-      );
-  return AtlasGrowthCurve.fromJson(raw);
-});
+final atlasRegionGrowthProvider = FutureProvider.family<AtlasGrowthCurve, int>(
+  (ref, regionId) => ref.watch(yourSkyAtlasProvider).regionGrowth(regionId),
+);
 
-/// Native per-tile provenance ([TileProvenanceView]: coverage mean, contributor
-/// list, per-fold log) for a region's DEEPEST tile — the provenance trail the
-/// region-detail panel renders.
-///
-/// Host: the native bridge `info` action on the deepest tile. Remote: there is
-/// no per-tile info route, so the view is reconstructed from data already on
-/// the wire — the deepest tile's `coverageMean` from the region payload's
-/// `tiles`, plus the per-fold log + contributor list from the region timeline's
-/// `folds` — yielding the same [TileProvenanceView] shape on a slave companion.
 final atlasRegionProvenanceProvider =
-    FutureProvider.family<TileProvenanceView?, int>((ref, regionId) async {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.skyAtlas;
-      if (remote != null) {
-        final detail = await remote.getAtlasRegion(regionId);
-        final tilesRaw = detail['tiles'];
-        if (tilesRaw is! List || tilesRaw.isEmpty) return null;
-        final tiles = tilesRaw
-            .whereType<Map<String, dynamic>>()
-            .map(skyTileRowFromWireJson)
-            .toList(growable: false);
-        if (tiles.isEmpty) return null;
-        final deepest = tiles.reduce(
-          (a, b) => a.integrationSeconds >= b.integrationSeconds ? a : b,
-        );
-        final timeline = await remote.getAtlasRegionTimeline(regionId);
-        final foldsRaw = timeline['folds'];
-        final folds = foldsRaw is List
-            ? foldsRaw
-                  .whereType<Map<String, dynamic>>()
-                  .map(skyAtlasFoldRowFromWireJson)
-                  .where((f) => f.tileId == deepest.tileId)
-                  .toList(growable: false)
-            : const <SkyAtlasFoldRow>[];
-        final contributors = <String>{
-          for (final f in folds)
-            if (f.contributor.trim().isNotEmpty) f.contributor.trim(),
-        }.toList(growable: false);
-        return TileProvenanceView(
-          tileId: deepest.tileId,
-          centerRaDeg: deepest.centerRaDeg,
-          centerDecDeg: deepest.centerDecDeg,
-          channels: deepest.channels,
-          coverageMean: deepest.coverageMean,
-          totalFrames: deepest.totalFrames,
-          totalIntegrationSeconds: deepest.integrationSeconds,
-          contributors: contributors,
-          folds: [
-            for (final f in folds)
-              TileFoldView(
-                framesAdded: f.framesAdded,
-                weightAdded: f.weightAdded,
-                integrationSecondsAdded: f.integrationSecondsAdded,
-                rejected: f.rejected,
-                label: f.label,
-                contributor: f.contributor,
-              ),
-          ],
-        );
-      }
-      final service = ref.watch(skyAtlasServiceProvider);
-      final tiles = await service.tilesForRegion(regionId);
-      if (tiles.isEmpty) return null;
-      // tilesForRegion is deepest-first, so the head is the deepest tile.
-      return service.tileInfo(tiles.first.tileId);
-    });
+    FutureProvider.family<TileProvenanceView?, int>(
+      (ref, regionId) =>
+          ref.watch(yourSkyAtlasProvider).regionProvenance(regionId),
+    );
 
-/// The portable co-added region cutout PNG. Remote: fetch host cutout bytes for
-/// `Image.memory`; host: render via the native cutout into a local cache file.
-/// Carries NO `asOf` — the cutout always renders at the LATEST depth; the
-/// time-scrub drives only the honestly-filtered frame list / growth panels.
+/// Carries no `asOf`: the cutout is always the latest depth, and the time
+/// scrub drives only the frame list and growth panels.
 final atlasRegionCutoutProvider =
-    FutureProvider.family<AtlasRegionCutoutImage, int>((ref, regionId) async {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.skyAtlas;
-      if (remote != null) {
-        final bytes = await remote.getAtlasRegionCutout(regionId);
-        return AtlasRegionCutoutImage.bytes(bytes);
-      }
-      final region = await ref
-          .watch(skyAtlasServiceProvider)
-          .getRegion(regionId);
-      if (region == null) {
-        throw StateError('region $regionId not found');
-      }
-      final result = await ref
-          .watch(skyAtlasServiceProvider)
-          .cutout(
-            centerRaDeg: region.centerRaDeg,
-            centerDecDeg: region.centerDecDeg,
-            radiusDeg: region.radiusDeg,
-          );
-      final pngPath = result['pngPath'] as String?;
-      if (pngPath == null || pngPath.trim().isEmpty) {
-        throw StateError('cutout produced no PNG for region $regionId');
-      }
-      return AtlasRegionCutoutImage.file(pngPath);
-    });
+    FutureProvider.family<AtlasRegionCutoutImage, int>(
+      (ref, regionId) => ref.watch(yourSkyAtlasProvider).regionCutout(regionId),
+    );
 
 /// A portable region cutout: either a host-local PNG file path (FFI backend) or
 /// in-memory PNG bytes fetched over the wire (network backend). The UI renders

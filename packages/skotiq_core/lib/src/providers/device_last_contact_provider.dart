@@ -20,7 +20,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'equipment_health_provider.dart' show connectedDeviceDescriptorsProvider;
 
@@ -168,7 +167,7 @@ final deviceLastContactProvider =
     >((ref) {
       // A companion asks the imaging host once per device per probe, so it
       // probes less often; the "last contact" age it shows is coarse anyway.
-      final companion = ref.watch(backendProvider).remoteHost != null;
+      final companion = ref.watch(isRemoteModeProvider);
       final notifier = DeviceLastContactNotifier(
         probe: (deviceId) =>
             ref.read(deviceBackendProvider).getDeviceHealth(deviceId),

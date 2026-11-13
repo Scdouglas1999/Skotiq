@@ -37,7 +37,7 @@ final shouldRunEquipmentOnboardingProvider = FutureProvider<bool>((ref) async {
   // a companion that cannot reach its host must say so instead of offering to
   // configure this machine.
   if (ref.watch(isRemoteClientProvider)) return false;
-  if (ref.watch(backendProvider).remoteHost != null) return false;
+  if (ref.watch(isRemoteModeProvider)) return false;
   final profilesDao = ref.read(equipmentProfilesDaoProvider);
   final profiles = await profilesDao.getAllProfiles();
   if (profiles.isNotEmpty) return false;

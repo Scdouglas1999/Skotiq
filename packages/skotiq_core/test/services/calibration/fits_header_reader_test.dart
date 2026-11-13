@@ -67,6 +67,30 @@ void main() {
     );
   });
 
+  test('a string continued on CONTINUE cards reads as one value', () async {
+    final file = _writeFits(dir, 'long.fits', [
+      "LONGSTRN= 'OGIP 1.0'",
+      "OBJECT  = 'Sh2-155 Cave Nebula and the dark lanes of the Cepheus Bubbl&'",
+      "CONTINUE  'e, panel 3 of 4 (north-east) #2'",
+      "FILTER  = 'O''Brien &'",
+      "CONTINUE  '&'",
+      "CONTINUE  'Ha' / filter",
+      "INSTRUME= 'AT&T&'",
+      "TELESCOP= 'Askar 65PHQ'",
+      "CONTINUE  'continues nothing'",
+    ]);
+    final headers = await reader.readPrimaryHeader(file.path);
+    expect(
+      FitsHeaderReader.stringValue(headers, 'OBJECT'),
+      'Sh2-155 Cave Nebula and the dark lanes of the Cepheus Bubble, '
+      'panel 3 of 4 (north-east) #2',
+    );
+    expect(FitsHeaderReader.stringValue(headers, 'FILTER'), "O'Brien Ha");
+    expect(FitsHeaderReader.stringValue(headers, 'INSTRUME'), 'AT&T&');
+    expect(FitsHeaderReader.stringValue(headers, 'TELESCOP'), 'Askar 65PHQ');
+    expect(headers.containsKey('CONTINUE'), isFalse);
+  });
+
   test('a non-FITS file throws FormatException', () async {
     final file = File('${dir.path}/notfits.bin');
     file.writeAsBytesSync(Uint8List(2880));

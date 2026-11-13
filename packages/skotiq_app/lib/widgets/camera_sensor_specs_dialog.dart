@@ -462,7 +462,7 @@ class _CameraSensorSpecsDialogState
       // Locally the chain rides the settings stream and refreshes itself; on a
       // paired remote client the settings live on the host and are fetched, so
       // the fetch has to be dropped by hand.
-      if (ref.read(backendProvider).remoteHost != null) {
+      if (ref.read(isRemoteModeProvider)) {
         ref.invalidate(rigCameraSettingsProvider);
       }
       if (mounted) Navigator.of(context).pop(true);

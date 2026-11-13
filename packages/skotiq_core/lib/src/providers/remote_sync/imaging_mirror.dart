@@ -97,26 +97,30 @@ void _showExposure(ProviderContainer container, _ExposureChange change) {
   }
 }
 
-/// A linked client following every exposure its host runs. Of what the host
-/// sends, only these events set the camera's "Exposing" and the countdown;
-/// its device readings and its run's events do not.
-void _applyExposureMirror(ProviderContainer container, SkotiqEvent event) {
+/// A client linked to a host from before the exposure channel
+/// ([ExposureChannel]) follows the host camera's own events instead.
+void _followExposureOfOlderHost(ProviderContainer container, SkotiqEvent event) {
+  final mirrored = container
+      .read(clientRuntimeMirrorStateProvider)
+      .hostPublishes(ExposureChannel.channelKey);
+  if (mirrored) return;
   final change = _ExposureChange.of(event);
   if (change != null) _showExposure(container, change);
 }
 
-/// Whether the host's window is showing an exposure it did not start.
+/// Whether the host is showing an exposure it did not start.
 final _hostFollowsForeignExposureProvider = StateProvider<bool>((ref) => false);
 
-/// The host showing an exposure this process did not start.
+/// The host showing an exposure its capture service did not start, from the
+/// camera's own events.
 ///
-/// A capture the host runs itself (Snapshot, Loop, autofocus, a sequence)
-/// marks the camera exposing before the native exposure begins, so an
-/// exposure that starts while the camera reads idle belongs to someone else:
-/// a linked client's snapshot or an API capture. Only those are followed, and
-/// only from their start, so the host's own capture keeps sole control of
-/// its countdown.
-void _applyForeignExposureOnHost(ProviderContainer container, SkotiqEvent event) {
+/// A capture the host's service runs (Snapshot, Loop, autofocus) marks the
+/// camera exposing before the native exposure begins, so an exposure that
+/// starts while the camera reads idle belongs to something else: a frame of
+/// the run, a linked client's snapshot or an API capture. Only those are
+/// followed, and only from their start, so the service's own capture keeps
+/// sole control of its countdown.
+void followHostCameraExposure(ProviderContainer container, SkotiqEvent event) {
   final change = _ExposureChange.of(event);
   if (change == null) return;
   final following = container.read(_hostFollowsForeignExposureProvider.notifier);

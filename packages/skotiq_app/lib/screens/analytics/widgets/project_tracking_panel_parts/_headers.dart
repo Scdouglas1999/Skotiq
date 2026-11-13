@@ -58,10 +58,8 @@ class _CleanupHeaderRow extends ConsumerWidget {
     }
 
     try {
-      final hostRecords = host.value.remoteHost?.imagingRecords;
-      final deleted = hostRecords != null
-          ? await hostRecords.removeUntrackedTargets()
-          : await ref.read(targetsDaoProvider).deleteUntrackedTargets();
+      final deleted =
+          await ref.read(targetLibraryProvider).deleteUntrackedTargets();
       if (!context.mounted || host.isStale) return;
       ref.invalidate(allDbTargetsProvider);
       ref.invalidate(favoriteDbTargetsProvider);

@@ -80,6 +80,12 @@ final class RemoteHostRecords
   Future<List<db.DbTarget>> getAllTargets() => _fetchTargets();
 
   @override
+  Future<int> countUntrackedTargets() => _host.countUntrackedTargets();
+
+  @override
+  Future<int> deleteUntrackedTargets() => _host.removeUntrackedTargets();
+
+  @override
   Future<List<db.SequenceRun>> getAllRuns() => _fetchRuns();
 
   Future<List<db.DbTarget>> _fetchTargets() async {

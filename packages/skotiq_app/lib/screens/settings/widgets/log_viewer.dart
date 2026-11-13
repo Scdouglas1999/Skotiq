@@ -405,7 +405,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
   }
 
   Widget _buildActionBar(SkotiqColors colors) {
-    final isRemote = ref.watch(backendProvider).remoteHost != null;
+    final isRemote = ref.watch(isRemoteModeProvider);
     return Wrap(
       spacing: 8,
       runSpacing: 8,

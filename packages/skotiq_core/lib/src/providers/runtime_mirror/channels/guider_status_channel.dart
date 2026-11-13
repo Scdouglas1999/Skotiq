@@ -1,3 +1,4 @@
+import '../../async_scope.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -118,7 +119,7 @@ class HostGuiderStatusNotifier extends StateNotifier<HostGuiderStatus?> {
     _reading = true;
     try {
       final status = await backend.guiderGetStatus();
-      if (mounted && identical(_ref.read(backendProvider), backend)) {
+      if (mounted && _ref.backendScopeOver(backend).isCurrent) {
         state = (deviceId: deviceId, state: _eventState, status: status);
       }
     } on Object catch (e) {

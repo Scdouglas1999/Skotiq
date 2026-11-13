@@ -1,3 +1,4 @@
+import '../analytics_exports.dart';
 import 'dart:io';
 
 import 'package:csv/csv.dart';
@@ -6,15 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:path/path.dart' as path;
 
-import '../../../services/observation_report_service.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../../utils/snackbar_helper.dart';

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/remote_host.dart';
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
 import 'backend_provider.dart';
@@ -13,7 +12,7 @@ import '../services/open_plan_service.dart';
 /// back. On a host only: a linked client shows the host's plan and follows it
 /// again when it reconnects.
 final openPlanLifecycleProvider = Provider<void>((ref) {
-  if (ref.watch(backendProvider).remoteHost != null) return;
+  if (ref.watch(isRemoteModeProvider)) return;
   String? written;
   Future<void> persist() async {
     if (!ref.read(openPlanRestoreDecidedProvider)) return;

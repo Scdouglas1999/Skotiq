@@ -110,6 +110,9 @@ class FitsHeaderWriter {
   static const int cardSize = 80;
   static const int cardsPerBlock = 36;
 
+  /// Characters a card holds from column 11 to 80: the value and its comment.
+  static const int _valueField = 70;
+
   /// Whitelisted FITS-keyword character set: A–Z, 0–9, `-`, `_`. Per
   /// FITS 4.4.2.1 the keyword field is bytes 1..8.
   static final RegExp _keywordPattern = RegExp(r'^[A-Z0-9_-]{1,8}$');
@@ -148,6 +151,15 @@ class FitsHeaderWriter {
         throw ArgumentError(
           'FITS keyword `${u.keyword}` is invalid: must be 1..=8 ASCII '
           'alphanumeric/_- characters (FITS 4.4.2.1).',
+        );
+      }
+      final string = u.stringValue;
+      if (string != null && _formatFitsString(string).length > _valueField) {
+        throw ArgumentError(
+          'FITS keyword `${u.keyword}`: the value is ${string.length} '
+          'characters, longer than one card holds. This writer does not '
+          'write CONTINUE cards; write it through the native frame header '
+          'writer instead.',
         );
       }
     }
@@ -190,6 +202,12 @@ class FitsHeaderWriter {
       final existingIndex = _findCardIndex(cards, keyUpper);
       if (existingIndex >= 0) {
         cards[existingIndex] = card;
+        // The pieces of a long string the old value carried on (FITS 4.0
+        // section 4.2.1.2) would otherwise be read onto the new value.
+        while (existingIndex + 1 < cards.length &&
+            cards[existingIndex + 1].startsWith('CONTINUE ')) {
+          cards.removeAt(existingIndex + 1);
+        }
         updated++;
       } else {
         cards.add(card);

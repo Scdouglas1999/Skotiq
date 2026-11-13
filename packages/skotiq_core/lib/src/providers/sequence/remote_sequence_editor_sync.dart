@@ -1,3 +1,4 @@
+import '../async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -197,7 +198,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
     writeInFlight = operation;
     try {
       await operation;
-      if (isDisposed || !identical(ref.read(backendProvider), backend)) return;
+      if (isDisposed || ref.backendScopeOver(backend).isStale) return;
       syncState.hostFingerprint = fingerprint;
       syncState.lastWrittenFingerprint = fingerprint;
     } catch (e) {
@@ -224,7 +225,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
   late final RemoteSequencePreSwapFlush preSwapFlush;
   preSwapFlush = (outgoingBackend, {required requireSuccess}) async {
     if (isDisposed || outgoingBackend.remoteHost == null) return;
-    if (!identical(ref.read(backendProvider), outgoingBackend)) return;
+    if (ref.backendScopeOver(outgoingBackend).isStale) return;
     await flushPending(reason: 'backend_swap', drainLatest: true);
     if (requireSuccess &&
         !isDisposed &&
@@ -298,7 +299,7 @@ Future<bool> _persistRemoteSequence(
   try {
     final savedId = await repository.saveSequence(sequence);
     if (!isActive()) return true;
-    if (!identical(ref.read(backendProvider), backend)) return true;
+    if (ref.backendScopeOver(backend).isStale) return true;
 
     final markedClean = editor.applyRemoteSave(
       savedId,

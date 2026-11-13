@@ -1,3 +1,4 @@
+import '../../providers/async_scope.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -6,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../database/daos/settings_dao.dart';
 import '../../models/equipment/equipment_models.dart';
-import '../../providers/backend_provider.dart';
 import '../../providers/capability_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/equipment/camera_state_provider.dart';
@@ -182,7 +182,7 @@ class ScienceCameraAutoConfig {
   bool _isCurrent(int generation) {
     return !_retired &&
         generation == _syncGeneration &&
-        identical(_ref.read(backendProvider), _backend);
+        _ref.backendScopeOver(_backend).isCurrent;
   }
 
   void retire() {

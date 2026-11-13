@@ -1,3 +1,4 @@
+import '../async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -224,7 +225,7 @@ class SequenceExecutor {
     : _backend = backend ?? _ref.read(backendProvider);
 
   void _ensureBackendAuthority() {
-    if (_disposed || !identical(_ref.read(backendProvider), _backend)) {
+    if (_disposed || _ref.backendScopeOver(_backend).isStale) {
       throw StateError(
         'This sequence executor belongs to an imaging host that is no longer '
         'active. Retry the action against the current host.',

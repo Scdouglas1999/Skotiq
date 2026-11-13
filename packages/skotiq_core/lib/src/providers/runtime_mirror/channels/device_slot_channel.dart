@@ -1,3 +1,4 @@
+import '../../equipment/device_read_health_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../backend/skotiq_backend.dart';
@@ -64,6 +65,33 @@ class DeviceSlotChannel
     };
   }
 
+  /// The host's reads of the device are part of what its card shows: values
+  /// it can no longer read are marked stale on a client too.
+  @override
+  Iterable<ProviderListenable<Object?>> get alsoEncodes => [
+    deviceReadHealthProvider.select((reads) => reads[slot.type]),
+  ];
+
+  @override
+  Map<String, dynamic>? encodeCurrent(ProviderContainer container) {
+    final json = encode(readSource(container));
+    final reads = container.read(deviceReadHealthProvider)[slot.type];
+    if (json == null ||
+        reads == null ||
+        reads.failures == 0 ||
+        reads.deviceId != json['deviceId']) {
+      return json;
+    }
+    return {
+      ...json,
+      'failedReads': {
+        'count': reads.failures,
+        'lastReadAt': reads.lastReadAt?.toUtc().millisecondsSinceEpoch,
+        'error': reads.lastError,
+      },
+    };
+  }
+
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (context.networkBackend == null) return;
@@ -92,6 +120,22 @@ class DeviceSlotChannel
           .read(deviceHeartbeatHealthProvider.notifier)
           .clearDevice(shownId);
     }
+    final failed = value?['failedReads'];
+    context
+        .read(deviceReadHealthProvider.notifier)
+        .mirrorHost(
+          slot.type,
+          deviceId == null
+              ? null
+              : DeviceReadHealth(
+                  deviceId: deviceId,
+                  failures: failed is Map ? jsonInt(failed['count']) ?? 0 : 0,
+                  lastReadAt: failed is Map
+                      ? jsonInstant(failed['lastReadAt'])?.toLocal()
+                      : null,
+                  lastError: failed is Map ? jsonString(failed['error']) : null,
+                ),
+        );
   }
 
   /// Whether a connect this client asked for owns the slot: in flight (the

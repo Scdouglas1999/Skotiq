@@ -281,7 +281,7 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
       mounted &&
       generation == _clearGeneration &&
       _isClearing &&
-      identical(ref.read(backendProvider), authority);
+      ref.backendScopeOver(authority).isCurrent;
 
   Widget _row({
     required IconData icon,

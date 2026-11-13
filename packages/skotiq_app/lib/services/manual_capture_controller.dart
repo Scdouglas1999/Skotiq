@@ -108,7 +108,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
   Completer<void>? _remoteLoopEnded;
   bool _remoteLoopSeen = false;
 
-  bool get _remote => ref.read(backendProvider).remoteHost != null;
+  bool get _remote => ref.read(isRemoteModeProvider);
 
   @override
   ManualCaptureState build() {
