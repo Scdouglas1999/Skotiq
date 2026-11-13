@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/remote_host.dart';
-import '../backend/skotiq_backend.dart';
 import 'database_provider.dart';
 import '../database/daos/sky_atlas_dao.dart';
 import '../database/database.dart';
