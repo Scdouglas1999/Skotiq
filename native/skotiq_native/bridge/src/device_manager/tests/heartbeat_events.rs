@@ -430,7 +430,8 @@ async fn a_failed_reconnect_attempt_publishes_one_event() {
 // disconnecting it stops the heartbeat; no caller picks the interval.
 #[tokio::test]
 async fn connect_starts_the_policy_heartbeat_and_disconnect_stops_it() {
-    use crate::event::{EquipmentEvent, EventPayload};
+    use crate::event::bus::EventPayload;
+    use crate::event::equipment::EquipmentEvent;
     use tokio::sync::broadcast::error::TryRecvError;
 
     let _guard = simulator_singleton_test_lock().lock().await;
