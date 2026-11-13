@@ -6570,6 +6570,10 @@
       rotation: rotation || 0,
       panelsHorizontal: cols,
       panelsVertical: rows,
+      // Panels run from the top-left corner and reverse direction every row,
+      // so each slew to the next row is one panel long.
+      startCorner: 'topLeft',
+      serpentine: true,
     };
   }
 
@@ -6664,7 +6668,6 @@
         config,
         exposure,
         options: {
-          serpentineOrdering: true,
           centerAfterSlew: true,
         },
       });
