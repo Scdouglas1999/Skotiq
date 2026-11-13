@@ -257,29 +257,6 @@ class ProfileService {
     return await importAllProfilesFromJson(json);
   }
 
-  Future<int> createProfile(String name, {String? description}) async {
-    final authority = _authority;
-    if (authority.backend.remoteHost != null) {
-      final id = await _profilesNotifier.createProfile(
-        name: name,
-        description: description,
-      );
-      _requireAuthority(authority);
-      return id;
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-    final id = await dao.createProfile(
-      EquipmentProfilesCompanion.insert(
-        name: name,
-        description: Value(description),
-      ),
-    );
-    _requireAuthority(authority);
-    _ref.invalidate(equipmentProfilesProvider);
-    return id;
-  }
-
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final authority = _authority;
     if (authority.backend.remoteHost != null) {

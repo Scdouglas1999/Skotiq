@@ -76,6 +76,16 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     return update(equipmentProfiles).replace(profile);
   }
 
+  /// Write [columns] (SQL column name to value) to profile [id].
+  Future<void> updateProfileColumns(
+    int id,
+    Map<String, Expression> columns,
+  ) async {
+    await (update(equipmentProfiles)..where((p) => p.id.equals(id))).write(
+      RawValuesInsertable<DbEquipmentProfile>(columns),
+    );
+  }
+
   /// Delete a profile and preserve a coherent default/active selection.
   Future<int> deleteProfile(int id) async {
     return transaction(() async {
@@ -206,51 +216,16 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     }
 
     return into(equipmentProfiles).insert(
-      EquipmentProfilesCompanion.insert(
-        name: newName,
-        description: Value(source.description),
-        cameraId: Value(source.cameraId),
-        mountId: Value(source.mountId),
-        focuserId: Value(source.focuserId),
-        filterWheelId: Value(source.filterWheelId),
-        guiderId: Value(source.guiderId),
-        guideCameraId: Value(source.guideCameraId),
-        guideFocalLength: Value(source.guideFocalLength),
-        rotatorId: Value(source.rotatorId),
-        domeId: Value(source.domeId),
-        weatherId: Value(source.weatherId),
-        safetyMonitorId: Value(source.safetyMonitorId),
-        switchId: Value(source.switchId),
-        coverCalibratorId: Value(source.coverCalibratorId),
-        focalLength: Value(source.focalLength),
-        aperture: Value(source.aperture),
-        focalRatio: Value(source.focalRatio),
-        defaultGain: Value(source.defaultGain),
-        defaultOffset: Value(source.defaultOffset),
-        defaultBinX: Value(source.defaultBinX),
-        defaultBinY: Value(source.defaultBinY),
-        defaultCoolingTemp: Value(source.defaultCoolingTemp),
-        coolOnConnect: Value(source.coolOnConnect),
-        defaultCenteringExposure: Value(source.defaultCenteringExposure),
-        filterNames: Value(source.filterNames),
-        filterFocusOffsets: Value(source.filterFocusOffsets),
-        meridianFlipOverrides: Value(source.meridianFlipOverrides),
-        cameraName: Value(source.cameraName),
-        mountName: Value(source.mountName),
-        focuserName: Value(source.focuserName),
-        filterWheelName: Value(source.filterWheelName),
-        guiderName: Value(source.guiderName),
-        guideCameraName: Value(source.guideCameraName),
-        rotatorName: Value(source.rotatorName),
-        safetyMonitorName: Value(source.safetyMonitorName),
-        switchName: Value(source.switchName),
-        telescopeName: Value(source.telescopeName),
-        telescopeFocalLength: Value(source.telescopeFocalLength),
-        telescopeAperture: Value(source.telescopeAperture),
-        profileIcon: Value(source.profileIcon),
-        profileColor: Value(source.profileColor),
-        sortOrder: Value(source.sortOrder),
-      ),
+      source
+          .toCompanion(false)
+          .copyWith(
+            id: const Value.absent(),
+            name: Value(newName),
+            isDefault: const Value(false),
+            isActive: const Value(false),
+            createdAt: const Value.absent(),
+            updatedAt: const Value.absent(),
+          ),
     );
   }
 }

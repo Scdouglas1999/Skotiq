@@ -112,7 +112,7 @@ void main() {
             final row = await dao.getProfileById(id);
             await container
                 .read(equipmentProfilesProvider.notifier)
-                .updateProfile(
+                .saveProfile(
                   EquipmentProfileModel.fromDatabase(
                     row!,
                   ).copyWith(focalLength: 1000),
@@ -274,7 +274,7 @@ void main() {
     final loaded = state.profiles.single;
     await container
         .read(equipmentProfilesProvider.notifier)
-        .updateProfile(loaded.copyWith(name: 'Rig renamed'));
+        .saveProfile(loaded.copyWith(name: 'Rig renamed'));
 
     expect(sentFields, {'name'});
   });

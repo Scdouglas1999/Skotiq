@@ -112,12 +112,12 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     try {
       final profileId = await ref
           .read(equipmentProfilesProvider.notifier)
-          .createProfile(
+          .saveProfile(EquipmentProfileModel(
             name: uniqueProfileName(
               'My Equipment',
               ref.read(sortedProfilesProvider).map((profile) => profile.name),
             ),
-          );
+          ));
       if (operation.isStale) return;
       bumpProfileMutationEpoch();
       ref.read(selectedEquipmentProfileIdProvider.notifier).state = profileId;
@@ -511,7 +511,7 @@ Future<void> restoreDeletedProfile(
     final int restoredId;
     if (deletedOn.value.remoteHost != null) {
       final notifier = container.read(equipmentProfilesProvider.notifier);
-      restoredId = await notifier.updateProfile(
+      restoredId = await notifier.saveProfile(
         deletedProfile.toInsertionCopy(name: deletedProfile.name),
       );
       if (deletedOn.isStale) return;
