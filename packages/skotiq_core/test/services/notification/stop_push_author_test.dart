@@ -81,6 +81,7 @@ SkotiqEvent get _operatorDecision => _sequencer(
     'summary': 'Operator: stop',
     'details_json': '{"action":"stop"}',
     'sequence_run_id': _runId,
+    'stop': {'by': 'operator'},
   },
 );
 
@@ -91,6 +92,7 @@ SkotiqEvent _autopilotDecision({int runId = _runId}) => _sequencer(
     'summary': 'Autopilot: stop',
     'details_json': '{"origin":"scheduler","action":"stop"}',
     'sequence_run_id': runId,
+    'stop': {'by': 'autopilot'},
   },
 );
 
@@ -101,6 +103,7 @@ SkotiqEvent _systemDecision(String origin) => _sequencer(
     'summary': 'System: stop',
     'details_json': '{"origin":"$origin","action":"stop"}',
     'sequence_run_id': _runId,
+    'stop': {'by': 'system', 'origin': origin},
   },
 );
 
@@ -383,6 +386,7 @@ void main() {
             'category': 'manual_intervention',
             'summary': 'Operator: stop',
             'details_json': '{"action":"stop"}',
+            'stop': {'by': 'operator'},
           },
         ),
       );

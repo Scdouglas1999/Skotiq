@@ -60,6 +60,11 @@ SkotiqEvent get _rejectStreak => _sequencer(
         '"reject_path":"/captures/Reject/NGC7380_OIII_0007.fits",'
         '"accepted_total":4,"rejected_total":3}',
     'sequence_run_id': 21,
+    'notice': 'reject_streak',
+    'notice_fields': {
+      'consecutive_rejects': 3,
+      'reason': 'eccentricity 0.83 exceeds threshold 0.80',
+    },
   },
 );
 
@@ -70,8 +75,15 @@ SkotiqEvent _frameRejected(int consecutive) => _sequencer(
   data: {
     'frame': consecutive,
     'total': 40,
+    'node_id': 'expose-1',
     'reason': 'eccentricity 0.83 exceeds threshold 0.80',
     'consecutive_rejects': consecutive,
+    'accepted_total': 4,
+    'rejected_total': consecutive,
+    'bin_x': 1,
+    'bin_y': 1,
+    'exposure_secs': 60.0,
+    'frame_type': 'Light',
   },
 );
 
@@ -99,6 +111,7 @@ void main() {
           'category': 'system_event',
           'summary': 'Autofocus failed — continuing with last-good focus',
           'details_json': '{"source":"Autofocus","node_id":"af-1"}',
+          'notice': 'autofocus_continued',
         },
       ),
     );
@@ -115,6 +128,8 @@ void main() {
               'Autofocus did not converge (Insufficient stars detected). '
               'The focuser was returned to position 6620 and imaging '
               'continues on the last-good focus.',
+          'kind': 'advisory',
+          'notice': 'autofocus_continued',
         },
       ),
     );
@@ -166,6 +181,13 @@ void main() {
           'after 5 attempts on M31. The mount stays where the last correction '
           'put it.","node_id":"center-1"}',
       'sequence_run_id': 21,
+      'notice': 'problem_noticed',
+      'notice_fields': {
+        'source': 'Center',
+        'problem':
+            'Failed to center within 5.0" after 5 attempts on M31. The mount '
+            'stays where the last correction put it.',
+      },
     },
   );
 

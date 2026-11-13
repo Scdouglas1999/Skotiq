@@ -38,7 +38,10 @@ Future<void> _settle() async {
 SkotiqEvent _error(SequencerErrorKind kind, String message) => _sequencer(
   'Error',
   severity: kind.runContinues ? EventSeverity.warning : EventSeverity.error,
-  data: {'message': message, kSequencerErrorKindKey: encodeSequencerErrorKind(kind)},
+  data: {
+    'message': message,
+    kSequencerErrorKindKey: encodeSequencerErrorKind(kind),
+  },
 );
 
 const _fault =
