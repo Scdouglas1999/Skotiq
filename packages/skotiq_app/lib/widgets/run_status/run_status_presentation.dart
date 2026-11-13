@@ -1,13 +1,13 @@
-/// The one place a run status becomes the words, color and icon a person
-/// sees. The stored values are record tokens (`paused-stopped` is "stopped
-/// with the checkpoint kept"), never shown as they are.
+/// The one place a run or session status becomes the words, color and icon a
+/// person sees. The stored values are record tokens (`paused-stopped` is
+/// "stopped with the checkpoint kept"), never shown as they are.
 library;
 
 import 'package:flutter/widgets.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/models.dart'
-    show SequenceRunStatus, isSequenceCancelledNotice;
+    show SequenceRunStatus, SessionStatus, isSequenceCancelledNotice;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Human label for a run status.
@@ -22,14 +22,30 @@ String runStatusLabel(SequenceRunStatus status) => switch (status) {
       SequenceRunStatus.paused => 'Paused',
     };
 
-/// Human label for a stored run or session status.
-///
-/// A token that is not a run status (a session's `active` or `error`, or one
-/// a newer build wrote) reads as itself: hyphens become spaces and the first
-/// letter is capitalized.
+/// Human label for a stored run status. A token no build of this version
+/// writes reads as itself (see [_tokenWords]).
 String runStatusTokenLabel(String token) {
   final status = SequenceRunStatus.tryParse(token);
-  if (status != null) return runStatusLabel(status);
+  return status == null ? _tokenWords(token) : runStatusLabel(status);
+}
+
+/// Human label for a stored session status: a session a run ended reads as
+/// that run's ending.
+String sessionStatusLabel(String token) {
+  final status = SessionStatus.tryParse(token);
+  return switch (status?.runEnding) {
+    final run? => runStatusLabel(run),
+    null => switch (status) {
+      SessionStatus.active => 'Active',
+      SessionStatus.error => 'Error',
+      _ => _tokenWords(token),
+    },
+  };
+}
+
+/// A token a newer build wrote: hyphens and underscores become spaces and the
+/// first letter is capitalized.
+String _tokenWords(String token) {
   final words = token.replaceAll('-', ' ').replaceAll('_', ' ').trim();
   if (words.isEmpty) return 'Unknown';
   return words[0].toUpperCase() + words.substring(1);
@@ -59,20 +75,42 @@ String runStatusMeaning(SequenceRunStatus status) => switch (status) {
             'reconciled at the next start.',
     };
 
-/// The color a run status is shown in. A status this build does not know is
-/// muted.
-Color runStatusColor(SkotiqColors colors, SequenceRunStatus? status) =>
-    switch (status) {
-      SequenceRunStatus.completed => colors.success,
-      SequenceRunStatus.failed => colors.error,
-      SequenceRunStatus.aborted => colors.warning,
-      SequenceRunStatus.running || SequenceRunStatus.paused => colors.info,
+/// The chip tone a run status is shown in. An operator's stop, an
+/// interruption and a status this build does not know have no tone.
+ChipTone runStatusTone(SequenceRunStatus? status) => switch (status) {
+      SequenceRunStatus.completed => ChipTone.success,
+      SequenceRunStatus.failed => ChipTone.error,
+      SequenceRunStatus.aborted => ChipTone.warning,
+      SequenceRunStatus.running ||
+      SequenceRunStatus.paused ||
       SequenceRunStatus.stopped ||
       SequenceRunStatus.stoppedResumable ||
       SequenceRunStatus.interrupted ||
       null =>
-        colors.textMuted,
+        ChipTone.neutral,
     };
+
+/// The color a run status is shown in: its tone, info while the run is under
+/// way, muted where the tone is neutral.
+Color runStatusColor(SkotiqColors colors, SequenceRunStatus? status) =>
+    status?.isLive == true
+        ? colors.info
+        : runStatusTone(status).resolve(colors) ?? colors.textMuted;
+
+/// The chip tone a stored session status is shown in: a session a run ended
+/// takes that run's tone.
+ChipTone sessionStatusTone(String token) {
+  final status = SessionStatus.tryParse(token);
+  return switch (status) {
+    SessionStatus.active => ChipTone.primary,
+    SessionStatus.error => ChipTone.error,
+    _ => runStatusTone(status?.runEnding),
+  };
+}
+
+/// The color a stored session status is shown in.
+Color sessionStatusColor(SkotiqColors colors, String token) =>
+    sessionStatusTone(token).resolve(colors) ?? colors.textMuted;
 
 /// The icon a run status is shown with.
 IconData runStatusIcon(SequenceRunStatus? status) => switch (status) {

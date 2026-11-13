@@ -12,6 +12,7 @@ import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import 'session_test_support.dart';
 
@@ -173,7 +174,7 @@ void main() {
     final stars = _metric(vm, 'nightSessionMetricStars');
     expect(stars.value, '1200');
     expect(stars.delta, '+50');
-    expect(stars.deltaTone, MetricTone.good);
+    expect(stars.deltaTone, MetricGridTone.good);
     final noise = _metric(vm, 'nightSessionMetricBgSigma');
     expect(noise.delta, '0.0');
   });
@@ -269,7 +270,7 @@ void main() {
       vm.metrics
           .firstWhere((m) => m.label.key == 'nightSessionStatRejected')
           .valueTone,
-      MetricTone.bad,
+      MetricGridTone.bad,
     );
     expect(value('nightSessionStatIntegration'), '12m');
     expect(value('nightSessionStatDisk'), '639 GiB');

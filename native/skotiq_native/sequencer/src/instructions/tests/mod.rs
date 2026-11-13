@@ -141,7 +141,7 @@ struct ScriptedDomeRotatorOps {
     /// What `mount_is_tracking` answers; `None` defers to the null mount.
     mount_tracking: Mutex<Option<bool>>,
     /// When `Some`, every `guider_dither` fails with this message.
-    dither_error: Option<String>,
+    dither_error: Option<crate::device_ops::DeviceError>,
     guider_stop_error: Option<crate::device_ops::DeviceError>,
     guider_absent: bool,
     /// When true, every plate solve finds no solution (a clouded frame).
@@ -532,8 +532,8 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// A guider whose every dither fails with `message`.
-    fn with_dither_failing(mut self, message: &str) -> Self {
-        self.dither_error = Some(message.to_string());
+    fn with_dither_failing(mut self, error: impl Into<crate::device_ops::DeviceError>) -> Self {
+        self.dither_error = Some(error.into());
         self
     }
 
@@ -993,8 +993,8 @@ impl GuiderOps for ScriptedDomeRotatorOps {
             .lock()
             .unwrap()
             .push(self.camera_exposure_calls.load(Ordering::SeqCst));
-        if let Some(message) = &self.dither_error {
-            return Err(message.clone().into());
+        if let Some(error) = &self.dither_error {
+            return Err(error.clone());
         }
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
@@ -1433,7 +1433,7 @@ fn one_dark_no_filter() -> ExposureConfig {
     ExposureConfig {
         duration_secs: 0.01,
         count: 1,
-        frame_type: "Dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         filter: None,
         filter_index: None,
         ..ExposureConfig::default()
@@ -1465,7 +1465,7 @@ fn one_dark(count: u32) -> ExposureConfig {
     ExposureConfig {
         duration_secs: 0.01,
         count,
-        frame_type: "Dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         gain: Some(1),
         offset: Some(2),
         binning: Binning::Two,
@@ -1555,4 +1555,5 @@ mod save_path;
 #[cfg(target_os = "linux")]
 mod script;
 mod slew;
+mod step_lines;
 mod wait_time;

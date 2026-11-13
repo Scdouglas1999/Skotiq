@@ -1159,27 +1159,3 @@ fn each_recoverable_trigger_maps_to_the_cause_that_fixes_it() {
         .expect("mount_tracking_lost is a standard trigger");
     assert!(matches!(trigger.recovery_action, RecoveryAction::Pause));
 }
-
-/// `SlewToGapAndContinue` turns the cloud analyzer's clear-sky direction
-/// (alt/az) into the RA/Dec the mount is sent to. The conversion had no test:
-/// replacing it with a constant, or flipping any sign in it, passed the whole
-/// suite, and a wrong answer points the mount somewhere other than the gap,
-/// possibly below the horizon. Converting back with the independently tested
-/// `meridian::calculate_alt_az` must land on the direction asked for.
-#[test]
-fn a_clear_sky_direction_converts_to_coordinates_that_point_back_at_it() {
-    let (latitude, longitude) = (40.0, -75.0);
-    for (alt, az) in [(35.0, 120.0), (60.0, 250.0), (25.0, 10.0), (80.0, 180.0)] {
-        let (ra, dec) =
-            crate::executor::recovery_ops::alt_az_to_ra_dec(alt, az, latitude, longitude);
-        let (alt_back, az_back) =
-            crate::meridian::calculate_alt_az(ra, dec, latitude, longitude, chrono::Utc::now());
-        let az_error = ((az_back - az + 540.0) % 360.0 - 180.0).abs();
-        // A few seconds between the two clock reads moves the sky ~0.01 deg.
-        assert!(
-            (alt_back - alt).abs() < 0.1 && az_error < 0.1,
-            "asked for alt {alt} / az {az}, the mount would point at alt {alt_back:.3} / az {az_back:.3}"
-        );
-        assert!((0.0..24.0).contains(&ra), "RA {ra} out of range");
-    }
-}

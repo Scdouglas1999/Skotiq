@@ -602,3 +602,33 @@ async fn a_slew_that_lands_off_target_notifies_and_the_run_goes_on() {
         "the operator asked for the stop"
     );
 }
+
+/// A run stopped while its slew is under way (the Dawn Approaching trigger
+/// parking the rig during the first slew) ends the slew as cancelled. It was
+/// a failed step, so the run ended "failed" instead of stopped by the trigger.
+#[tokio::test(start_paused = true)]
+async fn a_slew_the_run_stops_is_cancelled_not_failed() {
+    use crate::node::registry::InstructionNode;
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_slewing_states(vec![true]));
+    let mut context = crate::node::context::ExecutionContext::new_for_test("slew".to_string());
+    context.run.device_ops = ops;
+    context.run.rig.mount_id = Some("mount-1".to_string());
+    context.target_name = Some("East Field".to_string());
+    context.target_ra = Some(11.14);
+    context.target_dec = Some(40.0);
+    let cancel = context.is_cancelled.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(20)).await;
+        cancel.store(true, Ordering::SeqCst);
+    });
+    let config = SlewConfig {
+        use_target_coords: true,
+        ..SlewConfig::default()
+    };
+
+    let status = crate::node::instructions::slew::SlewInstruction
+        .execute("slew", &crate::NodeType::SlewToTarget(config), &mut context)
+        .await;
+
+    assert_eq!(status, NodeStatus::Cancelled);
+}

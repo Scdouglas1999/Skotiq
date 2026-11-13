@@ -39,20 +39,18 @@ void main() {
 
       expect(panels.length, equals(4));
 
-      // Check indices are sequential
+      // Capture order from the top-left (north-east) panel, serpentine: the
+      // second row comes back right to left.
       for (var i = 0; i < panels.length; i++) {
-        expect(panels[i].panelIndex, equals(i));
+        expect(panels[i].index, equals(i));
       }
-
-      // Check row/col assignments
-      expect(panels[0].row, equals(0));
-      expect(panels[0].col, equals(0));
-      expect(panels[1].row, equals(0));
-      expect(panels[1].col, equals(1));
-      expect(panels[2].row, equals(1));
-      expect(panels[2].col, equals(0));
-      expect(panels[3].row, equals(1));
-      expect(panels[3].col, equals(1));
+      expect([for (final p in panels) (p.row, p.col)],
+          [(0, 0), (0, 1), (1, 1), (1, 0)]);
+      // Row 0 is north, column 0 is east.
+      expect(panels[0].decDegrees, greaterThan(30.0));
+      expect(panels[0].raHours, greaterThan(12.0));
+      expect(panels[1].raHours, lessThan(12.0));
+      expect(panels[2].decDegrees, lessThan(30.0));
     });
 
     test('generates single panel correctly', () {
@@ -525,7 +523,11 @@ void main() {
             totalPanels: 4,
             row: 0,
             column: 0,
-          ).copyWith(panelIndex: i, row: i ~/ 2, column: i % 2),
+          ).copyWith(
+            panelIndex: i,
+            row: const [0, 0, 1, 1][i],
+            column: const [0, 1, 1, 0][i],
+          ),
         );
       }
 
@@ -794,13 +796,10 @@ void main() {
         exposuresPerPanel: 1,
       );
 
-      const options = MosaicSequenceOptions(serpentineOrdering: true);
-
       final nodes = service.createMosaicSequence(
         mosaicName: 'Test Mosaic',
         config: config,
         exposure: exposure,
-        options: options,
       );
 
       final targetGroups = nodes.values.whereType<TargetHeaderNode>().toList();
@@ -852,9 +851,6 @@ void main() {
         mosaicName: 'Test Mosaic',
         config: config,
         exposure: exposure,
-        // serpentine off so orderIndex lines up with panelIndex for a clean
-        // assertion; the stamping keys off panel.panelIndex either way.
-        options: const MosaicSequenceOptions(serpentineOrdering: false),
         panelTargetId: (panelIndex) => 100 + panelIndex,
       );
 
@@ -874,8 +870,8 @@ void main() {
         hasLength(6),
         reason: 'each panel must attribute to its OWN target (no pooling)',
       );
-      // Each id resolves to its own panel index (header order == panel index
-      // with serpentine off).
+      // Each id resolves to its own panel index (header order == capture
+      // order == panel index).
       expect(ids, equals(const [100, 101, 102, 103, 104, 105]));
     });
 
@@ -904,7 +900,6 @@ void main() {
         mosaicName: 'Test Mosaic',
         config: config,
         exposure: exposure,
-        options: const MosaicSequenceOptions(serpentineOrdering: false),
         panelTargetId: (panelIndex) =>
             panelIndex.isEven ? 200 + panelIndex : null,
       );
@@ -1030,7 +1025,6 @@ void main() {
         mosaicName: 'SHO Mosaic',
         config: config,
         exposure: exposure,
-        options: const MosaicSequenceOptions(serpentineOrdering: false),
       );
 
       final headers = nodes.values.whereType<TargetHeaderNode>().toList()
@@ -1067,7 +1061,6 @@ void main() {
         mosaicName: 'SHO Mosaic',
         config: config,
         exposure: exposure,
-        options: const MosaicSequenceOptions(serpentineOrdering: false),
       );
 
       final byFilter = <String?, ExposureNode>{};
@@ -1100,7 +1093,6 @@ void main() {
         mosaicName: 'Lum Mosaic',
         config: config,
         exposure: single,
-        options: const MosaicSequenceOptions(serpentineOrdering: false),
       );
       final loops = nodes.values.whereType<LoopNode>().toList();
       // Two panels, one loop each.

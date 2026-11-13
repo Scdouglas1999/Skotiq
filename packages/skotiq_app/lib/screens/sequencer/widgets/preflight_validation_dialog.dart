@@ -206,7 +206,7 @@ class _PreFlightValidationDialogState
       // good".
       SequenceRun? lastCompleted;
       for (final r in runs) {
-        if (r.status == 'completed') {
+        if (r.runStatus == SequenceRunStatus.completed) {
           lastCompleted = r;
           break;
         }

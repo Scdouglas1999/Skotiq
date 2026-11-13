@@ -114,6 +114,8 @@ pub trait FrameCodec: Sync {
     /// The metadata alone, without decoding pixels.
     fn read_header(&self, path: &Path) -> Result<FitsHeader, FrameIoError>;
     fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError>;
+    /// A whole file held in memory.
+    fn read_bytes(&self, bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError>;
     fn write(
         &self,
         path: &Path,
@@ -160,6 +162,9 @@ impl FrameCodec for FitsFrames {
     fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
         Ok(crate::read_fits(path)?)
     }
+    fn read_bytes(&self, bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError> {
+        Ok(crate::read_fits_from_bytes(bytes)?)
+    }
     fn write(
         &self,
         path: &Path,
@@ -198,6 +203,11 @@ impl FrameCodec for XisfFrames {
     }
     fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
         let unit = xisf::read_xisf_unit(path)?;
+        let header = xisf::header_from_image(unit.image(0)?);
+        Ok((unit.read_pixels(0)?, header))
+    }
+    fn read_bytes(&self, bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError> {
+        let unit = xisf::read_xisf_bytes(bytes)?;
         let header = xisf::header_from_image(unit.image(0)?);
         Ok((unit.read_pixels(0)?, header))
     }
@@ -271,6 +281,10 @@ impl FrameCodec for RawFrames {
     }
     fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
         let frame = crate::read_raw_file(path)?;
+        Ok((frame.to_image(), frame.header()))
+    }
+    fn read_bytes(&self, bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError> {
+        let frame = crate::read_raw_bytes(bytes)?;
         Ok((frame.to_image(), frame.header()))
     }
 }
@@ -386,6 +400,18 @@ pub fn read_frame(path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> 
     codec_for_file(path)?.read(path)
 }
 
+/// A frame file held in memory (one a camera server sent), its format told
+/// from its first bytes. [`FrameIoError::UnknownFormat`] when they are no
+/// format the app reads.
+pub fn read_frame_bytes(bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError> {
+    let head = &bytes[..bytes.len().min(HEAD_BYTES)];
+    CODECS
+        .iter()
+        .find(|c| c.probe(head))
+        .ok_or_else(|| FrameIoError::UnknownFormat("The frame".to_string()))?
+        .read_bytes(bytes)
+}
+
 pub fn read_frame_header(path: &Path) -> Result<FitsHeader, FrameIoError> {
     codec_for_file(path)?.read_header(path)
 }
@@ -446,8 +472,9 @@ pub fn write_wcs_into_frame(path: &Path, wcs: &crate::SipWcs) -> Result<(), Fram
 }
 
 /// A frame in another format written out as FITS, for readers that take only
-/// FITS (an external plate solver, a band-by-band reader). The copy is removed
-/// when this is dropped.
+/// FITS (an external plate solver, a band-by-band reader). The copy is a
+/// working file in the system's temporary folder, never beside the user's
+/// frames, and is removed when this is dropped.
 #[derive(Debug)]
 pub struct FitsCopy {
     path: std::path::PathBuf,
@@ -456,10 +483,10 @@ pub struct FitsCopy {
 static COPY_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 impl FitsCopy {
-    /// Decode `frame` and write it as FITS, with its header, into `dir`.
-    pub fn new(frame: &Path, dir: &Path) -> Result<Self, FrameIoError> {
+    /// Decode `frame` and write it as FITS, with its header.
+    pub fn new(frame: &Path) -> Result<Self, FrameIoError> {
         let (image, header) = read_frame(frame)?;
-        let path = dir.join(format!(
+        let path = std::env::temp_dir().join(format!(
             ".skotiq-fits-copy-{}-{}.fits",
             std::process::id(),
             COPY_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)

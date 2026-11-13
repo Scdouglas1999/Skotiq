@@ -4,14 +4,17 @@ import '../../services/plan_timer.dart';
 import '../../services/sequence_time_estimator.dart';
 import '../sequence_provider.dart' show currentSequenceProvider;
 import '../settings_provider.dart'
-    show appObserverLocationProvider, appSettingsProvider;
+    show
+        appObserverLocationProvider,
+        appSettingsProvider,
+        autofocusSettingsProvider;
 import '../scheduler_provider.dart' show altitudeFloorProvider;
 import 'plan_run_end.dart';
 import 'sequencer_defaults.dart' show sequencerOverheadConfigProvider;
 
 /// The [PlanTimer] for this rig's settings: the Sequencer's overhead model,
-/// the site, "Park before dawn", the autofocus cadence the executor adds and
-/// the site's altitude floor.
+/// the Autofocus settings, the site, "Park before dawn", the autofocus cadence
+/// the executor adds and the site's altitude floor.
 final planTimerProvider = Provider<PlanTimer>((ref) {
   final site = ref.watch(appObserverLocationProvider);
   final s = ref.watch(
@@ -27,6 +30,7 @@ final planTimerProvider = Provider<PlanTimer>((ref) {
   return PlanTimer(
     estimator: SequenceTimeEstimator(
       overhead: ref.watch(sequencerOverheadConfigProvider),
+      autofocus: ref.watch(autofocusSettingsProvider),
     ),
     site: site == null
         ? null

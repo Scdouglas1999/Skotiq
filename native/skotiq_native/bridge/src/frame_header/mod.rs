@@ -28,6 +28,8 @@ pub(crate) struct FrameHeader {
     /// `gain` is an ISO speed, also written as `ISOSPEED` (Siril, PixInsight).
     pub gain_is_iso: bool,
     pub offset: Option<i32>,
+    /// The camera's name for the read mode, written as `READOUTM`.
+    pub readout_mode: Option<String>,
     pub ccd_temp: Option<f64>,
     pub set_temp: Option<f64>,
     /// Hours.
@@ -123,6 +125,7 @@ impl FrameHeader {
             gain: ctx.gain,
             gain_is_iso: ctx.gain_is_iso,
             offset: ctx.offset,
+            readout_mode: None,
             ccd_temp: ctx.sensor_temp_c,
             set_temp: ctx.set_temp_c,
             ra,
@@ -213,6 +216,9 @@ impl FrameHeader {
         }
         if let Some(offset) = self.offset {
             header.set_int("OFFSET", offset as i64);
+        }
+        if let Some(mode) = &self.readout_mode {
+            header.set_string("READOUTM", mode);
         }
         if let Some(temp) = self.ccd_temp {
             header.set_float("CCD-TEMP", temp);

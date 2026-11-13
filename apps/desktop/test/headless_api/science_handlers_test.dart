@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_desktop/headless_api/handlers/science_handlers.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
@@ -390,4 +391,164 @@ void main() {
       });
     });
   });
+
+  group('session products', () {
+    late SkotiqDatabase database;
+    late ProviderContainer container;
+    late ScienceHandlers handlers;
+    late _RatioPipeline pipeline;
+
+    setUp(() async {
+      database = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          scienceProcessingServiceProvider.overrideWith(
+            (ref) => pipeline = _RatioPipeline(ref),
+          ),
+        ],
+      );
+      handlers = ScienceHandlers(container);
+      await database
+          .into(database.imagingSessions)
+          .insert(
+            ImagingSessionsCompanion.insert(
+              id: const Value(7),
+              name: const Value('Narrowband night'),
+              startTime: DateTime.utc(2026, 10, 25, 1),
+            ),
+          );
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    Future<void> frame(
+      String name,
+      String filter,
+      FrameType type,
+      int minute,
+    ) => ImagesDao(database).insertSequenceFrame(
+      filePath: '/frames/$name',
+      fileName: name,
+      fileFormat: 'fits',
+      exposureDuration: 300,
+      capturedAt: DateTime.utc(2026, 10, 25, 2, minute),
+      isAccepted: true,
+      producingNodeId: 'n',
+      sessionId: 7,
+      filter: filter,
+      frameType: type,
+    );
+
+    test('line ratios are made from the newest lights, never a flat', () async {
+      await frame('Ha_light.fits', 'Ha', FrameType.light, 1);
+      await frame('OIII_light.fits', 'OIII', FrameType.light, 2);
+      await frame('SII_light.fits', 'SII', FrameType.light, 3);
+      await frame('Ha_flat.fits', 'Ha', FrameType.flat, 50);
+
+      final response = await handlers.handleGenerateLineRatios(
+        Request(
+          'POST',
+          Uri.parse(
+            'http://localhost/api/science/session/7/generate-line-ratios',
+          ),
+          body: '{}',
+        ),
+        '7',
+      );
+
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(body['files'], [
+        'Ha_light.fits',
+        'OIII_light.fits',
+        'SII_light.fits',
+      ]);
+      expect(pipeline.hAlphaPath, '/frames/Ha_light.fits');
+    });
+
+    test('a session without the three lights makes nothing', () async {
+      await frame('Ha_light.fits', 'Ha', FrameType.light, 1);
+
+      final response = await handlers.handleGenerateLineRatios(
+        Request(
+          'POST',
+          Uri.parse(
+            'http://localhost/api/science/session/7/generate-line-ratios',
+          ),
+          body: '{}',
+        ),
+        '7',
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(body['status'], 'missingFrames');
+      expect(pipeline.hAlphaPath, isNull);
+    });
+
+    test('the science report carries the period the client sends', () async {
+      const finding = PeriodFinding(
+        lombScarglePeriodDays: 0.4,
+        peakPower: 0.9,
+        falseAlarmProbability: 1.2e-5,
+        baselineDays: 1.2,
+        searchedMinPeriodDays: 0.05,
+        searchedMaxPeriodDays: 1.6,
+        blsPeriodDays: 0.4001,
+        transitDepthMag: 0.031,
+        transitDurationDays: 0.02,
+        signalDetectionEfficiency: 9.4,
+      );
+      final response = await handlers.handleScienceReport(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/science/session/7/report'),
+          body: jsonEncode({'period': finding.toJson()}),
+        ),
+        '7',
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      final markdown = body['markdown'] as String;
+      expect(markdown, contains('# Skotiq Science Report'));
+      expect(markdown, contains('Lomb-Scargle best period:** 0.400000 d'));
+    });
+
+    test('a report request with a malformed period is refused', () async {
+      final response = await translateHandlerErrors(
+        handlers.handleScienceReport(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/science/session/7/report'),
+            body: jsonEncode({'period': 'soon'}),
+          ),
+          '7',
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.badRequest);
+    });
+  });
+}
+
+/// Records the narrowband set it is asked to measure instead of reading files.
+class _RatioPipeline extends ScienceProcessingService {
+  _RatioPipeline(super.ref);
+
+  String? hAlphaPath;
+
+  @override
+  Future<void> generateLineRatios({
+    required int sessionId,
+    required NarrowbandSet set,
+    int? hAlphaImageId,
+    int? oiiiImageId,
+    int? siiImageId,
+  }) async {
+    hAlphaPath = set.hAlphaPath;
+  }
 }

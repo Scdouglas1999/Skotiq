@@ -26,7 +26,8 @@ pub(super) struct TrackingLimitHold {
 
 /// Seconds until a waiting hold's flip comes due at `hour_angle`.
 fn secs_until_window(config: &crate::MeridianFlipConfig, hour_angle: f64) -> f64 {
-    (tracking_limit_flip_threshold(config) - hour_angle).max(0.0) * 3600.0 / crate::meridian::SIDEREAL_PER_SOLAR
+    (tracking_limit_flip_threshold(config) - hour_angle).max(0.0) * 3600.0
+        / crate::meridian::SIDEREAL_PER_SOLAR
 }
 
 fn relative_to_meridian(hour_angle: f64) -> String {

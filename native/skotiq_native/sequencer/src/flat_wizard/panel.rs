@@ -284,19 +284,20 @@ pub(super) async fn position_for_flats(
             if let Some(mount_id) = &ctx.run.rig.mount_id {
                 progress.report(0.12, "Slewing to zenith".to_string());
 
-                let (lat, lon) = ctx.run.device_ops.get_observer_location().ok_or_else(|| {
-                    DeviceError::Failed(
-                        "Observer location is required for flat-panel positioning".to_string(),
-                    )
-                })?;
+                let (lat, lon) =
+                    ctx.run
+                        .rig
+                        .latitude
+                        .zip(ctx.run.rig.longitude)
+                        .ok_or_else(|| {
+                            DeviceError::Failed(
+                                "Observer location is required for flat-panel positioning"
+                                    .to_string(),
+                            )
+                        })?;
 
-                let now = chrono::Utc::now();
-                let jd = crate::node::julian_day(&now);
-                let lst = crate::node::local_sidereal_time(jd, lon);
-
-                // Zenith: RA = LST, Dec = latitude
-                let zenith_ra = lst;
-                let zenith_dec = lat;
+                let (zenith_ra, zenith_dec) =
+                    crate::meridian::alt_az_to_ra_dec(90.0, 0.0, lat, lon, chrono::Utc::now());
 
                 tracing::info!(
                     "Slewing to zenith: RA={:.4}h, Dec={:.4}",
@@ -322,31 +323,36 @@ pub(super) async fn position_for_flats(
             tracing::info!("Positioning for {:?} sky flats", config.panel_location);
 
             if let Some(mount_id) = &ctx.run.rig.mount_id {
-                let (lat, lon) = ctx.run.device_ops.get_observer_location().ok_or_else(|| {
-                    DeviceError::Failed(
-                        "Observer location is required for sky-flat positioning".to_string(),
-                    )
-                })?;
+                let (lat, lon) =
+                    ctx.run
+                        .rig
+                        .latitude
+                        .zip(ctx.run.rig.longitude)
+                        .ok_or_else(|| {
+                            DeviceError::Failed(
+                                "Observer location is required for sky-flat positioning"
+                                    .to_string(),
+                            )
+                        })?;
 
                 progress.report(
                     0.12,
                     format!("Slewing for {:?} sky flats", config.panel_location),
                 );
 
-                // Sky flats are typically taken at ~60-70 altitude.
-                // Dawn: point east (azimuth ~90); Dusk: point west (azimuth ~270).
-                let target_altitude = 65.0;
-                let target_azimuth = match config.panel_location {
-                    PanelLocation::DawnSky => 90.0,
-                    PanelLocation::DuskSky => 270.0,
-                    PanelLocation::FlatPanel => {
-                        return Err(DeviceError::Failed(
+                let (target_altitude, target_azimuth) = sky_flat_alt_az(&config.panel_location)
+                    .ok_or_else(|| {
+                        DeviceError::Failed(
                             "Invalid panel location for sky-flat positioning".to_string(),
-                        ));
-                    }
-                };
-
-                let (ra, dec) = altaz_to_radec(target_altitude, target_azimuth, lat, lon);
+                        )
+                    })?;
+                let (ra, dec) = crate::meridian::alt_az_to_ra_dec(
+                    target_altitude,
+                    target_azimuth,
+                    lat,
+                    lon,
+                    chrono::Utc::now(),
+                );
 
                 tracing::info!(
                     "Slewing to sky flat position: Alt={:.1}, Az={:.1} (RA={:.4}h, Dec={:.4})",
@@ -373,30 +379,13 @@ pub(super) async fn position_for_flats(
     }
 }
 
-/// Convert altitude/azimuth to RA/Dec for the current observer time.
-pub(super) fn altaz_to_radec(
-    altitude_deg: f64,
-    azimuth_deg: f64,
-    latitude_deg: f64,
-    longitude_deg: f64,
-) -> (f64, f64) {
-    let now = chrono::Utc::now();
-    let jd = crate::node::julian_day(&now);
-    let lst = crate::node::local_sidereal_time(jd, longitude_deg);
-
-    let alt_rad = altitude_deg.to_radians();
-    let az_rad = azimuth_deg.to_radians();
-    let lat_rad = latitude_deg.to_radians();
-
-    let dec_rad =
-        (alt_rad.sin() * lat_rad.sin() + alt_rad.cos() * lat_rad.cos() * az_rad.cos()).asin();
-    let dec_deg = dec_rad.to_degrees();
-
-    let ha_rad = (az_rad.sin() * alt_rad.cos() / (lat_rad.cos() * dec_rad.cos()))
-        .atan2(alt_rad.sin() - lat_rad.sin() * dec_rad.sin());
-    let ha_hours = ha_rad.to_degrees() / 15.0;
-
-    let ra_hours = (lst - ha_hours + 24.0) % 24.0;
-
-    (ra_hours, dec_deg)
+/// Where sky flats are taken: 65° up, on the side of the sky away from the
+/// Sun (east at dusk, west at dawn), where the twilight sky is most even.
+/// `None` for a flat panel.
+pub(super) fn sky_flat_alt_az(location: &PanelLocation) -> Option<(f64, f64)> {
+    match location {
+        PanelLocation::DuskSky => Some((65.0, 90.0)),
+        PanelLocation::DawnSky => Some((65.0, 270.0)),
+        PanelLocation::FlatPanel => None,
+    }
 }

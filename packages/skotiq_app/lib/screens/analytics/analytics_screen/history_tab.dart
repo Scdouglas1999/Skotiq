@@ -47,7 +47,7 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
     // for what they are.
     final quickCaptures = (ref.watch(standaloneImagesProvider).valueOrNull ??
             const <DbCapturedImage>[])
-        .where((image) => image.frameType.toLowerCase() == 'light')
+        .where((image) => image.isLight)
         .toList(growable: false);
     // Target names for the filter predicate: the dropdown lists real target
     // names, so matching a session needs its targetId resolved.

@@ -92,7 +92,7 @@ Widget _tab() => ProviderScope(
             _session(5, 'Night E - M13'),
           ]),
         ),
-        latestScienceSessionProvider.overrideWith((ref) async => 4),
+        scienceDefaultSessionProvider.overrideWith((ref) async => 4),
         sessionPhotometryProvider
             .overrideWith((ref, id) => Stream.value(_curve(id))),
         sessionTransparencySamplesProvider.overrideWith(

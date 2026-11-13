@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:io';
@@ -402,7 +403,7 @@ class SkyAtlasService {
   }) async {
     final enabled = _autoFoldEnabled;
     if (enabled != null && !await enabled()) return null;
-    if (image.frameType.toLowerCase() != 'light') return null;
+    if (!image.isLight) return null;
     if (await _atStorageLimit()) return null;
     // A rejected frame (trailed, clouded, defocused) would degrade the deep
     // template every later frame is compared against.

@@ -749,7 +749,7 @@ final _sharedOverrides = <Override>[
   // Per-filter integration for the Tonight progress panel. Without it every
   // filter row reads "0 / 36" while the ring claims the run is underway.
   runDashboardSessionIntegrationProvider(42).overrideWith(
-    (ref) async => const RunDashboardSessionIntegration(
+    (ref) async => const IntegrationByFilter(
       acceptedSecs: {'Ha': 1080},
       totalSecs: {'Ha': 1260},
     ),

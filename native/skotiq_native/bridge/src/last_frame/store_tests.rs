@@ -40,6 +40,7 @@ fn fixture_frame(marker: u16) -> StoredFrame {
                 offset: None,
                 temperature: None,
                 bits_per_pixel: 16,
+                readout_mode: None,
             },
         },
         stars: Default::default(),

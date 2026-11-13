@@ -51,7 +51,7 @@ CalibrationMasterRecord darkLibraryRecord(DarkLibraryEntry row) =>
 
 /// Whether [r] agrees with [ctx] on every capture dimension the lights
 /// recorded: gain and offset when the lights state them, binning always, and
-/// the camera when both sides name one.
+/// the camera and read mode when both sides name one.
 ///
 /// A gain or offset missing on the lights is not compared. One missing on the
 /// record cannot satisfy a value the lights state.
@@ -62,11 +62,16 @@ bool calibrationTupleMatches(CalibrationMasterRecord r, LightFrameContext ctx) {
       camera.isEmpty ||
       r.cameraId == null ||
       r.cameraId == camera;
+  final readoutAgrees =
+      ctx.readoutMode == null ||
+      r.readoutMode == null ||
+      r.readoutMode == ctx.readoutMode;
   return (ctx.gain == null || r.gain == ctx.gain) &&
       (ctx.offset == null || r.offset == ctx.offset) &&
       r.binX == ctx.binX &&
       r.binY == ctx.binY &&
-      cameraAgrees;
+      cameraAgrees &&
+      readoutAgrees;
 }
 
 /// [candidates] narrowed to those that state the lights' gain and offset

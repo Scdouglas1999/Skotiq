@@ -10,6 +10,32 @@
 /// `Darkroom` prefix and the two never share a name.
 library;
 
+import 'dart:convert';
+
+/// Wire schema version of the recipe envelope this build writes. It matches
+/// the recipe engine's `RECIPE_SCHEMA_VERSION`; an envelope at any other
+/// version is refused by the engine rather than reinterpreted.
+const int recipeSchemaVersion = 1;
+
+/// The recipe envelope the Darkroom engine's entry points take: [steps] (each
+/// step's JSON) over the master at [baseMasterRef], named [id].
+///
+/// `recipes.steps_json` stores the step array alone and the schema version
+/// has its own column, so the envelope is built for every call rather than
+/// stored twice.
+String encodeRecipeEnvelope({
+  required String id,
+  required String baseMasterRef,
+  required RecipeAuthor author,
+  required List<Object?> steps,
+}) => jsonEncode({
+  'id': id,
+  'schemaVersion': recipeSchemaVersion,
+  'baseMasterRef': baseMasterRef,
+  'createdBy': author.wire,
+  'steps': steps,
+});
+
 /// Who authored a [DarkroomRecipe].
 ///
 /// Stored as the lowercase wire string in `recipes.created_by`, constrained by

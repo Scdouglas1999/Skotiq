@@ -89,7 +89,7 @@ Widget _tab({required bool accepted}) {
   return ProviderScope(
     overrides: [
       allSessionsProvider.overrideWith((ref) => Stream.value([_session()])),
-      latestScienceSessionProvider.overrideWith((ref) async => _sessionId),
+      scienceDefaultSessionProvider.overrideWith((ref) async => _sessionId),
       sessionPhotometryProvider.overrideWith(
         (ref, id) => Stream.value(const <PhotometryMeasurementRow>[]),
       ),

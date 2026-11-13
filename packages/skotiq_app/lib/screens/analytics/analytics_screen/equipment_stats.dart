@@ -77,11 +77,11 @@ class _EquipmentStatsTab extends ConsumerWidget {
           );
         }
         final lights =
-            images.where((i) => i.frameType.toLowerCase() == 'light').toList();
+            images.where((i) => i.isLight).toList();
         // Accepted lights are the usable integration/quality population;
         // total camera exposures and temperature still cover every frame.
         final acceptedLights = lights
-            .where((i) => i.frameType.toLowerCase() == 'light' && i.isAccepted)
+            .where((i) => i.isLight && i.isAccepted)
             .toList();
         final totalExposures = images.length;
         final acceptedIntegration = acceptedLights.fold<double>(

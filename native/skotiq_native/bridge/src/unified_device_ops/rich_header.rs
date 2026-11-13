@@ -25,6 +25,7 @@ pub(crate) fn build_rich_header(
     if frame_ctx.duration_secs <= 0.0 {
         header.exposure_time = image_data.exposure_secs;
     }
+    header.readout_mode = image_data.readout_mode.clone();
 
     // The mount's own report wins over the target's nominal coordinates: RA
     // and DEC mean "where the telescope was", not "where the sequence meant to

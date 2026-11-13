@@ -1,18 +1,16 @@
-//! Single source of truth for the variable catalog.
+//! The variables a `${...}` placeholder can name.
 //!
-//! Every supported `${...}` placeholder is declared in [`variable_catalog`].
-//! The resolver consults this list when evaluating a template; the Dart
-//! variable-picker widget consults the JSON dump of this list (emitted by
-//! [`catalog_json`]) so the two stay in sync.
+//! [`variable_catalog`] is the one list: the resolver refuses a name that is
+//! not on it, and the app's variable picker and notification renderer use
+//! `packages/skotiq_core/lib/src/models/sequence/interpolation_catalog.dart`,
+//! which a test here holds to this list entry for entry.
 //!
-//! Adding a new variable: declare it here, add its resolution arm in
-//! [`super::resolver::resolve_variable`], and the picker picks it up on the
-//! next FRB regen.
-
-use serde::Serialize;
+//! Adding a variable: declare it here, add its arm in
+//! [`super::resolver::resolve_variable`], and copy the entry into the Dart
+//! catalog.
 
 /// Top-level groupings shown in the Dart variable-picker UI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VariableGroup {
     Target,
     Filter,
@@ -44,7 +42,7 @@ impl VariableGroup {
 }
 
 /// One entry in the catalog. Renders as a picker row.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct VariableEntry {
     /// The dotted name a user types inside `${...}`.
     pub name: &'static str,
@@ -193,6 +191,13 @@ pub fn variable_catalog() -> &'static [VariableEntry] {
             example: "22-47-12",
             supports_format: false,
         },
+        VariableEntry {
+            name: "time.local_clock",
+            description: "Current local time of day (HH:MM)",
+            group: VariableGroup::Time,
+            example: "17:47",
+            supports_format: false,
+        },
         // Moon
         VariableEntry {
             name: "moon.phase",
@@ -254,7 +259,7 @@ pub fn variable_catalog() -> &'static [VariableEntry] {
         },
         VariableEntry {
             name: "observer.elevation",
-            description: "Observer elevation (metres)",
+            description: "Observer elevation (meters)",
             group: VariableGroup::Observer,
             example: "150",
             supports_format: true,
@@ -341,13 +346,6 @@ pub fn variable_catalog() -> &'static [VariableEntry] {
     ]
 }
 
-/// Stable JSON dump of the catalog. The Dart picker fetches this via FFI
-/// (see `skotiq_bridge::api`) and renders one row per entry.
-pub fn catalog_json() -> String {
-    serde_json::to_string(variable_catalog())
-        .expect("variable catalog must serialise — all fields derive Serialize")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -364,21 +362,85 @@ mod tests {
         }
     }
 
-    #[test]
-    fn catalog_json_renders_every_entry() {
-        // VariableEntry holds `&'static str`s so deserialization requires a
-        // shadow type. We verify the JSON structure instead — each entry's
-        // `name` must appear in the dump.
-        let json = catalog_json();
-        for entry in variable_catalog() {
-            assert!(
-                json.contains(&format!("\"{}\"", entry.name)),
-                "json dump missing variable {}",
-                entry.name
-            );
+    /// One entry of the app's catalog, as written in its Dart source.
+    #[derive(Debug, PartialEq)]
+    struct AppEntry {
+        name: String,
+        description: String,
+        group: String,
+        example: String,
+        supports_format: bool,
+    }
+
+    /// The single-quoted Dart string literals that follow `key:` in `block`,
+    /// joined (Dart concatenates adjacent literals).
+    fn dart_string(block: &str, key: &str) -> String {
+        let start = block
+            .find(&format!("{key}:"))
+            .unwrap_or_else(|| panic!("no `{key}:` in {block}"))
+            + key.len()
+            + 1;
+        let mut chars = block[start..].chars().peekable();
+        let mut value = String::new();
+        loop {
+            while chars.peek().is_some_and(|c| c.is_whitespace()) {
+                chars.next();
+            }
+            if chars.peek() != Some(&'\'') {
+                return value;
+            }
+            chars.next();
+            while let Some(c) = chars.next() {
+                match c {
+                    '\'' => break,
+                    '\\' => value.extend(chars.next()),
+                    other => value.push(other),
+                }
+            }
         }
-        // The dump must be a JSON array so the Dart side can decode it.
-        assert!(json.starts_with('['), "expected JSON array, got: {json}");
-        assert!(json.ends_with(']'), "expected JSON array, got: {json}");
+    }
+
+    fn app_catalog() -> Vec<AppEntry> {
+        let source = include_str!(
+            "../../../../../packages/skotiq_core/lib/src/models/sequence/interpolation_catalog.dart"
+        );
+        let list = &source[source
+            .find("const List<InterpolationVariable> interpolationCatalog")
+            .expect("the app's catalog list")..];
+        let list = &list[..list.find("\n];").expect("the end of the list")];
+        list.split("InterpolationVariable(")
+            .skip(1)
+            .map(|block| {
+                let group = block
+                    .split("InterpolationVariableGroup.")
+                    .nth(1)
+                    .and_then(|rest| rest.split(',').next())
+                    .unwrap_or_else(|| panic!("no group in {block}"));
+                AppEntry {
+                    name: dart_string(block, "name"),
+                    description: dart_string(block, "description"),
+                    group: group.trim().to_string(),
+                    example: dart_string(block, "example"),
+                    supports_format: block.contains("supportsFormat: true"),
+                }
+            })
+            .collect()
+    }
+
+    /// The picker offers exactly the variables the resolver knows, with the
+    /// same words, group, example and format support, in the same order.
+    #[test]
+    fn the_app_offers_every_variable_as_the_sequencer_resolves_it() {
+        let ours: Vec<AppEntry> = variable_catalog()
+            .iter()
+            .map(|entry| AppEntry {
+                name: entry.name.to_string(),
+                description: entry.description.to_string(),
+                group: entry.group.label().to_ascii_lowercase(),
+                example: entry.example.to_string(),
+                supports_format: entry.supports_format,
+            })
+            .collect();
+        assert_eq!(app_catalog(), ours);
     }
 }

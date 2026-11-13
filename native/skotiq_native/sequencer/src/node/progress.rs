@@ -19,13 +19,12 @@ use serde::{Deserialize, Serialize};
 
 /// Structured payload describing what an instruction is doing right now.
 ///
-/// Each variant carries the field set most useful for the UI. The catch-all
-/// `Generic(String)` exists so plugin/script nodes can still ship free-form
-/// progress; everything else is strongly typed.
+/// A kind with fields exists where something reads those fields (a panel, the
+/// run record, the frame registry); every other step reports its own words
+/// as `Generic`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProgressDetail {
-    /// Free-form text. Used by simple no-op instructions (Park, Unpark,
-    /// Notification) and as the fallback when richer typing is not warranted.
+    /// The step's own words, as the instruction wrote them.
     Generic(String),
     /// Exposure burst progress. `frame` is 1-based.
     Exposure {
@@ -33,15 +32,8 @@ pub enum ProgressDetail {
         total: u32,
         duration_secs: f64,
     },
-    /// Filter wheel change.
+    /// The filter the wheel is on, once a step has put it there.
     Filter { name: String, position: Option<i32> },
-    /// Slew in progress. Coordinates are reported in the same units as the
-    /// rest of the sequencer (RA in hours, Dec in degrees) so the UI can
-    /// render them without unit conversion.
-    Slew {
-        target_ra_hours: Option<f64>,
-        target_dec_degrees: Option<f64>,
-    },
     /// Plate-solve + center attempt.
     Center {
         attempt: u32,
@@ -71,48 +63,12 @@ pub enum ProgressDetail {
         #[serde(default)]
         cooler_power_percent: Option<f64>,
     },
-    /// Rotator move.
-    Rotator {
-        current_angle_deg: Option<f64>,
-        target_angle_deg: f64,
-    },
-    /// Wait / Delay countdown. `remaining_secs` is the time until completion.
-    Wait { remaining_secs: f64 },
-    /// Dither in progress.
-    Dither {
-        pixels: f64,
-        settle_pixels: f64,
-        ra_only: bool,
-    },
-    /// Guider start/stop.
-    Guiding {
-        rms_total: Option<f64>,
-        is_settled: bool,
-    },
-    /// Flat wizard ADU tuning.
-    FlatWizard {
-        current_adu: Option<u16>,
-        target_adu: u16,
-        current_exposure_secs: Option<f64>,
-    },
-    /// Polar alignment iteration.
-    PolarAlignment { step: String },
-    /// Meridian flip phase.
-    MeridianFlip { phase: String },
     /// A flip attempt failed and the next one is scheduled.
     MeridianFlipRetry {
         failed_attempt: u32,
         max_attempts: u32,
         retry_in_secs: f64,
     },
-    /// Cover/calibrator open/close/brightness step.
-    CoverCalibrator { state: String },
-    /// Temperature compensation step.
-    TemperatureCompensation { delta_steps: i32 },
-    /// Script / external process step.
-    Script { phase: String },
-    /// Dome shutter / dome park progress.
-    Dome { phase: String },
     /// SmartExposure progress. Surfaced so the Run
     /// Dashboard can show "L: 1h12m / 3h goal"-style per-filter progress
     /// without the UI having to parse free-form text. `frame_in_plan` is
@@ -359,13 +315,6 @@ impl ProgressDetail {
                 Some(p) => format!("{} (pos {})", name, p),
                 None => name.clone(),
             },
-            ProgressDetail::Slew {
-                target_ra_hours,
-                target_dec_degrees,
-            } => match (target_ra_hours, target_dec_degrees) {
-                (Some(ra), Some(dec)) => format!("RA {:.4}h Dec {:.4}°", ra, dec),
-                _ => "slewing".to_string(),
-            },
             ProgressDetail::Center {
                 attempt,
                 max_attempts,
@@ -395,49 +344,6 @@ impl ProgressDetail {
                 (None, Some(t)) => format!("→ {:.1}°C", t),
                 _ => "thermal".to_string(),
             },
-            ProgressDetail::Rotator {
-                current_angle_deg,
-                target_angle_deg,
-            } => match current_angle_deg {
-                Some(c) => format!("{:.1}° → {:.1}°", c, target_angle_deg),
-                None => format!("→ {:.1}°", target_angle_deg),
-            },
-            ProgressDetail::Wait { remaining_secs } => {
-                format!("{:.0}s remaining", remaining_secs)
-            }
-            ProgressDetail::Dither {
-                pixels,
-                settle_pixels,
-                ra_only,
-            } => {
-                if *ra_only {
-                    format!("{:.1}px RA-only (settle {:.1}px)", pixels, settle_pixels)
-                } else {
-                    format!("{:.1}px (settle {:.1}px)", pixels, settle_pixels)
-                }
-            }
-            ProgressDetail::Guiding {
-                rms_total,
-                is_settled,
-            } => match rms_total {
-                Some(rms) if *is_settled => format!("settled (RMS {:.2}\")", rms),
-                Some(rms) => format!("settling (RMS {:.2}\")", rms),
-                None => "starting".to_string(),
-            },
-            ProgressDetail::FlatWizard {
-                current_adu,
-                target_adu,
-                current_exposure_secs,
-            } => match (current_adu, current_exposure_secs) {
-                (Some(adu), Some(exp)) => {
-                    format!("ADU {}/{} @ {:.3}s", adu, target_adu, exp)
-                }
-                (Some(adu), None) => format!("ADU {}/{}", adu, target_adu),
-                (None, Some(exp)) => format!("@ {:.3}s target {}", exp, target_adu),
-                _ => format!("target {} ADU", target_adu),
-            },
-            ProgressDetail::PolarAlignment { step } => step.clone(),
-            ProgressDetail::MeridianFlip { phase } => phase.clone(),
             ProgressDetail::MeridianFlipRetry {
                 failed_attempt,
                 max_attempts,
@@ -446,12 +352,6 @@ impl ProgressDetail {
                 "attempt {}/{} failed, retrying in {:.0}s",
                 failed_attempt, max_attempts, retry_in_secs
             ),
-            ProgressDetail::CoverCalibrator { state } => state.clone(),
-            ProgressDetail::TemperatureCompensation { delta_steps } => {
-                format!("{:+} steps", delta_steps)
-            }
-            ProgressDetail::Script { phase } => phase.clone(),
-            ProgressDetail::Dome { phase } => phase.clone(),
             ProgressDetail::SmartExposure {
                 current_filter,
                 plan_index,
@@ -649,6 +549,41 @@ impl ProgressDetail {
                     target_designation, filter, frames_captured, cadence_breaks, suffix,
                 )
             }
+        }
+    }
+}
+
+/// The progress callback an instruction reports through: each report reaches
+/// the step as the kind it converts to (an instruction's words as `Generic`).
+pub(crate) fn step_progress<'a, T: Into<ProgressDetail>>(
+    callback: Option<&'a crate::node::context::ProgressCallback>,
+    node_id: &'a str,
+    instruction: &'static str,
+) -> impl Fn(f64, T) + Send + Sync + 'a {
+    move |percent, report| {
+        if let Some(callback) = callback {
+            callback(ProgressUpdate::instruction_progress(
+                node_id.to_string(),
+                instruction,
+                percent,
+                report.into(),
+            ));
+        }
+    }
+}
+
+impl From<String> for ProgressDetail {
+    fn from(text: String) -> Self {
+        Self::Generic(text)
+    }
+}
+
+impl From<crate::instructions::ThermalReading> for ProgressDetail {
+    fn from(reading: crate::instructions::ThermalReading) -> Self {
+        Self::Thermal {
+            current_temp_c: reading.sensor_temp_c,
+            target_temp_c: reading.target_temp_c,
+            cooler_power_percent: reading.cooler_power_percent,
         }
     }
 }
@@ -879,10 +814,7 @@ mod tests {
             "n".to_string(),
             "Slew",
             10.0,
-            ProgressDetail::Slew {
-                target_ra_hours: None,
-                target_dec_degrees: None,
-            },
+            ProgressDetail::Generic("Slewing".to_string()),
         );
         upd.progress_percent = None;
         upd.message = Some("Manual life-cycle".to_string());

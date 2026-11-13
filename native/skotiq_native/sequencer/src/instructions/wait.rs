@@ -17,7 +17,7 @@ pub(crate) async fn wait_for_mount_arrival(
     target: Option<(f64, f64)>,
     timeout: Duration,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
-) -> Result<crate::slew_arrival::SlewProgress, String> {
+) -> Result<crate::slew_arrival::SlewProgress, crate::slew_arrival::SlewWaitError> {
     use crate::slew_arrival::{wait_for_slew_arrival, SlewArrivalTimings, SlewWaitError};
 
     let mut polls = 0u32;
@@ -55,7 +55,7 @@ pub(crate) async fn wait_for_mount_arrival(
             );
         }
     }
-    result.map_err(|e| e.to_string())
+    result
 }
 
 /// Wait for focuser to stop moving with timeout

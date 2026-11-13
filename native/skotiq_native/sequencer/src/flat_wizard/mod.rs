@@ -27,11 +27,11 @@
 mod panel;
 
 use crate::device_ops::DeviceError;
+use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::instructions::{
     execute_exposure_with_renderer, resolve_frame_filter, BurstControl, InstructionContext,
     InstructionResult, Setback,
 };
-use crate::node::instructions::expose::build_save_path_renderer;
 use crate::wizard::{
     BorrowedProgressReporter, Wizard, WizardExecutor, WizardProgressReporter, WizardRunStatus,
     WizardStepOutcome,
@@ -200,7 +200,9 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                     hfr_values: Vec::new(),
                 }
             }
-            (WizardRunStatus::Cancelled, _) => InstructionResult::failure("Operation cancelled"),
+            (WizardRunStatus::Cancelled, _) => {
+                InstructionResult::cancelled("Flat wizard cancelled")
+            }
             (WizardRunStatus::Failed(msg), _) => {
                 let result = InstructionResult::failure(msg);
                 match &self.cause {
@@ -484,7 +486,7 @@ fn final_flat_exposure_config(
         filter_index: config.filter_index,
         binning,
         dither_every: None,
-        frame_type: "Flat".to_string(),
+        frame_type: crate::FrameType::Flat,
         ..ExposureConfig::default()
     }
 }
@@ -514,7 +516,10 @@ pub(crate) async fn capture_converged_flats(
     template_ctx.current_filter = filter_name;
     template_ctx.current_filter_index = filter_index;
 
-    let renderer = match build_save_path_renderer(&template_ctx, &capture_config, exposure_secs) {
+    let renderer = match frame_namer(
+        &template_ctx,
+        BurstNaming::of(&capture_config, exposure_secs),
+    ) {
         Ok(renderer) => renderer,
         Err(message) => {
             tracing::error!("{}", message);
@@ -677,6 +682,7 @@ mod tests {
             sensor_type: Some("Monochrome".to_string()),
             color_filter: None,
             camera_file: None,
+            readout_mode: None,
         }
     }
 
@@ -699,11 +705,29 @@ mod tests {
         assert!(median > 23000 && median < 27000);
     }
 
+    /// Dusk flats point away from the sunset, dawn flats away from the
+    /// sunrise: the pointing the wizard took before its azimuths were read
+    /// through the one horizontal-to-equatorial conversion.
     #[test]
-    fn test_altaz_to_radec_zenith() {
-        // Zenith (alt=90, any azimuth) should give Dec = latitude.
-        let (_ra, dec) = panel::altaz_to_radec(90.0, 180.0, 45.0, 0.0);
-        assert!((dec - 45.0).abs() < 1.0);
+    fn sky_flats_point_away_from_the_sun() {
+        let now = chrono::Utc::now();
+        for (location, east_of_meridian) in [
+            (PanelLocation::DuskSky, true),
+            (PanelLocation::DawnSky, false),
+        ] {
+            let (alt, az) = panel::sky_flat_alt_az(&location).expect("a sky location");
+            let (ra, dec) = crate::meridian::alt_az_to_ra_dec(alt, az, 40.0, -75.0, now);
+            let lst =
+                crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), -75.0);
+            let hour_angle = crate::meridian::hour_angle(ra, lst);
+            assert_eq!(
+                hour_angle < 0.0,
+                east_of_meridian,
+                "{location:?}: HA {hour_angle}"
+            );
+            let (back_alt, _) = crate::meridian::calculate_alt_az(ra, dec, 40.0, -75.0, now);
+            assert!((back_alt - 65.0).abs() < 0.01, "{location:?}: {back_alt}");
+        }
     }
 
     /// Helper: build a default FlatWizardConfig for plan-tests.
@@ -844,7 +868,7 @@ mod tests {
         assert_eq!(exposure.filter_index, Some(3));
         assert_eq!(exposure.binning, crate::Binning::Two);
         assert_eq!(exposure.dither_every, None);
-        assert_eq!(exposure.frame_type, "Flat");
+        assert_eq!(exposure.frame_type, crate::FrameType::Flat);
         assert_eq!(binning_dimensions(exposure.binning), (2, 2));
     }
 

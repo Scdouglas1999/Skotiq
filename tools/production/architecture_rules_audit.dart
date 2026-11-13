@@ -203,7 +203,9 @@ const _rustCrates = <String, Set<String>>{
   'skotiq_processing': {'skotiq_imaging', 'skotiq_platesolve'},
   'skotiq_alpaca': {'skotiq_device'},
   'skotiq_ascom': {'skotiq_device'},
-  'skotiq_indi': {'skotiq_device'},
+  // An INDI camera sends its frames as FITS or XISF files, which the imaging
+  // crate alone decodes, as the native drivers' camera raw files.
+  'skotiq_indi': {'skotiq_device', 'skotiq_imaging'},
   'skotiq_native': {'skotiq_device', 'skotiq_imaging'},
   'skotiq_sequencer': {'skotiq_device', 'skotiq_imaging', 'skotiq_platesolve'},
   'skotiq_bridge': {

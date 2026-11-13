@@ -76,15 +76,21 @@ fn daylight_gate_falls_back_to_default_on_non_finite_max() {
 }
 
 #[test]
-fn calibration_frame_types_do_not_require_darkness() {
-    for frame_type in ["Bias", "Dark", "Flat", "DarkFlat"] {
+fn only_a_light_waits_for_darkness() {
+    use crate::FrameType;
+    for frame_type in [
+        FrameType::Bias,
+        FrameType::Dark,
+        FrameType::Flat,
+        FrameType::DarkFlat,
+        FrameType::Snapshot,
+    ] {
         assert!(
-            !frame_type_requires_darkness(frame_type),
-            "{frame_type} is a calibration frame and must remain legal in daylight"
+            !frame_type.is_science(),
+            "{frame_type:?} must remain legal in daylight"
         );
     }
-    assert!(frame_type_requires_darkness("Light"));
-    assert!(frame_type_requires_darkness("light"));
+    assert!(FrameType::Light.is_science());
 }
 
 #[tokio::test]
@@ -164,7 +170,7 @@ async fn target_header_calibration_frames_are_exempt_from_daylight_gate() {
     for frame_type in ["Bias", "Dark", "Flat", "DarkFlat"] {
         let config = ExposureConfig {
             count: 0,
-            frame_type: frame_type.to_string(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             ..ExposureConfig::default()
         };
         let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
@@ -186,7 +192,7 @@ async fn calibration_exposure_without_target_not_gated_in_daylight() {
     for frame_type in ["Bias", "Dark", "Flat", "DarkFlat"] {
         let config = ExposureConfig {
             count: 0,
-            frame_type: frame_type.to_string(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             ..ExposureConfig::default()
         };
         let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;

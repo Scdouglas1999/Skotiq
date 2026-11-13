@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -154,8 +155,7 @@ class NightEndRunner {
         .getImagesForSession(sessionId);
     final lightIds = {
       for (final image in images)
-        if (image.frameType.toLowerCase() == 'light' && image.isAccepted)
-          image.id,
+        if (image.isLight && image.isAccepted) image.id,
     };
     if (lightIds.isEmpty) return null;
     final targets = await loadDarkroomTargets(_ref.read(databaseProvider));

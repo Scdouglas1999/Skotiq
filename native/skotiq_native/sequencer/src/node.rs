@@ -35,10 +35,6 @@ pub use context::{CloudMotionSnapshot, ExecutionContext};
 pub use progress::{ProgressDetail, ProgressUpdate};
 pub use runtime::{Node, RuntimeNode};
 
-// Re-export the astronomical helpers the rest of the crate already addresses
-// via `crate::node::julian_day` / `crate::node::local_sidereal_time`.
-pub use crate::meridian::{julian_day, local_sidereal_time};
-
 pub use registry::{instruction_for, InstructionNode};
 
 // Re-export the sequential helper so external callers (tests, the executor's
@@ -217,38 +213,6 @@ mod tests {
         assert_eq!(update.current_frame, Some(5));
         assert_eq!(update.total_frames, Some(10));
         assert_eq!(update.completed_exposure_secs, Some(60.0));
-    }
-
-    #[test]
-    fn test_julian_day_calculation() {
-        use chrono::{TimeZone, Utc};
-        let dt = Utc.with_ymd_and_hms(2000, 1, 1, 12, 0, 0).unwrap();
-        let jd = julian_day(&dt);
-        assert!((jd - 2451545.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_julian_day_another_epoch() {
-        use chrono::{TimeZone, Utc};
-        let dt = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
-        let jd = julian_day(&dt);
-        assert!((jd - 2460310.5).abs() < 0.1);
-    }
-
-    #[test]
-    fn test_local_sidereal_time() {
-        let jd = 2451545.0;
-        let lst = local_sidereal_time(jd, 0.0);
-        assert!(lst > 18.0 && lst < 19.0);
-    }
-
-    #[test]
-    fn test_local_sidereal_time_with_longitude() {
-        let jd = 2451545.0;
-        let lst_greenwich = local_sidereal_time(jd, 0.0);
-        let lst_east = local_sidereal_time(jd, 15.0); // 15 deg east = 1h
-        let diff = lst_east - lst_greenwich;
-        assert!((diff - 1.0).abs() < 0.1 || (diff + 23.0).abs() < 0.1);
     }
 
     #[test]

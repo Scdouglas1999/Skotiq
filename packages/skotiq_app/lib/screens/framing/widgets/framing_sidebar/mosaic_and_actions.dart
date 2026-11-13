@@ -232,7 +232,7 @@ class FramingMosaicSection extends ConsumerWidget {
               return Semantics(
                 button: true,
                 selected: isSelected,
-                label: 'Panel ${panel.index + 1}',
+                label: panel.name,
                 child: InkWell(
                   onTap: () => notifier.selectPanel(index),
                   borderRadius: SkotiqTokens.borderRadiusInline4,
@@ -253,7 +253,7 @@ class FramingMosaicSection extends ConsumerWidget {
                         SizedBox(
                           width: 24,
                           child: Text(
-                            '${panel.index + 1}',
+                            '${panel.number}',
                             style: SkotiqTypography.monoXs.copyWith(
                               color: isSelected
                                   ? colors.primary
@@ -263,14 +263,14 @@ class FramingMosaicSection extends ConsumerWidget {
                         ),
                         Expanded(
                           child: Text(
-                            CoordinateFormat.raDense(panel.centerRaHours),
+                            CoordinateFormat.raDense(panel.raHours),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: SkotiqTypography.monoXs.copyWith(color: ink),
                           ),
                         ),
                         Text(
-                          CoordinateFormat.decDense(panel.centerDecDegrees),
+                          CoordinateFormat.decDense(panel.decDegrees),
                           style: SkotiqTypography.monoXs.copyWith(color: ink),
                         ),
                       ],

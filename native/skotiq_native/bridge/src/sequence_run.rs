@@ -17,9 +17,7 @@ pub(crate) async fn resume() -> Result<(), SkotiqError> {
         return Err(SkotiqError::OperationFailed(reason));
     }
 
-    skotiq_sequencer::get_executor()
-        .read()
-        .await
+    skotiq_sequencer::executor_handle()
         .resume()
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to resume sequence: {}", e)))?;

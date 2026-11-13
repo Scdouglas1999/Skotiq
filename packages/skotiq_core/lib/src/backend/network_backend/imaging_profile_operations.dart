@@ -1016,7 +1016,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         binningX: binX,
         binningY: binY,
         filter: filter,
-        frameType: _parseFrameType(
+        frameType: _recordedFrameType(
           _requiredImageString(row, frameTypeKey, context),
         ),
       ),
@@ -1104,26 +1104,9 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     return _requiredImageString(row, key, context);
   }
 
-  FrameType _parseFrameType(String str) {
-    switch (str.toLowerCase()) {
-      case 'light':
-        return FrameType.light;
-      case 'dark':
-        return FrameType.dark;
-      case 'flat':
-        return FrameType.flat;
-      case 'bias':
-        return FrameType.bias;
-      case 'darkflat':
-      case 'dark_flat':
-      case 'dark-flat':
-        return FrameType.darkFlat;
-      case 'snapshot':
-        return FrameType.snapshot;
-      default:
-        throw FormatException('Unknown captured-image frame type: $str');
-    }
-  }
+  FrameType _recordedFrameType(String record) =>
+      FrameType.fromRecord(record) ??
+      (throw FormatException('Unknown captured-image frame type: $record'));
 
   ImageFileFormat _parseImageFormat(String str) =>
       ImageFileFormat.fromRecord(str) ??

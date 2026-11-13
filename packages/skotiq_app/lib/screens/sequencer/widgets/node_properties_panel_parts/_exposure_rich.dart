@@ -207,8 +207,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               colors: colors,
               value: node.durationSecs,
               suffix: 's',
-              min: 0.001,
-              max: 3600,
+              min: ExposureFieldLimits.durationSecs.min,
+              max: ExposureFieldLimits.durationSecs.max,
               // 3 decimals to match the inline editor; sub-second exposures
               // matter for lucky imaging / fast photometry.
               decimals: 3,
@@ -259,8 +259,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             child: NodeNumberInput(
               colors: colors,
               value: node.count.toDouble(),
-              min: 1,
-              max: 9999,
+              min: ExposureFieldLimits.frameCount.min.toDouble(),
+              max: ExposureFieldLimits.frameCount.max.toDouble(),
               onChanged: (value) {
                 final count = value.toInt();
                 ref.read(currentSequenceProvider.notifier).updateNode(
@@ -336,8 +336,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                       gainField: (_) => NodeNumberInput(
                         colors: colors,
                         value: _effectiveGain(profile).toDouble(),
-                        min: 0,
-                        max: 1000,
+                        min: ExposureFieldLimits.gain.min.toDouble(),
+                        max: ExposureFieldLimits.gain.max.toDouble(),
                         isProfileDefault: _isGainProfileDefault(),
                         hintText: _isGainProfileDefault() &&
                                 profile?.defaultGain != null
@@ -359,8 +359,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                     child: NodeNumberInput(
                       colors: colors,
                       value: _effectiveOffset(profile).toDouble(),
-                      min: 0,
-                      max: 1000,
+                      min: ExposureFieldLimits.offset.min.toDouble(),
+                      max: ExposureFieldLimits.offset.max.toDouble(),
                       isProfileDefault: _isOffsetProfileDefault(),
                       hintText: _isOffsetProfileDefault() &&
                               profile?.defaultOffset != null
@@ -392,8 +392,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               colors: colors,
               value: (node.ditherEvery ?? 0).toDouble(),
               suffix: ' frames',
-              min: 0,
-              max: 100,
+              min: ExposureFieldLimits.ditherEvery.min.toDouble(),
+              max: ExposureFieldLimits.ditherEvery.max.toDouble(),
               onChanged: (value) {
                 final ditherEvery = value.toInt();
                 ref.read(currentSequenceProvider.notifier).updateNode(

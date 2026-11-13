@@ -243,7 +243,7 @@ void main() {
 
       final panels = await panelsDao.getForProject(projectId);
       expect(panels, hasLength(6));
-      // 0-based, row-major, contiguous.
+      // 0-based capture order, contiguous.
       expect(panels.map((p) => p.panelIndex).toList(), [0, 1, 2, 3, 4, 5]);
       // Each panel got its OWN distinct capture target (NOT the region target),
       // so a panel's subs isolate to that panel for per-panel integration.
@@ -287,9 +287,12 @@ void main() {
         byIndex[1]!.centerDec + byIndex[4]!.centerDec,
         closeTo(2 * 41.0, 1e-6),
       );
-      // Columns within a row are ordered low->high RA and distinct.
-      expect(byIndex[0]!.centerRa, lessThan(byIndex[1]!.centerRa));
-      expect(byIndex[1]!.centerRa, lessThan(byIndex[2]!.centerRa));
+      // Panel 1 is the north-east corner and the first row runs east to west;
+      // the second row comes back west to east.
+      expect(byIndex[0]!.centerRa, greaterThan(byIndex[1]!.centerRa));
+      expect(byIndex[1]!.centerRa, greaterThan(byIndex[2]!.centerRa));
+      expect(byIndex[0]!.centerDec, greaterThan(41.0));
+      expect(byIndex[3]!.centerRa, closeTo(byIndex[2]!.centerRa, 1e-6));
     });
 
     test(

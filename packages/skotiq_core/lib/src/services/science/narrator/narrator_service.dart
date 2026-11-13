@@ -25,6 +25,7 @@
 /// throws on a missing stream or device.
 library;
 
+import '../../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:collection';
 
@@ -543,7 +544,7 @@ class NarratorService {
     // onto a backlog of older rows that arrive in the same emission.
     int? newestNewLightId;
     for (final img in images) {
-      if (img.frameType == 'light' && !_seenStatsImageIds.contains(img.id)) {
+      if (img.isLight && !_seenStatsImageIds.contains(img.id)) {
         newestNewLightId = img.id;
       }
     }
@@ -552,7 +553,7 @@ class NarratorService {
     final lights = <db.DbCapturedImage>[];
     for (final img in images) {
       newest = img;
-      if (img.frameType != 'light') continue;
+      if (!img.isLight) continue;
       lights.add(img);
 
       if (_seenStatsImageIds.add(img.id)) {

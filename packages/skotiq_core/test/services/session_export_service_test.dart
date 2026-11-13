@@ -58,6 +58,7 @@ void main() {
       await sessionsDao.endSession(sessionId);
 
       final service = SessionExportService(
+        nowProvider: DateTime.now,
         sessionsDao: sessionsDao,
         imagesDao: imagesDao,
         documentsDirectoryProvider: () async => tempDir,
@@ -125,6 +126,7 @@ void main() {
       }
 
       final service = SessionExportService(
+        nowProvider: DateTime.now,
         sessionsDao: sessionsDao,
         imagesDao: imagesDao,
         documentsDirectoryProvider: () async => tempDir,
@@ -196,6 +198,7 @@ void main() {
       );
 
       final csvPath = await SessionExportService(
+        nowProvider: DateTime.now,
         sessionsDao: sessionsDao,
         imagesDao: imagesDao,
         documentsDirectoryProvider: () async => tempDir,
@@ -252,6 +255,7 @@ void main() {
       );
 
       final summary = await SessionExportService(
+        nowProvider: DateTime.now,
         sessionsDao: sessionsDao,
         imagesDao: imagesDao,
         documentsDirectoryProvider: () async => tempDir,
@@ -317,6 +321,7 @@ void main() {
         }
         await sessionsDao.endSession(sessionId);
         service = SessionExportService(
+          nowProvider: DateTime.now,
           sessionsDao: sessionsDao,
           imagesDao: imagesDao,
           documentsDirectoryProvider: () async => tempDir,
@@ -387,6 +392,7 @@ void main() {
           ),
         );
         final service = SessionExportService(
+          nowProvider: DateTime.now,
           sessionsDao: sessionsDao,
           imagesDao: imagesDao,
           documentsDirectoryProvider: () async => tempDir,

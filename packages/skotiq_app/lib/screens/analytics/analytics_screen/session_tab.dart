@@ -15,7 +15,10 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
   /// The third state is the point: with only "auto" and "a session", the first
   /// completed run won the auto-pick forever and the quick captures could never
   /// be asked for again.
-  int? _selectedSessionId;
+  int? get _selectedSessionId => ref.watch(analyticsSessionPickProvider);
+
+  void _pick(int? id) =>
+      ref.read(analyticsSessionPickProvider.notifier).state = id;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +42,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
     // Watched unconditionally: a watch inside the ?? chain would come and go
     // with the pick and silently drop the dependency.
     final autoSessionId = sessionState.dbSessionId ??
-        ref.watch(latestScienceSessionProvider).valueOrNull;
+        ref.watch(scienceDefaultSessionProvider).valueOrNull;
     final reviewSessionId =
         quickCapturesPinned ? null : (pickedSessionId ?? autoSessionId);
     final reviewSession = allSessions
@@ -93,7 +96,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
       headerSubtitle =
           '${ClockFormat.weekdayMonthDayYear(reviewSession.startTime.toLocal())} · '
           '${ClockFormat.hm(reviewSession.startTime.toLocal())}'
-          '  ·  ${runStatusTokenLabel(reviewSession.status)}';
+          '  ·  ${sessionStatusLabel(reviewSession.status)}';
     } else if (isStandaloneMode) {
       headerTitle = l10n.text('analyticsQuickCapture');
       headerSubtitle = l10n.text('analyticsQuickCaptureSubtitle');
@@ -160,7 +163,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
             ? '${sessionState.completedExposures}/${sessionState.totalExposures}'
             : frameMetric((images) {
                 final lights = images
-                    .where((i) => i.frameType.toLowerCase() == 'light')
+                    .where((i) => i.isLight)
                     .length;
                 final accepted = acceptedLights(images).length;
                 return lights == accepted ? '$accepted' : '$accepted/$lights';
@@ -235,7 +238,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                     sessions: allSessions,
                     selectedId: reviewSelectionId,
                     offerQuickCaptures: offerQuickCaptures,
-                    onSelected: (id) => setState(() => _selectedSessionId = id),
+                    onSelected: _pick,
                   ),
                   const SizedBox(height: SkotiqTokens.space2xl),
                 ],
@@ -368,8 +371,8 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                       ),
                     if (reviewStatus != null)
                       SkotiqChip(
-                        label: runStatusTokenLabel(reviewStatus),
-                        tone: _SessionHistoryCard._statusTone(reviewStatus),
+                        label: sessionStatusLabel(reviewStatus),
+                        tone: sessionStatusTone(reviewStatus),
                       ),
                   ],
                 ),
@@ -382,11 +385,10 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                         selectedId: reviewSelectionId,
                         offerQuickCaptures: offerQuickCaptures,
                         framed: false,
-                        onSelected: (id) =>
-                            setState(() => _selectedSessionId = id),
+                        onSelected: _pick,
                         onClear: _selectedSessionId == null
                             ? null
-                            : () => setState(() => _selectedSessionId = null),
+                            : () => _pick(null),
                       )
                     else ...[
                       Text(

@@ -14,7 +14,6 @@ import '../../actions/night_action_controller.dart';
 import '../../actions/solve_and_sync.dart' show solveFrameSettings;
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/plan/plan_steps_provider.dart' show nightActiveStepProvider;
-import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
 import 'night_solve_tab.dart';
 import 'recent_solves_provider.dart';
@@ -136,7 +135,7 @@ class NightSolveRotationSection extends ConsumerWidget {
             : null;
 
     final String advice;
-    MetricTone? tone;
+    MetricGridTone? tone;
     if (measured == null) {
       advice = l10n.text('nightScopeRotationNoSolve');
     } else if (targetRotation == null) {
@@ -154,7 +153,7 @@ class NightSolveRotationSection extends ConsumerWidget {
       };
       if (diff.abs() <= kNightRotationToleranceDeg) {
         advice = l10n.text('nightScopeRotationOk', params: params);
-        tone = MetricTone.good;
+        tone = MetricGridTone.good;
       } else {
         // Which way to turn depends on the optical train, so the advice
         // gives the size of the turn and leaves the direction to a re-solve.
@@ -164,7 +163,7 @@ class NightSolveRotationSection extends ConsumerWidget {
               : 'nightScopeRotationTurnByHand',
           params: params,
         );
-        tone = MetricTone.warning;
+        tone = MetricGridTone.warning;
       }
     }
 

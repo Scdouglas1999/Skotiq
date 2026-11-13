@@ -1,3 +1,4 @@
+import '../../../models/imaging/session_status.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart' show listEquals;
 
@@ -53,8 +54,10 @@ final class RemoteImagingRecords implements ImagingRecords {
   });
 
   @override
-  Future<void> endSession(int id, {String status = 'completed'}) =>
-      _host.endSession(id, status: status);
+  Future<void> endSession(
+    int id, {
+    SessionStatus status = SessionStatus.completed,
+  }) => _host.endSession(id, status: status);
 
   /// The host sweeps its own sessions when it opens and when a sequence
   /// starts; a client closing them would be a second, blind writer of a
@@ -75,7 +78,8 @@ final class RemoteImagingRecords implements ImagingRecords {
   /// The host closes the session against its own rows, so the end time is
   /// dated there.
   @override
-  Future<void> abortSession(int id) => _host.endSession(id, status: 'aborted');
+  Future<void> abortSession(int id) =>
+      _host.endSession(id, status: SessionStatus.aborted);
 
   @override
   Future<void> updateSessionStats(

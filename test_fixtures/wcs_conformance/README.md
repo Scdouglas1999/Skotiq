@@ -1,9 +1,10 @@
 # `.wcs` conformance fixture
 
-Golden ASTAP / astrometry.net `.wcs` sidecars and the exact parse the one `.wcs`
-parser in Skotiq produces: `native/skotiq_native/platesolve/src/lib.rs`
-(`fits_header_cards`, `parse_wcs_file_inner`, `sip_indices`, `sip_layout`), which
-reads every solve, local or on a linked host.
+Golden ASTAP / astrometry.net `.wcs` sidecars and the exact parse Skotiq makes of
+them: `parse_wcs_file_inner` in `native/skotiq_native/platesolve/src/lib.rs` reads
+the text as a FITS header (`skotiq_imaging::header_from_text`) and its astrometry
+with the frame reader's own `SipWcs::from_header`, so a solve and a solved frame
+are read by one set of rules. It reads every solve, local or on a linked host.
 
 The headers are byte-exact as solvers write them, including ones with **no line
 terminators at all**: a real ASTAP `.wcs` is fixed-width 80-character cards packed
@@ -23,8 +24,9 @@ an editor "fix" them by appending a newline.
 
 ## Comparison rules
 
-- `ra`, `dec`, `cd1_1`..`cd2_2` and every SIP coefficient are read verbatim out of
-  a card, so they are compared for **exact** equality.
+- `ra`, `dec`, `cd1_1`..`cd2_2` and every SIP coefficient are compared for
+  **exact** equality: read verbatim out of a card, or for a CDELT/CROTA header
+  the CD matrix as `SipWcs::from_header` computes it.
 - `pixel_scale`, `rotation`, `field_width`, `field_height` are computed, so they
   are compared to within `1e-9` absolute.
 - `"nan"` in `cases.json` means "must be NaN" (JSON has no NaN literal).

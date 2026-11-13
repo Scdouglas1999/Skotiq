@@ -3,7 +3,9 @@ import 'dart:math' as math;
 
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:path/path.dart' as path;
@@ -11,7 +13,19 @@ import 'package:pdf/pdf.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../widgets/run_status/run_status_presentation.dart';
+
 part 'observation_report_service/statistics.dart';
+
+/// The one [ObservationReportService]: the Analytics observation report on
+/// this machine and the host's report endpoint both use it.
+final observationReportServiceProvider = Provider<ObservationReportService>(
+  (ref) => ObservationReportService(
+    sessionsDao: ref.watch(sessionsDaoProvider),
+    imagesDao: ref.watch(imagesDaoProvider),
+    scienceDao: ref.watch(scienceDaoProvider),
+  ),
+);
 
 class ObservationReportService {
   final SessionsDao _sessionsDao;
@@ -246,7 +260,7 @@ class ObservationReportService {
                       (session.endTime ?? DateTime.now())
                           .difference(session.startTime),
                       style: DurationStyle.coarse)),
-              _headerRow('Status', session.status.toUpperCase()),
+              _headerRow('Status', sessionStatusLabel(session.status)),
               if (locationName != null) _headerRow('Location', locationName),
               if (latitude != null && longitude != null)
                 _headerRow(

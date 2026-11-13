@@ -112,6 +112,7 @@ impl CameraOps for NullDeviceOps {
             sensor_type: Some("Monochrome".to_string()), // Default to Mono
             color_filter: None,
             camera_file: None,
+            readout_mode: None,
         })
     }
 

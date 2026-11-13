@@ -12,7 +12,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/accessible_dropdown.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_app/screens/analytics/quick_capture_selection.dart';
-import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -46,7 +45,7 @@ ImagingSession _run(int id) => ImagingSession(
     );
 
 /// The exact live state: 37 loose frames, one completed run, and the auto-pick
-/// resolving to that run (`latestScienceSessionProvider`).
+/// resolving to that run (`scienceDefaultSessionProvider`).
 Widget _app(AnalyticsTab tab) => ProviderScope(
       overrides: [
         standaloneImagesProvider.overrideWith(
@@ -55,8 +54,7 @@ Widget _app(AnalyticsTab tab) => ProviderScope(
         allDbImagesProvider
             .overrideWith((ref) => Stream.value(const <DbCapturedImage>[])),
         allSessionsProvider.overrideWith((ref) => Stream.value([_run(1)])),
-        latestScienceSessionProvider.overrideWith((ref) async => 1),
-        latestScienceProductSessionProvider.overrideWith((ref) async => 1),
+        scienceDefaultSessionProvider.overrideWith((ref) async => 1),
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,

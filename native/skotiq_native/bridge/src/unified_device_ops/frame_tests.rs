@@ -45,6 +45,11 @@ async fn attach_sim_mount(device_id: &str) {
 fn target_context(mount_id: &str, target: (f64, f64)) -> InstructionContext {
     let mut run = skotiq_sequencer::instructions::RunShared::new(create_unified_device_ops());
     run.rig.mount_id = Some(mount_id.to_string());
+    // These tests are about where the mount lands, not about daylight: with no
+    // site the slew's daylight gate stands aside, whatever site another test
+    // left in the device layer.
+    run.rig.latitude = None;
+    run.rig.longitude = None;
     InstructionContext {
         node_id: "frame-test-slew".to_string(),
         target_ra: Some(target.0),

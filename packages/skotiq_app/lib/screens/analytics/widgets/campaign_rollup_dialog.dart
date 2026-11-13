@@ -9,6 +9,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../sequencer/widgets/session_report_dialog.dart';
 import '../../../widgets/adaptive_chart_container.dart';
+import '../../../widgets/run_status/run_status_presentation.dart';
 
 /// Multi-night campaign rollup dialog (Feature B).
 ///
@@ -550,23 +551,6 @@ class _SessionRow extends StatelessWidget {
     required this.formatDateTime,
   });
 
-  Color _statusColor() {
-    switch (session.status.toLowerCase()) {
-      case 'completed':
-        return colors.success;
-      case 'active':
-        return colors.info;
-      case 'aborted':
-      case 'stopped':
-        return colors.warning;
-      case 'error':
-      case 'failed':
-        return colors.error;
-      default:
-        return colors.textMuted;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final durationSecs = session.wallClockDuration.inSeconds;
@@ -596,7 +580,7 @@ class _SessionRow extends StatelessWidget {
                     height: 8,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _statusColor(),
+                      color: sessionStatusColor(colors, session.status),
                     ),
                   ),
                   const SizedBox(width: 10),

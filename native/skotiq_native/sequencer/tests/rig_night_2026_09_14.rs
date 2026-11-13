@@ -135,6 +135,7 @@ fn fixture(name: &str) -> ImageData {
         sensor_type: Some("Monochrome".to_string()),
         color_filter: None,
         camera_file: None,
+        readout_mode: None,
     }
 }
 
@@ -434,7 +435,7 @@ async fn replay(
         node_type: NodeType::TakeExposure(skotiq_sequencer::ExposureConfig {
             count: 50,
             duration_secs: 1.0,
-            frame_type: "light".to_string(),
+            frame_type: skotiq_sequencer::FrameType::Light,
             ..Default::default()
         }),
         enabled: true,

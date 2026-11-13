@@ -13,6 +13,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 // Exports hand off through revealExportedFile (share sheet on mobile, path
@@ -33,7 +34,6 @@ import 'analytics_exports.dart';
 import 'quick_capture_selection.dart';
 import 'session_elapsed.dart';
 import 'widgets/analytics_empty_state.dart';
-import 'widgets/science_analytics_tab.dart' show latestScienceSessionProvider;
 import 'widgets/session_chart.dart';
 import 'widgets/image_thumbnail_strip.dart';
 import 'widgets/project_tracking_panel.dart';

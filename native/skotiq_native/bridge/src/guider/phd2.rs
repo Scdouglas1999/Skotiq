@@ -372,28 +372,57 @@ async fn await_settle(
     waiter: skotiq_phd2::SettleWaiter,
     settle_wait: Duration,
     stop_generation: u64,
-) -> Result<(), String> {
+) -> Result<(), SettleEnd> {
     let started = tokio::time::Instant::now();
     let cap = started + settle_wait + CALIBRATION_ALLOWANCE;
     let mut deadline = started + settle_wait;
     loop {
         if let Some(result) = waiter.check() {
-            return result.map(|_| ());
+            return result.map(|_| ()).map_err(SettleEnd::Phd2);
         }
         if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
-            return Err("guiding was stopped while it settled".to_string());
+            return Err(SettleEnd::Stopped);
         }
         let now = tokio::time::Instant::now();
         if waiter.is_calibrating() {
             deadline = deadline.max(now + settle_wait).min(cap);
         }
         if now >= deadline {
-            return Err(format!(
-                "PHD2 settle did not complete within {:.0}s",
-                (deadline - started).as_secs_f64()
-            ));
+            return Err(SettleEnd::Phd2(skotiq_phd2::SettleError::NotReported {
+                waited: deadline - started,
+            }));
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+/// How a settle this bridge waited on ended without succeeding.
+#[derive(Debug)]
+enum SettleEnd {
+    Phd2(skotiq_phd2::SettleError),
+    /// Guiding was stopped while it settled.
+    Stopped,
+}
+
+impl SettleEnd {
+    /// The guider's failure, `what` saying what did not settle. A guider that
+    /// ran out of time is a timeout, so the run can tell a slow settle with the
+    /// star still held from a guider that stopped or went away.
+    fn into_error(self, what: &str) -> SkotiqError {
+        let text = format!("{what}: {self}");
+        match self {
+            Self::Phd2(error) if error.ran_out_of_time() => SkotiqError::Timeout(text),
+            _ => SkotiqError::OperationFailed(text),
+        }
+    }
+}
+
+impl std::fmt::Display for SettleEnd {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Phd2(error) => error.fmt(f),
+            Self::Stopped => f.write_str("guiding was stopped while it settled"),
+        }
     }
 }
 
@@ -430,9 +459,7 @@ pub(crate) async fn start_guiding(
     let settle_wait = skotiq_phd2::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
     if let Err(error) = await_settle(waiter, settle_wait, stop_generation).await {
         if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
-            return Err(SkotiqError::OperationFailed(format!(
-                "Guiding did not settle: {error}"
-            )));
+            return Err(error.into_error("Guiding did not settle"));
         }
         let mut client = phd2_client().await?;
         if matches!(client.get_app_state_name().as_deref(), Ok("Guiding")) {
@@ -450,9 +477,7 @@ pub(crate) async fn start_guiding(
                 "Guiding did not settle: {error}; stopping guiding also failed: {stop}"
             ))
         })?;
-        return Err(SkotiqError::OperationFailed(format!(
-            "Guiding did not settle: {error}"
-        )));
+        return Err(error.into_error("Guiding did not settle"));
     }
 
     stop_reason::set(None);
@@ -517,7 +542,7 @@ pub(crate) async fn dither(
     let wait = skotiq_phd2::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
     await_settle(waiter, wait, stop_generation)
         .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Dither did not settle: {}", e)))?;
+        .map_err(|e| e.into_error("Dither did not settle"))?;
 
     get_state().publish_guiding_event(GuidingEvent::Settled { rms: 0.0 }, EventSeverity::Info);
 

@@ -7,7 +7,7 @@
 //! verified by the pointing actually changing, and reversed once if the axis
 //! turned out to run the other way.
 
-use crate::device_ops::{DeviceResult, MountOps, OperatorNotifyOps, SiteOps};
+use crate::device_ops::{DeviceResult, MountOps, OperatorNotifyOps};
 use crate::meridian::{wrap_hours, PierSide, SIDEREAL_PER_SOLAR};
 use std::time::Duration;
 
@@ -73,8 +73,9 @@ async fn pulse(
 /// Move the RA axis off the limit it is stuck at. Returns what was done, for
 /// the operator, or why the mount could not be freed.
 pub(crate) async fn back_off_limit(
-    device_ops: &(impl MountOps + SiteOps + ?Sized),
+    device_ops: &(impl MountOps + ?Sized),
     mount_id: &str,
+    site_longitude: Option<f64>,
 ) -> Result<String, String> {
     let (start_ra, _) = device_ops
         .mount_get_coordinates(mount_id)
@@ -84,7 +85,7 @@ pub(crate) async fn back_off_limit(
         .mount_side_of_pier(mount_id)
         .await
         .unwrap_or(PierSide::Unknown);
-    let start_ha = device_ops.get_observer_location().map(|(_, lon)| {
+    let start_ha = site_longitude.map(|lon| {
         let now = chrono::Utc::now();
         let lst = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), lon);
         crate::meridian::hour_angle(start_ra, lst)

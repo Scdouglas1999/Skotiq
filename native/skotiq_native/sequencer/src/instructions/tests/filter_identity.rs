@@ -152,7 +152,7 @@ async fn flat_wizard_burst_records_the_filter_the_wheel_is_parked_on() {
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 1,
-        frame_type: "Flat".to_string(),
+        frame_type: crate::FrameType::Flat,
         filter: None,
         filter_index: None,
         ..ExposureConfig::default()
@@ -250,7 +250,7 @@ async fn direct_burst_never_pairs_its_filter_name_with_a_stale_slot() {
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 1,
-        frame_type: "Flat".to_string(),
+        frame_type: crate::FrameType::Flat,
         filter: Some("R".to_string()),
         filter_index: None,
         ..ExposureConfig::default()

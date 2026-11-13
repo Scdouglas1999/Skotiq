@@ -1,3 +1,5 @@
+import '../models/imaging/session_status.dart';
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -697,7 +699,7 @@ final watchedHostSessionIdProvider = hostRoleProvider<int?>(
     final sessions = ref.watch(allSessionsProvider).valueOrNull;
     if (sessions == null) return null;
     for (final session in sessions) {
-      if (session.status == 'active') return session.id;
+      if (session.sessionStatus == SessionStatus.active) return session.id;
     }
     if (sessions.isNotEmpty && ref.watch(lastEndedRunProvider) != null) {
       return sessions.first.id;
@@ -767,7 +769,7 @@ CapturedImage capturedImageFromDbRow(db.DbCapturedImage row) {
       binningX: row.binX,
       binningY: row.binY,
       filter: row.filter,
-      frameType: _frameTypeFromDbString(row.frameType),
+      frameType: row.recordedFrameType ?? FrameType.light,
     ),
     stats: row.hfr != null || row.starCount != null
         ? ImageStats(
@@ -779,23 +781,6 @@ CapturedImage capturedImageFromDbRow(db.DbCapturedImage row) {
         : null,
     format: _imageFormatFromDbString(row.fileFormat),
   );
-}
-
-FrameType _frameTypeFromDbString(String str) {
-  switch (str.toLowerCase()) {
-    case 'dark':
-      return FrameType.dark;
-    case 'flat':
-      return FrameType.flat;
-    case 'bias':
-      return FrameType.bias;
-    case 'darkflat':
-      return FrameType.darkFlat;
-    case 'snapshot':
-      return FrameType.snapshot;
-    default:
-      return FrameType.light;
-  }
 }
 
 ImageFileFormat _imageFormatFromDbString(String str) =>

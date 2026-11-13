@@ -7,7 +7,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `thumbnail_generation_gate`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `thumbnail_generation_gate`, `write_rgba`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
@@ -267,12 +267,9 @@ Future<void> apiSaveRgbaPngFile({
 /// Save an 8-bit RGBA buffer as a JPEG, flattening alpha onto black.
 ///
 /// Companion to [`api_save_rgba_png_file`] for the lossy export path. JPEG has
-/// no alpha channel, so we explicitly composite each pixel over an opaque black
-/// background (`out = src * alpha / 255`) and encode the resulting RGB. Doing
-/// the flatten here — rather than handing `Rgba8` straight to the encoder,
-/// which would treat the buffer as fully opaque RGB and ignore alpha entirely —
-/// keeps transparent regions rendering as black instead of leaking whatever
-/// stale color bytes happen to sit under a transparent pixel.
+/// no alpha channel, so each pixel is composited over opaque black
+/// (`out = src * alpha / 255`): transparent regions render black instead of
+/// leaking whatever color bytes sit under a transparent pixel.
 ///
 /// Length validation matches [`api_save_rgba_png_file`]: a mismatch is an
 /// upstream bug and is surfaced as [`SkotiqError::ImageError`].

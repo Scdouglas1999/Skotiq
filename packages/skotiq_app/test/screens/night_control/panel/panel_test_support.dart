@@ -186,7 +186,7 @@ abstract final class PanelFixtures {
       lines: <SeriesLineVm>[
         SeriesLineVm(
           id: NightSeriesId.sensorTemp,
-          tone: SeriesTone.secondary,
+          tone: SeriesChartTone.secondary,
           points: <SeriesPoint>[
             for (var m = 0; m <= 60; m += 5)
               SeriesPoint(

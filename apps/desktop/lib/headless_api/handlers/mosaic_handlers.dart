@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel, MosaicStartCorner;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -718,6 +719,19 @@ class MosaicHandlers implements RouteSource {
       rotation: optionalDouble(json, 'rotation', min: -360, max: 360) ?? 0.0,
       panelsHorizontal: requireInt(json, 'panelsHorizontal', min: 1),
       panelsVertical: requireInt(json, 'panelsVertical', min: 1),
+      startCorner: _parseStartCorner(optionalString(json, 'startCorner')),
+      serpentine: optionalBool(json, 'serpentine') ?? true,
+    );
+  }
+
+  MosaicStartCorner _parseStartCorner(String? name) {
+    if (name == null) return MosaicStartCorner.topLeft;
+    for (final corner in MosaicStartCorner.values) {
+      if (corner.name == name) return corner;
+    }
+    throw BadRequestError(
+      field: 'startCorner',
+      expected: MosaicStartCorner.values.map((c) => c.name).join(' | '),
     );
   }
 
@@ -737,7 +751,6 @@ class MosaicHandlers implements RouteSource {
 
   MosaicSequenceOptions _parseSequenceOptions(Map<String, dynamic> json) {
     return MosaicSequenceOptions(
-      serpentineOrdering: optionalBool(json, 'serpentineOrdering') ?? false,
       autofocusPerPanel: optionalBool(json, 'autofocusPerPanel') ?? false,
       autofocusInterval: optionalInt(json, 'autofocusInterval') ?? 0,
       centerAfterSlew: optionalBool(json, 'centerAfterSlew') ?? false,
@@ -753,7 +766,8 @@ class MosaicHandlers implements RouteSource {
     return {
       'raHours': panel.raHours,
       'decDegrees': panel.decDegrees,
-      'panelIndex': panel.panelIndex,
+      'panelIndex': panel.index,
+      'name': panel.name,
       'row': panel.row,
       'col': panel.col,
     };

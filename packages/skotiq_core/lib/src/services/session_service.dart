@@ -1,3 +1,4 @@
+import '../models/imaging/session_status.dart';
 import 'dart:async';
 
 import '../database/daos/sequence_checkpoints_dao.dart';
@@ -236,7 +237,7 @@ class SessionService {
     );
     if (_disposed) {
       try {
-        await _records.endSession(sessionId, status: 'aborted');
+        await _records.endSession(sessionId, status: SessionStatus.aborted);
       } catch (error) {
         _logger.error(
           'Could not abort session $sessionId after SessionService was '
@@ -293,7 +294,7 @@ class SessionService {
       '${closed.length == 1 ? 'it' : 'them'} (id'
       '${closed.length == 1 ? '' : 's'} ${closed.join(', ')}); '
       "${closed.length == 1 ? 'it is' : 'they are'} recorded as "
-      "'$kInterruptedSessionStatus' so this run can open its own session",
+      "'${SessionStatus.interrupted.token}' so this run can open its own session",
       source: 'SessionService',
     );
   }
@@ -357,7 +358,7 @@ class SessionService {
   /// row. Clearing identity unconditionally (in a `finally`, say) would leave
   /// the DB row stuck `active` forever, because the early return above then
   /// makes every retry a no-op.
-  Future<void> endSession({String status = 'completed'}) {
+  Future<void> endSession({SessionStatus status = SessionStatus.completed}) {
     if (_disposed) {
       return Future<void>.error(
         StateError('Cannot end a session after SessionService disposal.'),
@@ -376,7 +377,7 @@ class SessionService {
     return operation;
   }
 
-  Future<void> _endSessionOnce({required String status}) async {
+  Future<void> _endSessionOnce({required SessionStatus status}) async {
     // A Stop/Abort tap can race a slow host-side Start. Wait for the admitted
     // start to establish its durable id, then finalize that exact session;
     // returning early here would leave a session running with no visible owner.
@@ -390,7 +391,7 @@ class SessionService {
     }
 
     _logger.info(
-      'Ending session $sessionId with status: $status',
+      'Ending session $sessionId with status: ${status.token}',
       source: 'SessionService',
     );
 
@@ -454,22 +455,7 @@ class SessionService {
 
   /// Abort the current session (marks as 'aborted' status)
   Future<void> abortSession() async {
-    await endSession(status: 'aborted');
-  }
-
-  Future<void> errorSession(String errorMessage) async {
-    if (_currentSessionId != null && _currentStats != null) {
-      // Optionally store error message in notes
-      final currentSession = await _records.getSessionById(_currentSessionId!);
-      if (currentSession != null) {
-        final notes = currentSession.notes ?? '';
-        final errorNotes = notes.isEmpty
-            ? errorMessage
-            : '$notes\n\nError: $errorMessage';
-        await _records.updateSessionNotes(_currentSessionId!, errorNotes);
-      }
-    }
-    await endSession(status: 'error');
+    await endSession(status: SessionStatus.aborted);
   }
 
   /// Check for incomplete sessions (crashed/interrupted sessions)
@@ -489,7 +475,7 @@ class SessionService {
       // only ever a session a live executor is driving, and offering to recover
       // a run that is still going would be offering to recover from nothing.
       final incompleteSessions = allSessions
-          .where((s) => s.status == kInterruptedSessionStatus)
+          .where((s) => s.sessionStatus == SessionStatus.interrupted)
           .toList();
 
       if (incompleteSessions.isEmpty) {
@@ -587,7 +573,7 @@ class SessionService {
       throw Exception('Session $sessionId not found');
     }
 
-    if (session.status != kInterruptedSessionStatus) {
+    if (session.sessionStatus != SessionStatus.interrupted) {
       throw Exception(
         'Session $sessionId was not left interrupted, so there is nothing to '
         'resume (status: ${session.status})',

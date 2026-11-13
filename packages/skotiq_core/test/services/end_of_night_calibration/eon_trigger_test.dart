@@ -236,10 +236,10 @@ void main() {
       await db.close();
     });
 
-    Future<void> recordRunFrame(int runId, String frameType) async {
+    Future<void> recordRunFrame(int runId, FrameType frameType) async {
       await ImagesDao(db).insertSequenceFrame(
-        filePath: '/n/$frameType-$runId.fits',
-        fileName: '$frameType-$runId.fits',
+        filePath: '/n/${frameType.record}-$runId.fits',
+        fileName: '${frameType.record}-$runId.fits',
         fileFormat: 'fits',
         exposureDuration: 90,
         capturedAt: DateTime.now(),
@@ -276,7 +276,7 @@ void main() {
 
     test('a completed imaging run starts the step when it is on', () async {
       await enable(true);
-      await recordRunFrame(7, 'light');
+      await recordRunFrame(7, FrameType.light);
       finishRun(1, 7, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, contains('run'));
@@ -288,7 +288,7 @@ void main() {
 
     test('nothing starts while the setting is off', () async {
       await enable(false);
-      await recordRunFrame(7, 'light');
+      await recordRunFrame(7, FrameType.light);
       finishRun(1, 7, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, isEmpty);
@@ -296,7 +296,7 @@ void main() {
 
     test('a run that took no lights does not start it', () async {
       await enable(true);
-      await recordRunFrame(8, 'dark');
+      await recordRunFrame(8, FrameType.dark);
       finishRun(1, 8, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, isEmpty);
@@ -304,7 +304,7 @@ void main() {
 
     test('an operator stop does not start it; the dawn trigger does', () async {
       await enable(true);
-      await recordRunFrame(9, 'light');
+      await recordRunFrame(9, FrameType.light);
       container
           .read(runRecordProvider.notifier)
           .setStopEvidence(
@@ -330,7 +330,7 @@ void main() {
 
     test('the dawn park, retaining an earlier failure, starts it', () async {
       await enable(true);
-      await recordRunFrame(10, 'light');
+      await recordRunFrame(10, FrameType.light);
       container
           .read(runRecordProvider.notifier)
           .setStopEvidence(
@@ -363,7 +363,7 @@ void main() {
       'a fired dawn park that did not park must not start calibration',
       () async {
         await enable(true);
-        await recordRunFrame(10, 'light');
+        await recordRunFrame(10, FrameType.light);
         container
             .read(runRecordProvider.notifier)
             .setStopEvidence(
@@ -386,7 +386,7 @@ void main() {
 
     test('the night settles only after the calibration it started', () async {
       await enable(true);
-      await recordRunFrame(11, 'light');
+      await recordRunFrame(11, FrameType.light);
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
@@ -404,7 +404,7 @@ void main() {
 
     test('an operator stop settles at once as not ending the night', () async {
       await enable(true);
-      await recordRunFrame(12, 'light');
+      await recordRunFrame(12, FrameType.light);
       container
           .read(runRecordProvider.notifier)
           .setStopEvidence(
@@ -421,7 +421,7 @@ void main() {
 
     test('a run that deferred its warm-up hands it to the step', () async {
       await enable(true);
-      await recordRunFrame(13, 'light');
+      await recordRunFrame(13, FrameType.light);
       container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
@@ -437,7 +437,7 @@ void main() {
     test('a deferred warm-up happens when the step cannot run', () async {
       await enable(true);
       // No light frames: the step does not start.
-      await recordRunFrame(14, 'dark');
+      await recordRunFrame(14, FrameType.dark);
       container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
@@ -450,7 +450,7 @@ void main() {
 
     test('a manual run after an operator stop queues the night', () async {
       await enable(true);
-      await recordRunFrame(15, 'light');
+      await recordRunFrame(15, FrameType.light);
       container
           .read(runRecordProvider.notifier)
           .setStopEvidence(

@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart' as db;
@@ -20,7 +21,7 @@ class FrameAutoGrader {
   /// Returns `true` when the frame was rejected, `false` when accepted or
   /// skipped, `null` when grading did not run (disabled / not a light).
   Future<bool?> gradeCapturedFrame({required db.DbCapturedImage image}) async {
-    if (image.frameType.toLowerCase() != 'light') return null;
+    if (!image.isLight) return null;
     if (!image.isAccepted) return false;
 
     final settings = await _ref.read(scienceSettingsProvider.future);

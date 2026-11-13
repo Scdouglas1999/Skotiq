@@ -143,7 +143,8 @@ class CalibrationLibraryService implements CalibrationLibrary {
   ///
   /// Rules (each deviation is scored down and surfaced in `reasons` /
   /// `warnings` — the match is transparent by design):
-  ///  * **Darks**: gain, offset, and binning must match *exactly*. Exposure
+  ///  * **Darks**: gain, offset, and binning must match *exactly*, and the
+  ///    read mode when the lights and the dark both state one. Exposure
   ///    within the operator's exposure tolerance is an exact
   ///    match; otherwise the nearest-exposure dark is returned with
   ///    `exposureScaled = true` and a warning. Temperature within tolerance
@@ -181,7 +182,8 @@ class CalibrationLibraryService implements CalibrationLibrary {
     // visible and correctly labelled in the Calibration Library while this
     // matcher reports "No matching master flat for filter X" about the very
     // record on screen — and silently drops flat-field correction.
-    final all = await _enrichAll(await _loadAll());
+    var all = await _enrichAll(await _loadAll());
+    if (context.readoutMode != null) all = await _withReadoutModes(all);
     final tolerances = CalibrationMatchTolerances(
       dark: _darkTolerances?.call() ?? DarkLibraryMatchTolerances.defaults,
     );

@@ -39,15 +39,17 @@ const List<String> darkroomFilterOrder = [
   'SII',
 ];
 
-int compareDarkroomFilters(String a, String b) {
-  int rank(String f) {
-    final i = darkroomFilterOrder.indexWhere(
-      (o) => o.toLowerCase() == f.toLowerCase(),
-    );
-    return i < 0 ? darkroomFilterOrder.length : i;
-  }
+/// Where [filter] sits in [darkroomFilterOrder]; filters it does not name
+/// share the last place.
+int darkroomFilterRank(String filter) {
+  final i = darkroomFilterOrder.indexWhere(
+    (o) => o.toLowerCase() == filter.toLowerCase(),
+  );
+  return i < 0 ? darkroomFilterOrder.length : i;
+}
 
-  final byRank = rank(a).compareTo(rank(b));
+int compareDarkroomFilters(String a, String b) {
+  final byRank = darkroomFilterRank(a).compareTo(darkroomFilterRank(b));
   return byRank != 0 ? byRank : a.compareTo(b);
 }
 
@@ -402,7 +404,49 @@ List<DarkroomNightMark> _marks(List<DarkroomSub> subs) {
   return marks;
 }
 
-/// Whether [master] belongs to the target listed as [key] with row [row].
+/// The target [master] belongs to.
+///
+/// The target row's name when the master carries one; otherwise the `target`
+/// the guided build recorded in the master's settings; otherwise the master's
+/// own name with its filter suffix taken off. The guided build keys its jobs by
+/// the same name, so an image lands under the target the Targets tab lists.
+String darkroomMasterTargetName(
+  IntegratedMaster master,
+  Map<int, String> targetNames,
+) {
+  final byId = master.targetId == null ? null : targetNames[master.targetId];
+  if (byId != null && byId.trim().isNotEmpty) return byId.trim();
+  try {
+    final settings = jsonDecode(master.settingsJson);
+    if (settings is Map && settings['target'] is String) {
+      final name = (settings['target'] as String).trim();
+      if (name.isNotEmpty) return name;
+    }
+  } on FormatException {
+    // Settings that are not JSON name no target; the master's name does.
+  }
+  var name = master.name.trim();
+  final filter = master.filter?.trim();
+  if (filter != null && filter.isNotEmpty) {
+    for (final separator in const [' · ', ' - ', ' ']) {
+      final suffix = '$separator$filter';
+      if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
+        name = name.substring(0, name.length - suffix.length).trim();
+        break;
+      }
+    }
+  }
+  // Session Review names a master "<target> · <filter>"; what follows the dot
+  // is never part of the target.
+  final dot = name.indexOf(' · ');
+  if (dot > 0) name = name.substring(0, dot).trim();
+  return name.isEmpty ? 'Unnamed target' : name;
+}
+
+/// Whether [master] belongs to the target listed as [key] with row [row]: the
+/// target row it records, the frames it folded, else the target
+/// [darkroomMasterTargetName] reads, the same one the Edit tab's library
+/// files it under.
 bool darkroomMasterBelongsTo(
   IntegratedMaster master,
   String key, {
@@ -414,17 +458,10 @@ bool darkroomMasterBelongsTo(
     return master.targetId == row.id;
   }
   if (frameIds.isNotEmpty && foldedIds.any(frameIds.contains)) return true;
-  try {
-    final settings = jsonDecode(master.settingsJson);
-    if (settings is Map && settings['target'] is String) {
-      return settings['target'] == key;
-    }
-  } on FormatException {
-    // Not a build plan; fall back to the name.
-  }
-  final name = normalizeDarkroomTargetName(master.name);
   final wanted = normalizeDarkroomTargetName(key);
-  return wanted.isNotEmpty && name.startsWith(wanted);
+  return wanted.isNotEmpty &&
+      normalizeDarkroomTargetName(darkroomMasterTargetName(master, const {})) ==
+          wanted;
 }
 
 /// The Targets tab's list: every target with lights or masters, the most

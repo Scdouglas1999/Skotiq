@@ -24,7 +24,6 @@ import '../../data/plan/night_plan_inputs.dart';
 import 'mount_actions_section.dart';
 import 'mount_go_to.dart';
 import 'mount_move_pad.dart';
-import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
 import '../stale_readings_note.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
@@ -236,7 +235,7 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
                           'distance': formatSlewDistance(slew.remainingDegrees),
                         },
                       ),
-                MetricTone.warning,
+                MetricGridTone.warning,
               )
             : mount.isParked
                 ? (l10n.text('nightScopeParked'), null)
@@ -248,9 +247,9 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
                             'rate': l10n.text(_rateKey(mount.trackingRate))
                           },
                         ),
-                        MetricTone.good,
+                        MetricGridTone.good,
                       )
-                    : (l10n.text('nightScopeNotTracking'), MetricTone.warning);
+                    : (l10n.text('nightScopeNotTracking'), MetricGridTone.warning);
 
     return NightPanelSection(
       title: l10n.text('nightScopePosition'),

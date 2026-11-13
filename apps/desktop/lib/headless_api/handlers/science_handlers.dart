@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/services/observation_report_service.dart';
 // bridge-boundary: science_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFitsFile;
-import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -41,6 +40,8 @@ class ScienceHandlers implements RouteSource {
     ScienceApi.generateLineRatios: handleGenerateLineRatios,
     ScienceApi.exportAavso: handleExportAavso,
     ScienceApi.generateObservationReport: handleGenerateObservationReport,
+    ScienceApi.scienceReport: handleScienceReport,
+    ScienceApi.defaultSession: handleDefaultSession,
   };
 
   final ProviderContainer container;
@@ -409,41 +410,17 @@ class ScienceHandlers implements RouteSource {
   ) async {
     _logInfo('[API] POST /api/science/session/$sessionId/generate-line-ratios');
     final sid = _parsePathId(sessionId, 'sessionId');
-    final database = container.read(databaseProvider);
-    final images = await database.imagesDao.getImagesForSession(sid);
-
-    final ha = _findLatestByFilter(images, {
-      'ha',
-      'halpha',
-      'h-alpha',
-      'h alpha',
-    });
-    final oiii = _findLatestByFilter(images, {'oiii', 'o3'});
-    final sii = _findLatestByFilter(images, {'sii', 's2'});
-
-    if (ha == null || oiii == null || sii == null) {
-      return jsonBadRequest({
-        'error': 'Need latest H-alpha, OIII, and SII frames in this session.',
-      });
-    }
-
-    await container
+    final frames = await container
         .read(scienceProcessingServiceProvider)
-        .generateLineRatios(
-          sessionId: sid,
-          set: NarrowbandSet(
-            hAlphaPath: ha.filePath,
-            oiiiPath: oiii.filePath,
-            siiPath: sii.filePath,
-          ),
-          hAlphaImageId: ha.id,
-          oiiiImageId: oiii.id,
-          siiImageId: sii.id,
-        );
-
+        .generateSessionLineRatios(sid);
+    if (frames == null) return jsonOk({'status': 'missingFrames'});
     return jsonOk({
       'status': 'generated',
-      'files': [ha.fileName, oiii.fileName, sii.fileName],
+      'files': [
+        frames.hAlpha.fileName,
+        frames.oiii.fileName,
+        frames.sii.fileName,
+      ],
     });
   }
 
@@ -456,12 +433,7 @@ class ScienceHandlers implements RouteSource {
     final filterBand = optionalString(payload, 'filterBand');
     final chartId = optionalString(payload, 'chartId');
 
-    final database = container.read(databaseProvider);
-    final service = AavsoExportService(
-      scienceDao: database.scienceDao,
-      settingsDao: database.settingsDao,
-      imagesDao: database.imagesDao,
-    );
+    final service = container.read(aavsoExportServiceProvider);
 
     // Why: AavsoExportError is a user-facing validation/domain error from
     // the export service (missing observer code, no measurements, etc.).
@@ -499,14 +471,9 @@ class ScienceHandlers implements RouteSource {
     String sessionId,
   ) async {
     final sid = _parsePathId(sessionId, 'sessionId');
-    final database = container.read(databaseProvider);
-    final service = ObservationReportService(
-      sessionsDao: database.sessionsDao,
-      imagesDao: database.imagesDao,
-      scienceDao: database.scienceDao,
-    );
-
-    final filePath = await service.generateReport(sessionId: sid);
+    final filePath = await container
+        .read(observationReportServiceProvider)
+        .generateReport(sessionId: sid);
     final file = File(filePath);
     if (!await file.exists()) {
       return jsonNotFound({'error': 'Observation report file not found'});
@@ -519,6 +486,47 @@ class ScienceHandlers implements RouteSource {
       contentType: 'application/pdf',
       contentLength: fileLength,
     );
+  }
+
+  /// The session the Science tab opens on, so a linked client opens on the
+  /// same night as the host.
+  Future<Response> handleDefaultSession(Request request) async {
+    final database = container.read(databaseProvider);
+    return jsonOk({
+      'sessionId': await scienceDefaultSessionId(
+        sessions: database.sessionsDao,
+        science: database.scienceDao,
+        images: database.imagesDao,
+      ),
+    });
+  }
+
+  /// The Science tab's report of a session, as Markdown; the period search
+  /// the client ran on screen comes in the body.
+  Future<Response> handleScienceReport(
+    Request request,
+    String sessionId,
+  ) async {
+    final sid = _parsePathId(sessionId, 'sessionId');
+    final payload = await readJsonObject(request);
+    final PeriodFinding? period;
+    try {
+      period = switch (payload['period']) {
+        null => null,
+        final Map<String, dynamic> json => PeriodFinding.fromJson(json),
+        _ => throw const FormatException('period must be an object'),
+      };
+    } on FormatException catch (e) {
+      throw BadRequestError(
+        field: 'period',
+        expected: 'a period finding',
+        message: e.message,
+      );
+    }
+    final markdown = await container
+        .read(scienceReportExporterProvider)
+        .buildMarkdown(sid, period: period);
+    return jsonOk({'markdown': markdown});
   }
 
   Future<Response> handleMatchPhotometricCalibrationStars(
@@ -789,25 +797,6 @@ class ScienceHandlers implements RouteSource {
         .read(photometricTransformServiceProvider)
         .saveTransform(coefficients);
     return jsonOk({'id': id});
-  }
-
-  DbCapturedImage? _findLatestByFilter(
-    List<DbCapturedImage> images,
-    Set<String> names,
-  ) {
-    final filtered = images.where((image) {
-      final filter = (image.filter ?? '').toLowerCase().trim();
-      for (final name in names) {
-        if (filter == name) return true;
-        final pattern = RegExp(
-          '(?:^|[\\s_-])${RegExp.escape(name)}(?:[\\s_-]|\$)',
-        );
-        if (pattern.hasMatch(filter)) return true;
-      }
-      return false;
-    }).toList()..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
-
-    return filtered.isEmpty ? null : filtered.first;
   }
 
   static double? _bvFromSpectralType(String spectralType) {

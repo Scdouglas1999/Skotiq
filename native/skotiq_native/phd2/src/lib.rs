@@ -348,6 +348,56 @@ pub struct SettleOutcome {
     pub dropped_frames: u32,
 }
 
+/// Why a settle did not succeed.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SettleError {
+    /// PHD2 ended the settle with a non-zero status: the guider did not settle
+    /// inside its time limit, in PHD2's own words.
+    Failed { status: i32, error: String },
+    /// PHD2 sent no `SettleDone` within the time the caller waited.
+    NotReported { waited: Duration },
+    /// A newer guide or dither replaced this settle.
+    Superseded { expected: u64, found: u64 },
+    /// PHD2 disconnected during the settle.
+    Disconnected,
+}
+
+impl SettleError {
+    /// Whether the guider ran out of time to settle, as opposed to the settle
+    /// being replaced or PHD2 going away.
+    pub fn ran_out_of_time(&self) -> bool {
+        matches!(self, Self::Failed { .. } | Self::NotReported { .. })
+    }
+}
+
+impl std::fmt::Display for SettleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Failed { status, error } => write!(
+                f,
+                "PHD2 settle failed (status {status}): {}",
+                if error.is_empty() {
+                    "no error detail"
+                } else {
+                    error
+                }
+            ),
+            Self::NotReported { waited } => write!(
+                f,
+                "PHD2 settle did not complete within {:.1}s",
+                waited.as_secs_f64()
+            ),
+            Self::Superseded { expected, found } => write!(
+                f,
+                "PHD2 settle wait superseded (expected generation {expected}, found {found})"
+            ),
+            Self::Disconnected => f.write_str("PHD2 disconnected while waiting for settle"),
+        }
+    }
+}
+
+impl std::error::Error for SettleError {}
+
 /// A detached handle that can wait for the current settle to complete WITHOUT
 /// borrowing the `Phd2Client`.
 ///
@@ -369,32 +419,27 @@ impl SettleWaiter {
     ///
     /// Same fail-closed contract as [`Self::wait`]: a non-zero PHD2 status,
     /// a disconnect or a superseding settle are `Err`.
-    pub fn check(&self) -> Option<Result<SettleOutcome, String>> {
+    pub fn check(&self) -> Option<Result<SettleOutcome, SettleError>> {
         {
             let mut tracker = match self.settle_tracker.lock() {
                 Ok(t) => t,
                 Err(poison) => poison.into_inner(),
             };
             if tracker.generation != self.generation {
-                return Some(Err(format!(
-                    "PHD2 settle wait superseded (expected generation {}, found {})",
-                    self.generation, tracker.generation
-                )));
+                return Some(Err(SettleError::Superseded {
+                    expected: self.generation,
+                    found: tracker.generation,
+                }));
             }
             if let Some(outcome) = tracker.outcome.take() {
                 tracker.awaiting = false;
                 if outcome.status == 0 {
                     return Some(Ok(outcome));
                 }
-                return Some(Err(format!(
-                    "PHD2 settle failed (status {}): {}",
-                    outcome.status,
-                    if outcome.error.is_empty() {
-                        "no error detail"
-                    } else {
-                        outcome.error.as_str()
-                    }
-                )));
+                return Some(Err(SettleError::Failed {
+                    status: outcome.status,
+                    error: outcome.error,
+                }));
             }
         }
         let tracker = self
@@ -407,7 +452,7 @@ impl SettleWaiter {
                 .as_ref()
                 .is_some_and(|c| c.running.load(Ordering::SeqCst))
         {
-            return Some(Err("PHD2 disconnected while waiting for settle".to_string()));
+            return Some(Err(SettleError::Disconnected));
         }
         None
     }
@@ -428,17 +473,14 @@ impl SettleWaiter {
     ///
     /// Fail closed: non-zero PHD2 status, timeout, disconnect, or a
     /// superseding settle all return `Err`.
-    pub fn wait(&self, timeout: Duration) -> Result<SettleOutcome, String> {
+    pub fn wait(&self, timeout: Duration) -> Result<SettleOutcome, SettleError> {
         let deadline = Instant::now() + timeout;
         loop {
             if let Some(result) = self.check() {
                 return result;
             }
             if Instant::now() >= deadline {
-                return Err(format!(
-                    "PHD2 settle did not complete within {:.1}s",
-                    timeout.as_secs_f64()
-                ));
+                return Err(SettleError::NotReported { waited: timeout });
             }
             thread::sleep(Duration::from_millis(100));
         }
@@ -1420,7 +1462,9 @@ impl Phd2Client {
     ) -> Result<(), String> {
         let waiter =
             self.dither_arm(amount, ra_only, settle_pixels, settle_time, settle_timeout)?;
-        waiter.wait(Self::settle_wait_duration(settle_time, settle_timeout))?;
+        waiter
+            .wait(Self::settle_wait_duration(settle_time, settle_timeout))
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 
@@ -2345,7 +2389,18 @@ mod tests {
         let err = waiter
             .wait(Duration::from_millis(100))
             .expect_err("non-zero status must error");
-        assert!(err.contains("star lost"), "error string surfaced: {err}");
+        assert_eq!(
+            err,
+            SettleError::Failed {
+                status: 2,
+                error: "star lost".to_string()
+            }
+        );
+        assert!(err.ran_out_of_time());
+        assert!(
+            err.to_string().contains("star lost"),
+            "error string surfaced: {err}"
+        );
     }
 
     /// The settle waiter returns the outcome on a status-0 settle.
@@ -2396,7 +2451,8 @@ mod tests {
         let err = waiter
             .wait(Duration::from_millis(250))
             .expect_err("must time out");
-        assert!(err.contains("did not complete"), "got: {err}");
+        assert!(matches!(err, SettleError::NotReported { .. }), "got: {err}");
+        assert!(err.ran_out_of_time());
     }
 
     /// The settle waiter fails closed if the connection drops mid-settle.
@@ -2419,7 +2475,8 @@ mod tests {
         let err = waiter
             .wait(Duration::from_secs(30))
             .expect_err("disconnect must error");
-        assert!(err.contains("disconnected"), "got: {err}");
+        assert_eq!(err, SettleError::Disconnected);
+        assert!(!err.ran_out_of_time(), "a disconnect is not a slow settle");
     }
 
     /// PHD2 returns -32600 when `params` is JSON null; omit the field instead.
@@ -2525,16 +2582,19 @@ mod tests {
     #[test]
     fn recovered_connection_still_requires_a_successful_settle_event() {
         let error = settle_after_read_recovery(Some(1)).unwrap_err();
-        assert!(error.contains("status 1"), "{error}");
+        assert!(
+            matches!(error, SettleError::Failed { status: 1, .. }),
+            "{error}"
+        );
     }
 
     #[test]
     fn recovered_guiding_state_without_settle_done_is_not_success() {
         let error = settle_after_read_recovery(None).unwrap_err();
-        assert!(error.contains("did not complete"), "{error}");
+        assert!(matches!(error, SettleError::NotReported { .. }), "{error}");
     }
 
-    fn settle_after_read_recovery(status: Option<i32>) -> Result<SettleOutcome, String> {
+    fn settle_after_read_recovery(status: Option<i32>) -> Result<SettleOutcome, SettleError> {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let server = thread::spawn(move || {

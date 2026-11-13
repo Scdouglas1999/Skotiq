@@ -1,13 +1,8 @@
-// Dart-side mirror of the Rust `expressions::catalog` variable
-// list. Drives the VariablePicker UI: rows are populated from this static
-// list, and rendered example values come straight from `example`.
-//
-// SINGLE SOURCE OF TRUTH: This file MUST stay in lockstep with
-// `native/skotiq_native/sequencer/src/expressions/catalog.rs`.
-// A unit test (`interpolation_catalog_parity_test.dart`) asserts that
-// every entry declared in the Rust JSON dump appears here and vice
-// versa, so a drift between the two surfaces a test failure on the
-// next CI run.
+// The variables a `${...}` placeholder can name, for the variable picker and the
+// notification renderer. The list is the sequencer's
+// (`native/skotiq_native/sequencer/src/expressions/catalog.rs`
+// `variable_catalog`); its test `the_app_offers_every_variable_as_the_sequencer_resolves_it`
+// reads this file and fails when an entry here differs from it.
 
 import 'package:flutter/foundation.dart';
 
@@ -60,8 +55,7 @@ class InterpolationVariable {
   String get placeholder => '\${$name}';
 }
 
-/// The canonical Dart-side variable catalog. Mirrors the Rust list in
-/// `expressions/catalog.rs::variable_catalog`.
+/// The variable catalog, entry for entry as the sequencer's.
 const List<InterpolationVariable> interpolationCatalog = [
   // Target
   InterpolationVariable(
@@ -187,6 +181,20 @@ const List<InterpolationVariable> interpolationCatalog = [
     example: '2026-01-15',
     supportsFormat: false,
   ),
+  InterpolationVariable(
+    name: 'time.clock',
+    description: 'Current UTC time of day, file-name safe (HH-MM-SS)',
+    group: InterpolationVariableGroup.time,
+    example: '22-47-12',
+    supportsFormat: false,
+  ),
+  InterpolationVariable(
+    name: 'time.local_clock',
+    description: 'Current local time of day (HH:MM)',
+    group: InterpolationVariableGroup.time,
+    example: '17:47',
+    supportsFormat: false,
+  ),
   // Moon
   InterpolationVariable(
     name: 'moon.phase',
@@ -310,6 +318,14 @@ const List<InterpolationVariable> interpolationCatalog = [
     group: InterpolationVariableGroup.exposure,
     example: '1x1',
     supportsFormat: false,
+  ),
+  InterpolationVariable(
+    name: 'camera.temp_c',
+    description:
+        'Sensor temperature with the frame (°C); the cooler setpoint, else 0, when the camera reports none',
+    group: InterpolationVariableGroup.equipment,
+    example: '-10',
+    supportsFormat: true,
   ),
   InterpolationVariable(
     name: 'exposure.temp_c',

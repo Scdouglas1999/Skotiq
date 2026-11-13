@@ -1,3 +1,4 @@
+import '../../../models/imaging/frame_type_record.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
@@ -364,7 +365,7 @@ class HistoryDrivenQualityRule implements AsyncSequenceValidator {
       final buckets = <String, _HistoricalQualityBucket>{};
 
       for (final frame in frames) {
-        if (frame.frameType.toLowerCase() != 'light') continue;
+        if (!frame.isLight) continue;
         final filter = _filterKey(frame.filter);
         if (plannedFilters.isNotEmpty && !plannedFilters.contains(filter)) {
           continue;

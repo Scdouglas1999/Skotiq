@@ -109,13 +109,10 @@ pub(crate) async fn start_guiding_on_fresh_star_above(
         .map_err(GuidingStartError::Start)
 }
 
-/// Whether a guider start failed only because the guider did not settle in
-/// time, as opposed to finding no star or not starting at all.
-pub(crate) fn is_settle_timeout(message: &str) -> bool {
-    let message = message.to_ascii_lowercase();
-    message.contains("did not settle")
-        || message.contains("settle failed")
-        || message.contains("waiting for guider to settle")
+/// Whether a guider start or dither failed only because the guider did not
+/// settle in time, as opposed to finding no star or not starting at all.
+pub(crate) fn is_settle_timeout(error: &DeviceError) -> bool {
+    matches!(error, DeviceError::Timeout(_))
 }
 
 /// How a start of guiding on a fresh star ended when it did not fail.
@@ -150,7 +147,7 @@ pub(crate) async fn start_guiding_holding_on_settle_timeout(
     .await
     {
         Ok(()) => Ok(GuidingStarted::Settled),
-        Err(GuidingStartError::Start(message)) if is_settle_timeout(&message.to_string()) => {
+        Err(GuidingStartError::Start(error)) if is_settle_timeout(&error) => {
             match device_ops.guider_get_status().await {
                 Ok(status)
                     if status.is_guiding
@@ -158,13 +155,14 @@ pub(crate) async fn start_guiding_holding_on_settle_timeout(
                         && status.rms_total <= max_rms_pixels =>
                 {
                     let note = format!(
-                        "Guiding did not settle to {:.1} px within {:.0} s, but the guider holds                          the star at RMS {:.2} px (limit {:.1} px), so guiding carries on.",
+                        "Guiding did not settle to {:.1} px within {:.0} s, but the guider holds \
+                         the star at RMS {:.2} px (limit {:.1} px), so guiding carries on.",
                         settle.pixels, settle.timeout_secs, status.rms_total, max_rms_pixels
                     );
                     tracing::warn!("[GUIDING] {note}");
                     Ok(GuidingStarted::HeldWithoutSettling { note })
                 }
-                _ => Err(GuidingStartError::Start(message)),
+                _ => Err(GuidingStartError::Start(error)),
             }
         }
         Err(error) => Err(error),

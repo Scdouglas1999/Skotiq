@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanel, mosaicPanelName, mosaicPanelTargetName;
+
 import 'package:drift/drift.dart' show Value;
 
 import '../database/daos/images_dao.dart';
@@ -157,8 +160,8 @@ class MosaicProjectService {
 
     // Reuse the canonical spherical grid math (cos(dec) RA compression + PA
     // rotation). `MosaicConfig` uses `panelsHorizontal = cols`, `panelsVertical
-    // = rows`; its generated `MosaicPanel.panelIndex` is row-major 0-based,
-    // exactly the durable panel index.
+    // = rows`; a generated panel's capture-order `index` is the durable panel
+    // index.
     final config = MosaicConfig(
       centerRa: centerRa,
       centerDec: centerDec,
@@ -187,20 +190,20 @@ class MosaicProjectService {
       for (final panel in panels) {
         // Skip cells the user disabled in the wizard (e.g. a corner occluded by
         // trees). The grid geometry is unchanged, so surviving panels keep their
-        // canonical row-major panelIndex — the persisted panel_index set is
+        // capture-order index — the persisted panel_index set is
         // simply sparse, which the capture/integrate paths already tolerate.
         if (disabledCells.contains((row: panel.row, col: panel.col))) continue;
 
         // Each panel is a DISTINCT capture target. Honor a caller override when
         // it returns a non-null id; otherwise create a fresh per-panel target
         // centered on the panel so its subs are isolated for integration.
-        final overrideId = panelTargetId?.call(panel.panelIndex);
+        final overrideId = panelTargetId?.call(panel.index);
         final panelTarget =
             overrideId ??
             await _createPanelTarget(projectName: name, panel: panel);
         await _panelsDao.upsert(
           projectId: projectId,
-          panelIndex: panel.panelIndex,
+          panelIndex: panel.index,
           centerRa: panel.raHours,
           centerDec: panel.decDegrees,
           targetId: panelTarget,

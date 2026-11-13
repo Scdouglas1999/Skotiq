@@ -113,7 +113,7 @@ extension _ImagingServicePersistence on ImagingService {
       fileSize: drift.Value(fileSize),
       sessionId: drift.Value(sessionId),
       targetId: const drift.Value(null), // Link to target if available
-      frameType: drift.Value(exposureSettings.frameType.name),
+      frameType: drift.Value(exposureSettings.frameType.record),
       exposureDuration: drift.Value(exposureSettings.exposureTime),
       // A control the camera does not have (offset on a DSLR, gain on some
       // CCDs) records none, as the file's header does.

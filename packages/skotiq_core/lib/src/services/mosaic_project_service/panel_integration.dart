@@ -11,7 +11,7 @@ extension _MosaicPanelIntegration on MosaicProjectService {
     final baseName = projectName.trim().isEmpty ? 'Mosaic' : projectName.trim();
     return _targetsDao.createTarget(
       TargetsCompanion.insert(
-        name: '$baseName Panel ${panel.panelIndex + 1}',
+        name: mosaicPanelTargetName(baseName, panel.index),
         ra: panel.raHours,
         dec: panel.decDegrees,
         objectType: const Value('mosaic-panel'),
@@ -133,8 +133,8 @@ extension _MosaicPanelIntegration on MosaicProjectService {
         settings: settings,
         targetId: captureTargetId,
         targetName: project.name.isEmpty
-            ? 'Panel ${panel.panelIndex + 1}'
-            : '${project.name} Panel ${panel.panelIndex + 1}',
+            ? mosaicPanelName(panel.panelIndex)
+            : mosaicPanelTargetName(project.name, panel.panelIndex),
         // Each per-filter master MUST get a distinct file: the integration
         // service derives the preview/.png + rejection map from this path and
         // overwrites the FITS in place, so handing every filter group the same

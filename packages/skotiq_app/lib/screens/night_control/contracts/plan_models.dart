@@ -631,7 +631,7 @@ class UpcomingItemVm {
     this.moonIlluminationPct,
     this.moonRise,
     this.limitDeg,
-    this.tone = MetricTone.neutral,
+    this.tone = MetricGridTone.neutral,
     this.paused = false,
   });
 
@@ -666,8 +666,8 @@ class UpcomingItemVm {
   /// The altitude limit, for [UpcomingKind.targetLow].
   final double? limitDeg;
 
-  /// The meridian flip row is [MetricTone.warning] on the boards.
-  final MetricTone tone;
+  /// The meridian flip row is [MetricGridTone.warning] on the boards.
+  final MetricGridTone tone;
 
   /// The run is paused, so the time cannot be known ("Plan ends · paused").
   final bool paused;

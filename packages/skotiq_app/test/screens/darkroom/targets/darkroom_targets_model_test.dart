@@ -172,6 +172,21 @@ void main() {
     expect(normalizeDarkroomTargetName('ngc 0891'), 'NGC0891');
   });
 
+  test('a master named for M31 is not M3\'s', () async {
+    final dao = IntegratedMastersDao(owner.db);
+    final m31 = await dao.getById(
+      await dao.insertMaster(
+        name: 'M31 · Ha',
+        filter: 'Ha',
+        status: IntegratedMasterStatus.finalized,
+        accumulationMode: AccumulationMode.batch,
+      ),
+    );
+    expect(darkroomMasterBelongsTo(m31!, 'M3'), isFalse);
+    expect(darkroomMasterBelongsTo(m31, 'M31'), isTrue);
+    expect(darkroomMasterTargetName(m31, const {}), 'M31');
+  });
+
   test('the shared axis covers every night on even hours', () async {
     final t = await ngc891();
     final (lo, hi) = darkroomNightAxis(t.nights);

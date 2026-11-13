@@ -421,14 +421,12 @@ where
         .clone()
         .ok_or_else(|| PolarAlignError::DeviceError("No camera connected".to_string()))?;
 
-    let (observer_lat, observer_lon) = match (ctx.run.rig.latitude, ctx.run.rig.longitude) {
-        (Some(lat), Some(lon)) => (lat, lon),
-        _ => ctx
-            .run
-            .device_ops
-            .get_observer_location()
-            .ok_or(PolarAlignError::LocationMissing)?,
-    };
+    let (observer_lat, observer_lon) = ctx
+        .run
+        .rig
+        .latitude
+        .zip(ctx.run.rig.longitude)
+        .ok_or(PolarAlignError::LocationMissing)?;
 
     // Why: `config.binning` is `Option<i32>` — user-supplied
     // override. `None` means "use the all-sky polar default (2x2 binning)" —

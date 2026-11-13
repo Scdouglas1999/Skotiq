@@ -1,3 +1,5 @@
+import '../../models/imaging/imaging_models.dart' show FrameType;
+import '../../models/imaging/frame_type_record.dart';
 import 'package:drift/drift.dart';
 
 import '../database.dart';
@@ -92,7 +94,7 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
       ..addColumns([capturedImages.filter, count])
       ..where(
         capturedImages.targetId.equals(targetId) &
-            capturedImages.frameType.equals('light') &
+            capturedImages.frameTypeIs(FrameType.light) &
             capturedImages.isAccepted.equals(true),
       )
       ..groupBy([capturedImages.filter]);

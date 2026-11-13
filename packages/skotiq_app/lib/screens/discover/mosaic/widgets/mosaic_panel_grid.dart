@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:skotiq_astro/skotiq_astro.dart' show mosaicPanelName;
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -185,7 +186,7 @@ class _PanelTile extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Panel ${panel.panelIndex + 1}',
+                mosaicPanelName(panel.panelIndex),
                 style:
                     SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               ),
