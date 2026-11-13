@@ -10,9 +10,9 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
   /// snapshot consumers, and future replay subscribers see a consistent
   /// shape.
   ///
-  /// SkotiqEvents whose `eventType` is in the command-completion
-  /// table get their originating `correlatingCommandId` stamped from the
-  /// correlator on a best-effort basis.
+  /// An event that completes a command ([commandCompletionOf]) gets its
+  /// originating `correlatingCommandId` stamped from the correlator on a
+  /// best-effort basis.
   ///
   /// The replay buffer append is done BEFORE the early-return on empty
   /// sockets: SSE clients and the snapshot endpoint can still pick up
@@ -60,16 +60,18 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
     }
 
     _eventSeq += 1;
-    final operation = operationForCompletionEvent(base.eventType);
-    final deviceId = base.data['deviceId'] is String
-        ? base.data['deviceId'] as String
+    var correlatingCommandId = base.correlatingCommandId;
+    final completion = correlatingCommandId == null
+        ? commandCompletionOf(base)
         : null;
-    String? correlatingCommandId = base.correlatingCommandId;
-    if (correlatingCommandId == null && operation != null) {
-      correlatingCommandId = _commandCorrelator.stampEvent(
-        operation: operation,
-        deviceId: deviceId,
-      );
+    if (completion != null) {
+      for (final operation in completion.operations) {
+        correlatingCommandId = _commandCorrelator.stampEvent(
+          operation: operation,
+          deviceId: completion.deviceId,
+        );
+        if (correlatingCommandId != null) break;
+      }
     }
     return base.copyWith(
       seq: _eventSeq,

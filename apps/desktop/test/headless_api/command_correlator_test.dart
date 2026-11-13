@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/backend.dart' show wireEventFromTyped;
+import 'package:skotiq_core/bridge_events.dart' as sk;
+import 'package:skotiq_core/models.dart' show SkotiqEvent;
 import 'package:skotiq_desktop/headless_api/command_correlator.dart';
 
 /// UUID v4 canonical form. The 13th hex char (after two dashes) must be
@@ -299,59 +304,86 @@ void main() {
     });
   });
 
-  group('operationForCompletionEvent', () {
-    test('SlewComplete maps back to mount.slew', () {
-      // mount.slew is listed first in the table for this event type, and
-      // the function returns the first match — pin that.
-      expect(operationForCompletionEvent('SlewComplete'), 'mount.slew');
+  group('commandCompletionOf', () {
+    SkotiqEvent fromHost(sk.EventCategory category, sk.EventPayload payload) {
+      final wire = wireEventFromTyped(
+        sk.SkotiqEvent(
+          eventId: BigInt.zero,
+          timestamp: 0,
+          severity: sk.EventSeverity.info,
+          category: category,
+          payload: payload,
+        ),
+      );
+      // Through JSON, as the server receives a forwarded event.
+      return SkotiqEvent.fromWireJson(
+        jsonDecode(jsonEncode(wire.toJson())) as Map<String, dynamic>,
+      );
+    }
+
+    CommandCompletion? sequencer(sk.SequencerEvent event) => commandCompletionOf(
+      fromHost(sk.EventCategory.sequencer, sk.EventPayload.sequencer(event)),
+    );
+
+    test('the run lifecycle events a host sends complete their commands', () {
+      expect(
+        sequencer(const sk.SequencerEvent.started(sequenceName: 'n'))
+            ?.operations,
+        contains('sequencer.start'),
+      );
+      expect(
+        sequencer(const sk.SequencerEvent.paused())?.operations,
+        ['sequencer.pause'],
+      );
+      expect(
+        sequencer(const sk.SequencerEvent.resumed())?.operations,
+        ['sequencer.resume'],
+      );
+      expect(
+        sequencer(const sk.SequencerEvent.stopped())?.operations,
+        ['sequencer.stop'],
+      );
     });
 
-    test('ExposureCompleted maps back to camera.expose', () {
-      expect(operationForCompletionEvent('ExposureCompleted'), 'camera.expose');
+    test("the guider's pause completes no sequencer command", () {
+      expect(
+        commandCompletionOf(
+          fromHost(
+            sk.EventCategory.guiding,
+            const sk.EventPayload.guiding(sk.GuidingEvent.paused()),
+          ),
+        ),
+        isNull,
+      );
     });
 
-    test('unknown event types return null', () {
-      expect(operationForCompletionEvent('NotAKnownEvent'), isNull);
-      expect(operationForCompletionEvent(''), isNull);
+    test('a device event names the device it completes for', () {
+      final completion = commandCompletionOf(
+        fromHost(
+          sk.EventCategory.equipment,
+          const sk.EventPayload.equipment(
+            sk.EquipmentEvent.mountSlewCompleted(
+              deviceId: 'sim_mount_1',
+              ra: 1,
+              dec: 2,
+            ),
+          ),
+        ),
+      );
+      expect(completion?.operations.first, 'mount.slew');
+      expect(completion?.deviceId, 'sim_mount_1');
     });
 
-    test('the sequencer lifecycle names a host really emits resolve', () {
-      // The FFI event mapper emits BARE lifecycle names — see
-      // `skotiq_core/lib/src/backend/ffi_backend/event_mapping.dart`
-      // (`return ('Started', ...)`, `('Stopped', {})`, `('Completed', {})`) —
-      // and only the terminal failure is prefixed. A table carrying just the
-      // prefixed spellings stamps no sequencer command with its
-      // correlatingCommandId while /api/docs advertises that it does.
-      expect(operationForCompletionEvent('Started'), 'sequencer.start');
-      expect(operationForCompletionEvent('Completed'), 'sequencer.start');
-      expect(operationForCompletionEvent('SequenceFailed'), 'sequencer.start');
-      expect(operationForCompletionEvent('Stopped'), 'sequencer.stop');
-    });
-
-    test('guiding-ambiguous bare names are deliberately not claimed', () {
-      // `Paused` / `Resumed` are emitted by the guiding subsystem too, and
-      // resolution is by eventType alone, so claiming them would let a guider
-      // pause satisfy a pending sequencer.pause — a wrong "your command
-      // completed" is worse than no correlation at all.
-      expect(operationForCompletionEvent('Paused'), isNull);
-      expect(operationForCompletionEvent('Resumed'), isNull);
-    });
-
-    test('every key in commandCompletionEventTypes is reverse-resolvable', () {
-      // For each (operation, eventTypes) entry, every eventType must
-      // resolve to SOMETHING (the first key registering it, per the impl).
-      for (final entry in commandCompletionEventTypes.entries) {
-        for (final eventType in entry.value) {
-          final resolved = operationForCompletionEvent(eventType);
-          expect(
-            resolved,
-            isNotNull,
-            reason:
-                'eventType "$eventType" (declared by operation '
-                '"${entry.key}") did not reverse-resolve',
-          );
-        }
-      }
+    test('an event that completes nothing returns null', () {
+      expect(
+        sequencer(
+          const sk.SequencerEvent.nodeStarted(
+            nodeId: 'n',
+            nodeType: 'TakeExposure',
+          ),
+        ),
+        isNull,
+      );
     });
   });
 }

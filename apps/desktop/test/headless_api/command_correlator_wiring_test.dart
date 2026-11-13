@@ -23,6 +23,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/command_correlator.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
@@ -119,15 +120,17 @@ void main() {
       await post('/api/sequencer/start');
       expect(correlator.pendingCount, 1);
 
-      // `Completed` is the BARE spelling the sequencer actually emits on the wire.
-      final operation = operationForCompletionEvent('Completed');
-      expect(
-        operation,
-        'sequencer.start',
-        reason:
-            'the completion table must recognize the spelling the sequencer '
-            'really emits, not only the prefixed alias',
+      final completion = commandCompletionOf(
+        SkotiqEvent(
+          timestamp: 0,
+          severity: EventSeverity.info,
+          category: EventCategory.sequencer,
+          eventType: 'Completed',
+          data: const {},
+        ),
       );
+      final operation = completion?.operations.first;
+      expect(operation, 'sequencer.start');
 
       final stamped = correlator.stampEvent(operation: operation!);
       expect(
