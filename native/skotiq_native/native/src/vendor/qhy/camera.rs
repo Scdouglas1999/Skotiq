@@ -1,7 +1,7 @@
 //! `QhyCamera` state and the SDK reads and writes its trait methods share.
 
 use super::*;
-use crate::camera_core::SdkHandle;
+use crate::camera_core::{CameraCore, SdkHandle};
 
 /// A rectangle of sensor pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -12,83 +12,38 @@ pub(crate) struct Area {
     pub(crate) height: u32,
 }
 
-/// The exposure the camera is taking.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Exposure {
-    pub(crate) started: Instant,
-    pub(crate) seconds: f64,
-    /// `ExpQHYCCDSingleFrame` answered QHYCCD_READ_DIRECTLY: the frame is to
-    /// be read at once and the read waits out the exposure.
-    pub(crate) read_directly: bool,
-}
-
-impl Exposure {
-    pub(crate) fn remaining_secs(&self) -> f64 {
-        (self.seconds - self.started.elapsed().as_secs_f64()).max(0.0)
-    }
-}
-
 #[derive(Debug)]
 pub struct QhyCamera {
+    /// The id the SDK lists the camera under (`GetQHYCCDId`), which is also
+    /// its name.
     pub(crate) camera_id: String,
-    pub(crate) device_id: String,
+    pub(crate) core: CameraCore,
     pub(crate) handle: Option<QhyCamHandle>,
-    pub(crate) connected: bool,
 
     /// The imaging area (`GetQHYCCDEffectiveArea`) in unbinned pixels. Frames
     /// cover it and leave out the overscan border, as INDI and NINA do by
     /// default; a subframe is placed inside it.
     pub(crate) sensor_area: Area,
-    pub(crate) pixel_width: f64,
-    pub(crate) pixel_height: f64,
-    /// `GetQHYCCDChipInfo`'s `bpp`: the container width before connect forces 16 bits.
-    pub(crate) bits_per_pixel: u32,
-
-    /// Transfer/container depth in force (8 or 16), the width of the samples
-    /// `GetQHYCCDSingleFrame` writes.
-    pub(crate) output_container_bits: u32,
-    /// ADC precision from `GetQHYCCDParam(OutputDataActualBits)`, or `None`
-    /// when the camera does not report it.
-    pub(crate) actual_output_bits: Option<u32>,
-    /// `GetQHYCCDParam(OutputDataAlignment)`: 1 = high alignment, 0 = low.
-    /// High when the camera does not say (see [`container_max_adu`]).
-    pub(crate) output_high_aligned: bool,
-
-    pub(crate) current_bin: i32,
-    pub(crate) subframe: Option<SubFrame>,
     pub(crate) supported_bins: Vec<i32>,
-    pub(crate) current_gain: i32,
-    pub(crate) current_offset: i32,
-    /// Whether Skotiq set the gain or offset itself; those values are put back
-    /// after a read-mode change re-initializes the camera.
-    pub(crate) gain_written: bool,
-    pub(crate) offset_written: bool,
     pub(crate) gain_range: Option<(f64, f64)>,
     pub(crate) offset_range: Option<(f64, f64)>,
     /// `CONTROL_EXPOSURE` limits in microseconds.
     pub(crate) exposure_range_us: Option<(f64, f64)>,
     pub(crate) read_mode_name: Option<String>,
 
-    pub(crate) exposure: Option<Exposure>,
-    /// Seconds of the exposure in progress or last taken.
-    pub(crate) exposure_secs: f64,
+    /// `ExpQHYCCDSingleFrame` answered QHYCCD_READ_DIRECTLY for the exposure
+    /// in progress: the frame is to be read at once and the read waits out
+    /// the exposure.
+    pub(crate) read_directly: bool,
 
-    pub(crate) has_cooler: bool,
     pub(crate) has_manual_pwm: bool,
     /// Full-scale `CONTROL_MANULPWM` (255 on every camera INDI and NINA met).
     pub(crate) pwm_max: f64,
     pub(crate) has_thermometer: bool,
-    pub(crate) has_shutter: bool,
-    pub(crate) has_st4_port: bool,
-    pub(crate) is_color: bool,
-    /// The color filter at the imaging area's first pixel.
-    pub(crate) bayer_pattern: Option<BayerPattern>,
 
     // The QHY SDK has no register to read the cooler switch or set-point back
-    // (CONTROL_COOLER is the set-point to write, not an on/off flag), so both
-    // are this connection's last command, unknown before one.
-    pub(crate) cooler_on: Option<bool>,
-    pub(crate) cooler_target_c: Option<f64>,
+    // (CONTROL_COOLER is the set-point to write, not an on/off flag), so the
+    // core's cooler state only ever holds this connection's last command.
     pub(crate) keepalive: CoolerKeepalive,
 }
 
@@ -113,55 +68,54 @@ impl QhyCamera {
     }
 
     pub fn new(camera_id: String) -> Self {
-        let device_id = format!("native:qhy:{}", camera_id);
-        Self {
+        let mut core = CameraCore::new(format!("native:qhy:{}", camera_id), camera_id.clone());
+        // Before connect: the 16-bit container connect is about to ask for,
+        // ADC precision unknown.
+        core.sensor_info.max_adu = container_max_adu(16, None, true);
+        core.sensor_info.bit_depth = 16;
+        let mut camera = Self {
             camera_id,
-            device_id,
+            core,
             handle: None,
-            connected: false,
             sensor_area: Area {
                 x: 0,
                 y: 0,
                 width: 0,
                 height: 0,
             },
-            pixel_width: 0.0,
-            pixel_height: 0.0,
-            bits_per_pixel: 16,
-            output_container_bits: 16,
-            actual_output_bits: None,
-            output_high_aligned: true,
-            current_bin: 1,
-            subframe: None,
             supported_bins: vec![1],
-            current_gain: 0,
-            current_offset: 0,
-            gain_written: false,
-            offset_written: false,
             gain_range: None,
             offset_range: None,
             exposure_range_us: None,
             read_mode_name: None,
-            exposure: None,
-            exposure_secs: 0.0,
-            has_cooler: false,
+            read_directly: false,
             has_manual_pwm: false,
             pwm_max: 255.0,
             has_thermometer: false,
-            has_shutter: false,
-            has_st4_port: false,
-            is_color: false,
-            bayer_pattern: None,
-            cooler_on: None,
-            cooler_target_c: None,
             keepalive: CoolerKeepalive::default(),
-        }
+        };
+        camera.publish_capabilities(false, false, false);
+        camera
+    }
+
+    fn publish_capabilities(&mut self, can_cool: bool, has_shutter: bool, has_guider_port: bool) {
+        let max_bin = self.supported_bins.iter().copied().max().unwrap_or(1);
+        self.core.capabilities = CameraCapabilities {
+            can_cool,
+            can_set_gain: true,
+            can_set_offset: true,
+            can_set_binning: max_bin > 1,
+            can_subframe: true,
+            has_shutter,
+            has_guider_port,
+            max_bin_x: max_bin,
+            max_bin_y: max_bin,
+            supports_readout_modes: true,
+        };
     }
 
     pub(crate) fn connected_handle(&self) -> Result<QhyCamHandle, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
         self.handle.ok_or(DriverError::NotConnected)
     }
 
@@ -236,9 +190,6 @@ impl QhyCamera {
             )
         };
         check_qhy_error(result, "report its sensor size")?;
-        self.pixel_width = pixel_w;
-        self.pixel_height = pixel_h;
-        self.bits_per_pixel = bpp;
 
         // The effective area depends on the binning, so read it at 1x1 (NINA).
         // SAFETY: as above.
@@ -266,7 +217,9 @@ impl QhyCamera {
 
         // SAFETY: as above; 16 is a documented bit depth.
         let bits_result = unsafe { (sdk.set_qhyccd_bits_mode)(handle, 16) };
-        self.output_container_bits = if bits_result == QHYCCD_SUCCESS {
+        // The transfer depth in force (8 or 16): the width of the samples
+        // `GetQHYCCDSingleFrame` writes.
+        let container_bits = if bits_result == QHYCCD_SUCCESS {
             16
         } else {
             tracing::warn!(
@@ -277,10 +230,10 @@ impl QhyCamera {
             );
             bpp
         };
-        self.actual_output_bits = self.probe_output_data_actual_bits(sdk);
-        self.output_high_aligned = self.probe_output_data_high_aligned(sdk);
+        let actual_bits = self.probe_output_data_actual_bits(sdk);
+        let high_aligned = self.probe_output_data_high_aligned(sdk);
 
-        self.has_cooler = self.available(sdk, QhyControl::CONTROL_COOLER);
+        let can_cool = self.available(sdk, QhyControl::CONTROL_COOLER);
         self.has_manual_pwm = self.available(sdk, QhyControl::CONTROL_MANULPWM);
         self.pwm_max = self
             .range(sdk, QhyControl::CONTROL_MANULPWM)
@@ -288,9 +241,9 @@ impl QhyCamera {
             .filter(|max| *max > 0.0)
             .unwrap_or(255.0);
         self.has_thermometer = self.available(sdk, QhyControl::CONTROL_CURTEMP);
-        self.has_shutter =
+        let has_shutter =
             self.available(sdk, QhyControl::CAM_MECHANICALSHUTTER) && sdk.control_shutter.is_some();
-        self.has_st4_port = self.available(sdk, QhyControl::CONTROL_ST4PORT);
+        let has_guider_port = self.available(sdk, QhyControl::CONTROL_ST4PORT);
         self.supported_bins = [
             (1, QhyControl::CAM_BIN1X1MODE),
             (2, QhyControl::CAM_BIN2X2MODE),
@@ -310,9 +263,8 @@ impl QhyCamera {
         // SAFETY: as above.
         let bayer_id =
             unsafe { (sdk.is_qhyccd_control_available)(handle, QhyControl::CAM_COLOR as c_int) };
-        self.bayer_pattern = bayer_from_id(bayer_id);
-        self.is_color = self.bayer_pattern.is_some();
-        if self.is_color {
+        let bayer_pattern = bayer_from_id(bayer_id);
+        if bayer_pattern.is_some() {
             if let Some(set_debayer) = sdk.set_debayer {
                 // The raw mosaic is what Skotiq stores and debayers itself (NINA).
                 // SAFETY: as above.
@@ -327,9 +279,25 @@ impl QhyCamera {
             }
         }
 
+        self.publish_capabilities(can_cool, has_shutter, has_guider_port);
+        self.core.sensor_info = SensorInfo {
+            width: self.sensor_area.width,
+            height: self.sensor_area.height,
+            pixel_size_x: pixel_w,
+            pixel_size_y: pixel_h,
+            // `max_adu` is the pixel-container full scale and `bit_depth` the
+            // ADC precision, two different SDK queries; see [`container_max_adu`].
+            max_adu: container_max_adu(container_bits, actual_bits, high_aligned),
+            bit_depth: actual_bits.unwrap_or(bpp),
+            color: bayer_pattern.is_some(),
+            bayer_pattern,
+            saturation_adu: None,
+        };
+
         self.read_mode_name = self.current_read_mode_name(sdk);
-        self.current_bin = 1;
-        self.subframe = None;
+        self.core.bin_x = 1;
+        self.core.bin_y = 1;
+        self.core.subframe = None;
         self.apply_roi(sdk, 1, None)?;
         Ok(())
     }
@@ -338,8 +306,8 @@ impl QhyCamera {
     /// offset: put back the ones Skotiq set and take the camera's for the
     /// rest, so status and frame headers name the values in use.
     pub(crate) fn settle_gain_and_offset(&mut self, sdk: &QhySdk) -> Result<(), DriverError> {
-        if self.gain_written {
-            let gain = self.current_gain;
+        if self.core.gain_commanded {
+            let gain = self.core.gain;
             self.write(
                 sdk,
                 QhyControl::CONTROL_GAIN,
@@ -347,10 +315,10 @@ impl QhyCamera {
                 &format!("keep the gain {gain} in the new read mode"),
             )?;
         } else if let Some(gain) = self.read(sdk, QhyControl::CONTROL_GAIN) {
-            self.current_gain = gain as i32;
+            self.core.gain = gain as i32;
         }
-        if self.offset_written {
-            let offset = self.current_offset;
+        if self.core.offset_commanded {
+            let offset = self.core.offset;
             self.write(
                 sdk,
                 QhyControl::CONTROL_OFFSET,
@@ -358,7 +326,7 @@ impl QhyCamera {
                 &format!("keep the offset {offset} in the new read mode"),
             )?;
         } else if let Some(offset) = self.read(sdk, QhyControl::CONTROL_OFFSET) {
-            self.current_offset = offset as i32;
+            self.core.offset = offset as i32;
         }
         Ok(())
     }
@@ -411,14 +379,15 @@ impl QhyCamera {
     ) -> Result<Area, DriverError> {
         let handle = self.handle.ok_or(DriverError::NotConnected)?;
         let window = readout_window(self.sensor_area, bin, subframe)?;
-        if bin != self.current_bin {
+        if bin != self.core.bin_x {
             let bin_u = bin as c_uint;
             bin_mode_result(
                 // SAFETY: as in `available`; `bin` was checked to be a supported factor.
                 unsafe { (sdk.set_qhyccd_binmode)(handle, bin_u, bin_u) },
                 bin,
             )?;
-            self.current_bin = bin;
+            self.core.bin_x = bin;
+            self.core.bin_y = bin;
         }
         // SAFETY: as in `available`; the window lies inside the binned sensor.
         let result = unsafe {
@@ -431,7 +400,7 @@ impl QhyCamera {
                 window.width, window.height, window.x, window.y
             ),
         )?;
-        self.subframe = subframe.cloned();
+        self.core.subframe = subframe.cloned();
         Ok(window)
     }
 
@@ -463,7 +432,7 @@ impl QhyCamera {
     }
 
     pub(crate) fn cooler_power(&self, sdk: &QhySdk) -> Option<f64> {
-        if !self.has_cooler {
+        if !self.core.capabilities.can_cool {
             return None;
         }
         self.read(sdk, QhyControl::CONTROL_CURPWM)

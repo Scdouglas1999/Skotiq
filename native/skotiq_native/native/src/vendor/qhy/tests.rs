@@ -80,18 +80,9 @@ fn container_max_adu_unpopulated_container_width_falls_back_to_sixteen() {
 /// the full container ceiling, never 0.
 #[test]
 fn new_camera_publishes_the_container_ceiling_before_probing() {
-    let cam = QhyCamera::new("test".to_string());
-    assert_eq!(cam.output_container_bits, 16);
-    assert_eq!(cam.actual_output_bits, None);
-    assert!(cam.output_high_aligned);
-    assert_eq!(
-        container_max_adu(
-            cam.output_container_bits,
-            cam.actual_output_bits,
-            cam.output_high_aligned
-        ),
-        65535
-    );
+    let info = QhyCamera::new("test".to_string()).get_sensor_info();
+    assert_eq!(info.max_adu, 65535);
+    assert_eq!(info.bit_depth, 16);
 }
 
 /// The ceiling must agree with the pipeline's own saturation threshold
@@ -116,8 +107,8 @@ fn container_max_adu_agrees_with_pipeline_saturation_threshold() {
 #[tokio::test]
 async fn set_cooler_propagates_sdk_failure_without_mutating_state() {
     let mut cam = QhyCamera::new("TEST-NO-SDK".to_string());
-    cam.connected = true;
-    cam.has_cooler = true;
+    cam.core.connected = true;
+    cam.core.capabilities.can_cool = true;
     // handle is None and the QHY SDK is not loaded in tests, so
     // set_control_async fails at QhySdk::lock() with SdkNotInstalled.
 
@@ -129,12 +120,9 @@ async fn set_cooler_propagates_sdk_failure_without_mutating_state() {
 
     // State must not have advanced.
     assert_eq!(
-        cam.cooler_on, None,
-        "cooler_on must stay unknown after a failed set_cooler"
-    );
-    assert_eq!(
-        cam.cooler_target_c, None,
-        "cooler_target_c must remain unset after a failed set_cooler"
+        cam.core.cooler(),
+        crate::camera_core::CoolerState::UNKNOWN,
+        "the cooler must stay unknown after a failed set_cooler"
     );
 }
 
@@ -147,8 +135,7 @@ async fn set_cooler_rejects_disconnected_camera() {
 
     let result = cam.set_cooler(true, Some(-10.0)).await;
     assert!(matches!(result, Err(DriverError::NotConnected)));
-    assert_eq!(cam.cooler_on, None);
-    assert_eq!(cam.cooler_target_c, None);
+    assert_eq!(cam.core.cooler(), crate::camera_core::CoolerState::UNKNOWN);
 }
 
 /// Guard rail: set_cooler on a camera without a cooler must return
@@ -156,13 +143,12 @@ async fn set_cooler_rejects_disconnected_camera() {
 #[tokio::test]
 async fn set_cooler_rejects_camera_without_cooler() {
     let mut cam = QhyCamera::new("TEST-NO-COOLER".to_string());
-    cam.connected = true;
+    cam.core.connected = true;
     // has_cooler stays false (e.g. a non-cooled QHY model).
 
     let result = cam.set_cooler(true, Some(-10.0)).await;
     assert!(matches!(result, Err(DriverError::NotSupported)));
-    assert_eq!(cam.cooler_on, None);
-    assert_eq!(cam.cooler_target_c, None);
+    assert_eq!(cam.core.cooler(), crate::camera_core::CoolerState::UNKNOWN);
 }
 
 #[test]
