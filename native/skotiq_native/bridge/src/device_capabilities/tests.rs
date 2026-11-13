@@ -4,7 +4,6 @@ use crate::device_capabilities::cache::{
     capability_cache, invalidate_capability_cache, invalidate_capability_cache_for_device,
 };
 use crate::device_capabilities::get_device_capabilities;
-use crate::device_capabilities::indi::{indi_readout_mode_label, indi_sensor_type_is_color};
 use crate::device_capabilities::types::{
     CameraCapabilities, CameraRecommendedSettings, DeviceCapabilities, MountCapabilities,
     RotatorCapabilities,
@@ -44,30 +43,6 @@ async fn register_native_test_device(id: &str, device_type: crate::device::Devic
         },
     );
     invalidate_capability_cache_for_device(id).await;
-}
-
-#[test]
-fn indi_sensor_type_color_detection_is_conservative() {
-    assert!(indi_sensor_type_is_color("COLOR"));
-    assert!(indi_sensor_type_is_color("Bayer RGGB"));
-    assert!(indi_sensor_type_is_color("OSC"));
-    assert!(!indi_sensor_type_is_color("MONOCHROME"));
-    assert!(!indi_sensor_type_is_color("CCD_SENSOR_MONO"));
-}
-
-#[test]
-fn indi_readout_mode_label_falls_back_to_element_name() {
-    let labeled = skotiq_indi::IndiReadoutMode {
-        element: "MODE_0".to_string(),
-        label: "High Gain".to_string(),
-    };
-    let unlabeled = skotiq_indi::IndiReadoutMode {
-        element: "MODE_1".to_string(),
-        label: String::new(),
-    };
-
-    assert_eq!(indi_readout_mode_label(&labeled), "High Gain");
-    assert_eq!(indi_readout_mode_label(&unlabeled), "MODE_1");
 }
 
 #[tokio::test]

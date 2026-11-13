@@ -98,6 +98,38 @@ pub struct MountReadings {
     pub can_set_tracking_rate: bool,
 }
 
+/// What a connected mount can do: what holds for the connection, as opposed
+/// to its state now.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct MountDescription {
+    pub can_slew: bool,
+    pub can_slew_async: bool,
+    pub can_sync: bool,
+    pub can_park: bool,
+    pub can_unpark: bool,
+    /// Whether the current position can be stored as the park position.
+    pub can_set_park: bool,
+    pub can_find_home: bool,
+    pub can_pulse_guide: bool,
+    /// Whether tracking can be switched on and off.
+    pub can_set_tracking: bool,
+    /// The rates [`crate::MountDriver::set_tracking_rate`] takes; empty when
+    /// the rate cannot be set.
+    pub tracking_rates: Vec<TrackingRate>,
+    pub can_get_side_of_pier: bool,
+    pub is_equatorial: bool,
+    pub supports_alt_az: bool,
+    pub can_abort_slew: bool,
+    pub can_move_axis: bool,
+    pub axis_count: u32,
+    /// The fastest slew rate the mount publishes, in its own unit.
+    pub max_slew_rate: Option<f64>,
+    /// The guide pulse lengths the mount accepts, in milliseconds, when it
+    /// publishes them.
+    pub min_pulse_guide_ms: Option<f64>,
+    pub max_pulse_guide_ms: Option<f64>,
+}
+
 /// Which of site and clock a mount lets a driver read and write.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MountSiteAbilities {

@@ -526,9 +526,12 @@ impl skotiq_device::MountDriver for TraceMount {
         self.saw("can_pulse_guide");
         true
     }
-    async fn can_set_tracking_rate(&self) -> bool {
-        self.saw("can_set_tracking_rate");
-        true
+    async fn tracking_rates(&self) -> Vec<skotiq_device::TrackingRate> {
+        self.saw("tracking_rates");
+        vec![
+            skotiq_device::TrackingRate::Sidereal,
+            skotiq_device::TrackingRate::Lunar,
+        ]
     }
     async fn get_side_of_pier(
         &self,

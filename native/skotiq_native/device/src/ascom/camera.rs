@@ -1,13 +1,14 @@
 //! What the ICameraV4 members mean, decided once for both ASCOM transports.
 //!
 //! The COM wrapper (`bridge/src/ascom_wrapper/camera.rs`) and the Alpaca
-//! camera path (`bridge/src/device_manager/rig/camera/alpaca.rs`) read and write the
-//! same members; the rules here say how a request becomes member values and
+//! camera driver (`alpaca/src/camera_driver.rs`) read and write the same
+//! members; the rules here say how a request becomes member values and
 //! how member values become what Skotiq reports, so the two cannot drift.
 //! References: ASCOM Master Interfaces 1.1.0 (ICameraV4) and ConformU's
 //! `CameraTester.cs`.
 
-use crate::{DriverError, FrameType, SubFrame};
+use crate::ascom::sensor_type::{bayer_pattern_from_sensor, is_colour_sensor};
+use crate::{DriverError, FrameType, SensorInfo, SubFrame};
 
 /// The `Light` argument of `StartExposure`: false for frames taken with the
 /// shutter closed. A camera without a shutter ignores it, and only a dark
@@ -292,9 +293,113 @@ pub fn frame_geometry(
     })
 }
 
+/// The sensor the ICameraV4 members describe. `MaxADU` is the pixel
+/// container's full scale, and a driver that reports 0 gave no usable range,
+/// which reads as the 16-bit ceiling. ICameraV4 has no bit depth: it is the
+/// container `MaxADU` fits in. Colour and Bayer order come from `SensorType`
+/// and the Bayer offsets (see [`crate::ascom::sensor_type`]); an unreadable
+/// `SensorType` reads monochrome.
+pub struct SensorMembers {
+    pub camera_x_size: i32,
+    pub camera_y_size: i32,
+    pub pixel_size_x: Option<f64>,
+    pub pixel_size_y: Option<f64>,
+    pub max_adu: i32,
+    pub sensor_type: Option<i32>,
+    pub bayer_offset_x: Option<i32>,
+    pub bayer_offset_y: Option<i32>,
+}
+
+impl SensorMembers {
+    pub fn sensor_info(&self) -> SensorInfo {
+        let max_adu = match u32::try_from(self.max_adu) {
+            Ok(0) | Err(_) => u32::from(u16::MAX),
+            Ok(max_adu) => max_adu,
+        };
+        let sensor_type = self.sensor_type.unwrap_or(0);
+        SensorInfo {
+            width: u32::try_from(self.camera_x_size).unwrap_or(0),
+            height: u32::try_from(self.camera_y_size).unwrap_or(0),
+            pixel_size_x: self.pixel_size_x.unwrap_or(0.0),
+            pixel_size_y: self.pixel_size_y.unwrap_or(0.0),
+            max_adu,
+            bit_depth: if max_adu > u32::from(u16::MAX) {
+                32
+            } else if max_adu > u32::from(u8::MAX) {
+                16
+            } else {
+                8
+            },
+            color: is_colour_sensor(sensor_type),
+            bayer_pattern: bayer_pattern_from_sensor(
+                sensor_type,
+                self.bayer_offset_x,
+                self.bayer_offset_y,
+            ),
+            saturation_adu: None,
+        }
+    }
+}
+
+/// The exposure a frame records: `LastExposureDuration` when the camera
+/// reports one, else the time the exposure was started with. A camera that
+/// answers 0 (some do before their first frame) has not reported one.
+pub fn recorded_exposure_seconds(last_exposure_duration: Option<f64>, commanded: Option<f64>) -> f64 {
+    last_exposure_duration
+        .filter(|seconds| *seconds > 0.0)
+        .or(commanded)
+        .unwrap_or(0.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_frame_records_the_reported_exposure_or_else_the_commanded_one() {
+        assert_eq!(recorded_exposure_seconds(Some(30.2), Some(30.0)), 30.2);
+        assert_eq!(recorded_exposure_seconds(None, Some(30.0)), 30.0);
+        assert_eq!(recorded_exposure_seconds(Some(0.0), Some(30.0)), 30.0);
+        assert_eq!(recorded_exposure_seconds(None, None), 0.0);
+    }
+
+    fn members(max_adu: i32, sensor_type: Option<i32>, offsets: (Option<i32>, Option<i32>)) -> SensorMembers {
+        SensorMembers {
+            camera_x_size: 4144,
+            camera_y_size: 2822,
+            pixel_size_x: Some(4.63),
+            pixel_size_y: Some(4.63),
+            max_adu,
+            sensor_type,
+            bayer_offset_x: offsets.0,
+            bayer_offset_y: offsets.1,
+        }
+    }
+
+    #[test]
+    fn a_colour_sensor_names_the_bayer_order_its_offsets_give() {
+        let sensor = members(65535, Some(2), (Some(1), Some(1))).sensor_info();
+        assert!(sensor.color);
+        assert_eq!(sensor.bayer_pattern, Some(crate::BayerPattern::Bggr));
+        assert_eq!((sensor.max_adu, sensor.bit_depth), (65535, 16));
+        assert_eq!((sensor.width, sensor.height, sensor.pixel_size_x), (4144, 2822, 4.63));
+    }
+
+    #[test]
+    fn an_unreadable_sensor_type_reads_monochrome() {
+        let sensor = members(4095, None, (Some(0), Some(0))).sensor_info();
+        assert!(!sensor.color);
+        assert_eq!(sensor.bayer_pattern, None);
+        assert_eq!((sensor.max_adu, sensor.bit_depth), (4095, 16));
+    }
+
+    #[test]
+    fn a_max_adu_of_zero_is_the_16_bit_ceiling() {
+        let sensor = members(0, Some(0), (None, None)).sensor_info();
+        assert_eq!((sensor.max_adu, sensor.bit_depth), (65535, 16));
+        assert_eq!(members(255, Some(0), (None, None)).sensor_info().bit_depth, 8);
+        assert_eq!(members(1 << 20, Some(0), (None, None)).sensor_info().bit_depth, 32);
+    }
 
     fn names(list: &[&str]) -> Probe<Vec<String>> {
         Probe::Value(list.iter().map(|s| s.to_string()).collect())

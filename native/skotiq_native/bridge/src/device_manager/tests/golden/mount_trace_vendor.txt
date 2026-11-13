@@ -25,7 +25,7 @@
   can_slew
   can_sync
   can_pulse_guide
-  can_set_tracking_rate
+  tracking_rates
 < ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=5.5 dec=22.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Sidereal) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
 > coordinates
   get_coordinates
@@ -64,7 +64,7 @@
   can_slew
   can_sync
   can_pulse_guide
-  can_set_tracking_rate
+  tracking_rates
   set_tracking true
   slew_to_coordinates 6.3 35.0
 < ok ()
@@ -81,7 +81,7 @@
   can_slew
   can_sync
   can_pulse_guide
-  can_set_tracking_rate
+  tracking_rates
 < ok "tracking=true slewing=false parked=false at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Lunar) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
 > abort
   abort_slew
@@ -99,7 +99,7 @@
   can_slew
   can_sync
   can_pulse_guide
-  can_set_tracking_rate
+  tracking_rates
   sync_to_coordinates 6.3 35.0
 < ok ()
 > pulse north 60 ms
@@ -133,7 +133,7 @@
   can_slew
   can_sync
   can_pulse_guide
-  can_set_tracking_rate
+  tracking_rates
   find_home
 < ok ()
 > set_site
@@ -156,7 +156,7 @@
   can_slew
   can_sync
   can_pulse_guide
-  can_set_tracking_rate
+  tracking_rates
   set_park
 < ok ()
 > park
@@ -175,7 +175,7 @@
   can_slew
   can_sync
   can_pulse_guide
-  can_set_tracking_rate
+  tracking_rates
 < ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Lunar) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
 > disconnect
   disconnect

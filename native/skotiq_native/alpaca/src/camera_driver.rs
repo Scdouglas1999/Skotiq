@@ -5,22 +5,28 @@
 
 use crate::{AlpacaCamera, AlpacaError};
 use async_trait::async_trait;
-use skotiq_device::ascom::camera::{cooler_setpoint_to_write, exposes_to_light, frame_geometry};
+use skotiq_device::ascom::camera::{
+    cooler_setpoint_to_write, exposes_to_light, frame_geometry, recorded_exposure_seconds,
+    SensorMembers,
+};
 use skotiq_device::ascom::sensor_type::{
     bayer_pattern_from_sensor, has_nameable_bayer_order, warn_debayer_skip_once,
 };
 use skotiq_device::{
-    CameraCapabilities, CameraDriver, CameraReport, CameraState, CameraStatus, DeviceDriver,
-    DriverError, ExposureParams, ImageData, ImageMetadata, ReadoutMode, SensorInfo, SubFrame,
-    Vendor, VendorFeatures, UNKNOWN_CAMERA_SETTING,
+    CameraCapabilities, CameraDescription, CameraDriver, CameraReport, CameraState, CameraStatus,
+    DeviceDriver, DriverError, ExposureParams, ImageData, ImageMetadata, ReadoutMode, SensorInfo,
+    SubFrame, Vendor, VendorFeatures, UNKNOWN_CAMERA_SETTING,
 };
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// A connected Alpaca camera. A clone is the same camera.
 #[derive(Clone)]
 pub struct AlpacaCameraDriver {
     camera: Arc<AlpacaCamera>,
     id: String,
+    /// Seconds the exposure in progress or last taken was started with,
+    /// for a frame whose camera does not report `LastExposureDuration`.
+    commanded_seconds: Arc<Mutex<Option<f64>>>,
 }
 
 impl AlpacaCameraDriver {
@@ -34,11 +40,46 @@ impl AlpacaCameraDriver {
         Self {
             camera: Arc::new(camera),
             id,
+            commanded_seconds: Arc::default(),
         }
     }
 
     pub fn camera(&self) -> &AlpacaCamera {
         &self.camera
+    }
+
+    /// The members that describe the sensor. The size and `MaxADU` are
+    /// mandatory; the rest a camera may not have.
+    async fn sensor(&self) -> Result<SensorInfo, AlpacaError> {
+        let camera = &self.camera;
+        let (x, y, max_adu, pixel_x, pixel_y, sensor_type, offset_x, offset_y) = tokio::join!(
+            camera.camera_x_size(),
+            camera.camera_y_size(),
+            camera.max_adu(),
+            camera.pixel_size_x(),
+            camera.pixel_size_y(),
+            camera.sensor_type(),
+            camera.bayer_offset_x(),
+            camera.bayer_offset_y(),
+        );
+        Ok(SensorMembers {
+            camera_x_size: x?,
+            camera_y_size: y?,
+            max_adu: max_adu?,
+            pixel_size_x: pixel_x.ok(),
+            pixel_size_y: pixel_y.ok(),
+            sensor_type: sensor_type.ok(),
+            bayer_offset_x: offset_x.ok(),
+            bayer_offset_y: offset_y.ok(),
+        }
+        .sensor_info())
+    }
+
+    /// The name of the read mode in force, for a camera that lists its modes.
+    async fn readout_mode_name(&self) -> Option<String> {
+        let (mode, modes) = tokio::join!(self.camera.readout_mode(), self.camera.readout_modes());
+        let mode = usize::try_from(mode.ok()?).ok()?;
+        modes.ok()?.into_iter().nth(mode)
     }
 }
 
@@ -98,7 +139,7 @@ impl DeviceDriver for AlpacaCameraDriver {
 
 #[async_trait]
 impl CameraDriver for AlpacaCameraDriver {
-    /// Not known without asking the server; see `report`.
+    /// Not kept; see `describe`.
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities::default()
     }
@@ -124,17 +165,14 @@ impl CameraDriver for AlpacaCameraDriver {
             .get_status()
             .await
             .map_err(|e| failed("read Alpaca camera status", e))?;
-        let capabilities = camera
-            .get_capabilities()
-            .await
-            .map_err(|e| failed("read Alpaca camera capabilities", e))?;
-        let sensor = camera
-            .get_sensor_info()
+        let can_cool = camera.can_set_ccd_temperature().await.unwrap_or(false);
+        let sensor = self
+            .sensor()
             .await
             .map_err(|e| failed("read Alpaca camera sensor info", e))?;
         let controls = camera.controls().await;
         let (gain, offset, setpoint) = tokio::join!(camera.gain(), camera.offset(), async {
-            if capabilities.can_set_ccd_temperature {
+            if can_cool {
                 camera.ccd_temperature_setpoint().await.ok()
             } else {
                 None
@@ -162,16 +200,8 @@ impl CameraDriver for AlpacaCameraDriver {
                 bin_y: status.bin_y,
                 exposure_remaining: None,
             },
-            sensor: SensorInfo {
-                // Why: ASCOM sizes and MaxADU are non-negative i32.
-                width: sensor.camera_x_size as u32,
-                height: sensor.camera_y_size as u32,
-                pixel_size_x: sensor.pixel_size_x,
-                pixel_size_y: sensor.pixel_size_y,
-                max_adu: sensor.max_adu as u32,
-                ..SensorInfo::default()
-            },
-            can_cool: capabilities.can_set_ccd_temperature,
+            sensor,
+            can_cool,
             can_set_gain: controls.gain.is_present(),
             can_set_offset: controls.offset.is_present(),
         })
@@ -179,6 +209,49 @@ impl CameraDriver for AlpacaCameraDriver {
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         Ok(self.report().await?.status)
+    }
+
+    /// Every `CanXxx` member and the bin limits are optional: an unanswered
+    /// one reads as the feature absent. ICameraV4 has no set-point limits.
+    async fn describe(&self) -> CameraDescription {
+        let camera = &self.camera;
+        let controls = camera.controls().await;
+        let sensor = self.sensor().await.unwrap_or_else(|e| {
+            tracing::warn!("Alpaca camera {} did not describe its sensor: {e}", self.id);
+            SensorInfo::default()
+        });
+        let max_bin_x = camera.max_bin_x().await.unwrap_or(1);
+        let max_bin_y = camera.max_bin_y().await.unwrap_or(1);
+        let readout_modes = self.get_readout_modes().await.unwrap_or_default();
+        let exposure_range = match (camera.exposure_min().await, camera.exposure_max().await) {
+            (Ok(min), Ok(max)) => Some((min, max)),
+            _ => None,
+        };
+        CameraDescription {
+            capabilities: CameraCapabilities {
+                can_cool: camera.can_set_ccd_temperature().await.unwrap_or(false),
+                can_set_gain: controls.gain.is_present(),
+                can_set_offset: controls.offset.is_present(),
+                can_set_binning: max_bin_x > 1 || max_bin_y > 1,
+                can_subframe: true,
+                has_shutter: camera.has_shutter().await.unwrap_or(false),
+                has_guider_port: false,
+                max_bin_x,
+                max_bin_y,
+                supports_readout_modes: !readout_modes.is_empty(),
+            },
+            sensor,
+            gain_range: controls.gain.range(),
+            offset_range: controls.offset.range(),
+            iso_speeds: controls.gain.iso_speeds(),
+            readout_modes,
+            cooler_temp_range: None,
+            exposure_range,
+            can_abort_exposure: camera.can_abort_exposure().await.unwrap_or(false),
+            can_stop_exposure: camera.can_stop_exposure().await.unwrap_or(false),
+            can_asymmetric_bin: camera.can_asymmetric_bin().await.unwrap_or(false),
+            sensor_type: None,
+        }
     }
 
     /// One exposure by the ASCOM camera rules both transports share
@@ -256,7 +329,12 @@ impl CameraDriver for AlpacaCameraDriver {
         camera
             .start_exposure(params.duration_secs, exposes_to_light(params.frame_type))
             .await
-            .map_err(own)
+            .map_err(own)?;
+        *self
+            .commanded_seconds
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(params.duration_secs);
+        Ok(())
     }
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
@@ -308,10 +386,18 @@ impl CameraDriver for AlpacaCameraDriver {
             1
         });
         let temperature = camera.ccd_temperature().await.ok();
-        let exposure_time = camera.last_exposure_duration().await.unwrap_or_else(|e| {
-            tracing::warn!("Failed to read last exposure duration for {id}: {e}. Using 0.0.");
-            0.0
+        let commanded = *self
+            .commanded_seconds
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let reported = camera.last_exposure_duration().await.inspect_err(|e| {
+            tracing::warn!(
+                "Failed to read last exposure duration for {id}: {e}. Recording the {commanded:?} s \
+                 the exposure was started with."
+            );
         });
+        let exposure_time = recorded_exposure_seconds(reported.ok(), commanded);
+        let readout_mode = self.readout_mode_name().await;
 
         // A failed read yields an ordinal outside the `SensorType` enum,
         // which names no family and so no Bayer pattern.
@@ -361,7 +447,7 @@ impl CameraDriver for AlpacaCameraDriver {
                 temperature,
                 timestamp: chrono::Utc::now(),
                 subframe: None,
-                readout_mode: None,
+                readout_mode,
                 vendor_data: VendorFeatures::default(),
                 camera_file: None,
             },
@@ -429,7 +515,7 @@ impl CameraDriver for AlpacaCameraDriver {
         Err(DriverError::NotSupported)
     }
 
-    /// Not known without asking the server; see `report`.
+    /// Not kept; see `describe` and `report`.
     fn get_sensor_info(&self) -> SensorInfo {
         SensorInfo::default()
     }
@@ -457,6 +543,10 @@ impl CameraDriver for AlpacaCameraDriver {
 
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         self.camera.set_readout_mode(mode.index).await.map_err(own)
+    }
+
+    async fn get_iso_speeds(&self) -> Result<Vec<i32>, DriverError> {
+        Ok(self.camera.controls().await.gain.iso_speeds())
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {

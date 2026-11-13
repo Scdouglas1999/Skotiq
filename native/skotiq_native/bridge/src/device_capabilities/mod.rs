@@ -64,6 +64,7 @@ use std::time::Instant;
 pub(crate) mod alpaca;
 pub(crate) mod ascom;
 pub(crate) mod cache;
+pub(crate) mod driver;
 pub(crate) mod indi;
 pub(crate) mod native;
 #[cfg(test)]

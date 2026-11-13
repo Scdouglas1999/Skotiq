@@ -7,8 +7,8 @@ use crate::protocol::names::*;
 use crate::{IndiClient, IndiError, IndiMount, IndiPermission};
 use async_trait::async_trait;
 use skotiq_device::{
-    DeviceDriver, DriverError, GuideDirection, MountDriver, MountReadings, PierSide, TrackingRate,
-    Vendor,
+    DeviceDriver, DriverError, GuideDirection, MountDescription, MountDriver, MountReadings,
+    PierSide, TrackingRate, Vendor,
 };
 
 impl std::fmt::Debug for IndiMount {
@@ -69,38 +69,64 @@ fn pier_side(element: &str) -> PierSide {
     }
 }
 
-/// The rate `TELESCOPE_TRACK_RATE` is set to and whether it can be written.
-/// A driver without the property tracks at the sidereal rate and cannot be
-/// set.
-async fn track_rate(client: &IndiClient, device_name: &str) -> (TrackingRate, bool) {
-    let Some(prop) = client.get_property(device_name, TELESCOPE_TRACK_RATE).await else {
-        return (TrackingRate::Sidereal, false);
+/// What `TELESCOPE_TRACK_MODE` offers: the rates it can be set to, each with
+/// the element that selects it, and the rate that is On.
+#[derive(Debug, Default)]
+struct TrackModes {
+    settable: Vec<(TrackingRate, String)>,
+    on: Option<TrackingRate>,
+}
+
+/// The rate an element of `TELESCOPE_TRACK_MODE` names: `TRACK_SIDEREAL`,
+/// `TRACK_SOLAR`, `TRACK_LUNAR`, `TRACK_CUSTOM`, and the `TRACK_KING` some
+/// drivers add.
+fn named_rate(element: &str) -> Option<TrackingRate> {
+    let upper = element.to_ascii_uppercase();
+    [
+        ("SIDEREAL", TrackingRate::Sidereal),
+        ("LUNAR", TrackingRate::Lunar),
+        ("SOLAR", TrackingRate::Solar),
+        ("KING", TrackingRate::King),
+        ("CUSTOM", TrackingRate::Custom),
+    ]
+    .into_iter()
+    .find_map(|(word, rate)| upper.contains(word).then_some(rate))
+}
+
+/// A driver without the switch tracks at the one rate it does not name. The
+/// custom mode is not offered: its rate is `TELESCOPE_TRACK_RATE`'s numbers,
+/// which nothing here sets.
+async fn track_modes(client: &IndiClient, device_name: &str) -> TrackModes {
+    let Some(prop) = client.get_property(device_name, TELESCOPE_TRACK_MODE).await else {
+        return TrackModes::default();
     };
     let writable = prop.perm != IndiPermission::ReadOnly;
+    let mut modes = TrackModes::default();
     for element in prop.elements {
+        let Some(rate) = named_rate(&element) else {
+            continue;
+        };
         // An element the server has not sent yet is not the one that is On.
-        if !client
-            .get_switch(device_name, TELESCOPE_TRACK_RATE, &element)
+        if client
+            .get_switch(device_name, TELESCOPE_TRACK_MODE, &element)
             .await
             .unwrap_or(false)
         {
-            continue;
+            modes.on = Some(rate);
         }
-        let upper = element.to_ascii_uppercase();
-        let rate = [
-            ("SIDEREAL", TrackingRate::Sidereal),
-            ("LUNAR", TrackingRate::Lunar),
-            ("SOLAR", TrackingRate::Solar),
-            ("KING", TrackingRate::King),
-            ("CUSTOM", TrackingRate::Custom),
-        ]
-        .into_iter()
-        .find(|(word, _)| upper.contains(word));
-        if let Some((_, rate)) = rate {
-            return (rate, writable);
+        if writable && rate != TrackingRate::Custom {
+            modes.settable.push((rate, element));
         }
     }
-    (TrackingRate::Sidereal, writable)
+    modes
+}
+
+/// `current` widened by `next` with `pick` (`f64::min` or `f64::max`).
+fn widest(current: Option<f64>, next: Option<f64>, pick: fn(f64, f64) -> f64) -> Option<f64> {
+    match (current, next) {
+        (Some(current), Some(next)) => Some(pick(current, next)),
+        (current, next) => current.or(next),
+    }
 }
 
 impl IndiMount {
@@ -258,15 +284,30 @@ impl MountDriver for IndiMount {
         self.try_is_tracking().await.map_err(own)
     }
 
-    /// Skotiq does not change an INDI mount's track rate.
-    async fn set_tracking_rate(&mut self, _rate: TrackingRate) -> Result<(), DriverError> {
-        Err(DriverError::NotSupported)
+    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
+        let modes = track_modes(&*self.client().read().await, self.device_name()).await;
+        let element = modes
+            .settable
+            .into_iter()
+            .find_map(|(offered, element)| (offered == rate).then_some(element))
+            .ok_or(DriverError::NotSupported)?;
+        self.set_track_mode(&element).await.map_err(own)
     }
 
-    /// The rate is part of [`MountDriver::status`]; on its own it is not
-    /// offered, as setting it is not.
     async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError> {
-        Err(DriverError::NotSupported)
+        track_modes(&*self.client().read().await, self.device_name())
+            .await
+            .on
+            .ok_or(DriverError::NotSupported)
+    }
+
+    async fn tracking_rates(&self) -> Vec<TrackingRate> {
+        track_modes(&*self.client().read().await, self.device_name())
+            .await
+            .settable
+            .into_iter()
+            .map(|(rate, _)| rate)
+            .collect()
     }
 
     async fn can_slew(&self) -> bool {
@@ -279,11 +320,6 @@ impl MountDriver for IndiMount {
 
     async fn can_pulse_guide(&self) -> bool {
         self.has_guide_pulses().await
-    }
-
-    async fn can_set_tracking_rate(&self) -> bool {
-        let client = self.client().read().await;
-        track_rate(&client, self.device_name()).await.1
     }
 
     async fn get_side_of_pier(&self) -> Result<PierSide, DriverError> {
@@ -319,10 +355,7 @@ impl MountDriver for IndiMount {
         let can_slew = self.can_slew().await;
         let can_sync = self.can_sync().await;
         let can_pulse_guide = self.has_guide_pulses().await;
-        let (rate, can_set_tracking_rate) = {
-            let client = self.client().read().await;
-            track_rate(&client, self.device_name()).await
-        };
+        let modes = track_modes(&*self.client().read().await, self.device_name()).await;
         Ok(MountReadings {
             right_ascension,
             declination,
@@ -335,19 +368,73 @@ impl MountDriver for IndiMount {
             altitude,
             azimuth,
             sidereal_time: Err(DriverError::NotSupported),
-            // A rate that cannot be set is the driver's fixed rate, which
-            // it does not name.
-            tracking_rate: if can_set_tracking_rate {
-                Ok(rate)
-            } else {
-                Err(DriverError::NotSupported)
-            },
+            tracking_rate: modes.on.ok_or(DriverError::NotSupported),
             can_park,
             can_slew,
             can_sync,
             can_pulse_guide,
-            can_set_tracking_rate,
+            can_set_tracking_rate: !modes.settable.is_empty(),
         })
+    }
+
+    /// From the properties the driver defines; a pulse length or slew rate
+    /// range is the number limits it publishes, the widest over the axes.
+    async fn describe(&self) -> MountDescription {
+        let device = self.device_name();
+        let properties = crate::kind::defined_properties(self.client(), device).await;
+        let defines = |name: &str| properties.iter().any(|p| p.name == name);
+        let equatorial = properties.iter().any(|p| p.name.starts_with("EQUATORIAL_"));
+        let alt_az = defines(HORIZONTAL_COORD);
+        let can_park = defines(TELESCOPE_PARK);
+        let can_move_ns = defines(TELESCOPE_MOTION_NS);
+        let can_move_we = defines(TELESCOPE_MOTION_WE);
+        let client = self.client().read().await;
+        let mut slew_rate: Option<f64> = None;
+        let mut pulse: (Option<f64>, Option<f64>) = (None, None);
+        for prop in &properties {
+            let is_pulse = prop.name == TELESCOPE_TIMED_GUIDE_NS || prop.name == TELESCOPE_TIMED_GUIDE_WE;
+            if prop.name != TELESCOPE_SLEW_RATE && !is_pulse {
+                continue;
+            }
+            for element in &prop.elements {
+                let Some(limits) = client.get_number_limits(device, &prop.name, element).await else {
+                    continue;
+                };
+                if is_pulse {
+                    pulse.0 = widest(pulse.0, limits.min, f64::min);
+                    pulse.1 = widest(pulse.1, limits.max, f64::max);
+                } else {
+                    slew_rate = widest(slew_rate, limits.max, f64::max);
+                }
+            }
+        }
+        drop(client);
+        MountDescription {
+            can_slew: equatorial || alt_az,
+            can_slew_async: equatorial || alt_az,
+            can_sync: defines(ON_COORD_SET),
+            can_park,
+            can_unpark: can_park,
+            // `set_park` drives PARK_CURRENT.
+            can_set_park: properties.iter().any(|p| {
+                p.name == TELESCOPE_PARK_OPTION && p.elements.iter().any(|e| e == PARK_CURRENT)
+            }),
+            can_find_home: defines(TELESCOPE_HOME),
+            can_pulse_guide: properties
+                .iter()
+                .any(|p| p.name.starts_with("TELESCOPE_TIMED_GUIDE_")),
+            can_set_tracking: defines(TELESCOPE_TRACK_STATE),
+            tracking_rates: self.tracking_rates().await,
+            can_get_side_of_pier: defines(TELESCOPE_PIER_SIDE),
+            is_equatorial: equatorial,
+            supports_alt_az: alt_az,
+            can_abort_slew: defines(TELESCOPE_ABORT_MOTION),
+            can_move_axis: can_move_ns || can_move_we,
+            axis_count: u32::from(can_move_ns) + u32::from(can_move_we),
+            max_slew_rate: slew_rate,
+            min_pulse_guide_ms: pulse.0,
+            max_pulse_guide_ms: pulse.1,
+        }
     }
 
     /// `find_home` drives `TELESCOPE_HOME.GO`, so that element is the

@@ -58,9 +58,11 @@
   PUT tracking Tracking=false
 < ok ()
 > tracking_rate
-< err Getting tracking rate is not supported by this driver type
+  GET trackingrate
+< ok 0
 > set_tracking_rate lunar
-< err Setting tracking rate is not supported by this driver type
+  PUT trackingrate TrackingRate=1
+< ok ()
 > slew 6.25h +35
   GET altitude
   GET athome
@@ -116,7 +118,7 @@
   GET tracking
   GET trackingrate
   GET trackingrates
-< ok "tracking=true slewing=false parked=false at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Sidereal) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+< ok "tracking=true slewing=false parked=false at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Lunar) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
 > abort
   PUT abortslew
 < ok ()
@@ -266,7 +268,7 @@
   GET tracking
   GET trackingrate
   GET trackingrates
-< ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Sidereal) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+< ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Lunar) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
 > disconnect
   PUT connected Connected=false
 < ok ()

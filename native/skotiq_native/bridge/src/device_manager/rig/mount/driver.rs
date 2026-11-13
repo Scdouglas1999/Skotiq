@@ -11,9 +11,8 @@ use crate::device::{
     mount_status_field, FieldAvailability, MountSite, MountSiteCapabilities, MountStatus,
     MountTimeInfo,
 };
-use crate::device_capabilities::alpaca::alpaca_mount_capabilities;
-use crate::device_capabilities::indi::indi_capabilities;
-use crate::device_capabilities::types::{DeviceCapabilities, MountCapabilities};
+use crate::device_capabilities::driver::mount_capabilities;
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{RigDriver, Slot};
 use crate::device_manager::DeviceManager;
@@ -27,10 +26,9 @@ use tokio::sync::RwLock;
 
 type Driver = dyn MountDriver + Send + Sync;
 
-/// What differs by protocol around a [`MountDriver`]: its name in messages,
-/// where a description of the device comes from, and the sentence for each
-/// operation the protocol's driver does not offer (`None`: the driver's own
-/// words).
+/// What differs by protocol around a [`MountDriver`]: its name in messages
+/// and the sentence for each operation the protocol's driver does not offer
+/// (`None`: the driver's own words).
 struct Protocol {
     /// "Native", "Alpaca", "INDI": in "Native mount not connected" and logs.
     name: &'static str,
@@ -38,8 +36,6 @@ struct Protocol {
     in_sentence: &'static str,
     no_alt_az_slew: Option<&'static str>,
     no_axis_move: Option<&'static str>,
-    no_tracking_rate_read: Option<&'static str>,
-    no_tracking_rate_write: Option<&'static str>,
     no_site_read: Option<&'static str>,
     no_site_write: Option<&'static str>,
     no_clock_read: Option<&'static str>,
@@ -51,24 +47,17 @@ const VENDOR: Protocol = Protocol {
     in_sentence: "native",
     no_alt_az_slew: Some("Alt/Az slew is not supported for native serial mounts"),
     no_axis_move: Some("Native SDK does not support mount axis movement"),
-    no_tracking_rate_read: None,
-    no_tracking_rate_write: None,
     no_site_read: None,
     no_site_write: None,
     no_clock_read: None,
     no_clock_write: None,
 };
 
-const NO_RATE_READ: &str = "Getting tracking rate is not supported by this driver type";
-const NO_RATE_WRITE: &str = "Setting tracking rate is not supported by this driver type";
-
 const ALPACA: Protocol = Protocol {
     name: "Alpaca",
     in_sentence: "Alpaca",
     no_alt_az_slew: None,
     no_axis_move: None,
-    no_tracking_rate_read: Some(NO_RATE_READ),
-    no_tracking_rate_write: Some(NO_RATE_WRITE),
     no_site_read: None,
     no_site_write: None,
     no_clock_read: None,
@@ -80,8 +69,6 @@ const INDI: Protocol = Protocol {
     in_sentence: "INDI",
     no_alt_az_slew: None,
     no_axis_move: None,
-    no_tracking_rate_read: Some(NO_RATE_READ),
-    no_tracking_rate_write: Some(NO_RATE_WRITE),
     no_site_read: Some("Reading the site from an INDI mount is not wired up yet"),
     no_site_write: Some("Writing the site to an INDI mount is not wired up yet"),
     no_clock_read: Some("Reading the clock from an INDI mount is not wired up yet"),
@@ -92,18 +79,6 @@ pub(crate) struct DriverMount {
     device_id: String,
     driver: Slot<Driver>,
     protocol: &'static Protocol,
-    description: Description,
-}
-
-/// Where a description of the mount comes from: the driver's own answers, or
-/// the protocol's capability read through the client the driver uses.
-enum Description {
-    Driver,
-    Alpaca(skotiq_alpaca::AlpacaMount),
-    Indi {
-        client: Arc<RwLock<skotiq_indi::IndiClient>>,
-        device_name: String,
-    },
 }
 
 impl DriverMount {
@@ -114,17 +89,14 @@ impl DriverMount {
             device_id: device_id.to_string(),
             driver: Slot::held(driver),
             protocol: &VENDOR,
-            description: Description::Driver,
         }
     }
 
     pub(crate) fn alpaca(device_id: &str, mount: skotiq_alpaca::AlpacaMount) -> Self {
-        let description = Description::Alpaca(mount.clone());
         Self {
             device_id: device_id.to_string(),
             driver: Slot::per_call(move || Box::new(mount.clone()) as Box<Driver>),
             protocol: &ALPACA,
-            description,
         }
     }
 
@@ -134,17 +106,12 @@ impl DriverMount {
         device_name: &str,
     ) -> Self {
         let device_name = device_name.to_string();
-        let description = Description::Indi {
-            client: client.clone(),
-            device_name: device_name.clone(),
-        };
         Self {
             device_id: device_id.to_string(),
             driver: Slot::per_call(move || {
                 Box::new(skotiq_indi::IndiMount::new(client.clone(), &device_name)) as Box<Driver>
             }),
             protocol: &INDI,
-            description,
         }
     }
 
@@ -196,7 +163,8 @@ impl RigDriver for DriverMount {
     }
 
     async fn identity(&self) -> Option<DeviceIdentity> {
-        if !matches!(self.description, Description::Driver) {
+        // A protocol device has no identity beyond its address.
+        if !std::ptr::eq(self.protocol, &VENDOR) {
             return None;
         }
         let mount = self.driver.read().await?;
@@ -459,7 +427,7 @@ impl Mount for DriverMount {
         mount
             .set_tracking_rate(tracking_rate)
             .await
-            .map_err(|e| Self::or_unsupported(e, self.protocol.no_tracking_rate_write))
+            .map_err(DeviceOpError::from)
     }
 
     async fn tracking_rate(&self) -> Result<i32, DeviceOpError> {
@@ -467,7 +435,7 @@ impl Mount for DriverMount {
         let rate = mount
             .get_tracking_rate()
             .await
-            .map_err(|e| Self::or_unsupported(e, self.protocol.no_tracking_rate_read))?;
+            .map_err(DeviceOpError::from)?;
         // The discriminants are the ASCOM `DriveRates` numbers.
         Ok(rate as i32)
     }
@@ -532,18 +500,6 @@ impl Mount for DriverMount {
     }
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        match &self.description {
-            Description::Alpaca(driver) => {
-                return Ok(DeviceCapabilities::Mount(
-                    alpaca_mount_capabilities(driver.telescope()).await,
-                ))
-            }
-            Description::Indi {
-                client,
-                device_name,
-            } => return indi_capabilities(client, device_name, device_id).await,
-            Description::Driver => {}
-        }
         let mount = self.driver.read().await.ok_or_else(|| {
             SkotiqError::hardware_error(
                 device_id,
@@ -551,25 +507,10 @@ impl Mount for DriverMount {
             )
         })?;
         let tracking = mount.get_tracking().await.ok();
-        let can_set_tracking = tracking.is_some();
-        let can_park = mount.is_parked().await.is_ok();
-        let can_abort_slew = mount.is_slewing().await.is_ok();
-        Ok(DeviceCapabilities::Mount(MountCapabilities {
-            can_slew: true,
-            can_slew_async: true,
-            can_sync: true,
-            can_park,
-            can_unpark: can_park,
-            can_pulse_guide: true,
-            can_set_tracking,
-            can_abort_slew,
-            can_find_home: mount.can_find_home().await.unwrap_or(false),
-            can_set_park: mount.can_set_park().await.unwrap_or(false),
-            is_equatorial: true,
+        Ok(DeviceCapabilities::Mount(mount_capabilities(
+            mount.describe().await,
             tracking,
-            axis_count: 2,
-            ..Default::default()
-        }))
+        )))
     }
 
     /// Drops a held driver, and with it the serial port, without sending the

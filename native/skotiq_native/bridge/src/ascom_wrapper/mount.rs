@@ -937,10 +937,6 @@ impl MountDriver for AscomMountWrapper {
     async fn can_pulse_guide(&self) -> bool {
         true
     }
-
-    async fn can_set_tracking_rate(&self) -> bool {
-        false
-    }
 }
 
 // Additional mount control methods (not in MountDriver trait)
