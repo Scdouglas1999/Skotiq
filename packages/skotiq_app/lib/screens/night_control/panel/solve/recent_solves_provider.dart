@@ -118,8 +118,7 @@ class NightRecentSolvesNotifier extends StateNotifier<List<NightSolveRecord>> {
     _runEvents?.cancel();
     _centering.reset();
     _runEvents = backend.eventStream.listen((event) {
-      if (event.category != EventCategory.sequencer) return;
-      final typed = SequencerRunEvent.fromSkotiqEvent(event);
+      final typed = sequencerEventOf(event);
       if (typed == null) return;
       for (final record in _centering.fold(typed, _now)) {
         _add(record);
@@ -173,10 +172,10 @@ class _RunCentering {
 
   /// The records [event] completes.
   List<NightSolveRecord> fold(
-      SequencerRunEvent event, DateTime Function() now) {
+      SequencerEvent event, DateTime Function() now) {
     switch (event) {
-      case StructuredInstructionProgress(
-          :final nodeId?,
+      case SequencerEvent_InstructionProgressStructured(
+          :final nodeId,
           detail: CenterInstructionProgressDetail(
             :final attempt,
             lastSeparationArcsec: final separation,
@@ -217,7 +216,7 @@ class _RunCentering {
         );
         reset();
         return [record];
-      case NodeCompleted(:final nodeId?, :final status)
+      case SequencerEvent_NodeCompleted(:final nodeId, :final status)
           when nodeId == _nodeId && _attempt > 0:
         // A stopped step did not fail to center, and a centered one was
         // recorded when it said so.

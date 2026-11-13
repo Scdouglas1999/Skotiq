@@ -595,14 +595,17 @@ ImagingEvent? _decodeImagingEvent(
       if (d['frame'] != null) {
         return ImagingEvent.exposureStartedWithFrame(
           durationSecs: wireDouble(d, 'duration_secs'),
-          frameType: decodeFrameType(d['frame_type']) ?? FrameType.light,
+          frameType: wireRequired(
+            decodeFrameType(d['frame_type']),
+            'frame_type',
+          ),
           frameNumber: wireInt(d, 'frame'),
           totalFrames: wireOptInt(d, 'total'),
         );
       }
       return ImagingEvent.exposureStarted(
         durationSecs: wireDouble(d, 'duration_secs'),
-        frameType: decodeFrameType(d['frame_type']) ?? FrameType.light,
+        frameType: wireRequired(decodeFrameType(d['frame_type']), 'frame_type'),
       );
     case 'ExposureProgress':
       return ImagingEvent.exposureProgress(
@@ -1102,18 +1105,14 @@ SequencerEvent? _decodeSequencerEvent(
         sequenceName: wireString(d, 'sequence_name'),
       );
     case 'Paused':
-    case 'SequencePaused':
       return const SequencerEvent.paused();
     case 'Resumed':
-    case 'SequenceResumed':
       return const SequencerEvent.resumed();
     case 'Stopped':
-    case 'SequenceStopped':
       return SequencerEvent.stopped(
         sequenceRunId: wireOptInt(d, 'sequence_run_id'),
       );
     case 'Completed':
-    case 'SequenceCompleted':
       return const SequencerEvent.completed();
     case 'SequenceFailed':
       return SequencerEvent.failed(error: wireString(d, 'error'));
@@ -1170,9 +1169,10 @@ SequencerEvent? _decodeSequencerEvent(
       return SequencerEvent.triggerFired(
         triggerId: wireString(d, 'trigger_id'),
         triggerName: wireString(d, 'trigger_name'),
-        action:
-            decodeSequencerTriggerAction(d['action']) ??
-            SequencerTriggerAction.notify,
+        action: wireRequired(
+          decodeSequencerTriggerAction(d['action']),
+          'action',
+        ),
       );
     case 'InstructionProgress':
       return SequencerEvent.instructionProgress(
@@ -1695,10 +1695,10 @@ FrameCaptureMetadata decodeFrameCaptureMetadata(Map<String, Object?> d) =>
       focuserPosition: wireOptInt(d, 'focuser_position'),
       focuserTemperatureC: wireOptDouble(d, 'focuser_temperature_c'),
       rotatorAngleDeg: wireOptDouble(d, 'rotator_angle_deg'),
-      exposureSecs: wireOptDouble(d, 'exposure_secs') ?? 0,
-      binX: wireOptInt(d, 'bin_x') ?? 1,
-      binY: wireOptInt(d, 'bin_y') ?? 1,
-      frameType: wireOptString(d, 'frame_type') ?? 'light',
+      exposureSecs: wireDouble(d, 'exposure_secs'),
+      binX: wireInt(d, 'bin_x'),
+      binY: wireInt(d, 'bin_y'),
+      frameType: wireString(d, 'frame_type'),
       targetId: wireOptString(d, 'target_id'),
     );
 

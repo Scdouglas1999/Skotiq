@@ -45,13 +45,12 @@ Map<String, Object?> _encodeNotice(SequencerNotice? notice) => {
     kSequencerNoticeFieldsKey: notice._wireFields,
 };
 
-/// The notice named [name] with its [fields]. A host from before the notice
-/// carried fields sends none; the row's own details hold the same values.
+/// The notice named [name] with its [fields].
 SequencerNotice? _noticeNamed(Object? name, Map<String, Object?> fields) =>
     switch (name) {
       'autofocus_continued' => const SequencerNotice.autofocusContinued(),
       'reject_streak' => SequencerNotice.rejectStreak(
-        consecutiveRejects: wireOptInt(fields, 'consecutive_rejects') ?? 0,
+        consecutiveRejects: wireInt(fields, 'consecutive_rejects'),
         reason: wireString(fields, 'reason'),
       ),
       'problem_noticed' => SequencerNotice.problemNoticed(
@@ -85,42 +84,6 @@ SequencerStop? _decodeStop(Map<String, Object?> d) => switch (d['by']) {
   _ => null,
 };
 
-/// The stop a row from a host before the `stop` field records, read from the
-/// words those builds wrote. The words are fixed for those builds.
-SequencerStop? _olderHostStop(
-  String category,
-  String summary,
-  Map<String, Object?> details,
-) {
-  if (_isOlderHostCancelNotice(summary)) {
-    return const SequencerStop.cancelled();
-  }
-  switch (category) {
-    case 'manual_intervention' when summary.startsWith('Operator: stop'):
-      return const SequencerStop.operator_();
-    case 'system_event' when summary == 'Autopilot: stop':
-      return const SequencerStop.autopilot();
-    case 'system_event' when summary == 'System: stop':
-      return SequencerStop.system(origin: wireString(details, 'origin'));
-    // Only this action parked the mount and ended the run.
-    case 'trigger_fired'
-        when wireString(details, 'action').trim() == 'ParkAndAbort':
-      return SequencerStop.trigger(
-        triggerId: wireString(details, 'trigger_id'),
-        triggerName: wireString(details, 'trigger_name'),
-      );
-  }
-  return null;
-}
-
-/// The notice a host from before the `cancelled` kind sent for a cancelled
-/// run, as an `Error` message and as the cancellation row's summary.
-bool _isOlderHostCancelNotice(String text) {
-  final normalized = text.trim().toLowerCase();
-  return normalized == 'sequence cancelled' ||
-      normalized == 'sequence canceled';
-}
-
 Map<String, Object?> _jsonObject(String? text) {
   if (text == null || text.isEmpty) return const {};
   try {
@@ -129,26 +92,6 @@ Map<String, Object?> _jsonObject(String? text) {
     return const {};
   }
 }
-
-/// What a host from before the `notice` field wrote on the rows and warnings
-/// that carry one now. The words are fixed for those builds.
-const Map<String, String> _olderHostSummaries = {
-  'Autofocus failed — continuing with last-good focus': 'autofocus_continued',
-  'Frames rejected in a row — the run continues': 'reject_streak',
-  'Problem noticed — the run continues': 'problem_noticed',
-};
-
-const Map<String, String> _olderHostWarningSentences = {
-  'The run continues. To have problems like this stop the run instead, turn '
-          'on Stop the run for quality problems in Settings > Sequencer.':
-      'problem_noticed',
-  'and imaging continues on the last-good focus.': 'autofocus_continued',
-  'Imaging continues, but check focus before trusting these frames.':
-      'autofocus_continued',
-  'The run continues and every frame is kept; rejects are in the Reject '
-          'folder.':
-      'reject_streak',
-};
 
 WireEvent encodeSequencerEventError(SequencerEvent_Error event) => (
   'Error',
@@ -164,31 +107,19 @@ SequencerEvent? decodeSequencerEventError(
   Map<String, Object?> d,
   EventSeverity severity,
 ) {
-  // The remote envelope has carried the text as `error`.
-  final message = wireOptString(d, 'message') ?? wireString(d, 'error');
-  Object? noticeName = d[kSequencerNoticeKey];
-  if (noticeName == null && severity == EventSeverity.warning) {
-    for (final MapEntry(key: sentence, value: name)
-        in _olderHostWarningSentences.entries) {
-      if (message.contains(sentence)) noticeName = name;
-    }
+  final kind = decodeSequencerErrorKind(d[kSequencerErrorKindKey]);
+  if (kind == null) {
+    throw FormatException(
+      'Sequencer Error with no known kind: ${d[kSequencerErrorKindKey]}',
+    );
   }
-  // A host from before the kind sends none: its warnings were notes and
-  // everything else a failing step. One from before the `cancelled` kind sent
-  // a cancellation as a failing step with a fixed notice.
-  final kind =
-      decodeSequencerErrorKind(d[kSequencerErrorKindKey]) ??
-      (severity == EventSeverity.warning
-          ? SequencerErrorKind.advisory
-          : SequencerErrorKind.stepFailed);
   return SequencerEvent.error(
-    message: message,
-    kind:
-        kind == SequencerErrorKind.stepFailed &&
-            _isOlderHostCancelNotice(message)
-        ? SequencerErrorKind.cancelled
-        : kind,
-    notice: _noticeNamed(noticeName, wireMap(d[kSequencerNoticeFieldsKey])),
+    message: wireString(d, 'message'),
+    kind: kind,
+    notice: _noticeNamed(
+      d[kSequencerNoticeKey],
+      wireMap(d[kSequencerNoticeFieldsKey]),
+    ),
   );
 }
 
@@ -213,28 +144,19 @@ SequencerEvent? decodeSequencerEventDecisionLogged(
   Map<String, Object?> d,
   EventSeverity severity,
 ) {
-  final category = wireString(d, 'category');
-  final summary = wireString(d, 'summary');
-  final detailsJson = wireString(d, 'details_json');
-  final noticeName =
-      d[kSequencerNoticeKey] ??
-      (category == 'system_event' ? _olderHostSummaries[summary] : null);
-  final fields = d[kSequencerNoticeFieldsKey];
   final stop = d[kSequencerStopKey];
   return SequencerEvent.decisionLogged(
     timestampIso: wireString(d, 'timestamp_iso'),
-    category: category,
-    summary: summary,
-    detailsJson: detailsJson,
+    category: wireString(d, 'category'),
+    summary: wireString(d, 'summary'),
+    detailsJson: wireString(d, 'details_json'),
     nodeId: wireOptString(d, 'node_id'),
     sequenceRunId: wireOptInt(d, 'sequence_run_id'),
     notice: _noticeNamed(
-      noticeName,
-      fields == null ? _jsonObject(detailsJson) : wireMap(fields),
+      d[kSequencerNoticeKey],
+      wireMap(d[kSequencerNoticeFieldsKey]),
     ),
-    stop: stop == null
-        ? _olderHostStop(category, summary, _jsonObject(detailsJson))
-        : _decodeStop(wireMap(stop)),
+    stop: stop == null ? null : _decodeStop(wireMap(stop)),
   );
 }
 

@@ -1,17 +1,15 @@
 // Where the event wire differs from "the variant's name and its fields in
-// snake_case". These names are read by the web dashboard, the run-watch page
-// and older clients, so they stay as they were first sent.
+// snake_case". The web dashboard and the run-watch page read these names
+// from the generated table.
 
 class VariantSpec {
   const VariantSpec({
     this.type,
-    this.aliases = const [],
     this.keys = const {},
     this.flatten = const {},
     this.omitNull = const {},
     this.whenKey,
     this.customTypes,
-    this.defaults = const {},
     this.required = const {},
   });
 
@@ -19,14 +17,8 @@ class VariantSpec {
   /// absent the event is refused instead of read as zero.
   final Set<String> required;
 
-  /// Dart expressions for required fields that an older sender leaves out.
-  final Map<String, String> defaults;
-
   /// The event type sent, when it is not the variant's name.
   final String? type;
-
-  /// Other event types read as this variant.
-  final List<String> aliases;
 
   /// Field name to wire key, for keys that are not the snake_case name.
   final Map<String, String> keys;
@@ -56,8 +48,7 @@ const Set<String> customCodecEnums = {'SequencerErrorKind'};
 /// Enum values whose wire name is not the snake_case name.
 const Map<String, Map<String, String>> enumWireNames = {
   'FrameType': {'darkFlat': 'darkFlat'},
-  // The executor's names for the actions, as the run-watch page and older
-  // clients read them.
+  // The executor's names for the actions, as the run-watch page reads them.
   'SequencerTriggerAction': {
     'continue_': 'Continue',
     'pause': 'Pause',
@@ -79,9 +70,6 @@ const Map<String, Map<String, String>> enumWireNames = {
 };
 
 const Map<String, VariantSpec> variantSpecs = {
-  'ImagingEvent_ExposureStarted': VariantSpec(
-    defaults: {'frameType': 'FrameType.light'},
-  ),
   'DepthLockEvent_GoalUpdated': VariantSpec(
     keys: {'framesRemaining': 'framesRemaining'},
   ),
@@ -97,10 +85,7 @@ const Map<String, VariantSpec> variantSpecs = {
   ),
   'EquipmentEvent_HeartbeatStatusChanged': VariantSpec(omitNull: {'lastRttMs'}),
   'EquipmentEvent_DeviceDiscovered': VariantSpec(omitNull: {'uniqueId'}),
-  'SequencerEvent_Stopped': VariantSpec(
-    aliases: ['SequenceStopped'],
-    omitNull: {'sequenceRunId'},
-  ),
+  'SequencerEvent_Stopped': VariantSpec(omitNull: {'sequenceRunId'}),
   'SystemEvent_Notification': VariantSpec(omitNull: {'explicitTransports'}),
   'GuidingEvent_Settled': VariantSpec(type: 'SettleDone'),
   'GuidingEvent_LostStar': VariantSpec(type: 'StarLost'),
@@ -125,7 +110,6 @@ const Map<String, VariantSpec> variantSpecs = {
     type: 'ExposureStarted',
     keys: {'frameNumber': 'frame', 'totalFrames': 'total'},
     whenKey: 'frame',
-    defaults: {'frameType': 'FrameType.light'},
   ),
   'ImagingEvent_ExposureCompletedWithFrame': VariantSpec(
     type: 'ExposureCompleted',
@@ -145,27 +129,9 @@ const Map<String, VariantSpec> variantSpecs = {
   'ImagingEvent_IntegrationTelemetry': VariantSpec(
     customTypes: ['IntegrationTelemetry'],
   ),
-  // An older host sent some actions in their Rust debug form
-  // ("MeridianFlip(MeridianFlipConfig { ... })"); such an action is read as a
-  // notice, which is how those clients treated any action they did not know.
-  'SequencerEvent_TriggerFired': VariantSpec(
-    defaults: {'action': 'SequencerTriggerAction.notify'},
-  ),
-  'SequencerEvent_Paused': VariantSpec(aliases: ['SequencePaused']),
-  'SequencerEvent_Resumed': VariantSpec(aliases: ['SequenceResumed']),
-  'SequencerEvent_Completed': VariantSpec(aliases: ['SequenceCompleted']),
   'SequencerEvent_Failed': VariantSpec(type: 'SequenceFailed'),
   'SequencerEvent_Error': VariantSpec(customTypes: ['Error']),
   'SequencerEvent_DecisionLogged': VariantSpec(customTypes: ['DecisionLogged']),
   'SequencerEvent_FrameAccepted': VariantSpec(flatten: {'capture'}),
   'SequencerEvent_FrameRejected': VariantSpec(flatten: {'capture'}),
-  // A frame event from a host that sends no capture record still decodes.
-  'FrameCaptureMetadata': VariantSpec(
-    defaults: {
-      'exposureSecs': '0',
-      'binX': '1',
-      'binY': '1',
-      'frameType': "'light'",
-    },
-  ),
 };

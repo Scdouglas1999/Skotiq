@@ -229,15 +229,6 @@ class Generator {
   String decodeValue(String owner, Field f, String map) {
     final k = "'${key(owner, f)}'";
     final base = f.base;
-    final fallback = variantSpecs[owner]?.defaults[f.name];
-    if (fallback != null) {
-      final optional = decodeValue(
-        '',
-        Field('$base?', f.name),
-        map,
-      ).replaceFirst("'${snake(f.name)}'", k);
-      return '$optional ?? $fallback';
-    }
     if (variantSpecs[owner]?.required.contains(f.name) ?? false) {
       final optional = decodeValue(
         '',
@@ -462,11 +453,6 @@ const Map<EventCategory, List<String>> eventWireTypes = {''');
       if (sharing.where((v) => variantSpecs[v.className]?.whenKey == null).length >
           1) {
         throw StateError('${entry.key} is sent by two variants of $union');
-      }
-      for (final v in sharing) {
-        for (final alias in variantSpecs[v.className]?.aliases ?? const <String>[]) {
-          out.writeln("case '$alias':");
-        }
       }
       for (final v in sharing) {
         final whenKey = variantSpecs[v.className]?.whenKey;

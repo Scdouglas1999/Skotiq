@@ -36,7 +36,7 @@ import 'scheduler_provider.dart'
         integrationGoalsStreamProvider,
         schedulerPreviewDecisionProvider,
         targetConstraintsStreamProvider;
-import 'sequence/sequencer_run_event.dart' show NodeStarted, SequencerRunEvent;
+import '../backend/sequencer_run_events.dart' show sequencerEventOf;
 import 'sequence_provider.dart';
 import 'sequence_stats_provider.dart' show sequenceRunsProvider;
 import 'session_provider.dart';
