@@ -348,8 +348,8 @@ class _ExposureCountEditor extends ConsumerWidget {
       icon: LucideIcons.camera,
       child: SkotiqStepper(
         value: node.count,
-        min: 1,
-        max: 9999,
+        min: ExposureFieldLimits.frameCount.min,
+        max: ExposureFieldLimits.frameCount.max,
         semanticLabel: 'Exposure count',
         onChanged: (count) {
           ref
@@ -397,8 +397,8 @@ class _ExposureDurationEditor extends ConsumerWidget {
       title: 'Exposure duration',
       icon: LucideIcons.timer,
       initialValue: node.durationSecs,
-      min: 0.001,
-      max: 3600,
+      min: ExposureFieldLimits.durationSecs.min,
+      max: ExposureFieldLimits.durationSecs.max,
       decimals: 3,
       suffix: 's',
       onCommit: (value) {
@@ -536,8 +536,8 @@ class _GainEditor extends ConsumerWidget {
         title: 'Gain',
         icon: LucideIcons.gauge,
         initialValue: (node.gain ?? 0).toDouble(),
-        min: 0,
-        max: 1000,
+        min: ExposureFieldLimits.gain.min.toDouble(),
+        max: ExposureFieldLimits.gain.max.toDouble(),
         decimals: 0,
         onCommit: (value) => commit(value.toInt()),
       ),

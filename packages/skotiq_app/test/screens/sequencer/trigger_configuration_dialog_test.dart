@@ -24,6 +24,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/trigger_configuration_dialog.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -55,7 +56,7 @@ void main() {
         action: TriggerActionType.autofocus,
       );
       final restored =
-          ExposureTriggerConfig.fromNativeJson(original.toNativeJson());
+          ExposureTriggerConfig.fromNativeJson(original.toNativeJson())!;
       expect(restored.condition, TriggerConditionType.drift);
       expect(restored.driftRaPx, 2.5);
       expect(restored.driftDecPx, 4.0);
@@ -73,7 +74,7 @@ void main() {
         },
         'action': 'PauseAndRecalibrate',
         'debounce_secs': 10.0,
-      });
+      })!;
       expect(restored.driftRaPx, 5.0);
       // Dec falls back to the per-axis default (3.0 px).
       expect(restored.driftDecPx, 3.0);
@@ -310,7 +311,7 @@ void main() {
             'condition': {'HfrAbove': 4.0},
             'action': action,
             'debounce_secs': 10.0,
-          });
+          })!;
       expect(read('Notify').action, TriggerActionType.notify);
       expect(
         read('PauseAndRecalibrate').action,
@@ -319,5 +320,16 @@ void main() {
       expect(read('Abort').action, TriggerActionType.abort);
       expect(read('Autofocus').action, TriggerActionType.autofocus);
     });
+  });
+
+  test('a trigger this build cannot read is not read as another', () {
+    expect(
+      ExposureTriggerConfig.fromNativeJson({
+        'condition': {'StarCountBelow': 40},
+        'action': 'Notify',
+        'debounce_secs': 10.0,
+      }),
+      isNull,
+    );
   });
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -243,12 +244,24 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               sequence?.nodes.values.whereType<ExposureNode>().toList() ??
                   const <ExposureNode>[];
 
+          // Triggers this build cannot read stay on each node as they are.
+          bool unknown(Map<String, dynamic> stored) =>
+              ExposureTriggerConfig.fromNativeJson(stored) == null;
+
           List<ExposureTriggerConfig> currentExposureTriggers() {
             if (exposureNodes.isEmpty) return const [];
             return exposureNodes.first.triggers
                 .map(ExposureTriggerConfig.fromNativeJson)
+                .whereType<ExposureTriggerConfig>()
                 .toList(growable: false);
           }
+
+          // The dialog edits one list for every exposure node; say so when
+          // the nodes do not hold the same one.
+          final triggersDiffer = exposureNodes.length > 1 &&
+              exposureNodes.skip(1).any((node) =>
+                  jsonEncode(node.triggers) !=
+                  jsonEncode(exposureNodes.first.triggers));
 
           Future<void> openExposureTriggers() async {
             if (exposureNodes.isEmpty) {
@@ -268,8 +281,13 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 appliesTo: exposureNodes.length == 1
                     ? 'Applies to the exposure node '
                         '"${exposureNodes.single.name}".'
-                    : 'Applies to all ${exposureNodes.length} exposure nodes '
-                        'in this sequence.',
+                    : triggersDiffer
+                        ? 'Applies to all ${exposureNodes.length} exposure '
+                            'nodes in this sequence. They hold different '
+                            'triggers now; these are the first node\'s, and '
+                            'saving gives every node this list.'
+                        : 'Applies to all ${exposureNodes.length} exposure '
+                            'nodes in this sequence.',
               ),
             );
             if (result == null) return;
@@ -279,9 +297,16 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             final current = ref.read(currentSequenceProvider);
             if (current == null) return;
             final notifier = ref.read(currentSequenceProvider.notifier);
-            for (final node in current.nodes.values.whereType<ExposureNode>()) {
-              notifier.updateNode(node.copyWith(triggers: nativeTriggers));
-            }
+            // One edit, so one Undo restores every node.
+            notifier.withUndoGroup(() {
+              for (final node
+                  in current.nodes.values.whereType<ExposureNode>()) {
+                notifier.updateNode(node.copyWith(triggers: [
+                  ...nativeTriggers,
+                  ...node.triggers.where(unknown),
+                ]));
+              }
+            });
             // `updateNode` changes the open plan only; the library row is
             // written by Save (or auto-save, when on).
             if (context.mounted) {
