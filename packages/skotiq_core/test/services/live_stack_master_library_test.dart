@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:skotiq_core/src/database/daos/integrated_masters_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/integrated_master.dart';
@@ -24,12 +25,9 @@ void main() {
 
   LiveStackMasterLibrary library({
     LiveStackingMasterFormat format = LiveStackingMasterFormat.fitsMaster,
-    Map<String, String> header = const {
-      'OBJECT': "'NGC 891 '",
-      'FILTER': "'L       '",
-    },
+    Map<String, Object> header = const {'OBJECT': 'NGC 891', 'FILTER': 'L'},
     bool previewFails = false,
-    Map<String, Map<String, String>>? headersByPath,
+    Map<String, Map<String, Object>>? headersByPath,
   }) => LiveStackMasterLibrary(
     currentResult: () async {
       events.add('read');
@@ -57,9 +55,11 @@ void main() {
       previews.add(path);
     },
     masters: masters,
-    readHeader: (path) async => headersByPath == null
-        ? header
-        : (headersByPath[path] ?? (throw StateError('no file $path'))),
+    readHeader: (path) async => FrameHeader(
+      headersByPath == null
+          ? header
+          : (headersByPath[path] ?? (throw StateError('no file $path'))),
+    ),
   );
 
   test(
@@ -121,8 +121,8 @@ void main() {
       'master names none', () async {
     await library(
       headersByPath: {
-        '/stacks/live.fits': const {'IMAGETYP': "'MASTER_LIGHT'"},
-        '/frames/ref.fits': const {'OBJECT': "'M 81'", 'FILTER': "'Ha'"},
+        '/stacks/live.fits': const {'IMAGETYP': 'MASTER_LIGHT'},
+        '/frames/ref.fits': const {'OBJECT': 'M 81', 'FILTER': 'Ha'},
       },
     ).save('/stacks/live.fits', sourceFramePath: '/frames/ref.fits');
 

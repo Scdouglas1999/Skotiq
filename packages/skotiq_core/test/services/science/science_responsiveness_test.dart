@@ -50,7 +50,22 @@ void main() {
   final native = _Native();
   setUpAll(() => RustLib.initMock(api: native));
   tearDownAll(RustLib.dispose);
-  setUp(() => reset(native));
+  setUp(() {
+    reset(native);
+    // Every frame of these tests is 100 x 80, as its header states.
+    when(
+      () => native.crateApiFrameFileApiReadFrameHeader(
+        filePath: any(named: 'filePath'),
+      ),
+    ).thenAnswer(
+      (_) async => const FrameHeaderRead(
+        cards: [
+          FrameCard(keyword: 'NAXIS1', text: '100', number: 100),
+          FrameCard(keyword: 'NAXIS2', text: '80', number: 80),
+        ],
+      ),
+    );
+  });
   test(
     'PSF maps read only image geometry, without generating a full display image',
     () async {

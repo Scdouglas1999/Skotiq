@@ -28,30 +28,29 @@ Rect depthLockNormalizedRect(Offset a, Offset b) => Rect.fromLTRB(
 /// The native side speaks FITS: 1-based `CRPIX`, and a CD matrix that maps
 /// `(x − (crpix1−1), y − (crpix2−1))` straight to the tangent-plane
 /// `(xi, eta)` in degrees. [SolvedWcs] uses the same mapping in 0-based
-/// pixels with the reference pixel at the image centre `((W−1)/2, (H−1)/2)`,
-/// so its effective CD matrix (the solver's own, or one rebuilt from scale,
-/// rotation and parity) carries straight over.
+/// pixels about its reference pixel, so its effective CD matrix (the solver's
+/// own, or one rebuilt from scale, rotation and parity) carries straight over.
 ReferenceGeometry? depthLockReferenceFromSolvedWcs(SolvedWcs wcs) {
   if (!wcs.isValid) return null;
-  final double crval1 = _normaliseRaDeg(wcs.raHours * 15.0);
-  final double crval2 = wcs.decDegrees;
+  final fits = wcs.fitsTerms;
+  final double crval1 = _normaliseRaDeg(fits.crval1);
+  final double crval2 = fits.crval2;
   // The native validator refuses a reference outside ±85° — the tangent plane
   // stops behaving near the pole — so refuse here rather than let the create
   // call fail with geometry the operator cannot see anything wrong with.
   if (crval2.abs() > 85.0) return null;
 
-  final cd = wcs.effectiveCd;
   return ReferenceGeometry(
     width: wcs.imageWidth,
     height: wcs.imageHeight,
     crval1: crval1,
     crval2: crval2,
-    crpix1: (wcs.imageWidth + 1) / 2.0,
-    crpix2: (wcs.imageHeight + 1) / 2.0,
-    cd1_1: cd.cd1_1,
-    cd1_2: cd.cd1_2,
-    cd2_1: cd.cd2_1,
-    cd2_2: cd.cd2_2,
+    crpix1: fits.crpix1,
+    crpix2: fits.crpix2,
+    cd1_1: fits.cd1_1,
+    cd1_2: fits.cd1_2,
+    cd2_1: fits.cd2_1,
+    cd2_2: fits.cd2_2,
   );
 }
 

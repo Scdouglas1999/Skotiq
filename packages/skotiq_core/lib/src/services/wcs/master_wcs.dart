@@ -4,7 +4,7 @@ import 'gnomonic_projection.dart';
 extension IntegratedMasterWcs on IntegratedMaster {
   /// The master's plate-solved WCS, or null when it was never solved. A row
   /// without a stored reference pixel is referenced at the image centre.
-  SolvedWcs? get solvedWcs => SolvedWcs.tryFromFitsCd(
+  SolvedWcs? get solvedWcs => SolvedWcs.tryFromFits(
     crval1: wcsCrval1,
     crval2: wcsCrval2,
     crpix1: wcsCrpix1 ?? (width + 1) / 2,

@@ -107,7 +107,7 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     List<CalibrationMasterRecord> records,
   ) async => [for (final record in records) await _enrich(record)];
 
-  /// Fill missing camera id / temperature / filter from the FITS primary
+  /// Fill missing camera id / temperature / filter from the master's frame
   /// header, caching the camera id in `calibration_tags`. Best-effort:
   /// returns the record unchanged when the file is missing or unreadable.
   Future<CalibrationMasterRecord> _enrich(
@@ -123,10 +123,10 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     final path = record.filePath;
     if (path == null || path.isEmpty) return record;
 
-    Map<String, String> headers;
+    FrameHeader header;
     try {
       if (!await File(path).exists()) return record;
-      headers = await headerReader.readPrimaryHeader(path);
+      header = await readHeader(path);
     } catch (e) {
       Log.warning(
         'Calibration enrichment skipped for $path: $e',
@@ -135,19 +135,11 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       return record;
     }
 
-    final camera = needsCamera
-        ? FitsHeaderReader.stringValue(headers, 'INSTRUME')
-        : record.cameraId;
+    final camera = needsCamera ? header.string('INSTRUME') : record.cameraId;
     final temperature = needsTemp
-        ? FitsHeaderReader.firstDouble(headers, const [
-            'CCD-TEMP',
-            'CCD_TEMP',
-            'SET-TEMP',
-          ])
+        ? header.firstNumber(const ['CCD-TEMP', 'CCD_TEMP', 'SET-TEMP'])
         : record.temperature;
-    final filterName = needsFilter
-        ? FitsHeaderReader.stringValue(headers, 'FILTER')
-        : record.filter;
+    final filterName = needsFilter ? header.string('FILTER') : record.filter;
 
     if (needsCamera && camera != null) {
       // Cache so the header is parsed at most once per artifact.

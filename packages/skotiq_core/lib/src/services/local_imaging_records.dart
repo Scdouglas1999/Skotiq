@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFitsFile;
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/sessions_dao.dart';
@@ -23,7 +22,8 @@ import '../services/sky_atlas/sky_atlas_service.dart' show SkyAtlasService;
 import '../services/transients/transient_candidate.dart';
 import 'package:skotiq_astro/format.dart';
 import '../services/wcs/gnomonic_projection.dart' show SolvedWcs;
-import '../services/wcs/wcs_sip_codec.dart';
+import 'frame_header.dart';
+import 'wcs/plate_solve_data_from_result.dart' show storedFrameWcs;
 import '../backend/network_backend/host_data/remote_imaging_records.dart';
 import '../backend/roles/host_data/imaging_records.dart';
 import '../providers/host_role.dart';
@@ -224,10 +224,8 @@ final class LocalImagingRecords implements ImagingRecords {
   }
 
   @override
-  Future<
-    ({double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip})?
-  >
-  getStoredWcsDistortion(int id) => _imagesDao.getStoredWcsDistortion(id);
+  Future<StoredWcsDistortion?> getStoredWcsDistortion(int id) =>
+      _imagesDao.getStoredWcsDistortion(id);
 
   @override
   Future<void> stampProducingNode({
@@ -300,23 +298,9 @@ SolvedFrameFoldHook solvedFrameFoldHook(
     // A frame already folded had its First Light scan and co-imaging
     // contribution with that fold, in this or an earlier session.
     if (image.atlasFoldedAt != null) return;
-    final fits = await apiReadFitsFile(filePath: image.filePath);
-    final stored = await imagesDao.getStoredWcsDistortion(capturedImageId);
-    final sip = decodeSolvedSip(stored?.sip);
-    final distortion = SolvedWcsDistortion(
-      cd1_1: stored?.cd1_1,
-      cd1_2: stored?.cd1_2,
-      cd2_1: stored?.cd2_1,
-      cd2_2: stored?.cd2_2,
-      aOrder: sip?.aOrder ?? 0,
-      bOrder: sip?.bOrder ?? 0,
-      aCoeffs: sip?.aCoeffs ?? const [],
-      bCoeffs: sip?.bCoeffs ?? const [],
-      apOrder: sip?.apOrder ?? 0,
-      bpOrder: sip?.bpOrder ?? 0,
-      apCoeffs: sip?.apCoeffs ?? const [],
-      bpCoeffs: sip?.bpCoeffs ?? const [],
-    );
+    final size = (await readFrameHeader(image.filePath)).imageSize;
+    if (size == null) return;
+    final distortion = await imagesDao.getStoredWcsDistortion(capturedImageId);
 
     // Pillar B ("First Light"): the SAME solve-persist event that folds the
     // light into the atlas also differences it against the comparison
@@ -333,14 +317,20 @@ SolvedFrameFoldHook solvedFrameFoldHook(
     // Running the scan first means the template = history (all PRIOR frames
     // only); the fold then deepens the template for the NEXT frame.
     // A future refactor MUST NOT reorder fold above scan.
-    await _runFirstLightScan(
-      ref: ref,
-      logger: logger,
-      image: image,
-      imageWidth: fits.width,
-      imageHeight: fits.height,
-      distortion: distortion,
+    final wcs = storedFrameWcs(
+      image,
+      stored: distortion,
+      imageWidth: size.width,
+      imageHeight: size.height,
     );
+    if (wcs != null) {
+      await _runFirstLightScan(
+        ref: ref,
+        logger: logger,
+        image: image,
+        wcs: wcs,
+      );
+    }
 
     // Fold dedup: a re-solved frame fires this hook again with the same
     // captured-image id, so [applyAtlasFoldDedup] folds only when the row
@@ -349,8 +339,8 @@ SolvedFrameFoldHook solvedFrameFoldHook(
       image: image,
       imagesDao: imagesDao,
       atlas: ref.read(skyAtlasServiceProvider),
-      imageWidth: fits.width,
-      imageHeight: fits.height,
+      imageWidth: size.width,
+      imageHeight: size.height,
       distortion: distortion,
     );
 
