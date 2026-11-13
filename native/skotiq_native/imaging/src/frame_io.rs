@@ -114,6 +114,8 @@ pub trait FrameCodec: Sync {
     /// The metadata alone, without decoding pixels.
     fn read_header(&self, path: &Path) -> Result<FitsHeader, FrameIoError>;
     fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError>;
+    /// A whole file held in memory.
+    fn read_bytes(&self, bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError>;
     fn write(
         &self,
         path: &Path,
@@ -160,6 +162,9 @@ impl FrameCodec for FitsFrames {
     fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
         Ok(crate::read_fits(path)?)
     }
+    fn read_bytes(&self, bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError> {
+        Ok(crate::read_fits_from_bytes(bytes)?)
+    }
     fn write(
         &self,
         path: &Path,
@@ -198,6 +203,11 @@ impl FrameCodec for XisfFrames {
     }
     fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
         let unit = xisf::read_xisf_unit(path)?;
+        let header = xisf::header_from_image(unit.image(0)?);
+        Ok((unit.read_pixels(0)?, header))
+    }
+    fn read_bytes(&self, bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError> {
+        let unit = xisf::read_xisf_bytes(bytes)?;
         let header = xisf::header_from_image(unit.image(0)?);
         Ok((unit.read_pixels(0)?, header))
     }
@@ -271,6 +281,10 @@ impl FrameCodec for RawFrames {
     }
     fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
         let frame = crate::read_raw_file(path)?;
+        Ok((frame.to_image(), frame.header()))
+    }
+    fn read_bytes(&self, bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError> {
+        let frame = crate::read_raw_bytes(bytes)?;
         Ok((frame.to_image(), frame.header()))
     }
 }
@@ -384,6 +398,18 @@ pub fn frame_extension(format: ImageFormat) -> &'static str {
 
 pub fn read_frame(path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
     codec_for_file(path)?.read(path)
+}
+
+/// A frame file held in memory (one a camera server sent), its format told
+/// from its first bytes. [`FrameIoError::UnknownFormat`] when they are no
+/// format the app reads.
+pub fn read_frame_bytes(bytes: &[u8]) -> Result<(ImageData, FitsHeader), FrameIoError> {
+    let head = &bytes[..bytes.len().min(HEAD_BYTES)];
+    CODECS
+        .iter()
+        .find(|c| c.probe(head))
+        .ok_or_else(|| FrameIoError::UnknownFormat("The frame".to_string()))?
+        .read_bytes(bytes)
 }
 
 pub fn read_frame_header(path: &Path) -> Result<FitsHeader, FrameIoError> {

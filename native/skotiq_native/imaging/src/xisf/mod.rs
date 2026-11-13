@@ -378,6 +378,8 @@ impl XisfImageHeader {
 pub(crate) enum UnitSource {
     Monolithic(PathBuf),
     Distributed { header_dir: PathBuf },
+    /// A monolithic unit held in memory, such as a frame a camera server sent.
+    InMemory(std::sync::Arc<[u8]>),
 }
 
 /// A parsed XISF unit.
@@ -446,6 +448,12 @@ pub fn read_xisf_unit(path: &Path) -> Result<XisfUnit, XisfError> {
         let xml = block::read_monolithic_header(path)?;
         header::parse_unit(&xml, UnitSource::Monolithic(path.to_path_buf()))
     }
+}
+
+/// Parse a monolithic unit held in memory without decoding any pixel data.
+pub fn read_xisf_bytes(bytes: &[u8]) -> Result<XisfUnit, XisfError> {
+    let xml = block::monolithic_header(&mut std::io::Cursor::new(bytes), bytes.len() as u64)?;
+    header::parse_unit(&xml, UnitSource::InMemory(bytes.into()))
 }
 
 fn read_bounded_text(path: &Path) -> Result<String, XisfError> {

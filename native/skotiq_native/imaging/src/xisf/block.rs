@@ -94,6 +94,11 @@ pub(crate) fn parse_location(text: &str, source: &UnitSource) -> Result<Location
                     .parent()
                     .map(|dir| dir.join(relative))
                     .unwrap_or_else(|| PathBuf::from(relative)),
+                UnitSource::InMemory(_) => {
+                    return Err(XisfError::Unsupported(format!(
+                        "its data is in a file beside a header that has no folder ({resource})"
+                    )))
+                }
             },
             None => PathBuf::from(resource),
         },
@@ -132,6 +137,12 @@ fn parse_index_id(text: &str) -> Option<u64> {
 pub(crate) fn read_monolithic_header(path: &Path) -> Result<String, XisfError> {
     let mut file = File::open(path)?;
     let file_len = file.metadata()?.len();
+    monolithic_header(&mut file, file_len)
+}
+
+/// [`read_monolithic_header`] of a unit of `file_len` bytes read from its
+/// start.
+pub(crate) fn monolithic_header(file: &mut impl Read, file_len: u64) -> Result<String, XisfError> {
     let mut preamble = [0u8; 16];
     file.read_exact(&mut preamble).map_err(|_| {
         XisfError::Malformed("the file is shorter than an XISF signature".to_string())
@@ -154,10 +165,10 @@ pub(crate) fn read_monolithic_header(path: &Path) -> Result<String, XisfError> {
         .map_err(|_| XisfError::Malformed("the XISF header is not UTF-8 text".to_string()))
 }
 
-/// The stored bytes of a block in a file: an open reader positioned at the
-/// first byte, and the stored length.
+/// The stored bytes of a block: an open reader positioned at the first byte,
+/// and the stored length.
 pub(crate) struct StoredRange {
-    pub reader: BufReader<File>,
+    pub reader: Box<dyn Read>,
     pub len: u64,
 }
 
@@ -176,6 +187,21 @@ impl DataBlock {
             BlockLocation::InHeader(_) => return Ok(None),
             BlockLocation::Attachment { position, size } => match source {
                 UnitSource::Monolithic(path) => (path.clone(), *position, Some(*size)),
+                UnitSource::InMemory(bytes) => {
+                    let unit_len = bytes.len() as u64;
+                    if position.checked_add(*size).is_none_or(|end| end > unit_len) {
+                        return Err(XisfError::Corrupt(format!(
+                            "a data block claims bytes {position}..{} of a {unit_len}-byte unit",
+                            position.saturating_add(*size)
+                        )));
+                    }
+                    let mut reader = std::io::Cursor::new(bytes.clone());
+                    reader.set_position(*position);
+                    return Ok(Some(StoredRange {
+                        reader: Box::new(reader),
+                        len: *size,
+                    }));
+                }
                 UnitSource::Distributed { .. } => {
                     return Err(XisfError::Malformed(
                         "an attached block in a distributed unit".to_string(),
@@ -206,7 +232,10 @@ impl DataBlock {
         }
         let mut reader = BufReader::with_capacity(1 << 20, file);
         reader.seek(SeekFrom::Start(position))?;
-        Ok(Some(StoredRange { reader, len }))
+        Ok(Some(StoredRange {
+            reader: Box::new(reader),
+            len,
+        }))
     }
 
     /// Read and decode the whole block: verify the checksum, decompress and
