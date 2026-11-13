@@ -1,4 +1,3 @@
-import '../providers/async_scope.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -255,7 +254,7 @@ class AnnotationService {
 
   bool _isCurrentAnnotationRun(int generation, SkotiqBackend backend) =>
       generation == _annotationRunGeneration &&
-      _ref.backendScopeOver(backend).isCurrent;
+      identical(_ref.read(backendProvider), backend);
 
   Stream<ImageAnnotation> get annotationStream => _ref
       .read(currentAnnotationProvider.notifier)
