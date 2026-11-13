@@ -6,6 +6,7 @@ import '../backend/roles/device_backend.dart';
 import 'plate_solve_service.dart';
 import 'imaging_service.dart';
 import 'device_service.dart';
+import 'guiding_for_move.dart';
 import '../providers/backend_provider.dart';
 import '../providers/constellation_provider.dart'
     show coImagingSessionServiceProvider;
@@ -24,16 +25,6 @@ part 'centering_service/centering_models.dart';
 part 'centering_service/centering_loop.dart';
 part 'centering_service/slew_settle.dart';
 part 'centering_service/centering_geometry.dart';
-
-/// PHD2 app states in which the guider does not move the mount.
-const Set<String> _idleGuiderStates = {
-  'Disconnected',
-  'Connected',
-  'Stopped',
-  'Selected',
-  'Looping',
-  'Paused',
-};
 
 /// Service for automated target centering using plate solving
 class CenteringService {

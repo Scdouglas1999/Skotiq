@@ -4,6 +4,8 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/services.dart' as core_services
+    show stopGuidingForMove;
 
 import 'command_action_result.dart';
 
@@ -131,7 +133,8 @@ class MountCommandService {
         return CommandActionResult.ok;
       } catch (e) {
         final operation = unparkRequested ? 'unpark' : 'park';
-        return CommandActionResult.failure('Failed to $operation mount: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Failed to $operation mount: ${userFacingError(e)}');
       }
     });
   }
@@ -152,7 +155,8 @@ class MountCommandService {
         await _deviceService.parkMount();
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to park mount: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Failed to park mount: ${userFacingError(e)}');
       }
     });
   }
@@ -171,27 +175,21 @@ class MountCommandService {
         await _deviceService.unparkMount();
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to unpark mount: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Failed to unpark mount: ${userFacingError(e)}');
       }
     });
   }
 
-  /// Stops guiding before a mount move this app starts (a GoTo, a park, a
-  /// home, a centering run): a guider left running chases the move and loses
-  /// its star. Guiding is not restarted afterwards, because nothing is waiting
-  /// on it. Returns the refusal to give when guiding could not be stopped,
-  /// and the mount must then stay where it is; null when the move may go.
+  /// [stopGuidingForMove]'s answer as a command result: the refusal to give
+  /// when guiding did not stop and the mount must stay where it is, null when
+  /// the move may go.
   Future<CommandActionResult?> stopGuidingForMove() async {
-    final guider = _ref.read(guiderStateProvider);
-    if (!guider.isGuiding && !guider.isCalibrating) return null;
     try {
-      await _ref.read(phd2ControllerProvider).stopGuiding();
+      await core_services.stopGuidingForMove(_ref);
       return null;
-    } catch (e) {
-      return CommandActionResult.failure(
-        'Guiding did not stop, so the mount was not moved: '
-        '${userFacingError(e)}',
-      );
+    } on GuidingDidNotStopException catch (e) {
+      return CommandActionResult.failure('$e');
     }
   }
 
@@ -235,7 +233,8 @@ class MountCommandService {
       } on MountSlewException catch (e) {
         return CommandActionResult.failure(e.message);
       } catch (e) {
-        return CommandActionResult.failure('Slew failed: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Slew failed: ${userFacingError(e)}');
       }
     });
   }
@@ -266,7 +265,8 @@ class MountCommandService {
       }
       return CommandActionResult.ok;
     } catch (e) {
-      return CommandActionResult.failure('Failed to abort slew: ${userFacingError(e)}');
+      return CommandActionResult.failure(
+          'Failed to abort slew: ${userFacingError(e)}');
     }
   }
 
@@ -284,7 +284,8 @@ class MountCommandService {
         await _deviceService.setMountTracking(enabled);
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to set tracking: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Failed to set tracking: ${userFacingError(e)}');
       }
     });
   }
@@ -317,7 +318,8 @@ class MountCommandService {
         await _deviceService.setMountTrackingRate(rate.index);
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to set tracking rate: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Failed to set tracking rate: ${userFacingError(e)}');
       }
     });
   }
@@ -342,7 +344,8 @@ class MountCommandService {
           message: 'Mount synced to coordinates',
         );
       } catch (e) {
-        return CommandActionResult.failure('Sync failed: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Sync failed: ${userFacingError(e)}');
       }
     });
   }
@@ -382,7 +385,8 @@ class MountCommandService {
       } on MountHomeException catch (e) {
         return CommandActionResult.failure(e.message);
       } catch (e) {
-        return CommandActionResult.failure('Home failed: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Home failed: ${userFacingError(e)}');
       }
     });
   }
@@ -410,7 +414,8 @@ class MountCommandService {
           message: 'Park position set to where the mount is pointing',
         );
       } catch (e) {
-        return CommandActionResult.failure('Set park failed: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Set park failed: ${userFacingError(e)}');
       }
     });
   }
@@ -504,7 +509,8 @@ class MountCommandService {
         );
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Pulse guide failed: ${userFacingError(e)}');
+        return CommandActionResult.failure(
+            'Pulse guide failed: ${userFacingError(e)}');
       }
     });
   }

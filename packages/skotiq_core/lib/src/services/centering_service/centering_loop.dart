@@ -132,49 +132,6 @@ extension _CenteringLoop on CenteringService {
     }
   }
 
-  /// Stop the guider if it may move the mount: guiding or calibrating as the
-  /// app last saw it, or in any guider state other than idle, looping or
-  /// paused (PHD2 in LostLock guides again the moment it finds the star). A
-  /// guider that cannot be stopped is logged and centering goes ahead.
-  Future<void> _stopGuidingForCentering(DeviceService deviceService) async {
-    final guider = _ref.read(guiderStateProvider);
-    if (guider.connectionState != DeviceConnectionState.connected) return;
-    var active = guider.isGuiding || guider.isCalibrating;
-    if (!active) {
-      try {
-        final status = await _ref
-            .read(guidingBackendProvider)
-            .guiderGetStatus();
-        active = !_idleGuiderStates.contains(status.state);
-      } catch (e) {
-        // The guider not answering: the app's own view stands.
-        _ref
-            .read(loggingServiceProvider)
-            .debug(
-              'Guider state unavailable before centering ($e); the guider is '
-              'treated as idle as the app last saw it.',
-              source: 'CenteringService',
-            );
-      }
-    }
-    if (!active) return;
-    final logger = _ref.read(loggingServiceProvider);
-    try {
-      await deviceService.stopGuiding();
-      logger.info(
-        'Stopped guiding for centering: the guider cannot guide while the '
-        'mount moves. Start guiding again when centering is done.',
-        source: 'CenteringService',
-      );
-    } catch (e) {
-      logger.warning(
-        'Could not stop guiding before centering ($e); the guider may fight '
-        'the correction slews.',
-        source: 'CenteringService',
-      );
-    }
-  }
-
   CenteringResult _abortedResult(
     int iteration,
     List<CenteringIteration> iterations,
@@ -220,11 +177,9 @@ extension _CenteringLoop on CenteringService {
     _ownedDeviceService = deviceService;
 
     // A guider cannot guide while centering moves the mount: it fights every
-    // correction slew and trails the plate-solve frames. On the rig
-    // (2026-10-20) a Slew & Center with PHD2 guiding converged only to 5.4"
-    // and timed out. Stopped as the sequencer's Center stops it, and left
-    // stopped: guiding started outside a run is the operator's to restart.
-    await _stopGuidingForCentering(deviceService);
+    // correction slew and trails the plate-solve frames. Centering does not
+    // move the mount when guiding will not stop.
+    await stopGuidingForMove(_ref);
     if (_abortRequested) return _abortedResult(0, iterations);
 
     // Fail before taking a throwaway exposure when the selected solver is not

@@ -33,7 +33,8 @@ export 'src/services/local_imaging_records.dart'
         SolvedFrameFoldHook,
         applyAtlasFoldDedup;
 export 'src/services/imaging_service.dart';
-export 'src/services/capture_preview_loader.dart' show CapturePreviewPublisher, capturedImageDataFromResult;
+export 'src/services/capture_preview_loader.dart'
+    show CapturePreviewPublisher, capturedImageDataFromResult;
 export 'src/services/stretch_pipeline_service.dart';
 export 'src/services/thumbnail_sidecar_service.dart';
 export 'src/services/plate_solve_service.dart';
@@ -87,6 +88,7 @@ export 'src/services/scheduler/rejection_labels.dart';
 export 'src/services/planning/project_service.dart';
 export 'src/services/planning/forecast_planning_service.dart';
 export 'src/services/focus_model_service.dart';
+export 'src/services/guiding_for_move.dart';
 // Predictive autofocus persisted per-filter learning + drift detection.
 export 'src/services/predictive_af_service.dart';
 export 'src/services/logging_service.dart';
@@ -233,7 +235,8 @@ export 'src/services/live_stack_master_library.dart';
 export 'src/services/live_stacking_broadcast_service.dart';
 // Stack-and-Share Loop (components C6/C8): orchestrator + share/export service.
 export 'src/services/stack_and_share_service.dart';
-export 'src/services/stack_light_selector.dart' show NoLightsToStackException, StackLightSelector;
+export 'src/services/stack_light_selector.dart'
+    show NoLightsToStackException, StackLightSelector;
 export 'src/services/stack_share_export_service.dart';
 // Post-session (offline/batch) integration: archival masters + multi-night
 // accumulation + master-flat library.
