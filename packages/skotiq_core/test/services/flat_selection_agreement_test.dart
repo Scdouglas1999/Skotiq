@@ -83,44 +83,44 @@ void main() {
     return (add['calibration'] as Map<String, dynamic>)['flat'] as String?;
   }
 
-  Future<String?> darkroomPick(DbCapturedImage sub) async => (await darkroom
-          .match(
-            LightFrameContext(
-              gain: sub.gain,
-              offset: sub.offset,
-              exposureSeconds: sub.exposureDuration,
-              temperature: sub.sensorTemp,
-              filter: sub.filter,
-            ),
-            includeRemote: false,
-          ))
-      .flat
-      ?.record
-      .filePath;
+  Future<String?> darkroomPick(DbCapturedImage sub) async =>
+      (await darkroom.match(
+        LightFrameContext(
+          gain: sub.gain,
+          offset: sub.offset,
+          exposureSeconds: sub.exposureDuration,
+          temperature: sub.sensorTemp,
+          filter: sub.filter,
+        ),
+        includeRemote: false,
+      )).flat?.record.filePath;
 
-  test('the newest flat within the temperature tolerance wins in both', () async {
-    await flatDao.addEntry(
-      filePath: '/flats/L_old_exact.fits',
-      filter: 'L',
-      gain: 100,
-      offset: 10,
-      temperature: -10,
-      createdAt: DateTime.utc(2026, 6, 1),
-    );
-    await flatDao.addEntry(
-      filePath: '/flats/L_new_warmer.fits',
-      filter: 'L',
-      gain: 100,
-      offset: 10,
-      temperature: -7,
-      createdAt: DateTime.utc(2026, 6, 6),
-    );
-    final sub = await insertSub('/n1/a.fits', gain: 100);
+  test(
+    'the newest flat within the temperature tolerance wins in both',
+    () async {
+      await flatDao.addEntry(
+        filePath: '/flats/L_old_exact.fits',
+        filter: 'L',
+        gain: 100,
+        offset: 10,
+        temperature: -10,
+        createdAt: DateTime.utc(2026, 6, 1),
+      );
+      await flatDao.addEntry(
+        filePath: '/flats/L_new_warmer.fits',
+        filter: 'L',
+        gain: 100,
+        offset: 10,
+        temperature: -7,
+        createdAt: DateTime.utc(2026, 6, 6),
+      );
+      final sub = await insertSub('/n1/a.fits', gain: 100);
 
-    final darkroomPath = await darkroomPick(sub);
-    expect(darkroomPath, '/flats/L_new_warmer.fits');
-    expect(await accumulationPick(sub), darkroomPath);
-  });
+      final darkroomPath = await darkroomPick(sub);
+      expect(darkroomPath, '/flats/L_new_warmer.fits');
+      expect(await accumulationPick(sub), darkroomPath);
+    },
+  );
 
   test('lights that record no gain draw the same flat from both', () async {
     await flatDao.addEntry(
@@ -137,18 +137,21 @@ void main() {
     expect(await accumulationPick(sub), darkroomPath);
   });
 
-  test('a flat outside the temperature tolerance is the pick of both', () async {
-    await flatDao.addEntry(
-      filePath: '/flats/L_warm.fits',
-      filter: 'L',
-      gain: 100,
-      offset: 10,
-      temperature: 5,
-    );
-    final sub = await insertSub('/n1/a.fits', gain: 100);
+  test(
+    'a flat outside the temperature tolerance is the pick of both',
+    () async {
+      await flatDao.addEntry(
+        filePath: '/flats/L_warm.fits',
+        filter: 'L',
+        gain: 100,
+        offset: 10,
+        temperature: 5,
+      );
+      final sub = await insertSub('/n1/a.fits', gain: 100);
 
-    final darkroomPath = await darkroomPick(sub);
-    expect(darkroomPath, '/flats/L_warm.fits');
-    expect(await accumulationPick(sub), darkroomPath);
-  });
+      final darkroomPath = await darkroomPick(sub);
+      expect(darkroomPath, '/flats/L_warm.fits');
+      expect(await accumulationPick(sub), darkroomPath);
+    },
+  );
 }

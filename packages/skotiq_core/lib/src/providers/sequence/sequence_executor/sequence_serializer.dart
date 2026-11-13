@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/equipment/filter_names.dart';
 import '../../../models/imaging/imaging_models.dart';
+import '../../../models/imaging/naming_pattern.dart';
 import '../../../models/meridian_flip_settings.dart' show TrackingLimitPolicy;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/settings/app_settings.dart' show SafetyFailMode;
@@ -82,20 +83,18 @@ class SequenceSerializer {
     required BinningMode binning,
   }) {
     final camera = _ref.read(cameraStateProvider);
-    final mountName = _ref.read(mountStateProvider).deviceName;
     return ImagingService.runFrameSaveTemplate(
       _ref.read(namingPatternProvider).pattern,
-      ImagingService.runFrameFixedTokens(
-        sequence: _sequenceName,
+      NamingStep(
         frameType: frameType,
         gain: gain ?? camera.gain ?? 0,
         offset: offset ?? camera.offset ?? 0,
-        binning: binning.label,
-        camera: (camera.deviceName?.isNotEmpty ?? false)
-            ? camera.deviceName!
-            : 'Camera',
-        telescope: (mountName?.isNotEmpty ?? false) ? mountName! : 'Telescope',
-        sentAt: _sentAt ?? _ref.read(clockProvider).nowUtc(),
+        binX: binning.factor,
+        binY: binning.factor,
+        camera: camera.deviceName,
+        telescope: _ref.read(mountStateProvider).deviceName,
+        sequence: _sequenceName,
+        session: _sentAt ?? _ref.read(clockProvider).nowUtc(),
       ),
     );
   }

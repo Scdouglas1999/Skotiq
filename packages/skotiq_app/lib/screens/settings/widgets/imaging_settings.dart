@@ -6,7 +6,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'imaging_naming_pattern.dart';
 import 'settings_widgets.dart';
 
 class ImagingSettings extends ConsumerStatefulWidget {
@@ -26,7 +25,7 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
   /// Without this the bad pattern was stored happily and only surfaced as a
   /// failed exposure — losing the frame that discovered it.
   Future<void> _commitPattern(String value) async {
-    final check = checkNamingPattern(value);
+    final check = NamingPattern.check(value);
     if (!check.isValid) {
       if (mounted) setState(() => _patternError = check.error);
       throw SettingWriteHandled(
@@ -46,7 +45,7 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
   /// the field until the first exposure of the night fails.
   Widget _patternFeedback(String savedPattern, String extension) {
     final colors = SkotiqColors.of(context);
-    final saved = checkNamingPattern(savedPattern, extension: extension);
+    final saved = NamingPattern.check(savedPattern, extension: extension);
     final error = _patternError ?? saved.error;
     if (error != null) {
       return Padding(
@@ -191,13 +190,13 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                 SettingRow(
                   icon: LucideIcons.fileText,
                   title: 'File naming pattern',
-                  subtitle:
-                      r'Variables: $TARGET, $FILTER, $DATE, $SEQ, $EXPOSURE',
+                  subtitle: 'Folders and file name, separated by /. '
+                      'Variables: ${NamingToken.values.map((t) => t.text).join(', ')}',
                   trailing: SettingsTextInput(
                     authoritativeValue: settings.fileNamingPattern,
                     authorityKey: authority,
-                    width: 220,
-                    narrowWidth: 160,
+                    width: 360,
+                    narrowWidth: 240,
                     onChanged: _commitPattern,
                   ),
                   isLast: true,

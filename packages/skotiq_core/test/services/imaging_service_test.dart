@@ -15,6 +15,7 @@ import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
+import 'package:skotiq_core/src/models/imaging/naming_pattern.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
 import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
@@ -1026,7 +1027,10 @@ void main() {
           pattern: r'$TARGET/Light/$TARGET_$SEQ',
           basePath: r'C:\Users\scdou\Documents\NGC7380',
           extension: 'fits',
-          substitutions: const {r'$TARGET': 'NGC0891', r'$SEQ': '0001'},
+          values: const {
+            NamingToken.target: 'NGC0891',
+            NamingToken.seq: '0001',
+          },
           pathContext: windowsHost,
         ),
         r'C:\Users\scdou\Documents\NGC7380\NGC0891\Light\NGC0891_0001.fits',
@@ -1036,7 +1040,7 @@ void main() {
           pattern: r'$TARGET_$SEQ',
           basePath: 'captures',
           extension: 'fits',
-          substitutions: const {r'$TARGET': 'M31', r'$SEQ': '0001'},
+          values: const {NamingToken.target: 'M31', NamingToken.seq: '0001'},
           pathContext: hostPathContext('/srv/rig'),
         ),
         throwsA(isA<ValidationException>()),
@@ -3069,7 +3073,7 @@ void main() {
       // Pattern: subdirectory hierarchy + an implicit filename-stem segment.
       // `$TARGET/$FILTER/$DATE` has three segments; the last (`$DATE`) is the
       // filename stem and the first two are subdirectories.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3080,7 +3084,7 @@ void main() {
         pattern: r'$TARGET/$FILTER/$DATE',
         basePath: '/captures',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       // Last segment is the filename stem; expect M31/L as subdirs and the
@@ -3094,7 +3098,7 @@ void main() {
       // The user's pattern ends in `$TARGET_$FILTER_$FRAMENUM`, and the
       // trailing segment is the filename: what the user wrote is what is used,
       // not a hard-coded ${target}_${filter}_${frameNumber}.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3105,7 +3109,7 @@ void main() {
         pattern: r'$TARGET/$FILTER/$DATE/$TARGET_$FILTER_$FRAMENUM',
         basePath: '/captures',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       expect(
@@ -3124,7 +3128,7 @@ void main() {
       // Silent fallbacks hide bugs for months. A typo like
       // `$BANANA` must surface immediately rather than landing in the
       // filename as a literal "$BANANA" string.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3136,7 +3140,7 @@ void main() {
           pattern: r'$TARGET/$BANANA/$FRAMENUM',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         ),
         throwsA(
           isA<Exception>().having(
@@ -3144,7 +3148,7 @@ void main() {
             'message',
             allOf(
               contains(r'$BANANA'),
-              contains('Unknown naming-pattern variable'),
+              contains('Unknown variable'),
               // The error must enumerate the supported set so the user can
               // fix the typo without grepping the codebase.
               contains(r'$TARGET'),
@@ -3155,7 +3159,7 @@ void main() {
     });
 
     test('multiple unknown variables are all reported in one error', () {
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3167,7 +3171,7 @@ void main() {
           pattern: r'$FOO/$BAR/$BAZ',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         ),
         throwsA(
           isA<Exception>().having(
@@ -3181,7 +3185,7 @@ void main() {
 
     test('pattern without "/" places file directly in base path', () {
       // No subdirectory separators ⇒ the whole pattern is the filename stem.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 7,
@@ -3192,7 +3196,7 @@ void main() {
         pattern: r'$TARGET_$FILTER_$FRAMENUM',
         basePath: '/captures',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       expect(fullPath, endsWith('M31_L_0007.fits'));
@@ -3202,7 +3206,7 @@ void main() {
       // A naive chained `replaceAll` handles `$EXPTIME` and `$EXPOSURE`
       // because neither is a strict prefix of the other; the regex-based pass
       // keeps that behaviour. Likewise `$FRAMENUM` and `$FRAMETYPE`.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 3,
@@ -3213,7 +3217,7 @@ void main() {
         pattern: r'$FRAMETYPE/$EXPOSURE/$EXPTIME_$FRAMENUM',
         basePath: '/c',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       // Both EXPOSURE and EXPTIME resolve to "120.0"; FRAMETYPE -> "light";
@@ -3227,7 +3231,7 @@ void main() {
       // Documented in settings_screen subtitle as `$SEQ`; legacy users have
       // this in their pattern (it ships as a default in
       // `database.dart` / `settings_provider.dart`).
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 12,
@@ -3238,7 +3242,7 @@ void main() {
         pattern: r'$TARGET_$FILTER_$DATE_$SEQ',
         basePath: '/c',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       expect(fullPath, endsWith('M31_L_2026-05-23_0012.fits'));
@@ -3247,7 +3251,7 @@ void main() {
     test(
       'substitution values cannot inject directories or parent traversal',
       () {
-        final subs = ImagingService.buildTimestampSubstitutions(
+        final subs = ImagingService.manualFrameValues(
           exposureSettings: settings,
           targetName: '../M31\\Ha:unsafe',
           frameNumber: 1,
@@ -3258,7 +3262,7 @@ void main() {
           pattern: r'$TARGET/$TARGET_$FRAMENUM',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         );
 
         expect(path.isWithin('/captures', fullPath), isTrue);
@@ -3269,7 +3273,7 @@ void main() {
     );
 
     test('literal parent traversal in pattern is rejected', () {
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3281,14 +3285,14 @@ void main() {
           pattern: r'../$TARGET',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         ),
         throwsA(isA<ValidationException>()),
       );
     });
 
     test('lowercase and malformed variable syntax is rejected', () {
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3300,7 +3304,7 @@ void main() {
           pattern: r'$target_$FRAMENUM',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         ),
         throwsA(isA<ValidationException>()),
       );
@@ -3310,7 +3314,7 @@ void main() {
   // UTC-consistent naming. FITS DATE-OBS is UTC; the on-disk
   // folder name must match so a 19:00 PST capture lands in the same UTC
   // date as the FITS header timestamp embedded in the file.
-  group('ImagingService.buildTimestampSubstitutions UTC convention', () {
+  group('ImagingService.manualFrameValues UTC convention', () {
     const settings = ExposureSettings(
       exposureTime: 60.0,
       gain: 100,
@@ -3338,20 +3342,20 @@ void main() {
         0,
       ); // 19:00 PST → 03:00 UTC
       // Either ctor must give a UTC date of 2026-01-16 after `.toUtc()`.
-      final subs1 = ImagingService.buildTimestampSubstitutions(
+      final subs1 = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
         timestamp: utcEquivalent,
       );
-      expect(subs1[r'$DATE'], '2026-01-16');
-      expect(subs1[r'$TIME'], '03-00-00');
+      expect(subs1[NamingToken.date], '2026-01-16');
+      expect(subs1[NamingToken.time], '03-00-00');
 
       // And a local-time DateTime that resolves to the same instant must
       // produce the same UTC date (regardless of host TZ, because
       // `localTs.toUtc()` normalises). This guarantees the implementation
       // calls `.toUtc()` before formatting.
-      final subs2 = ImagingService.buildTimestampSubstitutions(
+      final subs2 = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3361,36 +3365,36 @@ void main() {
       // unknown, but the formatted date MUST equal `localTs.toUtc()`'s
       // ISO date — proving the conversion path runs.
       final expectedDate = localTs.toUtc().toIso8601String().substring(0, 10);
-      expect(subs2[r'$DATE'], expectedDate);
+      expect(subs2[NamingToken.date], expectedDate);
     });
 
     test('midnight-UTC capture resolves \$DATE to that UTC day', () {
       final ts = DateTime.utc(2026, 5, 23, 0, 0, 0);
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
         timestamp: ts,
       );
-      expect(subs[r'$DATE'], '2026-05-23');
-      expect(subs[r'$TIME'], '00-00-00');
-      expect(subs[r'$DATETIME'], '2026-05-23_00-00-00');
+      expect(subs[NamingToken.date], '2026-05-23');
+      expect(subs[NamingToken.time], '00-00-00');
+      expect(subs[NamingToken.dateTime], '2026-05-23_00-00-00');
       // $SESSION is the compact yyyymmdd date.
-      expect(subs[r'$SESSION'], '20260523');
+      expect(subs[NamingToken.session], '20260523');
     });
 
     test('one-second-before-UTC-midnight is correctly classified', () {
       // 23:59:59 UTC on 2026-05-23 must NOT spill into 2026-05-24. This
       // verifies we are formatting from UTC, not adding any offset.
       final ts = DateTime.utc(2026, 5, 23, 23, 59, 59);
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
         timestamp: ts,
       );
-      expect(subs[r'$DATE'], '2026-05-23');
-      expect(subs[r'$TIME'], '23-59-59');
+      expect(subs[NamingToken.date], '2026-05-23');
+      expect(subs[NamingToken.time], '23-59-59');
     });
   });
 }

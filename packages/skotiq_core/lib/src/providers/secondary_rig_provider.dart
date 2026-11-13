@@ -21,6 +21,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import 'host_role.dart';
 import '../backend/remote_host.dart';
+import '../models/imaging/naming_pattern.dart';
 import '../services/imaging_service.dart';
 import 'backend_provider.dart';
 import 'clock_provider.dart';
@@ -456,14 +457,16 @@ final class _BridgeSecondaryRig implements _SecondaryRigDrive {
         ditherMaxWaitSecs: config.ditherMaxWaitSecs,
         inFlightPolicy: config.ditherPolicy.wire,
         saveBasePath: saveBasePath,
-        saveTo: ImagingService.secondaryRigSaveTemplate(
+        saveTo: ImagingService.runFrameSaveTemplate(
           _ref.read(namingPatternProvider).pattern,
-          rigLabel: config.rigLabel,
-          gain: config.gain,
-          offset: config.offset,
-          binX: config.binX,
-          binY: config.binY,
-          sentAt: _ref.read(clockProvider).nowUtc(),
+          NamingStep.secondaryRig(
+            rigLabel: config.rigLabel,
+            gain: config.gain,
+            offset: config.offset,
+            binX: config.binX,
+            binY: config.binY,
+            session: _ref.read(clockProvider).nowUtc(),
+          ),
         ),
         targetName: context.targetName,
         targetRaHours: context.targetRaHours,

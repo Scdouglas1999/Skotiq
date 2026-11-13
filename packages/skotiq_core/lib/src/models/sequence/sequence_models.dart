@@ -227,6 +227,9 @@ enum NodeStatus { pending, running, success, failure, skipped, cancelled }
 enum BinningMode { one, two, three, four }
 
 extension BinningModeExtension on BinningMode {
+  /// Pixels combined along each axis.
+  int get factor => index + 1;
+
   String get label {
     switch (this) {
       case BinningMode.one:
