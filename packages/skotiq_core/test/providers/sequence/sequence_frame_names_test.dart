@@ -10,7 +10,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
-import 'package:skotiq_core/src/backend/skotiq_exception.dart' show ValidationException;
+import 'package:skotiq_core/src/backend/skotiq_exception.dart'
+    show ValidationException;
 
 const _pattern =
     r'$SEQUENCE/$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$GAIN_$FRAMENUM';
@@ -86,6 +87,22 @@ void main() {
     expect(
       () => ImagingService.runFrameSaveTemplate(r'../$TARGET', fixed),
       throwsA(isA<ValidationException>()),
+    );
+  });
+
+  test('a secondary camera names its frames by the same Settings pattern', () {
+    expect(
+      ImagingService.secondaryRigSaveTemplate(
+        r'$TARGET/$CAMERA_$FRAMETYPE_$GAIN_$BINNING_$EXPTIME_$FRAMENUM',
+        rigLabel: 'Wide Field',
+        gain: 120,
+        offset: null,
+        binX: 2,
+        binY: 2,
+        sentAt: DateTime.utc(2026, 11, 13, 3),
+      ),
+      r'${target.name}/Wide Field_light_120_2x2_${exposure.duration:.1f}_'
+      r'${frame:04}',
     );
   });
 

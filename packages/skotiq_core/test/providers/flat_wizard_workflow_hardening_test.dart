@@ -174,8 +174,7 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
   Future<CapturedImageResult?> cameraGetLastImage(
     String deviceId, {
     int? maxWidth,
-  }) async =>
-      _image(32768);
+  }) async => _image(32768);
 
   @override
   Future<String> saveFitsFromLastCapture({
@@ -269,8 +268,7 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
   Future<CapturedImageResult?> cameraGetLastImage(
     String deviceId, {
     int? maxWidth,
-  }) async =>
-      _image(32768);
+  }) async => _image(32768);
 
   @override
   Future<String> saveFitsFromLastCapture({
@@ -395,26 +393,28 @@ void main() {
     return notifier;
   }
 
-  test('with no wheel connected the wizard lists the profile\'s filters',
-      () async {
-    final backend = _WorkflowBackend();
-    addTearDown(backend.dispose);
-    final container = makeContainer(
-      backend,
-      wheel: const FilterWheelState(),
-      profileFilters: const ['L', 'Ha'],
-    );
+  test(
+    'with no wheel connected the wizard lists the profile\'s filters',
+    () async {
+      final backend = _WorkflowBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(
+        backend,
+        wheel: const FilterWheelState(),
+        profileFilters: const ['L', 'Ha'],
+      );
 
-    await primeWizard(container);
+      await primeWizard(container);
 
-    expect(
-      [
-        for (final f in container.read(flatWizardProvider).filterSettings)
-          f.filterName,
-      ],
-      ['L', 'Ha'],
-    );
-  });
+      expect(
+        [
+          for (final f in container.read(flatWizardProvider).filterSettings)
+            f.filterName,
+        ],
+        ['L', 'Ha'],
+      );
+    },
+  );
 
   test('a batch of several filters without a wheel is refused before any '
       'frame', () async {
@@ -713,9 +713,16 @@ void main() {
     expect(backend.savedPaths, isNotEmpty);
     for (final saved in backend.savedPaths) {
       expect(saved, startsWith(r'C:\Users\scdou\Documents\Flats\'));
-      expect(saved, contains(r'\L\Flat_L_'));
+      expect(saved, contains(r'\L\'));
       expect(saved, isNot(contains('/')));
     }
+    // Named by the Settings naming pattern, as every kept frame is, and
+    // never twice the same name.
+    expect(
+      backend.savedPaths.map((path) => path.split(r'\').last),
+      everyElement(matches(RegExp(r'^Flat_L_[0-9.]+_\d{4}\.fits$'))),
+    );
+    expect(backend.savedPaths.toSet(), hasLength(backend.savedPaths.length));
   });
 
   test(

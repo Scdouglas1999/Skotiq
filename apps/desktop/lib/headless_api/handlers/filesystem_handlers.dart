@@ -196,7 +196,9 @@ class FileSystemHandlers implements RouteSource {
       return jsonForbidden({
         'error': 'path_not_allowed',
         'message':
-            'The requested path is not under an allow-listed browse root',
+            'The imaging host lets a linked computer use only folders inside '
+            'its Documents, backup, capture, sequence and log folders, and '
+            'any its setup adds (SKOTIQ_BROWSE_ROOTS).',
         'valid': false,
         'exists': false,
         'writable': false,

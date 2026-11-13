@@ -148,6 +148,23 @@ void main() {
   });
 
   testWidgets(
+      'a camera without a cooler that reports its sensor temperature has no '
+      'cooling card', (tester) async {
+    await _pumpPanel(
+      tester,
+      const CameraCapabilities(
+        maxWidth: 1920,
+        maxHeight: 1080,
+        bitDepth: 16,
+      ),
+    );
+
+    expect(find.text('Cooling'), findsNothing);
+    expect(find.byType(SliderRowInteractive), findsNothing);
+    expect(find.text('Cool down'), findsNothing);
+  });
+
+  testWidgets(
       'read_mode_lists_capability_modes: dropdown lists exactly the cap modes',
       (tester) async {
     await _pumpPanel(

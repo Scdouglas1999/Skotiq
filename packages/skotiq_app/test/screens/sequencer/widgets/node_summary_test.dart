@@ -116,6 +116,19 @@ void main() {
       expect(fragments, _hasEditable(InlineEditKind.binning, '3x3'));
     });
 
+    test(
+        'ExposureNode with a gain names none for a camera without gain '
+        'control', () {
+      final node = ExposureNode(count: 2, durationSecs: 60, gain: 120);
+      final gainFrags = nodeSummary(
+        node,
+        sensitivity: const GainSensitivity(hasGain: false, hasOffset: false),
+      ).whereType<EditableFragment>().where(
+            (f) => f.kind == InlineEditKind.gain,
+          );
+      expect(gainFrags, isEmpty);
+    });
+
     test('ExposureNode with fractional duration keeps one decimal', () {
       final node = ExposureNode(count: 3, durationSecs: 1.5, filter: null);
       expect(

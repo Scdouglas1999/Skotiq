@@ -411,7 +411,6 @@ class ImagingHandlers implements RouteSource {
     _logInfo('[API] POST /api/imaging/save-fits-from-capture');
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
-    final filePath = requireString(payload, 'filePath');
     final headerJson = requireObject(payload, 'headerData');
     // FitsWriteHeader.fromJson hard-casts exposureTime/captureTimestamp/
     // frameType, so omitting (or mis-casing) any one of them turned into a 500
@@ -428,6 +427,32 @@ class ImagingHandlers implements RouteSource {
       );
     }
 
+    final backend = container.read(imagingBackendProvider);
+    // A scratch frame (live view, a loop's frame) goes where this host keeps
+    // its scratch files; a client names only the file.
+    final scratchName = optionalString(payload, 'scratchName');
+    if (scratchName != null) {
+      final String savedPath;
+      try {
+        savedPath = await backend.saveScratchFrameFromLastCapture(
+          deviceId: deviceId,
+          name: scratchName,
+          headerData: headerData,
+        );
+      } on ArgumentError {
+        throw BadRequestError(
+          field: 'scratchName',
+          expected: 'a file name with no folder',
+          message: 'A scratch frame is named by a plain file name',
+        );
+      }
+      if (showApiCapturesInPreview) {
+        unawaited(_showSavedCaptureInPreview(deviceId, savedPath, headerData));
+      }
+      return jsonOk({'status': 'saved', 'path': savedPath});
+    }
+
+    final filePath = requireString(payload, 'filePath');
     final canonicalFilePath = await FileSystemHandlers(
       container,
     ).canonicalizeAllowedPath(filePath);
@@ -447,7 +472,6 @@ class ImagingHandlers implements RouteSource {
     // mirror a host path.
     await Directory(path.dirname(canonicalFilePath)).create(recursive: true);
 
-    final backend = container.read(imagingBackendProvider);
     final savedPath = await backend.saveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: canonicalFilePath,

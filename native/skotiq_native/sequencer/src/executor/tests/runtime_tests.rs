@@ -3071,6 +3071,58 @@ async fn a_notify_exposure_trigger_tells_once_per_episode_and_never_stops_the_ru
     );
 }
 
+/// A trigger's debounce (the "Debounce time" the trigger dialog sets) keeps it
+/// quiet for that long after it acts, even when its condition clears and
+/// returns in between.
+#[tokio::test]
+async fn an_exposure_trigger_stays_quiet_for_its_debounce_after_it_acts() {
+    let (context, mut events, _decisions) = exposure_trigger_context();
+    let clock = crate::scheduling::MockClock::at("2026-11-13T02:00:00Z");
+    let mut context = context.with_clock(clock.clone());
+    let mut config = hfr_trigger(crate::TriggerAction::Notify);
+    config.triggers[0].debounce_secs = 600.0;
+
+    let mut notified = || {
+        let mut count = 0;
+        while let Ok(event) = events.try_recv() {
+            if matches!(event, ExecutorEvent::TriggerFired { .. }) {
+                count += 1;
+            }
+        }
+        count
+    };
+    async fn burst(
+        hfr: f64,
+        config: &crate::ExposureConfig,
+        context: &mut crate::node::ExecutionContext,
+    ) {
+        crate::node::instructions::expose::check_exposure_triggers(
+            "lights",
+            config,
+            &burst_at_hfr(hfr),
+            context,
+        )
+        .await;
+    }
+
+    burst(5.0, &config, &mut context).await;
+    assert_eq!(notified(), 1, "the first soft burst tells");
+
+    // Sharp, then soft again five minutes later: a new episode, but inside
+    // the ten-minute debounce.
+    clock.advance(std::time::Duration::from_secs(150));
+    burst(2.0, &config, &mut context).await;
+    clock.advance(std::time::Duration::from_secs(150));
+    burst(5.0, &config, &mut context).await;
+    assert_eq!(notified(), 0, "quiet inside the debounce");
+
+    // Past the debounce, the next new episode tells again.
+    clock.advance(std::time::Duration::from_secs(400));
+    burst(2.0, &config, &mut context).await;
+    burst(5.0, &config, &mut context).await;
+    assert_eq!(notified(), 1, "tells again once the debounce has passed");
+}
+
 /// The stop actions stay for the operator who chose them.
 #[tokio::test]
 async fn an_exposure_trigger_set_to_abort_or_pause_still_does_it() {

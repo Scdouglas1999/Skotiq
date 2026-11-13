@@ -330,8 +330,10 @@ class LogHandlers implements RouteSource {
     final shouldHonourRange = rangeHeader != null && ifRangeMatches;
 
     if (!shouldHonourRange) {
+      // Today's log grows while it is sent (this request logs too); the
+      // declared length is the file as it was asked for.
       return attachmentResponse(
-        file.openRead(),
+        file.openRead(0, fileLength),
         fileName: filename,
         contentType: 'text/plain; charset=utf-8',
         contentLength: fileLength,

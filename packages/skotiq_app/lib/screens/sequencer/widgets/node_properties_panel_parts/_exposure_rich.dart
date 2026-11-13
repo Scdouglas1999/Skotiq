@@ -322,33 +322,34 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
 
           Row(
             children: [
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label: _isGainProfileDefault()
-                      ? '${sensitivity.label} (profile)'
-                      : sensitivity.label,
-                  child: SensitivityField(
-                    value: _effectiveGain(profile),
-                    sensitivity: sensitivity,
-                    onChanged: setGain,
-                    gainField: (_) => NodeNumberInput(
-                      colors: colors,
-                      value: _effectiveGain(profile).toDouble(),
-                      min: 0,
-                      max: 1000,
-                      isProfileDefault: _isGainProfileDefault(),
-                      hintText: _isGainProfileDefault() &&
-                              profile?.defaultGain != null
-                          ? 'Profile: ${profile!.defaultGain}'
-                          : null,
-                      onChanged: (value) => setGain(value.toInt()),
+              if (sensitivity.hasGain)
+                Expanded(
+                  child: NodePropertyField(
+                    colors: colors,
+                    label: _isGainProfileDefault()
+                        ? '${sensitivity.label} (profile)'
+                        : sensitivity.label,
+                    child: SensitivityField(
+                      value: _effectiveGain(profile),
+                      sensitivity: sensitivity,
+                      onChanged: setGain,
+                      gainField: (_) => NodeNumberInput(
+                        colors: colors,
+                        value: _effectiveGain(profile).toDouble(),
+                        min: 0,
+                        max: 1000,
+                        isProfileDefault: _isGainProfileDefault(),
+                        hintText: _isGainProfileDefault() &&
+                                profile?.defaultGain != null
+                            ? 'Profile: ${profile!.defaultGain}'
+                            : null,
+                        onChanged: (value) => setGain(value.toInt()),
+                      ),
                     ),
                   ),
                 ),
-              ),
               if (sensitivity.hasOffset) ...[
-                const SizedBox(width: 12),
+                if (sensitivity.hasGain) const SizedBox(width: 12),
                 Expanded(
                   child: NodePropertyField(
                     colors: colors,
