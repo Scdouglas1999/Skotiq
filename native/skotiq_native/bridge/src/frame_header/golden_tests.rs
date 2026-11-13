@@ -192,6 +192,31 @@ async fn a_photometry_frame_writes_these_cards() {
     assert_cards(&path, SEQUENCE_PHOTOMETRY);
 }
 
+/// A target name longer than one card is saved whole, and so is the frame.
+#[tokio::test]
+async fn a_frame_with_a_90_character_target_name_is_saved_with_the_whole_name() {
+    let scratch = Scratch::new("long_object");
+    let path = scratch.file("frame.fits");
+    let name = "Sh2-155 Cave Nebula and the dark lanes of the Cepheus Bubble, panel 3 of 4 (north-east) #2";
+    assert_eq!(name.len(), 90);
+    let mut ctx = FrameContext::new_light("long-object", 1, 1, 120.0, 1);
+    ctx.exposure_started_at = Some(at("2026-03-14T03:21:09.250Z"));
+    ctx.target_name = Some(name.to_string());
+    let ops = crate::unified_device_ops::create_unified_device_ops();
+    ops.save_fits(&seq_frame(4, 4), &path, &ctx)
+        .await
+        .expect("a long target name never fails the save");
+
+    let header = skotiq_imaging::read_fits_header(std::path::Path::new(&path)).unwrap();
+    assert_eq!(header.get_string("OBJECT"), Some(name));
+    let cards = header_cards(&path);
+    let object = cards
+        .iter()
+        .position(|c| c.starts_with("OBJECT  = '"))
+        .unwrap();
+    assert!(cards[object + 1].starts_with("CONTINUE  '"), "{cards:#?}");
+}
+
 /// A manual capture on a rig with nothing but the camera's frame to go on:
 /// the devices it names are not connected, so their cards are left out and
 /// the save still succeeds. The cards that tie a frame to a run are absent,
@@ -457,6 +482,7 @@ const SEQUENCE_PHOTOMETRY: &[&str] = &[
     "NAXIS2  =                    4",
     "BZERO   =                32768",
     "BSCALE  =                    1",
+    "LONGSTRN= 'OGIP 1.0' / Long strings continue on CONTINUE cards",
     "EXPTIME =                120.0",
     "DATE-OBS= '2026-03-14T03:21:09'",
     "DATE-END= '2026-03-14T03:23:09.000'",
@@ -467,7 +493,9 @@ const SEQUENCE_PHOTOMETRY: &[&str] = &[
     "SK-SESID= 'phot    '",
     "SK-FIDX =                    3",
     "OBJCAT  = 'AAVSO 000-BCP-220'",
-    "REFSTARS= '000-BCP-001,000-BCP-002,000-BCP-003,000-BCP-004,000-BCP-005,000-B...'",
+    "REFSTARS= '000-BCP-001,000-BCP-002,000-BCP-003,000-BCP-004,000-BCP-005,000-BCP&'",
+    "CONTINUE  '-006,000-BCP-007,000-BCP-008,000-BCP-009,000-BCP-010,000-BCP-011,00&'",
+    "CONTINUE  '0-BCP-012'",
     "MJD-OBS =       6.1113140400E4",
     "INSTRMAG=      -7.2500000000E0",
     "DIFFMAG =      1.2500000000E-1",

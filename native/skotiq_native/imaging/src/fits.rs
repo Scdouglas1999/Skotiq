@@ -588,6 +588,8 @@ pub(crate) fn read_header_measured<R: Read>(
     let mut buffer = [0u8; 80];
     let mut total_records: usize = 0;
     const MAX_HEADER_RECORDS: usize = 65_536;
+    // The keyword whose string value ended in `&` on the card just read.
+    let mut open_long_string: Option<String> = None;
 
     loop {
         reader.read_exact(&mut buffer)?;
@@ -611,6 +613,8 @@ pub(crate) fn read_header_measured<R: Read>(
         if keyword == "END" {
             break;
         }
+        // Only the card right after a string ending in `&` carries it on.
+        let continued_key = open_long_string.take();
 
         if keyword.is_empty() || keyword.starts_with(' ') {
             continue; // Blank or comment
@@ -626,7 +630,12 @@ pub(crate) fn read_header_measured<R: Read>(
         // Parse the card. COMMENT/HISTORY cards have NO `=` separator per FITS 4.4.2.4
         // and their text occupies columns 9..80; route them to dedicated vectors so
         // they are never mistaken for value cards and re-emitted with `=`.
-        if keyword == "COMMENT" {
+        if keyword == CONTINUE_KEYWORD {
+            if let Some(key) = continued_key {
+                let raw_after = String::from_utf8_lossy(&buffer[10..]);
+                open_long_string = continue_long_string(&mut header, key, &raw_after);
+            }
+        } else if keyword == "COMMENT" {
             let text = String::from_utf8_lossy(&buffer[8..]).trim_end().to_string();
             header.comments.push(text);
         } else if keyword == "HISTORY" {
@@ -637,6 +646,11 @@ pub(crate) fn read_header_measured<R: Read>(
             let (value_part, comment_part) = split_value_and_comment(raw_after.as_ref());
             let value = parse_fits_value(value_part)?;
             let key_owned = keyword.to_string();
+            if matches!(&value, FitsValue::String(s) if s.ends_with(LONG_STRING_CONTINUATION))
+                && value_part.starts_with('\'')
+            {
+                open_long_string = Some(key_owned.clone());
+            }
             header.keywords.insert(key_owned.clone(), value);
             if !header.keyword_order.contains(&key_owned) {
                 header.keyword_order.push(key_owned.clone());
@@ -657,6 +671,9 @@ pub(crate) fn read_header_measured<R: Read>(
     // guess how to concatenate.
     header.comments = join_commentary_cards(std::mem::take(&mut header.comments));
     header.history = join_commentary_cards(std::mem::take(&mut header.history));
+    // It describes the CONTINUE cards just folded into whole values; a writer
+    // states it again when it needs to.
+    header.remove(LONG_STRING_KEYWORD);
 
     // Skip to next 2880-byte boundary
     // The header is padded with spaces to a multiple of 2880 bytes
@@ -670,6 +687,41 @@ pub(crate) fn read_header_measured<R: Read>(
     }
 
     Ok((header, (header_bytes + padding) as u64))
+}
+
+/// Add one CONTINUE card's piece to the string value of `key`, whose text so
+/// far ends in the `&` that asked for it, and its comment to the key's
+/// comment. Returns `key` again when this piece ends in `&` too.
+///
+/// A CONTINUE card that is not a quoted string ends the value as it stands,
+/// `&` and all, as cfitsio reads it.
+fn continue_long_string(header: &mut FitsHeader, key: String, raw_after: &str) -> Option<String> {
+    let (value_part, comment_part) = split_value_and_comment(raw_after);
+    if !value_part.starts_with('\'') {
+        return None;
+    }
+    let piece = quoted_string_body(value_part).ok()?;
+    let Some(FitsValue::String(text)) = header.keywords.get_mut(&key) else {
+        return None;
+    };
+    text.pop();
+    text.push_str(&piece);
+    let open = piece.ends_with(LONG_STRING_CONTINUATION);
+    if !open {
+        let joined = text.trim().to_string();
+        *text = joined;
+    }
+    if let Some(comment) = comment_part.map(str::trim).filter(|c| !c.is_empty()) {
+        header
+            .keyword_comments
+            .entry(key.clone())
+            .and_modify(|text| {
+                text.push(' ');
+                text.push_str(comment);
+            })
+            .or_insert_with(|| comment.to_string());
+    }
+    open.then_some(key)
 }
 
 /// Length of one FITS header card, fixed by the standard.
@@ -728,14 +780,9 @@ fn parse_fits_value(s: &str) -> Result<FitsValue, FitsError> {
     let s = s.trim();
     let (value_part, _) = split_value_and_comment(s);
 
-    // Check for string (enclosed in single quotes)
-    if let Some(stripped) = value_part.strip_prefix('\'') {
-        if let Some(end) = stripped.find('\'') {
-            return Ok(FitsValue::String(stripped[..end].trim().to_string()));
-        }
-        return Err(FitsError::InvalidFormat(
-            "Unterminated FITS string literal".to_string(),
-        ));
+    if value_part.starts_with('\'') {
+        return quoted_string_body(value_part)
+            .map(|body| FitsValue::String(body.trim().to_string()));
     }
 
     if value_part == "T" {
@@ -758,6 +805,28 @@ fn parse_fits_value(s: &str) -> Result<FitsValue, FitsError> {
     }
 
     Ok(FitsValue::String(value_part.to_string()))
+}
+
+/// The text of a quoted FITS string, `''` read as one quote, trailing spaces
+/// dropped (FITS 4.2.1.1: they are not significant, leading ones are).
+fn quoted_string_body(value_part: &str) -> Result<String, FitsError> {
+    let mut body = String::new();
+    let mut chars = value_part.strip_prefix('\'').unwrap_or(value_part).chars();
+    loop {
+        match chars.next() {
+            Some('\'') if chars.clone().next() == Some('\'') => {
+                chars.next();
+                body.push('\'');
+            }
+            Some('\'') => return Ok(body.trim_end().to_string()),
+            Some(ch) => body.push(ch),
+            None => {
+                return Err(FitsError::InvalidFormat(
+                    "Unterminated FITS string literal".to_string(),
+                ))
+            }
+        }
+    }
 }
 
 fn split_value_and_comment(s: &str) -> (&str, Option<&str>) {
@@ -882,10 +951,10 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
         )?;
     }
 
-    // Write additional header keywords. SIMPLE/BITPIX/NAXIS*/BZERO/BSCALE/END are
-    // skipped because they are owned by this writer.
-    for key in &header.keyword_order {
-        if [
+    // The cards this writer owns are written from the image above, never
+    // copied from the header.
+    let owned_by_writer = |key: &str| {
+        [
             "SIMPLE",
             "BITPIX",
             "NAXIS",
@@ -895,22 +964,37 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
             "BZERO",
             "BSCALE",
             "END",
+            LONG_STRING_KEYWORD,
             crate::fits_layout::LAYOUT_KEYWORD,
             crate::fits_reader::RANGE_LOW_CARD,
             crate::fits_reader::RANGE_HIGH_CARD,
         ]
-        .contains(&key.as_str())
-        {
-            continue;
-        }
-        let Some(value) = header.keywords.get(key) else {
-            continue;
-        };
+        .contains(&key)
+    };
+    let header_cards = || {
+        header
+            .keyword_order
+            .iter()
+            .filter(|key| !owned_by_writer(key))
+            .filter_map(|key| header.keywords.get(key).map(|value| (key.as_str(), value)))
+    };
+
+    if header_cards()
+        .any(|(_, value)| matches!(value, FitsValue::String(s) if string_value_pieces(s).len() > 1))
+    {
+        write_value_card(
+            &mut writer,
+            LONG_STRING_KEYWORD,
+            &format_fits_string_value("OGIP 1.0"),
+            Some("Long strings continue on CONTINUE cards"),
+        )?;
+    }
+
+    for (key, value) in header_cards() {
         let comment = header.keyword_comments.get(key).map(|s| s.as_str());
         match value {
             FitsValue::String(s) => {
-                let formatted = format_fits_string_value(s);
-                write_value_card(&mut writer, key, &formatted, comment)?;
+                write_string_cards(&mut writer, key, s, comment)?;
             }
             FitsValue::Integer(i) => {
                 write_value_card(&mut writer, key, &i.to_string(), comment)?;
@@ -1044,6 +1128,93 @@ fn format_fits_string_value(value: &str) -> String {
         escaped
     };
     format!("'{}'", body)
+}
+
+/// Bytes a value card holds from column 11 to column 80: the value and its
+/// inline comment.
+const VALUE_FIELD_LEN: usize = 70;
+
+/// Keyword of a card that carries on the string begun on the card before it
+/// (the long-string convention, FITS 4.0 section 4.2.1.2).
+const CONTINUE_KEYWORD: &str = "CONTINUE";
+
+/// Keyword announcing that a header uses the long-string convention. FITS 4.0
+/// does not require it; the OGIP convention the standard took it from asks for
+/// it, and older readers look for it before they join CONTINUE cards.
+const LONG_STRING_KEYWORD: &str = "LONGSTRN";
+
+/// Last character of a string piece that the next CONTINUE card carries on.
+const LONG_STRING_CONTINUATION: char = '&';
+
+/// The quoted pieces a string value is written as, one per card.
+///
+/// A value that fits one card is one piece. A longer one is split into pieces
+/// of at most 67 escaped bytes, each but the last ending in `&` inside its
+/// quotes, the way cfitsio and astropy write and read it. A split
+/// never falls inside a doubled quote or a multi-byte character. A value that
+/// itself ends in `&` gets an empty last piece, because astropy drops a
+/// trailing `&` from every piece of a long string, the last one included.
+fn string_value_pieces(value: &str) -> Vec<String> {
+    let single = format_fits_string_value(value);
+    if single.len() <= VALUE_FIELD_LEN {
+        return vec![single];
+    }
+    // Two quotes and the continuation marker around each piece.
+    let piece_len = VALUE_FIELD_LEN - 3;
+    let mut bodies = vec![String::new()];
+    for ch in value.chars() {
+        let mut unit = [0u8; 4];
+        let unit = if ch == '\'' {
+            "''"
+        } else {
+            ch.encode_utf8(&mut unit)
+        };
+        let body = bodies.last_mut().expect("bodies starts non-empty");
+        if body.len() + unit.len() > piece_len {
+            bodies.push(unit.to_string());
+        } else {
+            body.push_str(unit);
+        }
+    }
+    if value.ends_with(LONG_STRING_CONTINUATION) {
+        bodies.push(String::new());
+    }
+    let last = bodies.len() - 1;
+    bodies
+        .into_iter()
+        .enumerate()
+        .map(|(index, body)| {
+            if index == last {
+                format!("'{body}'")
+            } else {
+                format!("'{body}{LONG_STRING_CONTINUATION}'")
+            }
+        })
+        .collect()
+}
+
+/// Write a string value card, carried on over CONTINUE cards when it is too
+/// long for one. The inline comment goes on the last card.
+fn write_string_cards<W: Write>(
+    writer: &mut W,
+    keyword: &str,
+    value: &str,
+    comment: Option<&str>,
+) -> Result<(), FitsError> {
+    let pieces = string_value_pieces(value);
+    let last = pieces.len() - 1;
+    for (index, piece) in pieces.iter().enumerate() {
+        let comment = if index == last { comment } else { None };
+        if index == 0 {
+            write_value_card(writer, keyword, piece, comment)?;
+        } else {
+            let mut record = value_card_record(CONTINUE_KEYWORD, piece, comment)?;
+            // A CONTINUE card has no value indicator in columns 9 and 10.
+            record[8..10].copy_from_slice(b"  ");
+            writer.write_all(&record)?;
+        }
+    }
+    Ok(())
 }
 
 /// Format a float for a FITS value card. Why: FITS uses standard scientific
@@ -1233,6 +1404,16 @@ fn write_value_card<W: Write>(
     value: &str,
     comment: Option<&str>,
 ) -> Result<(), FitsError> {
+    writer.write_all(&value_card_record(keyword, value, comment)?)?;
+    Ok(())
+}
+
+/// The 80 bytes of a value card; see [`write_value_card`].
+fn value_card_record(
+    keyword: &str,
+    value: &str,
+    comment: Option<&str>,
+) -> Result<[u8; 80], FitsError> {
     if !is_valid_keyword(keyword) {
         return Err(FitsError::InvalidFormat(format!(
             "Invalid FITS keyword for write: {}",
@@ -1248,8 +1429,7 @@ fn write_value_card<W: Write>(
     record[..keyword_len].copy_from_slice(&keyword_bytes[..keyword_len]);
 
     if value.is_empty() {
-        writer.write_all(&record)?;
-        return Ok(());
+        return Ok(record);
     }
 
     // "= " indicator at columns 9..10 (0-indexed 8..10).
@@ -1309,8 +1489,7 @@ fn write_value_card<W: Write>(
         }
     }
 
-    writer.write_all(&record)?;
-    Ok(())
+    Ok(record)
 }
 
 /// Parsed Bayer geometry from a FITS header, accounting for subframe offsets.

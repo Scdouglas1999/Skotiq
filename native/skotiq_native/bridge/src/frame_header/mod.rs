@@ -365,13 +365,7 @@ impl FrameHeader {
         }
         if let Some(refs) = &self.photometry_reference_stars {
             if !refs.is_empty() {
-                // One card holds 68 characters of string value.
-                let truncated = if refs.len() > 68 {
-                    format!("{}...", &refs[..65])
-                } else {
-                    refs.clone()
-                };
-                header.set_string("REFSTARS", &truncated);
+                header.set_string("REFSTARS", refs);
             }
         }
         if let Some(mjd) = self.photometry_mjd_obs {
