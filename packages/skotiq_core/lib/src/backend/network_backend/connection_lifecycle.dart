@@ -65,10 +65,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
 
   Future<bool> _testConnection() async {
     try {
-      final compatibility = await _checkServerCompatibility();
-      if (!compatibility.isCompatible) {
+      final mismatch = await _readHostInfo();
+      if (mismatch != null) {
         Log.warning(
-          'Connection rejected: ${compatibility.message}',
+          'Connection rejected: ${mismatch.message}',
           source: 'NetworkBackend',
         );
         return false;
@@ -85,13 +85,13 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     }
   }
 
-  Future<RemoteApiCompatibilityResult> _checkServerCompatibility() async {
+  /// Read the host's `/api/info` before linking. Returns why this client
+  /// cannot link to it (another Skotiq release), or null.
+  Future<LinkVersionMismatch?> _readHostInfo() async {
     final uri = _apiUri(_endpointPath(SystemApi.info, ApiMethod.get));
     final headers = <String, String>{
-      RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
-          .clientApiVersion
-          .format(),
-      _NetworkBackendTransport._requestIdHeader: _nextRequestId('compat'),
+      LinkVersion.header: skotiqRelease,
+      _NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
     };
     // The handshake probe gets a fixed short ceiling regardless of the
     // request-timeout tuning: it runs before we commit to the connection, so a
@@ -130,9 +130,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     if (advertisedInstance is String && advertisedInstance.isNotEmpty) {
       _reconcileInstanceFromInfo(advertisedInstance);
     }
-    return RemoteApiCompatibility.check(
-      info['apiVersion'] as String? ?? info['version'] as String?,
-    );
+    return LinkVersion.check(host: info['version'] as String?);
   }
 
   /// Enforce the pinned-fingerprint contract against the value the server
@@ -250,42 +248,31 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
             : BackendConnectionState.connecting,
       );
 
-      final compatibility = await _checkServerCompatibility();
-      if (!compatibility.isCompatible) {
+      _connectRefusal = null;
+      final mismatch = await _readHostInfo();
+      if (mismatch != null) {
         Log.warning(
-          'Connection rejected: ${compatibility.message}',
+          'Connection rejected: ${mismatch.message}',
           source: 'NetworkBackend',
         );
-        // Version mismatch is a terminal condition — the caller must
-        // upgrade or downgrade one side before retrying. Emit `error`
-        // rather than `disconnected` so the UI surfaces this as an
-        // unrecoverable failure (no spinning "reconnecting…" forever).
+        // Terminal until one side is updated: emit `error`, not
+        // `disconnected`, so the UI does not spin on "reconnecting…".
+        _connectRefusal = dart_error.HostVersionMismatchError(mismatch);
         _updateConnectionState(BackendConnectionState.error);
         return;
       }
 
       final queryParameters = <String, String>{};
-      if (authToken != null && authToken!.isNotEmpty) {
-        // Prefer the one-shot WS ticket so the bearer token stays out of the
-        // WebSocket URL (logs/proxies/history). Falls back to ?token= for
-        // servers that predate the ticket endpoint.
-        final wsTicket = await _mintWsTicket();
-        // The ticket mint is itself an authenticated request — if it just
-        // latched a rejection (dead token → 403), don't compound it with
-        // a doomed upgrade attempt.
-        if (_authRejected) {
-          _enterAuthRejectedState();
-          return;
-        }
-        if (wsTicket != null) {
-          queryParameters['ticket'] = wsTicket;
-          upgradeUsedTicket = true;
-        } else {
-          queryParameters['token'] = authToken!;
-        }
+      // A one-shot ticket keeps the bearer token out of the WebSocket URL
+      // (logs, proxies, history). The mint is itself an authenticated
+      // request: a dead token fails it, and the failure handling below
+      // latches the rejection instead of attempting a doomed upgrade.
+      final wsTicket = await _mintWsTicket();
+      if (wsTicket != null) {
+        queryParameters['ticket'] = wsTicket;
+        upgradeUsedTicket = true;
       }
-      queryParameters['apiVersion'] = RemoteApiCompatibility.clientApiVersion
-          .format();
+      queryParameters[LinkVersion.queryParameter] = skotiqRelease;
       // If we've previously attached to this server instance and have
       // a seq cursor to ask replay from, include both. The server-side
       // /events handler treats omitting either parameter as "fresh
@@ -475,6 +462,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       );
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
+      _connectRefusal = e;
       _updateConnectionState(BackendConnectionState.error);
       return;
     } catch (e) {

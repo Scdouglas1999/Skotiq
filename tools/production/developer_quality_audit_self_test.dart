@@ -109,7 +109,7 @@ Future<void> _writePassingFixture(Directory root) async {
       'serverMiddlewareTests': {
         'oversized_control_request_before_auth': true,
         'high_risk_control_rate_limit': true,
-        'websocket_api_version_before_auth': true,
+        'websocket_release_before_auth': true,
       },
     },
   );
@@ -270,10 +270,10 @@ void logRequest() {
 class _NetworkBackendTransport {
   static const _requestIdHeader = 'x-request-id';
   final compatHeaders = {
-    _NetworkBackendTransport._requestIdHeader: _nextRequestId('compat'),
+    _NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
   };
   void headers(Map<String, String> headers, String endpoint) {
-    headers[RemoteApiCompatibility.apiVersionHeader] = '2.5.0';
+    headers[LinkVersion.header] = skotiqRelease;
     headers[_NetworkBackendTransport._requestIdHeader] = _nextRequestId(endpoint);
   }
 }

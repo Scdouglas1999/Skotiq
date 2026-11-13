@@ -172,7 +172,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     if (response.statusCode == 409) {
       return false; // Slot taken — caller may decide to take-over.
     }
-    throw _parseErrorResponse(response.statusCode, response.body, 'POST', path);
+    throw _errorFromResponse(response.statusCode, response.body, 'POST', path);
   }
 
   /// POST /api/session/take-over — always succeeds (any control-scope

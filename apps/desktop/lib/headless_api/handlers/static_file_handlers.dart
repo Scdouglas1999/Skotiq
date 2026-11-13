@@ -26,6 +26,7 @@
 /// instantly without per-asset cache busting.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:skotiq_core/services.dart';
@@ -117,7 +118,11 @@ class StaticFileHandlers implements RouteSource {
 
   final LoggingService logger;
 
-  StaticFileHandlers({required this.logger});
+  /// The release of this host, which the dashboard page reads from
+  /// `js/release.js` and names in its requests ([LinkVersion]).
+  final String release;
+
+  StaticFileHandlers({required this.logger, required this.release});
 
   void _logWarning(String message) =>
       logger.warning(message, source: 'StaticFileHandlers');
@@ -179,6 +184,13 @@ class StaticFileHandlers implements RouteSource {
     final normalized = _normalizeRelative(path);
     if (normalized == null) {
       return jsonForbidden({'error': 'Invalid path'});
+    }
+    if (normalized == 'js/release.js') {
+      return contentResponse(
+        utf8.encode('const SKOTIQ_RELEASE = ${jsonEncode(release)};\n'),
+        contentType: _mimeTypes['.js']!,
+        headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
+      );
     }
     return _serveFile(findDashboardDir(), normalized, surface: 'dashboard');
   }

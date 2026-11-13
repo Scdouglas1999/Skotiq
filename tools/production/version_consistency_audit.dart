@@ -15,6 +15,8 @@ import 'dart:io';
 ///   * `apps/mobile/pubspec.yaml`  — the mobile companion's reported version.
 ///   * `apps/desktop/installer/installer.iss` — the version the Windows
 ///     installer shows and registers (`MyAppVersion`; it has no build number).
+///   * `packages/skotiq_remote_protocol/lib/src/link_version.dart` — the
+///     release a linked client and its host compare (`skotiqRelease`).
 ///
 /// This audit fails closed (exit 1) when those version strings disagree, when
 /// their build numbers disagree, or when the OTA package builder no longer
@@ -25,6 +27,8 @@ const _desktopPubspecPath = 'apps/desktop/pubspec.yaml';
 const _mobilePubspecPath = 'apps/mobile/pubspec.yaml';
 const _installerPath = 'apps/desktop/installer/installer.iss';
 const _otaScriptPath = 'scripts/build_update_package.ps1';
+const _linkReleasePath =
+    'packages/skotiq_remote_protocol/lib/src/link_version.dart';
 
 Future<void> main(List<String> args) async {
   final root = Directory(_argValue(args, '--root') ?? Directory.current.path);
@@ -48,9 +52,18 @@ Future<void> main(List<String> args) async {
     path: _mobilePubspecPath,
     issues: issues,
   );
-  final installer = _VersionSource.fromInstaller(
+  final installer = _VersionSource.fromLine(
     root: root,
     path: _installerPath,
+    pattern: RegExp(r'^#define\s+MyAppVersion\s+"([^"]+)"', multiLine: true),
+    field: 'MyAppVersion',
+    issues: issues,
+  );
+  final linkRelease = _VersionSource.fromLine(
+    root: root,
+    path: _linkReleasePath,
+    pattern: RegExp(r"^const String skotiqRelease = '([^']+)';", multiLine: true),
+    field: 'skotiqRelease',
     issues: issues,
   );
 
@@ -60,6 +73,7 @@ Future<void> main(List<String> args) async {
     _desktopPubspecPath: desktop.version,
     _mobilePubspecPath: mobile.version,
     _installerPath: installer.version,
+    _linkReleasePath: linkRelease.version,
   };
   final distinctVersions = versions.values.whereType<String>().toSet();
   if (distinctVersions.length > 1) {
@@ -126,6 +140,7 @@ Future<void> main(List<String> args) async {
       _desktopPubspecPath: desktop.toJson(),
       _mobilePubspecPath: mobile.toJson(),
       _installerPath: installer.toJson(),
+      _linkReleasePath: linkRelease.toJson(),
       _otaScriptPath: ota.toJson(),
     },
     'distinctVersions': distinctVersions.toList()..sort(),
@@ -149,6 +164,9 @@ Future<void> main(List<String> args) async {
   stdout.writeln('desktop pubspec: ${desktop.summary}');
   stdout.writeln('mobile pubspec: ${mobile.summary}');
   stdout.writeln('installer: version=${installer.version ?? '<unparsed>'}');
+  stdout.writeln(
+    'link release: version=${linkRelease.version ?? '<unparsed>'}',
+  );
   stdout.writeln('OTA builder: ${ota.summary}');
   for (final issue in issues) {
     stdout.writeln('  - $issue');
@@ -253,10 +271,13 @@ class _VersionSource {
     );
   }
 
-  /// Parses the Inno Setup script: `#define MyAppVersion "5.0.0"`.
-  factory _VersionSource.fromInstaller({
+  /// Parses a source that names the version on one line, with no build
+  /// number: the first group of [pattern] is the version.
+  factory _VersionSource.fromLine({
     required Directory root,
     required String path,
+    required RegExp pattern,
+    required String field,
     required List<String> issues,
   }) {
     final file = File('${root.path}/$path');
@@ -269,12 +290,9 @@ class _VersionSource {
         buildNumber: null,
       );
     }
-    final version = _firstGroup(
-      RegExp(r'^#define\s+MyAppVersion\s+"([^"]+)"', multiLine: true),
-      file.readAsStringSync(),
-    );
+    final version = _firstGroup(pattern, file.readAsStringSync());
     if (version == null) {
-      issues.add('$path does not declare a parseable `MyAppVersion`.');
+      issues.add('$path does not declare a parseable `$field`.');
     }
     return _VersionSource(
       path: path,

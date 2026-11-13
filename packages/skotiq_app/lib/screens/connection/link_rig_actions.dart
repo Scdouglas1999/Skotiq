@@ -75,13 +75,10 @@ Future<void> linkRememberedRig(
         await store.setActive(false);
         ref.invalidate(rememberedRigProvider);
       }
-    case ServerProbeOutcome.authRejected:
+    // The dialog asks the host who it is now and, for another release,
+    // says which side to update.
+    case ServerProbeOutcome.authRejected || ServerProbeOutcome.incompatible:
       await showLinkRigDialog(context, request: LinkRigRequest.repair(rig));
-    case ServerProbeOutcome.incompatible:
-      context.showInfoSnackBar(
-        '${rig.name} runs a Skotiq version this one cannot drive. Update '
-        'one of them so both match.',
-      );
     case ServerProbeOutcome.unreachable:
       context.showErrorSnackBar(
         "Can't reach ${rig.name} at ${rig.address}. Check that Skotiq is "

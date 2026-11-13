@@ -33,19 +33,12 @@ mixin _NetworkBackendRemoteLiveViewOperations on _NetworkBackendTransport {
     var closed = false;
 
     Future<void> openSocket() async {
-      final query = <String, String>{};
-      if (authToken != null && authToken!.isNotEmpty) {
-        // Prefer the one-shot WS ticket so the bearer token stays out of the
-        // WebSocket URL; fall back to ?token= for older servers.
-        final wsTicket = await _mintWsTicket();
-        if (wsTicket != null) {
-          query['ticket'] = wsTicket;
-        } else {
-          query['token'] = authToken!;
-        }
-      }
-      final uri = _wsUri(WebSocketApi.liveView, query);
       try {
+        // A one-shot ticket keeps the bearer token out of the WebSocket URL.
+        final wsTicket = await _mintWsTicket();
+        final uri = _wsUri(WebSocketApi.liveView, {
+          if (wsTicket != null) 'ticket': wsTicket,
+        });
         channel = IOWebSocketChannel.connect(uri);
         // IOWebSocketChannel reports a failed connection on BOTH the stream
         // (handled by the onError below, which routes to the controller) and

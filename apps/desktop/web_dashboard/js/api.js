@@ -55,7 +55,10 @@ class SkotiqApi {
     this._baseUrl = '';
     this._authToken = '';
     this._deviceId = '';
-    this._apiVersion = '2.6.0';
+    // The release of the host that served this page (js/release.js). The
+    // host refuses a request from another release (426 version_mismatch),
+    // which is what a tab left open across a host update sends.
+    this._release = SKOTIQ_RELEASE;
     this._requestCounter = 0;
     this._ws = null;
     this._wsReconnectTimer = null;
@@ -133,6 +136,23 @@ class SkotiqApi {
     };
   }
 
+  /// The host's refusal of a page from another Skotiq release, or null.
+  static _versionRefusalFrom(status, text, method, path) {
+    if (status !== 426 || !text) return null;
+    let body;
+    try { body = JSON.parse(text); } catch (_) { return null; }
+    if (!body || body.code !== 'version_mismatch') return null;
+    const host = typeof body.hostVersion === 'string' ? body.hostVersion : null;
+    const page = typeof body.clientVersion === 'string' ? body.clientVersion : '';
+    return new SkotiqApiError(
+      'version_mismatch',
+      'This page is from Skotiq ' + page + ' and the host ' +
+        (host ? 'now runs Skotiq ' + host : 'did not say which Skotiq it runs') +
+        '. Reload the page to use the host\u2019s own dashboard.',
+      { status, method, path, hostVersion: host, pageVersion: page },
+    );
+  }
+
   static _retryAfterSecsFrom(res, text) {
     let secs = null;
     try {
@@ -179,7 +199,7 @@ class SkotiqApi {
   _headers(extraHeaders, method) {
     const h = {
       'Content-Type': 'application/json',
-      'X-Skotiq-API-Version': this._apiVersion,
+      'X-Skotiq-Version': this._release,
       'X-Request-ID': this._nextRequestId(),
       ...extraHeaders,
     };
@@ -333,6 +353,8 @@ class SkotiqApi {
     }
     this._rateLimitedUntil = 0;
     if (!resp.ok) {
+      const refusal = SkotiqApi._versionRefusalFrom(resp.status, text, method, path);
+      if (refusal) throw refusal;
       const scope = SkotiqApi._scopeRefusalFrom(resp.status, text);
       if (scope) {
         throw new SkotiqApiError(
@@ -459,6 +481,8 @@ class SkotiqApi {
     this._rateLimitedUntil = 0;
     if (!resp.ok) {
       const text = await resp.text();
+      const refusal = SkotiqApi._versionRefusalFrom(resp.status, text, 'GET', path);
+      if (refusal) throw refusal;
       throw new SkotiqApiError(
         'http_error',
         'GET ' + path + ' failed (' + resp.status + '): ' + text,
@@ -558,6 +582,8 @@ class SkotiqApi {
     }
     if (!resp.ok) {
       const text = await resp.text();
+      const refusal = SkotiqApi._versionRefusalFrom(resp.status, text, 'GET', path);
+      if (refusal) throw refusal;
       throw new Error('GET ' + path + ' failed (' + resp.status + '): ' + text);
     }
     const metaHeader = resp.headers.get('x-image-meta');
@@ -603,6 +629,8 @@ class SkotiqApi {
     }
     if (!resp.ok) {
       const text = await resp.text();
+      const refusal = SkotiqApi._versionRefusalFrom(resp.status, text, 'GET', path);
+      if (refusal) throw refusal;
       throw new Error('GET ' + path + ' failed (' + resp.status + '): ' + text);
     }
     const buffer = await resp.arrayBuffer();
@@ -1725,10 +1753,9 @@ class SkotiqApi {
    * Connect to the event WebSocket.
    * Events are dispatched to listeners registered via on().
    *
-   * Why request a ticket first: ?token=<bearer> still works (legacy) but
-   * leaks the bearer into HTTP/proxy access logs. A single-use 60-second
-   * ticket is preferred; ?token is the fallback when the ticket endpoint is
-   * unavailable or when no token is configured.
+   * Why a ticket: a bearer in the URL leaks into HTTP/proxy access logs, so
+   * the upgrade carries a single-use 60-second ticket. A failed mint is
+   * retried with the socket's own reconnect backoff.
    */
   async connectWebSocket() {
     if (this._ws && (this._ws.readyState === WebSocket.OPEN || this._ws.readyState === WebSocket.CONNECTING)) {
@@ -1739,13 +1766,10 @@ class SkotiqApi {
     if (this._authToken || this._useSessionCookie) {
       try {
         const result = await this.issueWebSocketTicket();
-        ticket = result && result.ticket ? String(result.ticket) : '';
+        ticket = String(result.ticket);
       } catch (e) {
-        // Why swallow: older servers did not expose /api/ws/ticket. Fall back
-        // to ?token= for bearer sessions, which the server explicitly
-        // continues to accept. Cookie sessions have no raw-token fallback;
-        // a failed ticket request will therefore fail closed at the upgrade.
-        ticket = '';
+        this._scheduleReconnect();
+        throw e;
       }
     }
 
@@ -1753,13 +1777,11 @@ class SkotiqApi {
     const query = [];
     if (ticket) {
       query.push('ticket=' + encodeURIComponent(ticket));
-    } else if (this._authToken) {
-      query.push('token=' + encodeURIComponent(this._authToken));
     }
     if (this._deviceId) {
       query.push('deviceId=' + encodeURIComponent(this._deviceId));
     }
-    query.push('apiVersion=' + encodeURIComponent(this._apiVersion));
+    query.push('version=' + encodeURIComponent(this._release));
     if (query.length > 0) {
       wsUrl += (wsUrl.includes('?') ? '&' : '?') + query.join('&');
     }

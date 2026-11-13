@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:convert';
 
+import 'link_version.dart';
 import 'network_uri.dart';
 
 class DiscoveredServer {
@@ -15,11 +16,9 @@ class DiscoveredServer {
   final int signalingPort;
   final String name;
 
-  /// Human-facing server version string. Defaults to `unknown` for synthetic
-  /// records built before `/api/info` enrichment fills the real value —
-  /// callers should not hard-code a placeholder version.
-  final String version;
-  final String? apiVersion;
+  /// The Skotiq release the host runs; null until the host has said
+  /// (its `/api/info` or mDNS TXT record).
+  final String? version;
   final String mode;
   final bool authRequired;
   final String authenticationMode;
@@ -77,8 +76,7 @@ class DiscoveredServer {
     required this.webPort,
     this.signalingPort = 45678,
     required this.name,
-    this.version = 'unknown',
-    this.apiVersion,
+    this.version,
     this.mode = 'desktop',
     this.authRequired = false,
     this.authenticationMode = 'none',
@@ -114,6 +112,10 @@ class DiscoveredServer {
   /// `GET /api/info` which carries the canonical answer.
   bool get isTls => scheme == 'https';
 
+  /// Why this client cannot link to the host, or null when they run the same
+  /// release ([LinkVersion]).
+  LinkVersionMismatch? get linkMismatch => LinkVersion.check(host: version);
+
   String get webUrl => buildSkotiqServerUri(
     scheme: scheme,
     host: host,
@@ -133,7 +135,6 @@ class DiscoveredServer {
     int? signalingPort,
     String? name,
     String? version,
-    String? apiVersion,
     String? mode,
     bool? authRequired,
     String? authenticationMode,
@@ -154,7 +155,6 @@ class DiscoveredServer {
       signalingPort: signalingPort ?? this.signalingPort,
       name: name ?? this.name,
       version: version ?? this.version,
-      apiVersion: apiVersion ?? this.apiVersion,
       mode: mode ?? this.mode,
       authRequired: authRequired ?? this.authRequired,
       authenticationMode: authenticationMode ?? this.authenticationMode,
@@ -338,7 +338,7 @@ class SkotiqDiscovery {
     required int webPort,
     required int signalingPort,
     String name = 'Skotiq',
-    String version = '2.0.0',
+    required String version,
     String scheme = 'http',
     String? fingerprint,
     bool authRequired = false,
@@ -564,9 +564,7 @@ class SkotiqDiscovery {
         webPort: info['webPort'] as int,
         signalingPort: info['signalingPort'] as int,
         name: info['name'] is String ? info['name'] as String : 'Skotiq',
-        version: info['version'] is String
-            ? info['version'] as String
-            : '2.0.0',
+        version: info['version'] is String ? info['version'] as String : null,
         scheme: _validScheme(info['scheme']),
         authRequired: info['authRequired'] as bool? ?? false,
         authenticationMode: info['authenticationMode'] is String

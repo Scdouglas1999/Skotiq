@@ -43,8 +43,7 @@ class _FakePairingServer {
           request.response.write(
             jsonEncode({
               'name': 'Fake',
-              'version': '2.6.0',
-              'apiVersion': '2.6.0',
+              'version': '8.2.1',
               'authRequired': true,
               'pairingSupported': true,
               if (fingerprint != null) 'fingerprint': fingerprint,

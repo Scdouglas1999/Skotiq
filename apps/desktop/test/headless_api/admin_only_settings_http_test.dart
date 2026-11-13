@@ -108,7 +108,7 @@ void main() {
   }) async {
     final socket = await WebSocket.connect(
       'ws://127.0.0.1:${server.actualPort}'
-      '/events?token=$token&apiVersion=2.6.0$query',
+      '/events?token=$token$query',
     );
     addTearDown(socket.close);
     final frames = StreamIterator<dynamic>(socket);

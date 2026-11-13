@@ -17,8 +17,7 @@ abstract interface class HostRigSettings {
     required String? commandId,
   });
 
-  /// Null when the host predates `GET /api/settings/store`.
-  Future<HostSettingsRows?> getSettingsStore();
+  Future<HostSettingsRows> getSettingsStore();
 
   Future<void> updateSettingsStore(
     Map<String, String> settings, {

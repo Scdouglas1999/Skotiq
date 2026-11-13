@@ -82,8 +82,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'savedServersUnreachable': 'Could not reach {name} at {host}',
     'savedServersPairingExpired':
         '{name} is online but rejected this device — pair again',
-    'savedServersIncompatible':
-        '{name} at {host} runs an incompatible Skotiq version',
     'savedServersRelayUnavailable':
         'Relay reconnect is not available right now. Open the app from the connection screen and try again.',
     'savedServersOpenError': 'Failed to open {name}: {error}',
@@ -1723,8 +1721,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'savedServersUnreachable': 'No se pudo acceder a {name} en {host}',
     'savedServersPairingExpired':
         '{name} está en línea pero rechazó este dispositivo — vuelve a emparejar',
-    'savedServersIncompatible':
-        '{name} en {host} usa una versión incompatible de Skotiq',
     'savedServersRelayUnavailable':
         'La reconexión por relay no está disponible ahora. Abre la app desde la pantalla de conexión e inténtalo de nuevo.',
     'savedServersOpenError': 'No se pudo abrir {name}: {error}',

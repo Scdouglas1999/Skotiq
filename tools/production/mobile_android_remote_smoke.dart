@@ -14,7 +14,6 @@ const _viewToken = 'skotiq-mobile-smoke-view-token';
 const _controlToken = 'skotiq-mobile-smoke-control-token';
 const _evidenceDir = 'docs/production-readiness';
 const _expectedAppVersion = '2.6.0';
-const _expectedApiVersion = '2.6.0';
 
 void main(List<String> args) async {
   if (!Platform.isWindows) {
@@ -269,12 +268,6 @@ Future<void> _verifyHeadlessPreconditions(
   if (info.json['version'] != _expectedAppVersion) {
     throw StateError(
       'Expected app version $_expectedAppVersion, got ${info.json['version']}',
-    );
-  }
-  if (info.json['apiVersion'] != _expectedApiVersion) {
-    throw StateError(
-      'Expected API version $_expectedApiVersion, got '
-      '${info.json['apiVersion']}',
     );
   }
 

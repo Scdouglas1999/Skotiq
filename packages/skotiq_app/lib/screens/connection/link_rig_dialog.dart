@@ -42,7 +42,7 @@ class LinkRigRequest {
           scheme: rig.scheme,
           hostName: rig.name,
           platform: rig.platform,
-          version: rig.version ?? 'unknown',
+          version: rig.version,
         ),
         preferCode: preferCode,
         fullAccess: fullAccess,
@@ -574,6 +574,23 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
     final colors = SkotiqColors.of(context);
     final host = _host!;
     final name = host.displayName;
+    final mismatch = _loadingHost ? null : host.linkMismatch;
+    if (mismatch != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _HostSummary(host: host, loading: false),
+          const SizedBox(height: SkotiqTokens.spaceLg),
+          SkotiqBanner(
+            key: const ValueKey('link.versionMismatch'),
+            tone: BannerTone.warning,
+            title: "This computer can't link to $name.",
+            message: mismatch.message,
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -851,9 +868,7 @@ String describeDiscoveredHost(DiscoveredServer host) {
   };
   if (os != null) parts.add(os);
   if (host.hostMode == 'headless') parts.add('headless');
-  if (host.version.isNotEmpty && host.version != 'unknown') {
-    parts.add('Skotiq ${host.version}');
-  }
+  if (host.version case final version?) parts.add('Skotiq $version');
   parts.add('${host.host}:${host.webPort}');
   return parts.join(' · ');
 }
@@ -873,9 +888,7 @@ class _HostRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final compatible = SkotiqServerCompatibility.check(
-      host.apiVersion ?? host.version,
-    ).isCompatible;
+    final mismatch = host.linkMismatch;
     return Container(
       decoration: showDivider
           ? BoxDecoration(
@@ -901,14 +914,18 @@ class _HostRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  compatible
-                      ? describeDiscoveredHost(host)
-                      : '${describeDiscoveredHost(host)} · needs a matching '
-                          'Skotiq version',
+                  describeDiscoveredHost(host),
                   style: SkotiqTypography.caption.copyWith(
-                    color: compatible ? colors.textMuted : colors.warning,
+                    color: colors.textMuted,
                   ),
                 ),
+                if (mismatch != null)
+                  Text(
+                    mismatch.message,
+                    style: SkotiqTypography.caption.copyWith(
+                      color: colors.warning,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -917,7 +934,7 @@ class _HostRow extends StatelessWidget {
             label: 'Link',
             semanticsHint: 'Link to ${host.displayName}',
             size: ButtonSize.small,
-            onPressed: compatible ? onLink : null,
+            onPressed: mismatch == null ? onLink : null,
           ),
         ],
       ),

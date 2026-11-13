@@ -226,66 +226,40 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
     };
   }
 
-  Middleware _apiVersionMiddleware() {
+  /// Refuses a request from a client of another Skotiq release
+  /// ([LinkVersion]). `/api/info` is always answered: a client reads the
+  /// host's release there before it links. A request naming no release (a
+  /// script, the run-watch page) is not a linked client's and goes through.
+  Middleware _linkVersionMiddleware() {
     return (innerHandler) {
       return (request) async {
         final path = '/${request.url.path}';
         final isWebSocket = RouteTable.of(request).isWebSocket;
-        final clientVersion =
-            request.headers[RemoteApiCompatibility.apiVersionHeader] ??
-            (isWebSocket ? request.url.queryParameters['apiVersion'] : null);
-        if ((path.startsWith('/api/') || isWebSocket) &&
-            clientVersion != null &&
-            clientVersion.trim().isNotEmpty) {
-          final compatibility = RemoteApiCompatibility.checkClient(
-            clientVersion,
-          );
-          if (!compatibility.isCompatible) {
-            final requestId = _requestIdFrom(request);
-            _logWarning(
-              '[API][$requestId] Rejected incompatible client API version '
-              '$clientVersion for $path: ${compatibility.code}',
-            );
-            return jsonUpgradeRequired(
-              {
-                'error': compatibility.code,
-                'message': compatibility.message,
-                'clientApiVersion':
-                    compatibility.clientVersion ?? clientVersion,
-                'serverApiVersion': RemoteApiCompatibility.serverApiVersion
-                    .format(),
-                'minimumSupportedApiVersion': RemoteApiCompatibility
-                    .minimumSupportedVersion
-                    .format(),
-                'requestId': requestId,
-              },
-              headers: {
-                HeadlessApiServer._requestIdHeader: requestId,
-                ..._apiCompatibilityHeaders(),
-              },
-            );
-          }
+        final clientRelease =
+            request.headers[LinkVersion.header] ??
+            (isWebSocket
+                ? request.url.queryParameters[LinkVersion.queryParameter]
+                : null);
+        if (clientRelease == null ||
+            !(path.startsWith('/api/') || isWebSocket) ||
+            path == SystemApi.info.route.path) {
+          return innerHandler(request);
         }
-
-        final response = await innerHandler(request);
-        if (isWebSocket) {
-          return response;
-        }
-        return response.change(
-          headers: {...response.headers, ..._apiCompatibilityHeaders()},
+        final mismatch = LinkVersion.check(
+          host: container.read(appVersionProvider).version,
+          client: clientRelease,
+        );
+        if (mismatch == null) return innerHandler(request);
+        final requestId = _requestIdFrom(request);
+        _logWarning(
+          '[API][$requestId] Refused $path from Skotiq $clientRelease: '
+          '${mismatch.message}',
+        );
+        return jsonUpgradeRequired(
+          mismatch.toErrorBody(requestId: requestId).toJson(),
+          headers: {HeadlessApiServer._requestIdHeader: requestId},
         );
       };
-    };
-  }
-
-  Map<String, String> _apiCompatibilityHeaders() {
-    return {
-      RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
-          .serverApiVersion
-          .format(),
-      'x-skotiq-minimum-api-version': RemoteApiCompatibility
-          .minimumSupportedVersion
-          .format(),
     };
   }
 

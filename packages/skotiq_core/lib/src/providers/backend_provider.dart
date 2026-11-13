@@ -189,6 +189,8 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     if (failure != null) {
       Error.throwWithStackTrace(failure, failureStack ?? StackTrace.current);
     }
+    final refusal = backend.connectRefusal;
+    if (refusal != null) throw refusal;
     throw SkotiqError(
       category: BackendErrorCategory.connection,
       message:

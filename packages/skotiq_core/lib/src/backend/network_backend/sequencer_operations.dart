@@ -561,7 +561,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
             )
           : null,
       guidingStopReason: response['guidingStopReason'] as String?,
-      reportsGuidingStopReason: response.containsKey('guidingStopReason'),
     );
   }
 

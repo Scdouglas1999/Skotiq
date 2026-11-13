@@ -33,7 +33,7 @@ void main() {
       final handlers = SystemHandlers(
         container: container,
         logger: logger,
-        staticFileHandlers: StaticFileHandlers(logger: logger),
+        staticFileHandlers: StaticFileHandlers(logger: logger, release: '8.2.1'),
         view: SystemServerView(
           fingerprint: () => 'test',
           instanceId: () => 'test',

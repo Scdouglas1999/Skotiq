@@ -16,7 +16,10 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
       digestToken: computeServerFingerprint,
     );
 
-    final staticFiles = StaticFileHandlers(logger: logger);
+    final staticFiles = StaticFileHandlers(
+      logger: logger,
+      release: container.read(appVersionProvider).version,
+    );
 
     _equipmentHandlers = EquipmentHandlers(container);
     _stackingHandlers = StackingHandlers(container);

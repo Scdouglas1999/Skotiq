@@ -394,9 +394,9 @@ _QualityCheck _structuredLoggingQuality(Directory root) {
     ],
     _networkBackendPath: [
       "static const _requestIdHeader = 'x-request-id';",
-      "_NetworkBackendTransport._requestIdHeader: _nextRequestId('compat'),",
+      "_NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),",
       'headers[_NetworkBackendTransport._requestIdHeader] =',
-      'RemoteApiCompatibility.apiVersionHeader',
+      'headers[LinkVersion.header] = skotiqRelease;',
     ],
   };
 

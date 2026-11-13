@@ -38,7 +38,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         // unauthenticated client cannot force the server to buffer a body up to
         // the per-path cap before its token is checked.
         .addMiddleware(_contentLengthLimitMiddleware())
-        .addMiddleware(_apiVersionMiddleware())
+        .addMiddleware(_linkVersionMiddleware())
         .addMiddleware(_pairedTokenHydrationGate())
         .addMiddleware(_authMiddleware())
         .addMiddleware(_chunkedBodyLimitMiddleware())

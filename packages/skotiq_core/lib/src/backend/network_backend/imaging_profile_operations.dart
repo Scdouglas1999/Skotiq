@@ -113,9 +113,8 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   /// The host's `app_settings` key/value rows that are not part of the
-  /// [models.AppSettings] wire model, or null when the host predates
-  /// `GET /api/settings/store` and answers 404.
-  Future<HostSettingsRows?> getSettingsStore() {
+  /// [models.AppSettings] wire model.
+  Future<HostSettingsRows> getSettingsStore() {
     return _retryableRequest(() async {
       final endpoint = _endpointPath(
         ProfileApi.getSettingsStore,
@@ -125,9 +124,8 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         endpoint: endpoint,
         send: (headers) => _http.get(_apiUri(endpoint), headers: headers),
       );
-      if (response.statusCode == HttpStatus.notFound) return null;
       if (response.statusCode != 200) {
-        throw _parseErrorResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'GET',
@@ -670,7 +668,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     final response = await _openRawGetWithAuthRefresh(endpoint);
     if (response.statusCode != HttpStatus.ok) {
       final body = await response.transform(utf8.decoder).join();
-      throw _parseErrorResponse(response.statusCode, body, 'GET', endpoint);
+      throw _errorFromResponse(response.statusCode, body, 'GET', endpoint);
     }
     final bytes = await consolidateHttpClientResponseBytes(response);
     if (bytes.isEmpty) {
@@ -770,7 +768,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     if (statusCode != HttpStatus.ok &&
         statusCode != HttpStatus.partialContent) {
       final body = await response.transform(utf8.decoder).join();
-      throw _parseErrorResponse(statusCode, body, 'GET', endpoint);
+      throw _errorFromResponse(statusCode, body, 'GET', endpoint);
     }
 
     final contentRange = response.headers.value(HttpHeaders.contentRangeHeader);

@@ -85,7 +85,7 @@ class _WebRtcLiveViewSubscription {
     );
     if (response.statusCode != 200) {
       await pc.close();
-      throw backend._parseErrorResponse(
+      throw backend._errorFromResponse(
         response.statusCode,
         response.body,
         'POST',

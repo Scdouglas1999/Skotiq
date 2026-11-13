@@ -461,6 +461,14 @@ abstract class _NetworkBackendTransport {
   /// requested.
   bool get isAuthTokenRejected => _authRejected;
 
+  /// Why the last handshake refused the host for good: it runs another
+  /// Skotiq release ([dart_error.HostVersionMismatchError]) or could not
+  /// prove it is the paired host ([dart_error.ServerIdentityMismatchError]).
+  /// Null while nothing was refused. Retrying cannot help, so the caller
+  /// shows its [dart_error.SkotiqError.userMessage].
+  dart_error.SkotiqError? get connectRefusal => _connectRefusal;
+  dart_error.SkotiqError? _connectRefusal;
+
   /// What the host's `/api/info` said about itself at the last handshake:
   /// every client has to present a pairing credential. Null before the first
   /// handshake and for a host that does not say.
