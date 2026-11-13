@@ -15,6 +15,7 @@ import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/shared_calibration_models.dart';
 import '../models/collaboration/collaboration_models.dart';
 import '../providers/async_scope.dart';
+import 'calibration/dark_selection.dart';
 import 'calibration/fits_header_reader.dart';
 import 'calibration/shared_calibration_library.dart';
 part 'calibration_library_service/remote_acceptance.dart';

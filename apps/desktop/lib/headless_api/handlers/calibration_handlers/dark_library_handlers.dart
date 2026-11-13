@@ -626,7 +626,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     final sensorTempC = optionalDouble(payload, 'sensorTempC');
     final frameType = optionalString(payload, 'frameType') ?? 'dark';
 
-    DarkLibraryMatchTolerances tolerances = DarkLibraryMatchTolerances.defaults;
+    var tolerances = container.read(darkLibraryMatchTolerancesProvider);
     final tolMap = optionalObject(payload, 'tolerances');
     if (tolMap != null) {
       final exposureRatio = optionalDouble(tolMap, 'exposureSecondsRatio');
@@ -644,16 +644,18 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       );
     }
 
-    final match = await _database.darkLibraryDao.findBestMatch(
-      exposureTime: exposureDuration,
-      gain: gain,
-      offset: offset,
-      binX: binX,
-      binY: binY,
-      temperature: sensorTempC,
-      tolerances: tolerances,
-      frameType: frameType,
-    );
+    final match = await container
+        .read(darkLibraryServiceProvider)
+        .findMatchingDark(
+          exposureTime: exposureDuration,
+          gain: gain,
+          offset: offset,
+          binX: binX,
+          binY: binY,
+          temperature: sensorTempC,
+          tolerances: tolerances,
+          frameType: frameType,
+        );
     if (match == null) {
       return jsonNotFound({
         'error': 'no_matching_dark',
@@ -709,10 +711,10 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       return jsonOk({'matched': null});
     }
     _logInfo(
-      'Matched dark for remote calibration: ${match.filePath} '
+      'Matched dark for remote calibration: ${match.calibrationPath} '
       '(exposure=${match.exposureTime}s, temp=${match.temperature}C)',
     );
-    return jsonOk({'matched': match.filePath});
+    return jsonOk({'matched': match.calibrationPath});
   }
 
   /// POST /api/calibration/darks/backfill-sizes

@@ -848,7 +848,7 @@ void main() {
         ),
       );
 
-      final match = await dao.findBestMatch(
+      final match = await DarkLibraryService(dao).findMatchingDark(
         exposureTime: 60,
         gain: 100,
         offset: 20,

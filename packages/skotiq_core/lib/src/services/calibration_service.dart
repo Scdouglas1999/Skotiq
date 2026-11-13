@@ -12,6 +12,7 @@ import '../models/backend/host_mutation_event.dart';
 import '../models/imaging/frame_files.dart';
 import '../providers/async_scope.dart';
 import '../providers/dark_library_provider.dart';
+import '../services/calibration/dark_selection.dart';
 import '../services/dark_library_service.dart';
 import '../services/logging_service.dart';
 import '../settings/setting.dart';
@@ -245,9 +246,6 @@ class CalibrationService {
           );
         }
       } else {
-        // Local: match directly against the on-disk dark library. Route
-        // through the unified tolerances provider so the runtime matcher
-        // and the coverage UI agree on what counts as a matching dark.
         final tolerances = _ref.read(darkLibraryMatchTolerancesProvider);
         final matchingDark = await _darkLibrary.findMatchingDark(
           exposureTime: exposureTime,
@@ -260,9 +258,9 @@ class CalibrationService {
         );
         _host.ensureCurrent('calibration was in progress');
         if (matchingDark != null) {
-          darkPath = matchingDark.filePath;
+          darkPath = matchingDark.calibrationPath;
           _logger.info(
-            'Auto-matched dark: ${matchingDark.filePath} '
+            'Auto-matched dark: ${matchingDark.calibrationPath} '
             '(exposure=${matchingDark.exposureTime}s, '
             'temp=${matchingDark.temperature}C)',
             source: 'CalibrationService',

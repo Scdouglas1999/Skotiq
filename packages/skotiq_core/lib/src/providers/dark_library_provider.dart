@@ -137,13 +137,8 @@ DarkLibraryStats _statsFromEntries(List<DarkLibraryEntry> entries) {
   );
 }
 
-/// Unified tolerances for dark-frame matching.
-///
-/// This is the SINGLE source of truth that both the coverage UI
-/// (`DarkLibraryCoverageService.evaluate`) and the runtime calibration
-/// matcher (`DarkLibraryDao.findBestMatch` via `DarkLibraryService`) must
-/// consult so the green "all darks present" badge can never contradict
-/// `findMatchingDark` returning null.
+/// The operator's tolerances for the dark selection rule, read by every
+/// caller of it (live calibration, the Darkroom, coverage).
 ///
 /// A stored tolerance that is not a number, or is negative, throws rather
 /// than being clamped or read as the default: a tolerance other than the one

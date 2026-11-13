@@ -65,89 +65,11 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Find the best matching dark/bias for a given light frame's parameters.
-  ///
-  /// Matching rules:
-  /// - Exposure time must be within [tolerances.exposureSecs] (default ±0.5s)
-  /// - Gain, offset, and binning must match exactly
-  /// - Temperature must be within [tolerances.temperatureC] (default ±1.0°C)
-  /// - Prefers master darks over individual raws
-  /// - Among matches, picks the one closest in temperature
-  ///
-  /// The tolerances argument is the SAME value object consulted by
-  /// `DarkLibraryCoverageService.evaluate`. Before unification, the coverage
-  /// UI used ±1.0s while this DAO used ±0.001s, so the UI happily showed
-  /// "all darks present" while this method returned null at runtime.
-  Future<DarkLibraryEntry?> findBestMatch({
-    required double exposureTime,
-    required int? gain,
-    required int? offset,
-    required int binX,
-    required int binY,
-    double? temperature,
-    DarkLibraryMatchTolerances tolerances = DarkLibraryMatchTolerances.defaults,
-    String frameType = 'dark',
-  }) async {
-    // Build query: tolerance match on exposure, exact on gain/offset/binning/frame type.
-    final exposureTol = tolerances.exposureSecs;
-    var query = select(darkLibrary)
-      ..where(
-        (t) =>
-            t.exposureTime.isBiggerOrEqualValue(exposureTime - exposureTol) &
-            t.exposureTime.isSmallerOrEqualValue(exposureTime + exposureTol) &
-            t.gain.isSetting(gain) &
-            t.offset.isSetting(offset) &
-            t.binX.equals(binX) &
-            t.binY.equals(binY) &
-            t.frameType.equals(frameType),
-      );
-
-    final candidates = await query.get();
-    if (candidates.isEmpty) return null;
-
-    List<DarkLibraryEntry> filtered;
-    if (temperature != null) {
-      filtered = candidates.where((c) {
-        if (c.temperature == null) {
-          return true; // Accept frames without temp data
-        }
-        return (c.temperature! - temperature).abs() <= tolerances.temperatureC;
-      }).toList();
-    } else {
-      filtered = candidates;
-    }
-
-    if (filtered.isEmpty) return null;
-
-    // Prefer master darks over raw frames
-    final masters = filtered.where((c) => c.masterDarkPath != null).toList();
-    final pool = masters.isNotEmpty ? masters : filtered;
-
-    if (temperature == null) {
-      // No temperature to sort by; return the newest entry
-      pool.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return pool.first;
-    }
-
-    pool.sort((a, b) {
-      final aDelta = a.temperature != null
-          ? (a.temperature! - temperature).abs()
-          : double.maxFinite;
-      final bDelta = b.temperature != null
-          ? (b.temperature! - temperature).abs()
-          : double.maxFinite;
-      return aDelta.compareTo(bDelta);
-    });
-
-    return pool.first;
-  }
-
   /// Get all entries that match a specific exposure/gain/binning combo.
   /// Useful for selecting frames to combine into a master dark.
   ///
-  /// Uses the same exposure tolerance as [findBestMatch] (default ±0.5s) so
-  /// master-dark grouping cannot disagree with what calibration matches at
-  /// runtime.
+  /// Uses the exposure tolerance of the dark selection rule (default ±0.5 s),
+  /// so master-dark grouping cannot disagree with what calibration matches.
   Future<List<DarkLibraryEntry>> getMatchingFrames({
     required double exposureTime,
     required int? gain,
