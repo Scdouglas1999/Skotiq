@@ -176,21 +176,18 @@ class _RunCentering {
       SequencerRunEvent event, DateTime Function() now) {
     switch (event) {
       case StructuredInstructionProgress(
-          detailKind: 'Center',
           :final nodeId?,
-          :final detailJson,
+          detail: CenterInstructionProgressDetail(
+            :final attempt,
+            lastSeparationArcsec: final separation,
+            solvedRaHours: final raHours,
+            solvedDecDegrees: final decDegrees,
+          ),
         ):
         if (nodeId != _nodeId) {
           reset();
           _nodeId = nodeId;
         }
-        if (detailJson is! Map) return const [];
-        final attempt = (detailJson['attempt'] as num?)?.toInt() ?? 0;
-        final separation =
-            (detailJson['last_separation_arcsec'] as num?)?.toDouble();
-        final raHours = (detailJson['solved_ra_hours'] as num?)?.toDouble();
-        final decDegrees =
-            (detailJson['solved_dec_degrees'] as num?)?.toDouble();
         if (attempt > 0) {
           _attempt = attempt;
           if (separation == null || attempt == _solvedAttempt) return const [];

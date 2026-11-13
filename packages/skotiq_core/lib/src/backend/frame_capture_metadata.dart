@@ -1,5 +1,3 @@
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-
 /// The event-data key names for the per-frame capture truth that rides on
 /// `FrameAccepted` / `FrameRejected`.
 ///
@@ -136,31 +134,4 @@ class FrameCapture {
       targetId: asString(FrameCaptureKeys.targetId),
     );
   }
-}
-
-/// Flatten the typed bridge payload into the frame event's `data` map.
-///
-/// Flattened rather than nested so the keys survive the JSON envelope a paired
-/// remote client receives without either side needing to know the shape.
-Map<String, dynamic> frameCaptureToEventData(bridge.FrameCaptureMetadata c) {
-  return <String, dynamic>{
-    FrameCaptureKeys.gain: c.gain,
-    FrameCaptureKeys.gainIsIso: c.gainIsIso,
-    FrameCaptureKeys.offset: c.offset,
-    FrameCaptureKeys.sensorTempC: c.sensorTempC,
-    FrameCaptureKeys.coolerPowerPercent: c.coolerPowerPercent,
-    FrameCaptureKeys.mountRaHours: c.mountRaHours,
-    FrameCaptureKeys.mountDecDegrees: c.mountDecDegrees,
-    FrameCaptureKeys.mountAltitudeDeg: c.mountAltitudeDeg,
-    FrameCaptureKeys.mountAzimuthDeg: c.mountAzimuthDeg,
-    FrameCaptureKeys.pierSide: c.pierSide,
-    FrameCaptureKeys.focuserPosition: c.focuserPosition,
-    FrameCaptureKeys.focuserTemperatureC: c.focuserTemperatureC,
-    FrameCaptureKeys.rotatorAngleDeg: c.rotatorAngleDeg,
-    FrameCaptureKeys.exposureSecs: c.exposureSecs,
-    FrameCaptureKeys.binX: c.binX,
-    FrameCaptureKeys.binY: c.binY,
-    FrameCaptureKeys.frameType: c.frameType,
-    FrameCaptureKeys.targetId: c.targetId,
-  };
 }

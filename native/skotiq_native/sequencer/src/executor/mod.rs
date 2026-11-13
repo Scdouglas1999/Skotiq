@@ -520,7 +520,7 @@ impl ContinuedHappening {
         operator_message: String,
     ) -> Self {
         Self {
-            decision: decision.with_notice(notice),
+            decision: decision.with_notice(notice.clone()),
             operator_message,
             notice,
         }
@@ -624,7 +624,10 @@ pub(crate) fn quality_problem_continuation(
         details.extend(context);
     }
     ContinuedHappening::new(
-        crate::decision::RunNotice::ProblemNoticed,
+        crate::decision::RunNotice::ProblemNoticed {
+            source: source.to_string(),
+            problem: problem.to_string(),
+        },
         crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::SystemEvent,
             QUALITY_PROBLEM_CONTINUED_SUMMARY.to_string(),

@@ -1142,14 +1142,34 @@ typedef struct wire_cst_SequencerEvent_ExposureCompleted {
   double duration_secs;
 } wire_cst_SequencerEvent_ExposureCompleted;
 
+typedef struct wire_cst_SequencerNotice_RejectStreak {
+  uint32_t consecutive_rejects;
+  struct wire_cst_list_prim_u_8_strict *reason;
+} wire_cst_SequencerNotice_RejectStreak;
+
+typedef struct wire_cst_SequencerNotice_ProblemNoticed {
+  struct wire_cst_list_prim_u_8_strict *source;
+  struct wire_cst_list_prim_u_8_strict *problem;
+} wire_cst_SequencerNotice_ProblemNoticed;
+
+typedef union SequencerNoticeKind {
+  struct wire_cst_SequencerNotice_RejectStreak RejectStreak;
+  struct wire_cst_SequencerNotice_ProblemNoticed ProblemNoticed;
+} SequencerNoticeKind;
+
+typedef struct wire_cst_sequencer_notice {
+  int32_t tag;
+  union SequencerNoticeKind kind;
+} wire_cst_sequencer_notice;
+
 typedef struct wire_cst_SequencerEvent_Error {
   struct wire_cst_list_prim_u_8_strict *message;
   int32_t kind;
-  int32_t *notice;
+  struct wire_cst_sequencer_notice *notice;
 } wire_cst_SequencerEvent_Error;
 
 typedef struct wire_cst_SequencerEvent_MeridianFlipOutcome {
-  struct wire_cst_list_prim_u_8_strict *outcome;
+  int32_t outcome;
   struct wire_cst_list_prim_u_8_strict *target_name;
   struct wire_cst_list_prim_u_8_strict *new_pier_side;
   double duration_secs;
@@ -1379,7 +1399,7 @@ typedef struct wire_cst_SequencerEvent_DecisionLogged {
   struct wire_cst_list_prim_u_8_strict *details_json;
   struct wire_cst_list_prim_u_8_strict *node_id;
   int64_t *sequence_run_id;
-  int32_t *notice;
+  struct wire_cst_sequencer_notice *notice;
 } wire_cst_SequencerEvent_DecisionLogged;
 
 typedef union SequencerEventKind {
@@ -3554,7 +3574,7 @@ struct wire_cst_secondary_rig_config_api *frbgen_skotiq_bridge_cst_new_box_autoa
 
 struct wire_cst_sequencer_event *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event(void);
 
-int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(int32_t value);
+struct wire_cst_sequencer_notice *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(void);
 
 int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status(int32_t value);
 

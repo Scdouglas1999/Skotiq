@@ -215,7 +215,7 @@ return decisionLogged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String sequenceName)?  started,TResult Function()?  paused,TResult Function()?  resumed,TResult Function( PlatformInt64? sequenceRunId)?  stopped,TResult Function()?  completed,TResult Function( String error)?  failed,TResult Function( String nodeId,  String nodeType)?  nodeStarted,TResult Function( String nodeId,  String status)?  nodeCompleted,TResult Function( int current,  int total)?  progress,TResult Function( String targetName,  double? ra,  double? dec)?  targetChanged,TResult Function( String targetName)?  targetCompleted,TResult Function( int frame,  int total,  String? filter,  double durationSecs)?  exposureStarted,TResult Function( int frame,  int total,  double durationSecs)?  exposureCompleted,TResult Function( String message,  SequencerErrorKind kind,  SequencerNotice? notice)?  error,TResult Function( String outcome,  String targetName,  String newPierSide,  double durationSecs,  int attempts,  List<String> failedSteps,  String? error,  String? actionTaken)?  meridianFlipOutcome,TResult Function( String triggerId,  String triggerName,  String action)?  triggerFired,TResult Function( String nodeId,  String instruction,  double progressPercent,  String detail)?  instructionProgress,TResult Function( String nodeId,  String instruction,  double progressPercent,  String detailKind,  String detailJson)?  instructionProgressStructured,TResult Function( String nodeId,  String filterName,  String goalId,  BigInt revision,  int evidenceFrames,  int confirmationFrames,  double score,  double threshold)?  depthGoalCompleted,TResult Function( String nodeId,  int frame,  int total,  double? hfr,  double? eccentricity,  int? starCount,  int acceptedTotal,  int rejectedTotal,  String? savePath,  FrameCaptureMetadata capture)?  frameAccepted,TResult Function( String nodeId,  int frame,  int total,  String reason,  double? hfr,  double? eccentricity,  int? starCount,  String rejectPath,  int consecutiveRejects,  int acceptedTotal,  int rejectedTotal,  String? likelyCauseLabel,  List<String> evidence,  double? skyBrightnessAtCapture,  double? cloudCoverAtCapture,  double? windAtCapture,  double? guideRmsAtCapture,  double? sensorTempAtCapture,  FrameCaptureMetadata capture)?  frameRejected,TResult Function( String nodeId,  int decisionCounter,  String? pickedTargetId,  String? pickedTargetName,  double? pickedScore,  List<SchedulerScoreEntry> scores)?  schedulerDecision,TResult Function( String targetId,  String filter,  double completedSecs,  double budgetSecs,  double fraction,  bool budgetMet)?  integrationBudget,TResult Function( String nodeId,  double adaptedSecs,  double nominalSecs,  double? skyBrightnessMag,  String? filter,  String reason)?  exposureAdjusted,TResult Function( String nodeId,  String targetDesignation,  List<String> referenceStars,  int frame,  int total,  String filter,  double exposureSecs,  double? airmass,  double? fwhmArcsec,  double? snr,  double mjdObs,  double frameStartUnix,  bool accepted,  String? rejectReason,  bool reduceLive,  bool applyDifferential)?  photometryFrame,TResult Function( String nodeId,  int frame,  int total,  double gapSecs,  double maxGapSecs,  int cadenceBreaks)?  photometryCadenceBroken,TResult Function( String nodeId,  String targetDesignation,  String filter,  int framesCaptured,  int cadenceBreaks,  String? lastRejectReason)?  photometrySummary,TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryStarted,TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryProgress,TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryCompleted,TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError,  bool abortedByUser)?  recoveryGaveUp,TResult Function( String nodeId,  String pluginId,  String nodeTypeId,  String configJson,  String? displayName,  int timeoutSecs)?  pluginNodeRequested,TResult Function( String nodeId,  String pluginId,  String nodeTypeId,  String detailJson)?  pluginNodeProgress,TResult Function( String timestampIso,  String category,  String summary,  String detailsJson,  String? nodeId,  PlatformInt64? sequenceRunId,  SequencerNotice? notice)?  decisionLogged,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String sequenceName)?  started,TResult Function()?  paused,TResult Function()?  resumed,TResult Function( PlatformInt64? sequenceRunId)?  stopped,TResult Function()?  completed,TResult Function( String error)?  failed,TResult Function( String nodeId,  String nodeType)?  nodeStarted,TResult Function( String nodeId,  String status)?  nodeCompleted,TResult Function( int current,  int total)?  progress,TResult Function( String targetName,  double? ra,  double? dec)?  targetChanged,TResult Function( String targetName)?  targetCompleted,TResult Function( int frame,  int total,  String? filter,  double durationSecs)?  exposureStarted,TResult Function( int frame,  int total,  double durationSecs)?  exposureCompleted,TResult Function( String message,  SequencerErrorKind kind,  SequencerNotice? notice)?  error,TResult Function( FlipOutcome outcome,  String targetName,  String newPierSide,  double durationSecs,  int attempts,  List<String> failedSteps,  String? error,  String? actionTaken)?  meridianFlipOutcome,TResult Function( String triggerId,  String triggerName,  String action)?  triggerFired,TResult Function( String nodeId,  String instruction,  double progressPercent,  String detail)?  instructionProgress,TResult Function( String nodeId,  String instruction,  double progressPercent,  String detailKind,  String detailJson)?  instructionProgressStructured,TResult Function( String nodeId,  String filterName,  String goalId,  BigInt revision,  int evidenceFrames,  int confirmationFrames,  double score,  double threshold)?  depthGoalCompleted,TResult Function( String nodeId,  int frame,  int total,  double? hfr,  double? eccentricity,  int? starCount,  int acceptedTotal,  int rejectedTotal,  String? savePath,  FrameCaptureMetadata capture)?  frameAccepted,TResult Function( String nodeId,  int frame,  int total,  String reason,  double? hfr,  double? eccentricity,  int? starCount,  String rejectPath,  int consecutiveRejects,  int acceptedTotal,  int rejectedTotal,  String? likelyCauseLabel,  List<String> evidence,  double? skyBrightnessAtCapture,  double? cloudCoverAtCapture,  double? windAtCapture,  double? guideRmsAtCapture,  double? sensorTempAtCapture,  FrameCaptureMetadata capture)?  frameRejected,TResult Function( String nodeId,  int decisionCounter,  String? pickedTargetId,  String? pickedTargetName,  double? pickedScore,  List<SchedulerScoreEntry> scores)?  schedulerDecision,TResult Function( String targetId,  String filter,  double completedSecs,  double budgetSecs,  double fraction,  bool budgetMet)?  integrationBudget,TResult Function( String nodeId,  double adaptedSecs,  double nominalSecs,  double? skyBrightnessMag,  String? filter,  String reason)?  exposureAdjusted,TResult Function( String nodeId,  String targetDesignation,  List<String> referenceStars,  int frame,  int total,  String filter,  double exposureSecs,  double? airmass,  double? fwhmArcsec,  double? snr,  double mjdObs,  double frameStartUnix,  bool accepted,  String? rejectReason,  bool reduceLive,  bool applyDifferential)?  photometryFrame,TResult Function( String nodeId,  int frame,  int total,  double gapSecs,  double maxGapSecs,  int cadenceBreaks)?  photometryCadenceBroken,TResult Function( String nodeId,  String targetDesignation,  String filter,  int framesCaptured,  int cadenceBreaks,  String? lastRejectReason)?  photometrySummary,TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryStarted,TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryProgress,TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryCompleted,TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError,  bool abortedByUser)?  recoveryGaveUp,TResult Function( String nodeId,  String pluginId,  String nodeTypeId,  String configJson,  String? displayName,  int timeoutSecs)?  pluginNodeRequested,TResult Function( String nodeId,  String pluginId,  String nodeTypeId,  String detailJson)?  pluginNodeProgress,TResult Function( String timestampIso,  String category,  String summary,  String detailsJson,  String? nodeId,  PlatformInt64? sequenceRunId,  SequencerNotice? notice)?  decisionLogged,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SequencerEvent_Started() when started != null:
 return started(_that.sequenceName);case SequencerEvent_Paused() when paused != null:
@@ -269,7 +269,7 @@ return decisionLogged(_that.timestampIso,_that.category,_that.summary,_that.deta
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String sequenceName)  started,required TResult Function()  paused,required TResult Function()  resumed,required TResult Function( PlatformInt64? sequenceRunId)  stopped,required TResult Function()  completed,required TResult Function( String error)  failed,required TResult Function( String nodeId,  String nodeType)  nodeStarted,required TResult Function( String nodeId,  String status)  nodeCompleted,required TResult Function( int current,  int total)  progress,required TResult Function( String targetName,  double? ra,  double? dec)  targetChanged,required TResult Function( String targetName)  targetCompleted,required TResult Function( int frame,  int total,  String? filter,  double durationSecs)  exposureStarted,required TResult Function( int frame,  int total,  double durationSecs)  exposureCompleted,required TResult Function( String message,  SequencerErrorKind kind,  SequencerNotice? notice)  error,required TResult Function( String outcome,  String targetName,  String newPierSide,  double durationSecs,  int attempts,  List<String> failedSteps,  String? error,  String? actionTaken)  meridianFlipOutcome,required TResult Function( String triggerId,  String triggerName,  String action)  triggerFired,required TResult Function( String nodeId,  String instruction,  double progressPercent,  String detail)  instructionProgress,required TResult Function( String nodeId,  String instruction,  double progressPercent,  String detailKind,  String detailJson)  instructionProgressStructured,required TResult Function( String nodeId,  String filterName,  String goalId,  BigInt revision,  int evidenceFrames,  int confirmationFrames,  double score,  double threshold)  depthGoalCompleted,required TResult Function( String nodeId,  int frame,  int total,  double? hfr,  double? eccentricity,  int? starCount,  int acceptedTotal,  int rejectedTotal,  String? savePath,  FrameCaptureMetadata capture)  frameAccepted,required TResult Function( String nodeId,  int frame,  int total,  String reason,  double? hfr,  double? eccentricity,  int? starCount,  String rejectPath,  int consecutiveRejects,  int acceptedTotal,  int rejectedTotal,  String? likelyCauseLabel,  List<String> evidence,  double? skyBrightnessAtCapture,  double? cloudCoverAtCapture,  double? windAtCapture,  double? guideRmsAtCapture,  double? sensorTempAtCapture,  FrameCaptureMetadata capture)  frameRejected,required TResult Function( String nodeId,  int decisionCounter,  String? pickedTargetId,  String? pickedTargetName,  double? pickedScore,  List<SchedulerScoreEntry> scores)  schedulerDecision,required TResult Function( String targetId,  String filter,  double completedSecs,  double budgetSecs,  double fraction,  bool budgetMet)  integrationBudget,required TResult Function( String nodeId,  double adaptedSecs,  double nominalSecs,  double? skyBrightnessMag,  String? filter,  String reason)  exposureAdjusted,required TResult Function( String nodeId,  String targetDesignation,  List<String> referenceStars,  int frame,  int total,  String filter,  double exposureSecs,  double? airmass,  double? fwhmArcsec,  double? snr,  double mjdObs,  double frameStartUnix,  bool accepted,  String? rejectReason,  bool reduceLive,  bool applyDifferential)  photometryFrame,required TResult Function( String nodeId,  int frame,  int total,  double gapSecs,  double maxGapSecs,  int cadenceBreaks)  photometryCadenceBroken,required TResult Function( String nodeId,  String targetDesignation,  String filter,  int framesCaptured,  int cadenceBreaks,  String? lastRejectReason)  photometrySummary,required TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)  recoveryStarted,required TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)  recoveryProgress,required TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)  recoveryCompleted,required TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError,  bool abortedByUser)  recoveryGaveUp,required TResult Function( String nodeId,  String pluginId,  String nodeTypeId,  String configJson,  String? displayName,  int timeoutSecs)  pluginNodeRequested,required TResult Function( String nodeId,  String pluginId,  String nodeTypeId,  String detailJson)  pluginNodeProgress,required TResult Function( String timestampIso,  String category,  String summary,  String detailsJson,  String? nodeId,  PlatformInt64? sequenceRunId,  SequencerNotice? notice)  decisionLogged,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String sequenceName)  started,required TResult Function()  paused,required TResult Function()  resumed,required TResult Function( PlatformInt64? sequenceRunId)  stopped,required TResult Function()  completed,required TResult Function( String error)  failed,required TResult Function( String nodeId,  String nodeType)  nodeStarted,required TResult Function( String nodeId,  String status)  nodeCompleted,required TResult Function( int current,  int total)  progress,required TResult Function( String targetName,  double? ra,  double? dec)  targetChanged,required TResult Function( String targetName)  targetCompleted,required TResult Function( int frame,  int total,  String? filter,  double durationSecs)  exposureStarted,required TResult Function( int frame,  int total,  double durationSecs)  exposureCompleted,required TResult Function( String message,  SequencerErrorKind kind,  SequencerNotice? notice)  error,required TResult Function( FlipOutcome outcome,  String targetName,  String newPierSide,  double durationSecs,  int attempts,  List<String> failedSteps,  String? error,  String? actionTaken)  meridianFlipOutcome,required TResult Function( String triggerId,  String triggerName,  String action)  triggerFired,required TResult Function( String nodeId,  String instruction,  double progressPercent,  String detail)  instructionProgress,required TResult Function( String nodeId,  String instruction,  double progressPercent,  String detailKind,  String detailJson)  instructionProgressStructured,required TResult Function( String nodeId,  String filterName,  String goalId,  BigInt revision,  int evidenceFrames,  int confirmationFrames,  double score,  double threshold)  depthGoalCompleted,required TResult Function( String nodeId,  int frame,  int total,  double? hfr,  double? eccentricity,  int? starCount,  int acceptedTotal,  int rejectedTotal,  String? savePath,  FrameCaptureMetadata capture)  frameAccepted,required TResult Function( String nodeId,  int frame,  int total,  String reason,  double? hfr,  double? eccentricity,  int? starCount,  String rejectPath,  int consecutiveRejects,  int acceptedTotal,  int rejectedTotal,  String? likelyCauseLabel,  List<String> evidence,  double? skyBrightnessAtCapture,  double? cloudCoverAtCapture,  double? windAtCapture,  double? guideRmsAtCapture,  double? sensorTempAtCapture,  FrameCaptureMetadata capture)  frameRejected,required TResult Function( String nodeId,  int decisionCounter,  String? pickedTargetId,  String? pickedTargetName,  double? pickedScore,  List<SchedulerScoreEntry> scores)  schedulerDecision,required TResult Function( String targetId,  String filter,  double completedSecs,  double budgetSecs,  double fraction,  bool budgetMet)  integrationBudget,required TResult Function( String nodeId,  double adaptedSecs,  double nominalSecs,  double? skyBrightnessMag,  String? filter,  String reason)  exposureAdjusted,required TResult Function( String nodeId,  String targetDesignation,  List<String> referenceStars,  int frame,  int total,  String filter,  double exposureSecs,  double? airmass,  double? fwhmArcsec,  double? snr,  double mjdObs,  double frameStartUnix,  bool accepted,  String? rejectReason,  bool reduceLive,  bool applyDifferential)  photometryFrame,required TResult Function( String nodeId,  int frame,  int total,  double gapSecs,  double maxGapSecs,  int cadenceBreaks)  photometryCadenceBroken,required TResult Function( String nodeId,  String targetDesignation,  String filter,  int framesCaptured,  int cadenceBreaks,  String? lastRejectReason)  photometrySummary,required TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)  recoveryStarted,required TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)  recoveryProgress,required TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)  recoveryCompleted,required TResult Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError,  bool abortedByUser)  recoveryGaveUp,required TResult Function( String nodeId,  String pluginId,  String nodeTypeId,  String configJson,  String? displayName,  int timeoutSecs)  pluginNodeRequested,required TResult Function( String nodeId,  String pluginId,  String nodeTypeId,  String detailJson)  pluginNodeProgress,required TResult Function( String timestampIso,  String category,  String summary,  String detailsJson,  String? nodeId,  PlatformInt64? sequenceRunId,  SequencerNotice? notice)  decisionLogged,}) {final _that = this;
 switch (_that) {
 case SequencerEvent_Started():
 return started(_that.sequenceName);case SequencerEvent_Paused():
@@ -319,7 +319,7 @@ return decisionLogged(_that.timestampIso,_that.category,_that.summary,_that.deta
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String sequenceName)?  started,TResult? Function()?  paused,TResult? Function()?  resumed,TResult? Function( PlatformInt64? sequenceRunId)?  stopped,TResult? Function()?  completed,TResult? Function( String error)?  failed,TResult? Function( String nodeId,  String nodeType)?  nodeStarted,TResult? Function( String nodeId,  String status)?  nodeCompleted,TResult? Function( int current,  int total)?  progress,TResult? Function( String targetName,  double? ra,  double? dec)?  targetChanged,TResult? Function( String targetName)?  targetCompleted,TResult? Function( int frame,  int total,  String? filter,  double durationSecs)?  exposureStarted,TResult? Function( int frame,  int total,  double durationSecs)?  exposureCompleted,TResult? Function( String message,  SequencerErrorKind kind,  SequencerNotice? notice)?  error,TResult? Function( String outcome,  String targetName,  String newPierSide,  double durationSecs,  int attempts,  List<String> failedSteps,  String? error,  String? actionTaken)?  meridianFlipOutcome,TResult? Function( String triggerId,  String triggerName,  String action)?  triggerFired,TResult? Function( String nodeId,  String instruction,  double progressPercent,  String detail)?  instructionProgress,TResult? Function( String nodeId,  String instruction,  double progressPercent,  String detailKind,  String detailJson)?  instructionProgressStructured,TResult? Function( String nodeId,  String filterName,  String goalId,  BigInt revision,  int evidenceFrames,  int confirmationFrames,  double score,  double threshold)?  depthGoalCompleted,TResult? Function( String nodeId,  int frame,  int total,  double? hfr,  double? eccentricity,  int? starCount,  int acceptedTotal,  int rejectedTotal,  String? savePath,  FrameCaptureMetadata capture)?  frameAccepted,TResult? Function( String nodeId,  int frame,  int total,  String reason,  double? hfr,  double? eccentricity,  int? starCount,  String rejectPath,  int consecutiveRejects,  int acceptedTotal,  int rejectedTotal,  String? likelyCauseLabel,  List<String> evidence,  double? skyBrightnessAtCapture,  double? cloudCoverAtCapture,  double? windAtCapture,  double? guideRmsAtCapture,  double? sensorTempAtCapture,  FrameCaptureMetadata capture)?  frameRejected,TResult? Function( String nodeId,  int decisionCounter,  String? pickedTargetId,  String? pickedTargetName,  double? pickedScore,  List<SchedulerScoreEntry> scores)?  schedulerDecision,TResult? Function( String targetId,  String filter,  double completedSecs,  double budgetSecs,  double fraction,  bool budgetMet)?  integrationBudget,TResult? Function( String nodeId,  double adaptedSecs,  double nominalSecs,  double? skyBrightnessMag,  String? filter,  String reason)?  exposureAdjusted,TResult? Function( String nodeId,  String targetDesignation,  List<String> referenceStars,  int frame,  int total,  String filter,  double exposureSecs,  double? airmass,  double? fwhmArcsec,  double? snr,  double mjdObs,  double frameStartUnix,  bool accepted,  String? rejectReason,  bool reduceLive,  bool applyDifferential)?  photometryFrame,TResult? Function( String nodeId,  int frame,  int total,  double gapSecs,  double maxGapSecs,  int cadenceBreaks)?  photometryCadenceBroken,TResult? Function( String nodeId,  String targetDesignation,  String filter,  int framesCaptured,  int cadenceBreaks,  String? lastRejectReason)?  photometrySummary,TResult? Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryStarted,TResult? Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryProgress,TResult? Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryCompleted,TResult? Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError,  bool abortedByUser)?  recoveryGaveUp,TResult? Function( String nodeId,  String pluginId,  String nodeTypeId,  String configJson,  String? displayName,  int timeoutSecs)?  pluginNodeRequested,TResult? Function( String nodeId,  String pluginId,  String nodeTypeId,  String detailJson)?  pluginNodeProgress,TResult? Function( String timestampIso,  String category,  String summary,  String detailsJson,  String? nodeId,  PlatformInt64? sequenceRunId,  SequencerNotice? notice)?  decisionLogged,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String sequenceName)?  started,TResult? Function()?  paused,TResult? Function()?  resumed,TResult? Function( PlatformInt64? sequenceRunId)?  stopped,TResult? Function()?  completed,TResult? Function( String error)?  failed,TResult? Function( String nodeId,  String nodeType)?  nodeStarted,TResult? Function( String nodeId,  String status)?  nodeCompleted,TResult? Function( int current,  int total)?  progress,TResult? Function( String targetName,  double? ra,  double? dec)?  targetChanged,TResult? Function( String targetName)?  targetCompleted,TResult? Function( int frame,  int total,  String? filter,  double durationSecs)?  exposureStarted,TResult? Function( int frame,  int total,  double durationSecs)?  exposureCompleted,TResult? Function( String message,  SequencerErrorKind kind,  SequencerNotice? notice)?  error,TResult? Function( FlipOutcome outcome,  String targetName,  String newPierSide,  double durationSecs,  int attempts,  List<String> failedSteps,  String? error,  String? actionTaken)?  meridianFlipOutcome,TResult? Function( String triggerId,  String triggerName,  String action)?  triggerFired,TResult? Function( String nodeId,  String instruction,  double progressPercent,  String detail)?  instructionProgress,TResult? Function( String nodeId,  String instruction,  double progressPercent,  String detailKind,  String detailJson)?  instructionProgressStructured,TResult? Function( String nodeId,  String filterName,  String goalId,  BigInt revision,  int evidenceFrames,  int confirmationFrames,  double score,  double threshold)?  depthGoalCompleted,TResult? Function( String nodeId,  int frame,  int total,  double? hfr,  double? eccentricity,  int? starCount,  int acceptedTotal,  int rejectedTotal,  String? savePath,  FrameCaptureMetadata capture)?  frameAccepted,TResult? Function( String nodeId,  int frame,  int total,  String reason,  double? hfr,  double? eccentricity,  int? starCount,  String rejectPath,  int consecutiveRejects,  int acceptedTotal,  int rejectedTotal,  String? likelyCauseLabel,  List<String> evidence,  double? skyBrightnessAtCapture,  double? cloudCoverAtCapture,  double? windAtCapture,  double? guideRmsAtCapture,  double? sensorTempAtCapture,  FrameCaptureMetadata capture)?  frameRejected,TResult? Function( String nodeId,  int decisionCounter,  String? pickedTargetId,  String? pickedTargetName,  double? pickedScore,  List<SchedulerScoreEntry> scores)?  schedulerDecision,TResult? Function( String targetId,  String filter,  double completedSecs,  double budgetSecs,  double fraction,  bool budgetMet)?  integrationBudget,TResult? Function( String nodeId,  double adaptedSecs,  double nominalSecs,  double? skyBrightnessMag,  String? filter,  String reason)?  exposureAdjusted,TResult? Function( String nodeId,  String targetDesignation,  List<String> referenceStars,  int frame,  int total,  String filter,  double exposureSecs,  double? airmass,  double? fwhmArcsec,  double? snr,  double mjdObs,  double frameStartUnix,  bool accepted,  String? rejectReason,  bool reduceLive,  bool applyDifferential)?  photometryFrame,TResult? Function( String nodeId,  int frame,  int total,  double gapSecs,  double maxGapSecs,  int cadenceBreaks)?  photometryCadenceBroken,TResult? Function( String nodeId,  String targetDesignation,  String filter,  int framesCaptured,  int cadenceBreaks,  String? lastRejectReason)?  photometrySummary,TResult? Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryStarted,TResult? Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryProgress,TResult? Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError)?  recoveryCompleted,TResult? Function( String startedAtIso,  String causeKind,  String? causeCustomLabel,  String? lastAttemptAtIso,  int attemptCount,  int maxAttempts,  double retryIntervalSecs,  double maxDurationSecs,  String phase,  String? lastError,  bool abortedByUser)?  recoveryGaveUp,TResult? Function( String nodeId,  String pluginId,  String nodeTypeId,  String configJson,  String? displayName,  int timeoutSecs)?  pluginNodeRequested,TResult? Function( String nodeId,  String pluginId,  String nodeTypeId,  String detailJson)?  pluginNodeProgress,TResult? Function( String timestampIso,  String category,  String summary,  String detailsJson,  String? nodeId,  PlatformInt64? sequenceRunId,  SequencerNotice? notice)?  decisionLogged,}) {final _that = this;
 switch (_that) {
 case SequencerEvent_Started() when started != null:
 return started(_that.sequenceName);case SequencerEvent_Paused() when paused != null:
@@ -1191,7 +1191,7 @@ $Res call({
 });
 
 
-
+$SequencerNoticeCopyWith<$Res>? get notice;
 
 }
 /// @nodoc
@@ -1213,7 +1213,19 @@ as SequencerNotice?,
   ));
 }
 
+/// Create a copy of SequencerEvent
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$SequencerNoticeCopyWith<$Res>? get notice {
+    if (_self.notice == null) {
+    return null;
+  }
 
+  return $SequencerNoticeCopyWith<$Res>(_self.notice!, (value) {
+    return _then(_self.copyWith(notice: value));
+  });
+}
 }
 
 /// @nodoc
@@ -1223,8 +1235,7 @@ class SequencerEvent_MeridianFlipOutcome extends SequencerEvent {
   const SequencerEvent_MeridianFlipOutcome({required this.outcome, required this.targetName, required this.newPierSide, required this.durationSecs, required this.attempts, required final  List<String> failedSteps, this.error, this.actionTaken}): _failedSteps = failedSteps,super._();
   
 
-/// `"success"`, `"failed"`, or `"aborted"`.
- final  String outcome;
+ final  FlipOutcome outcome;
 /// Target the flip was performed for.
  final  String targetName;
 /// Pier side reported after the flip (`East` / `West` / `Unknown`).
@@ -1277,7 +1288,7 @@ abstract mixin class $SequencerEvent_MeridianFlipOutcomeCopyWith<$Res> implement
   factory $SequencerEvent_MeridianFlipOutcomeCopyWith(SequencerEvent_MeridianFlipOutcome value, $Res Function(SequencerEvent_MeridianFlipOutcome) _then) = _$SequencerEvent_MeridianFlipOutcomeCopyWithImpl;
 @useResult
 $Res call({
- String outcome, String targetName, String newPierSide, double durationSecs, int attempts, List<String> failedSteps, String? error, String? actionTaken
+ FlipOutcome outcome, String targetName, String newPierSide, double durationSecs, int attempts, List<String> failedSteps, String? error, String? actionTaken
 });
 
 
@@ -1297,7 +1308,7 @@ class _$SequencerEvent_MeridianFlipOutcomeCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? outcome = null,Object? targetName = null,Object? newPierSide = null,Object? durationSecs = null,Object? attempts = null,Object? failedSteps = null,Object? error = freezed,Object? actionTaken = freezed,}) {
   return _then(SequencerEvent_MeridianFlipOutcome(
 outcome: null == outcome ? _self.outcome : outcome // ignore: cast_nullable_to_non_nullable
-as String,targetName: null == targetName ? _self.targetName : targetName // ignore: cast_nullable_to_non_nullable
+as FlipOutcome,targetName: null == targetName ? _self.targetName : targetName // ignore: cast_nullable_to_non_nullable
 as String,newPierSide: null == newPierSide ? _self.newPierSide : newPierSide // ignore: cast_nullable_to_non_nullable
 as String,durationSecs: null == durationSecs ? _self.durationSecs : durationSecs // ignore: cast_nullable_to_non_nullable
 as double,attempts: null == attempts ? _self.attempts : attempts // ignore: cast_nullable_to_non_nullable
@@ -2941,7 +2952,7 @@ $Res call({
 });
 
 
-
+$SequencerNoticeCopyWith<$Res>? get notice;
 
 }
 /// @nodoc
@@ -2964,6 +2975,355 @@ as String,nodeId: freezed == nodeId ? _self.nodeId : nodeId // ignore: cast_null
 as String?,sequenceRunId: freezed == sequenceRunId ? _self.sequenceRunId : sequenceRunId // ignore: cast_nullable_to_non_nullable
 as PlatformInt64?,notice: freezed == notice ? _self.notice : notice // ignore: cast_nullable_to_non_nullable
 as SequencerNotice?,
+  ));
+}
+
+/// Create a copy of SequencerEvent
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$SequencerNoticeCopyWith<$Res>? get notice {
+    if (_self.notice == null) {
+    return null;
+  }
+
+  return $SequencerNoticeCopyWith<$Res>(_self.notice!, (value) {
+    return _then(_self.copyWith(notice: value));
+  });
+}
+}
+
+/// @nodoc
+mixin _$SequencerNotice {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequencerNotice);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SequencerNotice()';
+}
+
+
+}
+
+/// @nodoc
+class $SequencerNoticeCopyWith<$Res>  {
+$SequencerNoticeCopyWith(SequencerNotice _, $Res Function(SequencerNotice) __);
+}
+
+
+/// Adds pattern-matching-related methods to [SequencerNotice].
+extension SequencerNoticePatterns on SequencerNotice {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SequencerNotice_AutofocusContinued value)?  autofocusContinued,TResult Function( SequencerNotice_RejectStreak value)?  rejectStreak,TResult Function( SequencerNotice_ProblemNoticed value)?  problemNoticed,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case SequencerNotice_AutofocusContinued() when autofocusContinued != null:
+return autofocusContinued(_that);case SequencerNotice_RejectStreak() when rejectStreak != null:
+return rejectStreak(_that);case SequencerNotice_ProblemNoticed() when problemNoticed != null:
+return problemNoticed(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SequencerNotice_AutofocusContinued value)  autofocusContinued,required TResult Function( SequencerNotice_RejectStreak value)  rejectStreak,required TResult Function( SequencerNotice_ProblemNoticed value)  problemNoticed,}){
+final _that = this;
+switch (_that) {
+case SequencerNotice_AutofocusContinued():
+return autofocusContinued(_that);case SequencerNotice_RejectStreak():
+return rejectStreak(_that);case SequencerNotice_ProblemNoticed():
+return problemNoticed(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SequencerNotice_AutofocusContinued value)?  autofocusContinued,TResult? Function( SequencerNotice_RejectStreak value)?  rejectStreak,TResult? Function( SequencerNotice_ProblemNoticed value)?  problemNoticed,}){
+final _that = this;
+switch (_that) {
+case SequencerNotice_AutofocusContinued() when autofocusContinued != null:
+return autofocusContinued(_that);case SequencerNotice_RejectStreak() when rejectStreak != null:
+return rejectStreak(_that);case SequencerNotice_ProblemNoticed() when problemNoticed != null:
+return problemNoticed(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  autofocusContinued,TResult Function( int consecutiveRejects,  String reason)?  rejectStreak,TResult Function( String source,  String problem)?  problemNoticed,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case SequencerNotice_AutofocusContinued() when autofocusContinued != null:
+return autofocusContinued();case SequencerNotice_RejectStreak() when rejectStreak != null:
+return rejectStreak(_that.consecutiveRejects,_that.reason);case SequencerNotice_ProblemNoticed() when problemNoticed != null:
+return problemNoticed(_that.source,_that.problem);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  autofocusContinued,required TResult Function( int consecutiveRejects,  String reason)  rejectStreak,required TResult Function( String source,  String problem)  problemNoticed,}) {final _that = this;
+switch (_that) {
+case SequencerNotice_AutofocusContinued():
+return autofocusContinued();case SequencerNotice_RejectStreak():
+return rejectStreak(_that.consecutiveRejects,_that.reason);case SequencerNotice_ProblemNoticed():
+return problemNoticed(_that.source,_that.problem);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  autofocusContinued,TResult? Function( int consecutiveRejects,  String reason)?  rejectStreak,TResult? Function( String source,  String problem)?  problemNoticed,}) {final _that = this;
+switch (_that) {
+case SequencerNotice_AutofocusContinued() when autofocusContinued != null:
+return autofocusContinued();case SequencerNotice_RejectStreak() when rejectStreak != null:
+return rejectStreak(_that.consecutiveRejects,_that.reason);case SequencerNotice_ProblemNoticed() when problemNoticed != null:
+return problemNoticed(_that.source,_that.problem);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class SequencerNotice_AutofocusContinued extends SequencerNotice {
+  const SequencerNotice_AutofocusContinued(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequencerNotice_AutofocusContinued);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SequencerNotice.autofocusContinued()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class SequencerNotice_RejectStreak extends SequencerNotice {
+  const SequencerNotice_RejectStreak({required this.consecutiveRejects, required this.reason}): super._();
+  
+
+ final  int consecutiveRejects;
+/// Why the latest frame of the streak was rejected.
+ final  String reason;
+
+/// Create a copy of SequencerNotice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SequencerNotice_RejectStreakCopyWith<SequencerNotice_RejectStreak> get copyWith => _$SequencerNotice_RejectStreakCopyWithImpl<SequencerNotice_RejectStreak>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequencerNotice_RejectStreak&&(identical(other.consecutiveRejects, consecutiveRejects) || other.consecutiveRejects == consecutiveRejects)&&(identical(other.reason, reason) || other.reason == reason));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,consecutiveRejects,reason);
+
+@override
+String toString() {
+  return 'SequencerNotice.rejectStreak(consecutiveRejects: $consecutiveRejects, reason: $reason)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SequencerNotice_RejectStreakCopyWith<$Res> implements $SequencerNoticeCopyWith<$Res> {
+  factory $SequencerNotice_RejectStreakCopyWith(SequencerNotice_RejectStreak value, $Res Function(SequencerNotice_RejectStreak) _then) = _$SequencerNotice_RejectStreakCopyWithImpl;
+@useResult
+$Res call({
+ int consecutiveRejects, String reason
+});
+
+
+
+
+}
+/// @nodoc
+class _$SequencerNotice_RejectStreakCopyWithImpl<$Res>
+    implements $SequencerNotice_RejectStreakCopyWith<$Res> {
+  _$SequencerNotice_RejectStreakCopyWithImpl(this._self, this._then);
+
+  final SequencerNotice_RejectStreak _self;
+  final $Res Function(SequencerNotice_RejectStreak) _then;
+
+/// Create a copy of SequencerNotice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? consecutiveRejects = null,Object? reason = null,}) {
+  return _then(SequencerNotice_RejectStreak(
+consecutiveRejects: null == consecutiveRejects ? _self.consecutiveRejects : consecutiveRejects // ignore: cast_nullable_to_non_nullable
+as int,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SequencerNotice_ProblemNoticed extends SequencerNotice {
+  const SequencerNotice_ProblemNoticed({required this.source, required this.problem}): super._();
+  
+
+/// What noticed the problem.
+ final  String source;
+/// What it found.
+ final  String problem;
+
+/// Create a copy of SequencerNotice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SequencerNotice_ProblemNoticedCopyWith<SequencerNotice_ProblemNoticed> get copyWith => _$SequencerNotice_ProblemNoticedCopyWithImpl<SequencerNotice_ProblemNoticed>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequencerNotice_ProblemNoticed&&(identical(other.source, source) || other.source == source)&&(identical(other.problem, problem) || other.problem == problem));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,source,problem);
+
+@override
+String toString() {
+  return 'SequencerNotice.problemNoticed(source: $source, problem: $problem)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SequencerNotice_ProblemNoticedCopyWith<$Res> implements $SequencerNoticeCopyWith<$Res> {
+  factory $SequencerNotice_ProblemNoticedCopyWith(SequencerNotice_ProblemNoticed value, $Res Function(SequencerNotice_ProblemNoticed) _then) = _$SequencerNotice_ProblemNoticedCopyWithImpl;
+@useResult
+$Res call({
+ String source, String problem
+});
+
+
+
+
+}
+/// @nodoc
+class _$SequencerNotice_ProblemNoticedCopyWithImpl<$Res>
+    implements $SequencerNotice_ProblemNoticedCopyWith<$Res> {
+  _$SequencerNotice_ProblemNoticedCopyWithImpl(this._self, this._then);
+
+  final SequencerNotice_ProblemNoticed _self;
+  final $Res Function(SequencerNotice_ProblemNoticed) _then;
+
+/// Create a copy of SequencerNotice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? source = null,Object? problem = null,}) {
+  return _then(SequencerNotice_ProblemNoticed(
+source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String,problem: null == problem ? _self.problem : problem // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

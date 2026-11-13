@@ -5,7 +5,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../backend/bridge_events.dart'
-    show SequencerErrorKind, depthGoalCompletedDetail, triggerActionText;
+    show
+        FlipOutcome,
+        SequencerErrorKind,
+        depthGoalCompletedDetail,
+        triggerActionText;
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/replay_decision.dart' show DecisionCategory;
 import '../../../models/sequence/instruction_progress_detail.dart';
@@ -737,20 +741,15 @@ class RunEventHandler {
   }
 
   /// Whether the node identified by [nodeId] ran an autofocus sweep, judged by
-  /// its most recent structured progress payload.
-  ///
-  /// `ProgressDetail::Autofocus` reaches Dart as an
-  /// [UnknownInstructionProgressDetail] with `kind == 'Autofocus'` (only
-  /// `Exposure` has a typed Dart counterpart today), and it is emitted by the
-  /// autofocus instruction alone — both for a tree `Autofocus` node and for a
+  /// its most recent structured progress. Only the autofocus instruction
+  /// reports an autofocus detail, both for a tree `Autofocus` node and for a
   /// trigger-fired refocus, which the executor publishes under the synthetic
   /// node id `trigger:<id>:autofocus`.
   bool _nodeRanAutofocus(String nodeId) {
     final detail = _ref
         .read(sequenceProgressProvider)
         .nodeProgressStructuredDetail[nodeId];
-    return detail is UnknownInstructionProgressDetail &&
-        detail.kind == 'Autofocus';
+    return detail is AutofocusInstructionProgressDetail;
   }
 
   /// Put a mid-run fault on the run record and offer backlash calibration
@@ -793,7 +792,6 @@ class RunEventHandler {
   /// The verdict that follows does not count it again.
   void _handleMeridianFlipOutcome(MeridianFlipOutcome event) {
     final progressNotifier = _ref.read(runRecordProvider.notifier);
-    final outcome = event.outcome ?? 'unknown';
     final targetName = event.targetName ?? 'target';
     final attempts = event.attempts ?? 0;
     final durationSecs = event.durationSecs ?? 0;
@@ -803,8 +801,8 @@ class RunEventHandler {
 
     final countedAtPierChange = _flipCountedAtPierChange;
     _flipCountedAtPierChange = false;
-    switch (outcome) {
-      case meridianFlipPierChangedOutcome:
+    switch (event.outcome) {
+      case FlipOutcome.pierChanged:
         _stats.update((stats) => stats.recordMeridianFlip());
         _flipCountedAtPierChange = true;
         final side = event.newPierSide?.toLowerCase();
@@ -816,7 +814,7 @@ class RunEventHandler {
         progressNotifier.updateProgress(message: message);
         break;
 
-      case 'success':
+      case FlipOutcome.success:
         if (!countedAtPierChange) {
           _stats.update((stats) => stats.recordMeridianFlip());
         }
@@ -838,7 +836,7 @@ class RunEventHandler {
         }
         break;
 
-      case 'aborted':
+      case FlipOutcome.aborted:
         final message =
             'Meridian flip for "$targetName" was aborted after $attempts '
             'attempt${attempts == 1 ? "" : "s"}'
@@ -849,7 +847,7 @@ class RunEventHandler {
         progressNotifier.updateProgress(message: message);
         break;
 
-      default:
+      case FlipOutcome.failed || null:
         final message = countedAtPierChange
             ? 'Meridian flip for "$targetName" reached the new pier side, but '
                   'recovery failed after $attempts '

@@ -8,6 +8,16 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sequencer.freezed.dart';
 
+/// What a `MeridianFlipOutcome` event reports. Mirrors
+/// `skotiq_sequencer::meridian_flip_executor::FlipOutcome`.
+enum FlipOutcome {
+  /// The mount reached its new pier side; the verdict still follows.
+  pierChanged,
+  success,
+  failed,
+  aborted,
+}
+
 /// Per-frame capture truth carried across FRB on the frame events. Mirrors
 /// `skotiq_sequencer::scheduling::FrameCaptureMetadata` field for field,
 /// living in the bridge crate for the same reason [`SchedulerScoreEntry`] does.
@@ -267,8 +277,7 @@ sealed class SequencerEvent with _$SequencerEvent {
   /// run-stats layer, which counts the flip and surfaces a failed post-flip
   /// recenter rather than sniffing either out of a log string.
   const factory SequencerEvent.meridianFlipOutcome({
-    /// `"success"`, `"failed"`, or `"aborted"`.
-    required String outcome,
+    required FlipOutcome outcome,
 
     /// Target the flip was performed for.
     required String targetName,
@@ -759,9 +768,23 @@ sealed class SequencerEvent with _$SequencerEvent {
   }) = SequencerEvent_DecisionLogged;
 }
 
-/// A happening the run carries on through and tells the operator about once.
-/// The `DecisionLogged` row that carries it is what the app raises the
-/// notification from; the `Error` (a warning) that carries it is the line in
-/// the run's warnings and raises nothing of its own. Mirrors
-/// `skotiq_sequencer::RunNotice`.
-enum SequencerNotice { autofocusContinued, rejectStreak, problemNoticed }
+@freezed
+sealed class SequencerNotice with _$SequencerNotice {
+  const SequencerNotice._();
+
+  const factory SequencerNotice.autofocusContinued() =
+      SequencerNotice_AutofocusContinued;
+  const factory SequencerNotice.rejectStreak({
+    required int consecutiveRejects,
+
+    /// Why the latest frame of the streak was rejected.
+    required String reason,
+  }) = SequencerNotice_RejectStreak;
+  const factory SequencerNotice.problemNoticed({
+    /// What noticed the problem.
+    required String source,
+
+    /// What it found.
+    required String problem,
+  }) = SequencerNotice_ProblemNoticed;
+}

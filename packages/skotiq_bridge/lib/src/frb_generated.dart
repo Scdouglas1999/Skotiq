@@ -12057,6 +12057,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FlipOutcome dco_decode_flip_outcome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return FlipOutcome.values[raw as int];
+  }
+
+  @protected
   FocusDataPoint dco_decode_focus_data_point(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -13526,7 +13532,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 14:
         return SequencerEvent_MeridianFlipOutcome(
-          outcome: dco_decode_String(raw[1]),
+          outcome: dco_decode_flip_outcome(raw[1]),
           targetName: dco_decode_String(raw[2]),
           newPierSide: dco_decode_String(raw[3]),
           durationSecs: dco_decode_f_64(raw[4]),
@@ -13753,7 +13759,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SequencerNotice dco_decode_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return SequencerNotice.values[raw as int];
+    switch (raw[0]) {
+      case 0:
+        return SequencerNotice_AutofocusContinued();
+      case 1:
+        return SequencerNotice_RejectStreak(
+          consecutiveRejects: dco_decode_u_32(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 2:
+        return SequencerNotice_ProblemNoticed(
+          source: dco_decode_String(raw[1]),
+          problem: dco_decode_String(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -16340,6 +16361,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FlipOutcome sse_decode_flip_outcome(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return FlipOutcome.values[inner];
+  }
+
+  @protected
   FocusDataPoint sse_decode_focus_data_point(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_position = sse_decode_i_32(deserializer);
@@ -18429,7 +18457,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           notice: var_notice,
         );
       case 14:
-        var var_outcome = sse_decode_String(deserializer);
+        var var_outcome = sse_decode_flip_outcome(deserializer);
         var var_targetName = sse_decode_String(deserializer);
         var var_newPierSide = sse_decode_String(deserializer);
         var var_durationSecs = sse_decode_f_64(deserializer);
@@ -18834,8 +18862,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SequencerNotice sse_decode_sequencer_notice(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return SequencerNotice.values[inner];
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return SequencerNotice_AutofocusContinued();
+      case 1:
+        var var_consecutiveRejects = sse_decode_u_32(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return SequencerNotice_RejectStreak(
+          consecutiveRejects: var_consecutiveRejects,
+          reason: var_reason,
+        );
+      case 2:
+        var var_source = sse_decode_String(deserializer);
+        var var_problem = sse_decode_String(deserializer);
+        return SequencerNotice_ProblemNoticed(
+          source: var_source,
+          problem: var_problem,
+        );
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -19474,6 +19522,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int cst_encode_flip_outcome(FlipOutcome raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
   int cst_encode_frame_type(FrameType raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
@@ -19505,12 +19559,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return cst_encode_i_32(raw.index);
-  }
-
-  @protected
-  int cst_encode_sequencer_notice(SequencerNotice raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -21327,6 +21375,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_flip_outcome(FlipOutcome self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_focus_data_point(
     FocusDataPoint self,
     SseSerializer serializer,
@@ -23064,7 +23118,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         actionTaken: final actionTaken,
       ):
         sse_encode_i_32(14, serializer);
-        sse_encode_String(outcome, serializer);
+        sse_encode_flip_outcome(outcome, serializer);
         sse_encode_String(targetName, serializer);
         sse_encode_String(newPierSide, serializer);
         sse_encode_f_64(durationSecs, serializer);
@@ -23444,7 +23498,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
+    switch (self) {
+      case SequencerNotice_AutofocusContinued():
+        sse_encode_i_32(0, serializer);
+      case SequencerNotice_RejectStreak(
+        consecutiveRejects: final consecutiveRejects,
+        reason: final reason,
+      ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_32(consecutiveRejects, serializer);
+        sse_encode_String(reason, serializer);
+      case SequencerNotice_ProblemNoticed(
+        source: final source,
+        problem: final problem,
+      ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(source, serializer);
+        sse_encode_String(problem, serializer);
+    }
   }
 
   @protected

@@ -431,10 +431,10 @@ String _sequencerTitle(SequencerEvent v) {
     },
     SequencerEvent_MeridianFlipOutcome(outcome: final o) => switch (o) {
       // Sent when the mount reaches its new side; the verdict follows.
-      'pier_changed' => 'Meridian flip: mount on the new pier side',
-      'success' => 'Meridian flip complete',
-      'aborted' => 'Meridian flip aborted',
-      _ => 'Meridian flip FAILED',
+      FlipOutcome.pierChanged => 'Meridian flip: mount on the new pier side',
+      FlipOutcome.success => 'Meridian flip complete',
+      FlipOutcome.aborted => 'Meridian flip aborted',
+      FlipOutcome.failed => 'Meridian flip FAILED',
     },
     SequencerEvent_TriggerFired() => 'Trigger fired',
     SequencerEvent_InstructionProgress() => 'Instruction progress',
@@ -514,7 +514,7 @@ String _sequencerDetail(SequencerEvent v) {
     SequencerEvent_Error(message: final m) => m,
     SequencerEvent_MeridianFlipOutcome(
       targetName: final t,
-      outcome: 'pier_changed',
+      outcome: FlipOutcome.pierChanged,
       newPierSide: final side,
     ) =>
       '$t · pier ${side.toLowerCase()}',
@@ -525,7 +525,7 @@ String _sequencerDetail(SequencerEvent v) {
       durationSecs: final d,
       error: final e,
     ) =>
-      o == 'success'
+      o == FlipOutcome.success
           ? (a > 1
                 ? '$t · succeeded on attempt $a · ${d.toStringAsFixed(1)}s'
                 : '$t · ${d.toStringAsFixed(1)}s')

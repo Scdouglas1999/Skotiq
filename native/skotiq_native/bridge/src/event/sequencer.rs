@@ -38,19 +38,60 @@ impl SequencerErrorKind {
 /// the run's warnings and raises nothing of its own. Mirrors
 /// `skotiq_sequencer::RunNotice`.
 #[frb]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SequencerNotice {
     AutofocusContinued,
-    RejectStreak,
-    ProblemNoticed,
+    RejectStreak {
+        consecutive_rejects: u32,
+        /// Why the latest frame of the streak was rejected.
+        reason: String,
+    },
+    ProblemNoticed {
+        /// What noticed the problem.
+        source: String,
+        /// What it found.
+        problem: String,
+    },
 }
 
 impl From<skotiq_sequencer::RunNotice> for SequencerNotice {
     fn from(notice: skotiq_sequencer::RunNotice) -> Self {
         match notice {
             skotiq_sequencer::RunNotice::AutofocusContinued => Self::AutofocusContinued,
-            skotiq_sequencer::RunNotice::RejectStreak => Self::RejectStreak,
-            skotiq_sequencer::RunNotice::ProblemNoticed => Self::ProblemNoticed,
+            skotiq_sequencer::RunNotice::RejectStreak {
+                consecutive_rejects,
+                reason,
+            } => Self::RejectStreak {
+                consecutive_rejects,
+                reason,
+            },
+            skotiq_sequencer::RunNotice::ProblemNoticed { source, problem } => {
+                Self::ProblemNoticed { source, problem }
+            }
+        }
+    }
+}
+
+/// What a `MeridianFlipOutcome` event reports. Mirrors
+/// `skotiq_sequencer::meridian_flip_executor::FlipOutcome`.
+#[frb]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FlipOutcome {
+    /// The mount reached its new pier side; the verdict still follows.
+    PierChanged,
+    Success,
+    Failed,
+    Aborted,
+}
+
+impl From<skotiq_sequencer::meridian_flip_executor::FlipOutcome> for FlipOutcome {
+    fn from(outcome: skotiq_sequencer::meridian_flip_executor::FlipOutcome) -> Self {
+        use skotiq_sequencer::meridian_flip_executor::FlipOutcome as Outcome;
+        match outcome {
+            Outcome::PierChanged => Self::PierChanged,
+            Outcome::Success => Self::Success,
+            Outcome::Failed => Self::Failed,
+            Outcome::Aborted => Self::Aborted,
         }
     }
 }
@@ -133,8 +174,7 @@ pub enum SequencerEvent {
     /// run-stats layer, which counts the flip and surfaces a failed post-flip
     /// recenter rather than sniffing either out of a log string.
     MeridianFlipOutcome {
-        /// `"success"`, `"failed"`, or `"aborted"`.
-        outcome: String,
+        outcome: FlipOutcome,
         /// Target the flip was performed for.
         target_name: String,
         /// Pier side reported after the flip (`East` / `West` / `Unknown`).

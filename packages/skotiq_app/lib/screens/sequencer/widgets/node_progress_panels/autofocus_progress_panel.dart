@@ -3,12 +3,14 @@ part of '../node_progress_panels.dart';
 class _AutofocusProgressPanel extends ConsumerStatefulWidget {
   final SkotiqColors colors;
   final double progressPercent;
-  final String detail;
+
+  /// The sweep point the step last reported; null between points.
+  final AutofocusInstructionProgressDetail? sweepPoint;
 
   const _AutofocusProgressPanel({
     required this.colors,
     required this.progressPercent,
-    required this.detail,
+    required this.sweepPoint,
   });
 
   @override
@@ -21,34 +23,28 @@ class _AutofocusProgressPanelState
   int _currentStarIndex = 0;
   bool _isRefreshing = false;
   List<StarCrop>? _refreshedCrops;
+  AutofocusInstructionProgressDetail? _lastPoint;
 
   @override
   Widget build(BuildContext context) {
-    final afData = AutofocusProgressData.tryParse(widget.detail);
+    // The curve and the star crops come with the focuser's own sweep reports,
+    // which the autofocus overlay keeps for the run in flight.
+    final sweep = ref.watch(autofocusOverlayProvider);
+    final focusRange = sweep.isRunning ? sweep.focusRange : null;
+    // Between points the step reports where the focuser is going; the panel
+    // keeps the last measured point until the next one.
+    final point = _lastPoint = widget.sweepPoint ?? _lastPoint;
+    final hfr = point?.currentHfr;
+    final stars = point?.starCount;
 
-    // Compatibility fallback: older / remote backends that have not been
-    // upgraded to the structured autofocus payload still emit a plain
-    // "Point 5/9: HFR=..., Stars=..." string. The structured path is
-    // preferred; the legacy regex panel only runs when parsing fails. Kept
-    // until every shipped backend is confirmed to emit the structured data.
-    if (afData == null) {
-      return _buildLegacyPanel();
+    final crops = focusRange == null ? const <StarCrop>[] : sweep.starCrops;
+    if (_refreshedCrops != null &&
+        crops.isNotEmpty &&
+        crops.first.pixelsBase64 != _refreshedCrops!.first.pixelsBase64) {
+      _refreshedCrops = null;
     }
-
-    return _buildEnhancedPanel(afData);
-  }
-
-  Widget _buildLegacyPanel() {
-    // Parse detail: "Point 5/9: HFR=2.45, Stars=127"
-    final pointMatch = RegExp(r'Point (\d+)/(\d+)').firstMatch(widget.detail);
-    final hfrMatch =
-        RegExp(r'HFR[=:]?\s*(\d+\.?\d*)').firstMatch(widget.detail);
-    final starsMatch = RegExp(r'Stars[=:]?\s*(\d+)').firstMatch(widget.detail);
-
-    final currentPoint = int.tryParse(pointMatch?.group(1) ?? '');
-    final totalPoints = int.tryParse(pointMatch?.group(2) ?? '');
-    final hfr = double.tryParse(hfrMatch?.group(1) ?? '');
-    final stars = int.tryParse(starsMatch?.group(1) ?? '');
+    final starCrops = _refreshedCrops ?? crops;
+    if (_currentStarIndex >= starCrops.length) _currentStarIndex = 0;
 
     return _ProgressPanelContainer(
       colors: widget.colors,
@@ -56,8 +52,71 @@ class _AutofocusProgressPanelState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(currentPoint, totalPoints),
+          _buildHeader(point?.step, point?.totalSteps),
           const SizedBox(height: 12),
+          if (focusRange == null)
+            Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: widget.colors.surface,
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
+                border: Border.all(color: widget.colors.border),
+              ),
+              child: Center(
+                child: Text('Waiting for data...',
+                    style: TextStyle(
+                        fontSize: SkotiqTypography.fontSize10,
+                        color: widget.colors.textMuted)),
+              ),
+            )
+          else
+            SizedBox(
+              height: 120,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: widget.colors.surface,
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline4),
+                        border: Border.all(color: widget.colors.border),
+                      ),
+                      child: CustomPaint(
+                        painter: _VCurvePainter(
+                          colors: widget.colors,
+                          points: sweep.vcurvePoints,
+                          focusRange: focusRange,
+                        ),
+                        size: const Size(double.infinity, 120),
+                      ),
+                    ),
+                  ),
+                  if (starCrops.isNotEmpty)
+                    Positioned(
+                      left: 4,
+                      top: 4,
+                      child: _StarZoomPanel(
+                        colors: widget.colors,
+                        starCrops: starCrops,
+                        currentIndex: _currentStarIndex,
+                        isRefreshing: _isRefreshing,
+                        onPrevious: () => setState(() {
+                          _currentStarIndex =
+                              (_currentStarIndex - 1 + starCrops.length) %
+                                  starCrops.length;
+                        }),
+                        onNext: () => setState(() {
+                          _currentStarIndex =
+                              (_currentStarIndex + 1) % starCrops.length;
+                        }),
+                        onRefresh: _refreshStarCrops,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
           Row(
             children: [
               _StatBox(
@@ -75,21 +134,6 @@ class _AutofocusProgressPanelState
                   color: widget.colors.success),
               const Spacer(),
             ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 40,
-            decoration: BoxDecoration(
-              color: widget.colors.surface,
-              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
-              border: Border.all(color: widget.colors.border),
-            ),
-            child: Center(
-              child: Text('Waiting for data...',
-                  style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize10,
-                      color: widget.colors.textMuted)),
-            ),
           ),
           const SizedBox(height: 8),
           _AnimatedProgressBar(
@@ -144,107 +188,6 @@ class _AutofocusProgressPanelState
         });
       }
     }
-  }
-
-  Widget _buildEnhancedPanel(AutofocusProgressData data) {
-    final starCrops = _refreshedCrops ?? data.starCrops;
-
-    if (_currentStarIndex >= starCrops.length) {
-      _currentStarIndex = 0;
-    }
-
-    if (_refreshedCrops != null &&
-        data.starCrops.isNotEmpty &&
-        data.starCrops.first.pixelsBase64 !=
-            _refreshedCrops!.first.pixelsBase64) {
-      _refreshedCrops = null;
-    }
-
-    return _ProgressPanelContainer(
-      colors: widget.colors,
-      accentColor: widget.colors.primary,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(data.point, data.totalPoints),
-          const SizedBox(height: 12),
-
-          SizedBox(
-            height: 120,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: widget.colors.surface,
-                      borderRadius:
-                          BorderRadius.circular(SkotiqTokens.radiusInline4),
-                      border: Border.all(color: widget.colors.border),
-                    ),
-                    child: CustomPaint(
-                      painter: _VCurvePainter(
-                        colors: widget.colors,
-                        points: data.vcurvePoints,
-                        focusRange: data.focusRange,
-                      ),
-                      size: const Size(double.infinity, 120),
-                    ),
-                  ),
-                ),
-
-                if (starCrops.isNotEmpty)
-                  Positioned(
-                    left: 4,
-                    top: 4,
-                    child: _StarZoomPanel(
-                      colors: widget.colors,
-                      starCrops: starCrops,
-                      currentIndex: _currentStarIndex,
-                      isRefreshing: _isRefreshing,
-                      onPrevious: () => setState(() {
-                        _currentStarIndex =
-                            (_currentStarIndex - 1 + starCrops.length) %
-                                starCrops.length;
-                      }),
-                      onNext: () => setState(() {
-                        _currentStarIndex =
-                            (_currentStarIndex + 1) % starCrops.length;
-                      }),
-                      onRefresh: _refreshStarCrops,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          Row(
-            children: [
-              _StatBox(
-                  colors: widget.colors,
-                  label: 'HFR',
-                  value: data.hfr.toStringAsFixed(2),
-                  unit: 'px',
-                  color: widget.colors.primary),
-              const SizedBox(width: 16),
-              _StatBox(
-                  colors: widget.colors,
-                  label: 'Stars',
-                  value: data.starCount.toString(),
-                  unit: '',
-                  color: widget.colors.success),
-              const Spacer(),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          _AnimatedProgressBar(
-              colors: widget.colors,
-              progress: widget.progressPercent / 100.0,
-              color: widget.colors.primary),
-        ],
-      ),
-    );
   }
 
   Widget _buildHeader(int? currentPoint, int? totalPoints) {

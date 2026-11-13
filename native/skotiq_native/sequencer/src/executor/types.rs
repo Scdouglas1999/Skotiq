@@ -353,8 +353,7 @@ pub enum ExecutorEvent {
     /// aborted, or failed outright. This is what carries the flip verdict, a
     /// failed post-flip recenter included, into the run vitals.
     MeridianFlipOutcome {
-        /// `"success"`, `"failed"`, or `"aborted"`.
-        outcome: String,
+        outcome: crate::meridian_flip_executor::FlipOutcome,
         /// Target the flip was performed for, for operator-facing copy.
         target_name: String,
         /// Pier side reported after the flip (`East` / `West` / `Unknown`).
@@ -370,7 +369,7 @@ pub enum ExecutorEvent {
         error: Option<String>,
         /// Configured failure action that was executed
         /// (`"PauseAndAlert"` / `"AbortAndPark"`). `None` unless
-        /// `outcome == "failed"`.
+        /// the outcome is `Failed`.
         action_taken: Option<String>,
     },
     /// runtime configuration changed mid-sequence (dither pixels,

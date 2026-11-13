@@ -21,7 +21,8 @@
 /// wire format is unchanged.
 library;
 
-import '../../backend/bridge_events.dart' show SequencerErrorKind;
+import '../../backend/bridge_events.dart'
+    show FlipOutcome, SequencerErrorKind, decodeFlipOutcome;
 import '../../backend/frame_capture_metadata.dart';
 import '../../backend/sequencer_error_kind.dart';
 import '../../errors/error_text.dart';
@@ -475,11 +476,6 @@ final class HorizonObstructionDetected extends SequencerRunEvent {
   final String? message;
 }
 
-/// [MeridianFlipOutcome.outcome] sent the moment the mount is verified on its
-/// new pier side, before the flip's centering and guiding are done. The flip's
-/// own verdict (`success`, `failed` or `aborted`) still follows.
-const String meridianFlipPierChangedOutcome = 'pier_changed';
-
 final class MeridianFlipOutcome extends SequencerRunEvent {
   const MeridianFlipOutcome({
     required super.eventType,
@@ -495,8 +491,8 @@ final class MeridianFlipOutcome extends SequencerRunEvent {
     this.actionTaken,
   });
 
-  /// `success` / `aborted` / `failed`.
-  final String? outcome;
+  /// Null from a host that sent an outcome this build does not know.
+  final FlipOutcome? outcome;
   final String? targetName;
   final String? newPierSide;
   final int? attempts;
@@ -830,7 +826,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         eventType: type,
         timestamp: ts,
         severity: sev,
-        kind: sequencerErrorKindOf(event),
+        kind: sequencerErrorOf(event)?.kind ?? SequencerErrorKind.stepFailed,
         message: d.string('message'),
       );
 
@@ -886,7 +882,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         eventType: type,
         timestamp: ts,
         severity: sev,
-        outcome: d.string('outcome'),
+        outcome: decodeFlipOutcome(event.data['outcome']),
         targetName: d.string('target_name'),
         newPierSide: d.string('new_pier_side'),
         attempts: d.integer('attempts'),

@@ -59,11 +59,17 @@ pub enum ProgressDetail {
         step: u32,
         total_steps: u32,
         current_hfr: Option<f64>,
+        /// Stars measured at this point of the sweep.
+        #[serde(default)]
+        star_count: Option<u32>,
     },
     /// Camera cooling / warming.
     Thermal {
         current_temp_c: Option<f64>,
         target_temp_c: Option<f64>,
+        /// Cooler power in percent, on the steps that read it.
+        #[serde(default)]
+        cooler_power_percent: Option<f64>,
     },
     /// Rotator move.
     Rotator {
@@ -93,6 +99,12 @@ pub enum ProgressDetail {
     PolarAlignment { step: String },
     /// Meridian flip phase.
     MeridianFlip { phase: String },
+    /// A flip attempt failed and the next one is scheduled.
+    MeridianFlipRetry {
+        failed_attempt: u32,
+        max_attempts: u32,
+        retry_in_secs: f64,
+    },
     /// Cover/calibrator open/close/brightness step.
     CoverCalibrator { state: String },
     /// Temperature compensation step.
@@ -368,6 +380,7 @@ impl ProgressDetail {
                 step,
                 total_steps,
                 current_hfr,
+                ..
             } => match current_hfr {
                 Some(hfr) => format!("step {}/{} HFR {:.2}", step, total_steps, hfr),
                 None => format!("step {}/{}", step, total_steps),
@@ -375,6 +388,7 @@ impl ProgressDetail {
             ProgressDetail::Thermal {
                 current_temp_c,
                 target_temp_c,
+                ..
             } => match (current_temp_c, target_temp_c) {
                 (Some(c), Some(t)) => format!("{:.1}°C → {:.1}°C", c, t),
                 (Some(c), None) => format!("{:.1}°C", c),
@@ -424,6 +438,14 @@ impl ProgressDetail {
             },
             ProgressDetail::PolarAlignment { step } => step.clone(),
             ProgressDetail::MeridianFlip { phase } => phase.clone(),
+            ProgressDetail::MeridianFlipRetry {
+                failed_attempt,
+                max_attempts,
+                retry_in_secs,
+            } => format!(
+                "attempt {}/{} failed, retrying in {:.0}s",
+                failed_attempt, max_attempts, retry_in_secs
+            ),
             ProgressDetail::CoverCalibrator { state } => state.clone(),
             ProgressDetail::TemperatureCompensation { delta_steps } => {
                 format!("{:+} steps", delta_steps)
@@ -772,12 +794,63 @@ mod tests {
         assert_eq!(upd.legacy_message().as_deref(), Some("Loop iteration 3"));
     }
 
+    /// The app reads these kinds by name and field. The file is the one its
+    /// `instruction_progress_detail_test.dart` decodes.
+    #[test]
+    fn progress_detail_kinds_match_the_app() {
+        let expected: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../../packages/skotiq_core/test/fixtures/progress_detail_kinds.json"
+        ))
+        .expect("the fixture is JSON");
+        let sent = [
+            ProgressDetail::Exposure {
+                frame: 3,
+                total: 12,
+                duration_secs: 180.0,
+            },
+            ProgressDetail::Center {
+                attempt: 2,
+                max_attempts: 3,
+                last_separation_arcsec: Some(41.5),
+                solved_ra_hours: Some(5.5),
+                solved_dec_degrees: Some(-5.25),
+            },
+            ProgressDetail::Autofocus {
+                step: 5,
+                total_steps: 9,
+                current_hfr: Some(2.75),
+                star_count: Some(41),
+            },
+            ProgressDetail::Thermal {
+                current_temp_c: Some(-4.5),
+                target_temp_c: Some(-10.0),
+                cooler_power_percent: Some(62.0),
+            },
+            ProgressDetail::MeridianFlipRetry {
+                failed_attempt: 2,
+                max_attempts: 4,
+                retry_in_secs: 60.0,
+            },
+        ];
+        let mut kinds = serde_json::Map::new();
+        for detail in &sent {
+            let serde_json::Value::Object(tagged) =
+                serde_json::to_value(detail).expect("serialize")
+            else {
+                panic!("a detail serializes as its kind and fields");
+            };
+            kinds.extend(tagged);
+        }
+        assert_eq!(serde_json::Value::Object(kinds), expected);
+    }
+
     #[test]
     fn progress_detail_serde_roundtrip() {
         let d = ProgressDetail::Autofocus {
             step: 5,
             total_steps: 13,
             current_hfr: Some(2.3),
+            star_count: Some(41),
         };
         let s = serde_json::to_string(&d).expect("serialize");
         let back: ProgressDetail = serde_json::from_str(&s).expect("deserialize");
@@ -786,7 +859,9 @@ mod tests {
                 step,
                 total_steps,
                 current_hfr,
+                star_count,
             } => {
+                assert_eq!(star_count, Some(41));
                 assert_eq!(step, 5);
                 assert_eq!(total_steps, 13);
                 assert_eq!(current_hfr, Some(2.3));

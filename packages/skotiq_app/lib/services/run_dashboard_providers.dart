@@ -857,7 +857,7 @@ bool _isSuccessfulFlip(sk_events.SkotiqEvent event) {
   if (payload is! sk_events.EventPayload_Sequencer) return false;
   final sequencerEvent = payload.field0;
   return sequencerEvent is sk_events.SequencerEvent_MeridianFlipOutcome &&
-      sequencerEvent.outcome == 'success';
+      sequencerEvent.outcome == sk_events.FlipOutcome.success;
 }
 
 /// True for the events that say the run goes on: a resume, or a new run.

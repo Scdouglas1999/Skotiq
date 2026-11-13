@@ -7,7 +7,7 @@
 // flip in Coming up and on the altitude chart.
 //
 // The events are built the way a linked client gets them: the host's wire
-// envelope rebuilt by `bridgeEventFromCoreEvent`.
+// envelope read back by `typedEventFromWire`.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,7 +47,7 @@ sk_events.SkotiqEvent _wire(
   Map<String, dynamic> data, {
   EventSeverity severity = EventSeverity.info,
 }) =>
-    bridgeEventFromCoreEvent(
+    typedEventFromWire(
       SkotiqEvent(
         timestamp: at.millisecondsSinceEpoch,
         severity: severity,
@@ -55,7 +55,7 @@ sk_events.SkotiqEvent _wire(
         eventType: eventType,
         data: data,
       ),
-    );
+    )!;
 
 sk_events.SkotiqEvent _triggerFired(DateTime at) => _wire(at, 'TriggerFired', {
       'trigger_id': 'meridian_flip',
@@ -64,11 +64,13 @@ sk_events.SkotiqEvent _triggerFired(DateTime at) => _wire(at, 'TriggerFired', {
     });
 
 sk_events.SkotiqEvent _attemptFailed(DateTime at, int n, int delay) =>
-    _wire(at, 'InstructionProgress', {
+    _wire(at, 'InstructionProgressStructured', {
       'node_id': 'trigger:meridian_flip',
       'instruction': 'MeridianFlip',
       'progress_percent': 25.0 * n,
-      'detail': 'attempt $n/4 failed, retrying in ${delay}s',
+      'detail_kind': 'MeridianFlipRetry',
+      'detail_json':
+          '{"failed_attempt":$n,"max_attempts":4,"retry_in_secs":$delay.0}',
     });
 
 sk_events.SkotiqEvent _outcome(DateTime at, String outcome) => _wire(

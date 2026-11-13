@@ -7,10 +7,22 @@ use super::*;
 
 // Camera COOLING/WARMING instructions
 
+/// What a cool or warm step knows about the camera at one moment of its run.
+/// A field is `None` when the step did not read it.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct ThermalReading {
+    pub sensor_temp_c: Option<f64>,
+    pub target_temp_c: Option<f64>,
+    pub cooler_power_percent: Option<f64>,
+}
+
+/// Where a cool or warm instruction reports its percentage and reading.
+pub type ThermalProgressSink<'a> = Option<&'a (dyn Fn(f64, ThermalReading) + Send + Sync)>;
+
 pub async fn execute_cool_camera(
     config: &CoolConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: ThermalProgressSink<'_>,
 ) -> InstructionResult {
     let camera_id = match ctx.camera_id() {
         Ok(id) => id.to_string(),
@@ -70,7 +82,14 @@ pub async fn execute_cool_camera(
         };
         tracing::info!("Camera already at target temperature: {}", msg);
         if let Some(cb) = progress_callback {
-            cb(100.0, msg.clone());
+            cb(
+                100.0,
+                ThermalReading {
+                    sensor_temp_c: Some(start_temp),
+                    target_temp_c: Some(target_temp),
+                    cooler_power_percent: Some(cooler_power),
+                },
+            );
         }
         return InstructionResult::success_with_message(msg);
     }
@@ -78,7 +97,11 @@ pub async fn execute_cool_camera(
     if let Some(cb) = progress_callback {
         cb(
             0.0,
-            format!("Starting: {:.1}°C → {:.1}°C", start_temp, target_temp),
+            ThermalReading {
+                sensor_temp_c: Some(start_temp),
+                target_temp_c: Some(target_temp),
+                cooler_power_percent: None,
+            },
         );
     }
 
@@ -150,14 +173,13 @@ pub async fn execute_cool_camera(
             cooler_power
         );
 
+        let reading = ThermalReading {
+            sensor_temp_c: Some(current_temp),
+            target_temp_c: Some(target_temp),
+            cooler_power_percent: Some(cooler_power),
+        };
         if let Some(cb) = progress_callback {
-            cb(
-                progress,
-                format!(
-                    "Cooling: {:.1}°C → {:.1}°C ({:.0}% power)",
-                    current_temp, target_temp, cooler_power
-                ),
-            );
+            cb(progress, reading);
         }
 
         if is_cold_enough(current_temp, target_temp) {
@@ -166,7 +188,7 @@ pub async fn execute_cool_camera(
                 current_temp, cooler_power
             );
             if let Some(cb) = progress_callback {
-                cb(100.0, msg.clone());
+                cb(100.0, reading);
             }
             return InstructionResult::success_with_message(msg);
         }
@@ -212,7 +234,7 @@ pub async fn execute_cool_camera(
                 ),
             );
             if let Some(cb) = progress_callback {
-                cb(100.0, msg.clone());
+                cb(100.0, reading);
             }
             return InstructionResult::success_with_message(msg);
         }
@@ -255,7 +277,7 @@ fn cooler_is_faulting(start_temp: f64, current_temp: f64, target_temp: f64) -> b
 pub async fn execute_warm_camera(
     config: &WarmConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: ThermalProgressSink<'_>,
 ) -> InstructionResult {
     if config.defer_to_calibration {
         let message = "Warm camera deferred: the camera stays at its set-point for the \
@@ -270,7 +292,7 @@ pub async fn execute_warm_camera(
             tracing::warn!("Warm camera: notification not sent: {}", e);
         }
         if let Some(cb) = progress_callback {
-            cb(100.0, message.to_string());
+            cb(100.0, ThermalReading::default());
         }
         return InstructionResult::success_with_message(message);
     }
@@ -310,7 +332,13 @@ pub async fn execute_warm_camera(
             start_temp
         );
         if let Some(cb) = progress_callback {
-            cb(100.0, "Cooler already off, nothing to warm".to_string());
+            cb(
+                100.0,
+                ThermalReading {
+                    sensor_temp_c: Some(start_temp),
+                    ..ThermalReading::default()
+                },
+            );
         }
         return InstructionResult::success_with_message("Cooler already off, nothing to warm");
     }
@@ -341,7 +369,14 @@ pub async fn execute_warm_camera(
             .caused_by(&e);
         }
         if let Some(cb) = progress_callback {
-            cb(100.0, "Cooler was idle; switched off".to_string());
+            cb(
+                100.0,
+                ThermalReading {
+                    sensor_temp_c: Some(start_temp),
+                    target_temp_c: None,
+                    cooler_power_percent: cooler_power,
+                },
+            );
         }
         return InstructionResult::success_with_message("Cooler was idle; switched off");
     }
@@ -365,7 +400,11 @@ pub async fn execute_warm_camera(
     if let Some(cb) = progress_callback {
         cb(
             0.0,
-            format!("Warming: {:.1}°C → {:.1}°C", start_temp, target_temp),
+            ThermalReading {
+                sensor_temp_c: Some(start_temp),
+                target_temp_c: Some(target_temp),
+                cooler_power_percent: cooler_power,
+            },
         );
     }
 
@@ -403,9 +442,21 @@ pub async fn execute_warm_camera(
         }
 
         if let Some(cb) = progress_callback {
+            // The sensor follows the ramped set-point; a failed read leaves
+            // the reading without a sensor temperature and the ramp goes on.
+            let sensor_temp = ctx
+                .run
+                .device_ops
+                .camera_get_temperature(&camera_id)
+                .await
+                .ok();
             cb(
                 progress_percent,
-                format!("Warming: {:.1}°C → {:.1}°C", progress_temp, target_temp),
+                ThermalReading {
+                    sensor_temp_c: sensor_temp,
+                    target_temp_c: Some(target_temp),
+                    cooler_power_percent: None,
+                },
             );
         }
 
@@ -435,7 +486,14 @@ pub async fn execute_warm_camera(
     }
 
     if let Some(cb) = progress_callback {
-        cb(100.0, "Warmed to ambient".to_string());
+        cb(
+            100.0,
+            ThermalReading {
+                sensor_temp_c: None,
+                target_temp_c: Some(target_temp),
+                cooler_power_percent: None,
+            },
+        );
     }
 
     InstructionResult::success_with_message("Camera warmed to ambient")

@@ -158,7 +158,7 @@ pub(crate) async fn run_decision_event_loop(
             details_json,
             node_id: decision.node_id,
             sequence_run_id: decision.sequence_run_id,
-            notice: decision.notice.map(Into::into),
+            notice: decision.notice.clone().map(Into::into),
         };
         state.publish_event(create_event_auto_id(
             EventSeverity::Info,
@@ -456,7 +456,7 @@ pub(crate) async fn run_sequencer_event_loop(
                 ExecutorEvent::NoticedWarning { notice, message } => Some(run_error_event(
                     SequencerErrorKind::Advisory,
                     message.clone(),
-                    Some((*notice).into()),
+                    Some(notice.clone().into()),
                 )),
                 ExecutorEvent::StepProblem { message } => Some(run_error_event(
                     SequencerErrorKind::StepProblem,
@@ -486,14 +486,12 @@ pub(crate) async fn run_sequencer_event_loop(
                     // wobbled and the operator should look at the framing.
                     // The pier-change notice comes before the verdict and
                     // only says the mount reached its new side.
-                    let severity = match outcome.as_str() {
-                        skotiq_sequencer::meridian_flip_executor::PIER_CHANGED_OUTCOME => {
-                            EventSeverity::Info
-                        }
-                        "success" if failed_steps.is_empty() => EventSeverity::Info,
-                        "success" => EventSeverity::Warning,
-                        "aborted" => EventSeverity::Warning,
-                        _ => EventSeverity::Critical,
+                    use skotiq_sequencer::meridian_flip_executor::FlipOutcome;
+                    let severity = match outcome {
+                        FlipOutcome::PierChanged => EventSeverity::Info,
+                        FlipOutcome::Success if failed_steps.is_empty() => EventSeverity::Info,
+                        FlipOutcome::Success | FlipOutcome::Aborted => EventSeverity::Warning,
+                        FlipOutcome::Failed => EventSeverity::Critical,
                     };
                     tracing::info!(
                         "[EVENT_SUB] Meridian flip outcome: {} for '{}' after {} attempt{} \
@@ -509,7 +507,7 @@ pub(crate) async fn run_sequencer_event_loop(
                         severity,
                         EventCategory::Sequencer,
                         EventPayload::Sequencer(SequencerEvent::MeridianFlipOutcome {
-                            outcome: outcome.clone(),
+                            outcome: (*outcome).into(),
                             target_name: target_name.clone(),
                             new_pier_side: new_pier_side.clone(),
                             duration_secs: *duration_secs,

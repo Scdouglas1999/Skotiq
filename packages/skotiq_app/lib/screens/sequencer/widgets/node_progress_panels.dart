@@ -36,7 +36,9 @@ Widget getProgressPanelForNode({
     return _CoolingProgressPanel(
       colors: colors,
       progressPercent: progressPercent,
-      detail: detail,
+      reading: structuredProgressDetail is ThermalInstructionProgressDetail
+          ? structuredProgressDetail
+          : null,
       isWarming: node is WarmCameraNode,
     );
   }
@@ -45,7 +47,9 @@ Widget getProgressPanelForNode({
     return _AutofocusProgressPanel(
       colors: colors,
       progressPercent: progressPercent,
-      detail: detail,
+      sweepPoint: structuredProgressDetail is AutofocusInstructionProgressDetail
+          ? structuredProgressDetail
+          : null,
     );
   }
 
@@ -67,7 +71,9 @@ Widget getProgressPanelForNode({
     return _SlewProgressPanel(
       colors: colors,
       progressPercent: progressPercent,
-      detail: detail,
+      centering: structuredProgressDetail is CenterInstructionProgressDetail
+          ? structuredProgressDetail
+          : null,
       isCentering: node is CenterNode,
     );
   }

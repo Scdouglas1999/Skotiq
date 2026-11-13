@@ -218,8 +218,8 @@ void main() {
         )
         ..emitEvent(
           _guideStep(t0.add(const Duration(seconds: 4)), <String, dynamic>{
-            'raPx': -0.3,
-            'decPx': 0.4,
+            'RADistanceRaw': -0.3,
+            'DECDistanceRaw': 0.4,
           }),
         );
       await Future<void>.delayed(Duration.zero);

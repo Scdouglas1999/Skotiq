@@ -6,10 +6,6 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `default_channels`, `default_out_pixels`, `query_cutout_impl`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AddFrameArgs`, `QueryCutoutArgs`, `QueryCutoutResult`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`
-
 /// Fold a single plate-solved capture into the atlas. A thin convenience over the
 /// `"fold"` action for the common one-frame case — the same JSON shape minus the
 /// `frames` array wrapper:

@@ -78,6 +78,9 @@ pub(crate) fn autofocus_detail(progress: &AutofocusProgress, total_steps: u32) -
             step,
             total_steps,
             current_hfr: progress.hfr(),
+            star_count: progress
+                .sweep()
+                .map(|sweep| u32::try_from(sweep.star_count).unwrap_or(u32::MAX)),
         },
         None => ProgressDetail::Generic(progress.to_string()),
     }
@@ -157,6 +160,7 @@ mod tests {
                 step: 5,
                 total_steps: 9,
                 current_hfr: Some(hfr),
+                star_count: Some(40),
             } if hfr == 3.871
         ));
     }
@@ -171,6 +175,7 @@ mod tests {
                 step: 9,
                 total_steps: 9,
                 current_hfr: Some(hfr),
+                star_count: None,
             } if hfr == 2.3456
         ));
     }

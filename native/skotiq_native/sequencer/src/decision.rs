@@ -107,15 +107,27 @@ impl DecisionCategory {
 /// notification from; the run's Warning for it
 /// ([`crate::executor::ExecutorEvent::NoticedWarning`]) carries the same
 /// notice, so the app lists that Warning without telling it a second time.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+///
+/// The fields are what the operator's notification says; the row's `details`
+/// stay the fuller record for the replay view.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RunNotice {
     /// An autofocus did not converge and imaging continues on the last-good
     /// focus.
     AutofocusContinued,
     /// A streak of rejected frames reached the operator's notify limit.
-    RejectStreak,
+    RejectStreak {
+        consecutive_rejects: u32,
+        /// Why the latest frame of the streak was rejected.
+        reason: String,
+    },
     /// A quality problem the operator has not asked to stop the run for.
-    ProblemNoticed,
+    ProblemNoticed {
+        /// What noticed it ("Center 'M31'", "Post-flip recenter").
+        source: String,
+        /// What it found.
+        problem: String,
+    },
 }
 
 /// A single decision recorded during sequence execution.

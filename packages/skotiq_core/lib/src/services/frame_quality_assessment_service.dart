@@ -1,5 +1,11 @@
 import 'dart:math' as math;
 
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        SequencerEvent,
+        SequencerEvent_FrameAccepted,
+        SequencerEvent_FrameRejected;
+
 import '../database/database.dart' show DbCapturedImage;
 
 /// Advisory quality level for a captured frame.
@@ -478,7 +484,7 @@ enum FrameGradeDecision {
 /// frame is graded.
 ///
 /// Built from the typed `SequencerEvent_FrameAccepted` /
-/// `SequencerEvent_FrameRejected` payloads via [FrameGradeEvent.fromTypedData],
+/// `SequencerEvent_FrameRejected` payloads via [FrameGradeEvent.fromEvent],
 /// never by parsing `InstructionProgress.detail`, so HFR, eccentricity, star
 /// count and consecutive-rejects survive the boundary.
 class FrameGradeEvent {
@@ -539,51 +545,41 @@ class FrameGradeEvent {
   /// `FrameRejected` event's `data` map (`SkotiqEvent.eventType` +
   /// `data`). Returns `null` when the event type isn't one of the typed
   /// grade variants.
-  static FrameGradeEvent? fromTypedData(
-    String eventType,
-    Map<String, dynamic> data,
-  ) {
+  /// The verdict a sequencer frame event reports, or null for any other
+  /// event.
+  static FrameGradeEvent? fromEvent(SequencerEvent event) {
     final now = DateTime.now();
-    switch (eventType) {
-      case 'FrameAccepted':
-        return FrameGradeEvent(
-          frame: data['frame'] as int,
-          total: data['total'] as int,
-          decision: FrameGradeDecision.accepted,
-          reason: '',
-          // Surface the on-disk save_path for accepted
-          // frames the same way `reject_path` already worked for
-          // rejected frames. Empty or missing means null.
-          path: () {
-            final raw = data['save_path'] as String?;
-            return (raw == null || raw.isEmpty) ? null : raw;
-          }(),
-          hfr: (data['hfr'] as num?)?.toDouble(),
-          eccentricity: (data['eccentricity'] as num?)?.toDouble(),
-          starCount: data['star_count'] as int?,
-          acceptedTotal: data['accepted_total'] as int,
-          rejectedTotal: data['rejected_total'] as int,
-          consecutiveRejects: 0,
-          timestamp: now,
-        );
-      case 'FrameRejected':
-        return FrameGradeEvent(
-          frame: data['frame'] as int,
-          total: data['total'] as int,
-          decision: FrameGradeDecision.rejected,
-          reason: data['reason'] as String? ?? '',
-          path: data['reject_path'] as String?,
-          hfr: (data['hfr'] as num?)?.toDouble(),
-          eccentricity: (data['eccentricity'] as num?)?.toDouble(),
-          starCount: data['star_count'] as int?,
-          acceptedTotal: data['accepted_total'] as int,
-          rejectedTotal: data['rejected_total'] as int,
-          consecutiveRejects: data['consecutive_rejects'] as int,
-          timestamp: now,
-        );
-      default:
-        return null;
-    }
+    return switch (event) {
+      SequencerEvent_FrameAccepted() => FrameGradeEvent(
+        frame: event.frame,
+        total: event.total,
+        decision: FrameGradeDecision.accepted,
+        reason: '',
+        path: (event.savePath?.isEmpty ?? true) ? null : event.savePath,
+        hfr: event.hfr,
+        eccentricity: event.eccentricity,
+        starCount: event.starCount,
+        acceptedTotal: event.acceptedTotal,
+        rejectedTotal: event.rejectedTotal,
+        consecutiveRejects: 0,
+        timestamp: now,
+      ),
+      SequencerEvent_FrameRejected() => FrameGradeEvent(
+        frame: event.frame,
+        total: event.total,
+        decision: FrameGradeDecision.rejected,
+        reason: event.reason,
+        path: event.rejectPath,
+        hfr: event.hfr,
+        eccentricity: event.eccentricity,
+        starCount: event.starCount,
+        acceptedTotal: event.acceptedTotal,
+        rejectedTotal: event.rejectedTotal,
+        consecutiveRejects: event.consecutiveRejects,
+        timestamp: now,
+      ),
+      _ => null,
+    };
   }
 }
 
