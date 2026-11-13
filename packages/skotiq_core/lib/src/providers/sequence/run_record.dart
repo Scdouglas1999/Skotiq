@@ -165,10 +165,9 @@ final runRecordProvider = StateNotifierProvider<RunRecordNotifier, RunRecord>(
 /// The writer of [RunRecord].
 ///
 /// On the host the callers are the event fold (`foldRunEvent`) and
-/// `SequenceExecutor`'s run transaction. On a linked client they are the
-/// mirror: the host's events folded by the remote-sync handler, the host's
-/// status and mutations (`mirrorHostState`), and the two runtime-mirror
-/// channels (`mirrorHostProgress`, `mirrorHostTally`, `mirrorHostRunRecord`).
+/// `SequenceExecutor`'s run transaction. On a linked client they are the two
+/// runtime-mirror channels (`mirrorHostProgress`, `mirrorHostTally`,
+/// `mirrorHostRunRecord`).
 /// Recovery shows its phase through `showPhase`. Nothing else writes run
 /// state.
 class RunRecordNotifier extends StateNotifier<RunRecord> {
@@ -461,35 +460,15 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
 
   // The mirror of the host's record, on a linked client.
 
-  /// Show the state the host reports for its run, with whatever else its
-  /// status or mutation carries.
-  void mirrorHostState(
-    String rawState, {
-    String? message,
-    String? currentNodeId,
-    String? currentNodeName,
-  }) {
-    setLifecycle(lifecycleOfHostState(rawState));
-    if (message != null || currentNodeId != null || currentNodeName != null) {
-      updateProgress(
-        message: message,
-        currentNodeId: currentNodeId,
-        currentNodeName: currentNodeName,
-      );
-    }
-  }
+  /// Show the state the host answered a run command with, before the run
+  /// channel next reports it.
+  void mirrorHostState(String rawState) =>
+      setLifecycle(lifecycleOfHostState(rawState));
 
-  /// Show the host's run progress. The lifecycle phase is kept: lifecycle
-  /// events drive that. So is the structured per-step detail, which the wire
-  /// does not carry.
+  /// Show the host's run progress, its phase included.
   void mirrorHostProgress(SequenceProgress hostProgress) {
-    _setProgress(
-      hostProgress.copyWith(
-        state: state.progress.state,
-        nodeProgressStructuredDetail:
-            state.progress.nodeProgressStructuredDetail,
-      ),
-    );
+    setLifecycle(hostProgress.state);
+    _setProgress(hostProgress);
   }
 
   void mirrorHostTally(Map<String, NodeExposureTally> hostTally) =>
