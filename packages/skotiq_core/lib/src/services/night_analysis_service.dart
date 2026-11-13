@@ -8,6 +8,7 @@ import '../database/daos/night_reports_dao.dart';
 import '../database/daos/science_dao.dart';
 import '../database/database.dart';
 import '../models/imaging/night_report.dart';
+import '../models/site/location_settings.dart';
 import 'frame_quality_assessment_service.dart';
 import 'optical_train_diagnostics_service.dart';
 import 'logging_service.dart';
@@ -45,15 +46,20 @@ class NightAnalysisService {
     required ImagesDao images,
     required ScienceDao science,
     required NightReportsDao reports,
+    required LocationSettings? Function() site,
     DateTime Function()? clock,
   }) : _images = images,
        _science = science,
        _reports = reports,
+       _site = site,
        _clock = clock ?? DateTime.now;
 
   final ImagesDao _images;
   final ScienceDao _science;
   final NightReportsDao _reports;
+
+  /// The configured observing site, read when a report is computed.
+  final LocationSettings? Function() _site;
   final DateTime Function() _clock;
 
   /// Compute (and persist) a [NightReport] for a session or a target.
@@ -203,6 +209,7 @@ class NightAnalysisService {
     return NightData(
       subs,
       opticalDiagnostics: await _loadOpticalDiagnostics(sessionId),
+      site: _site(),
     );
   }
 

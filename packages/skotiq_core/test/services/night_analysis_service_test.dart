@@ -5,6 +5,7 @@ import 'package:skotiq_core/src/database/daos/night_reports_dao.dart';
 import 'package:skotiq_core/src/database/daos/science_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/night_report.dart';
+import 'package:skotiq_core/src/models/site/location_settings.dart';
 import 'package:skotiq_core/src/services/night_analysis_service.dart';
 
 /// Build a synthetic per-sub series. Each index `i` is one sub captured
@@ -48,6 +49,7 @@ NightAnalysisService _pureService() {
     images: db.imagesDao,
     science: ScienceDao(db),
     reports: NightReportsDao(db),
+    site: () => null,
     clock: () => DateTime.utc(2026, 6, 8, 6),
   );
 }
@@ -63,6 +65,45 @@ void main() {
   group('NightAnalysisService detectors (pure analyze)', () {
     late NightAnalysisService svc;
     setUp(() => svc = _pureService());
+
+    group('moon gradient at the observing site', () {
+      // 2026-01-02 01:00-04:00 UTC, moon 97% lit: at 35 N 110 W it climbs
+      // from 27 to 62 degrees; at 40 N 0 E it sinks from 59 to 26.
+      NightData night(LocationSettings? site) => NightData(
+        _series(
+          count: 16,
+          start: DateTime.utc(2026, 1, 2, 1),
+          cadence: const Duration(minutes: 12),
+          background: (i) => 1000.0 + i * 40,
+          starCount: (i) => 1200,
+        ),
+        site: site,
+      );
+
+      test('a moon climbing at the site washed out the sky', () {
+        final f = _finding(
+          svc.analyze(
+            night(const LocationSettings(latitude: 35, longitude: -110)),
+          ),
+          'moon_gradient',
+        );
+        expect(f?.severity, NightFindingSeverity.warn);
+        expect(f?.title, 'Moon washed out the sky as it rose');
+      });
+
+      test('a moon sinking at the site did not', () {
+        final f = _finding(
+          svc.analyze(night(const LocationSettings(latitude: 40))),
+          'moon_gradient',
+        );
+        expect(f?.severity, NightFindingSeverity.info);
+      });
+
+      test('with no site the trend is not guessed', () {
+        final f = _finding(svc.analyze(night(null)), 'moon_gradient');
+        expect(f?.severity, NightFindingSeverity.info);
+      });
+    });
 
     test('focus-drift fires on a monotone HFR climb tracking temperature', () {
       // HFR ramps 2.0 → ~3.5 px over 16 subs; focuser temp falls 5 C.
@@ -376,6 +417,7 @@ void main() {
         images: db.imagesDao,
         science: ScienceDao(db),
         reports: NightReportsDao(db),
+        site: () => null,
         clock: () => DateTime.utc(2026, 6, 8, 6),
       );
     });
