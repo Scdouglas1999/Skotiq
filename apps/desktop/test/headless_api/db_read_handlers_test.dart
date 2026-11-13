@@ -18,7 +18,7 @@ import 'package:skotiq_desktop/headless_api/handlers/db_read_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
-import 'package:skotiq_core/src/models/sequence/sequence_run_status.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

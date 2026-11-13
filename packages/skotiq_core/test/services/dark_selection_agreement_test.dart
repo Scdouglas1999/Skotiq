@@ -113,4 +113,31 @@ void main() {
     expect(darkroomPath, '/master/m10.fits');
     expect(livePick?.calibrationPath, darkroomPath);
   });
+
+  test('the Darkroom matches on the operator\'s tolerances, as live '
+      'calibration does', () async {
+    await insertMaster(name: 'm8', temperature: -8.5);
+    const operator = DarkLibraryMatchTolerances(temperatureC: 2.0);
+    final withSettings = CalibrationLibraryService(
+      db: db,
+      flatLibraryDao: FlatLibraryDao(db),
+      tagsDao: CalibrationTagsDao(db),
+      darkTolerances: () => operator,
+    );
+    const context = LightFrameContext(
+      gain: 100,
+      offset: 50,
+      exposureSeconds: 300,
+      temperature: -10,
+    );
+
+    final match = await withSettings.match(context, includeRemote: false);
+
+    // 1.5 °C off is inside the operator's 2 °C, so nothing to warn about.
+    expect(
+      match.dark!.warnings.where((w) => w.contains('temperature')),
+      isEmpty,
+    );
+    expect(match.dark!.reasons, contains(contains('tolerance ±2.0°C')));
+  });
 }

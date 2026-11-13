@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/run_status/run_status_presentation.dart';
-import 'package:skotiq_core/src/models/sequence/sequence_run_status.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   test('the resumable stop reads as a stop, not as a pause', () {

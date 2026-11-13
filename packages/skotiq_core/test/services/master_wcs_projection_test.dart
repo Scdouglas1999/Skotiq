@@ -70,6 +70,13 @@ void main() {
       // sky offsets this replaced were 3.9 px off at HIP 11185.
       final projection = GnomonicProjection(wcs);
       for (final o in (f['objects'] as List).cast<Map<String, dynamic>>()) {
+        // Off the frame the solver's SIP polynomial is an extrapolation.
+        final inFrame =
+            (o['x'] as num) >= 0 &&
+            (o['x'] as num) < wcs.imageWidth &&
+            (o['y'] as num) >= 0 &&
+            (o['y'] as num) < wcs.imageHeight;
+        if (!inFrame) continue;
         final projected = projection.worldToPixel(
           raDegrees: (o['ra'] as num).toDouble(),
           decDegrees: (o['dec'] as num).toDouble(),

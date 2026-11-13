@@ -116,8 +116,9 @@ abstract final class Log {
     stackTrace: stackTrace,
   );
 
-  /// Record [message]. [error] is appended to it unless the message already
-  /// states it; the head of [stackTrace] rides in the entry's fields.
+  /// Record [message], without a leading `[source]` tag. [error] is appended
+  /// unless the message already states it; the head of [stackTrace] rides in
+  /// the entry's fields.
   static void write(
     LogLevel level,
     String message, {
@@ -136,10 +137,16 @@ abstract final class Log {
       );
       return;
     }
+    // Many callers open the message with their own name in brackets; the
+    // entry already carries it as its source.
+    final tag = '[$source] ';
+    final body = message.startsWith(tag)
+        ? message.substring(tag.length)
+        : message;
     final errorText = error?.toString();
-    final text = errorText == null || message.contains(errorText)
-        ? message
-        : '$message: $errorText';
+    final text = errorText == null || body.contains(errorText)
+        ? body
+        : '$body: $errorText';
     service.log(
       level,
       text,

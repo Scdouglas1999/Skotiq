@@ -84,6 +84,17 @@ void main() {
     },
   );
 
+  test('a message that opens with its own source tag is not tagged twice', () {
+    Log.warning(
+      '[SecretsStore] read(webhook.url) failed',
+      source: 'SecretsStore',
+    );
+    expect(
+      service.getRecentLogs().last.toString(),
+      endsWith('[SecretsStore] read(webhook.url) failed'),
+    );
+  });
+
   test('developer levels map onto log levels', () {
     expect(LogLevel.fromDeveloperLevel(500), LogLevel.debug);
     expect(LogLevel.fromDeveloperLevel(800), LogLevel.info);
