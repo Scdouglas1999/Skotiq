@@ -17,7 +17,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart' show catalogStatePro
 import 'package:skotiq_astro/skotiq_astro.dart' show CatalogSearchResult;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'integration_goals_editor.dart';
+import '../editors/integration_goals_editor.dart';
 import '../../sequencer/widgets/smart_night_dialog.dart';
 import '../../../router/app_routes.dart';
 

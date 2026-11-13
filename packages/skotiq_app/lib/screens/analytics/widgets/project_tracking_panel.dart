@@ -12,7 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../planner/widgets/integration_goals_editor.dart';
+import '../../planner/editors/integration_goals_editor.dart';
 import 'analytics_empty_state.dart';
 import 'campaign_rollup_dialog.dart';
 import '../../../router/app_routes.dart';

@@ -11,8 +11,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'integration_goals_editor.dart';
-import 'target_constraints_editor.dart';
+import '../editors/integration_goals_editor.dart';
+import '../editors/target_constraints_editor.dart';
 import 'target_score_row.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/planner_route.dart';
