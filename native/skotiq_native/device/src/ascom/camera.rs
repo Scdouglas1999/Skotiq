@@ -344,7 +344,10 @@ impl SensorMembers {
 /// The exposure a frame records: `LastExposureDuration` when the camera
 /// reports one, else the time the exposure was started with. A camera that
 /// answers 0 (some do before their first frame) has not reported one.
-pub fn recorded_exposure_seconds(last_exposure_duration: Option<f64>, commanded: Option<f64>) -> f64 {
+pub fn recorded_exposure_seconds(
+    last_exposure_duration: Option<f64>,
+    commanded: Option<f64>,
+) -> f64 {
     last_exposure_duration
         .filter(|seconds| *seconds > 0.0)
         .or(commanded)
@@ -363,7 +366,11 @@ mod tests {
         assert_eq!(recorded_exposure_seconds(None, None), 0.0);
     }
 
-    fn members(max_adu: i32, sensor_type: Option<i32>, offsets: (Option<i32>, Option<i32>)) -> SensorMembers {
+    fn members(
+        max_adu: i32,
+        sensor_type: Option<i32>,
+        offsets: (Option<i32>, Option<i32>),
+    ) -> SensorMembers {
         SensorMembers {
             camera_x_size: 4144,
             camera_y_size: 2822,
@@ -382,7 +389,10 @@ mod tests {
         assert!(sensor.color);
         assert_eq!(sensor.bayer_pattern, Some(crate::BayerPattern::Bggr));
         assert_eq!((sensor.max_adu, sensor.bit_depth), (65535, 16));
-        assert_eq!((sensor.width, sensor.height, sensor.pixel_size_x), (4144, 2822, 4.63));
+        assert_eq!(
+            (sensor.width, sensor.height, sensor.pixel_size_x),
+            (4144, 2822, 4.63)
+        );
     }
 
     #[test]
@@ -397,8 +407,16 @@ mod tests {
     fn a_max_adu_of_zero_is_the_16_bit_ceiling() {
         let sensor = members(0, Some(0), (None, None)).sensor_info();
         assert_eq!((sensor.max_adu, sensor.bit_depth), (65535, 16));
-        assert_eq!(members(255, Some(0), (None, None)).sensor_info().bit_depth, 8);
-        assert_eq!(members(1 << 20, Some(0), (None, None)).sensor_info().bit_depth, 32);
+        assert_eq!(
+            members(255, Some(0), (None, None)).sensor_info().bit_depth,
+            8
+        );
+        assert_eq!(
+            members(1 << 20, Some(0), (None, None))
+                .sensor_info()
+                .bit_depth,
+            32
+        );
     }
 
     fn names(list: &[&str]) -> Probe<Vec<String>> {

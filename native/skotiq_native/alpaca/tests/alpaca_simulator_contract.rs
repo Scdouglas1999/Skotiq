@@ -20,10 +20,10 @@
 //!   malformed PUT — again surfacing the bad payload via the test
 //!   assertion rather than silently succeeding.
 use serde_json::{json, Value};
+use skotiq_alpaca::AlpacaCameraDriver;
 use skotiq_alpaca::{
     AlpacaCamera, AlpacaFilterWheel, AlpacaMount, AlpacaTelescope, CameraState, DriveRate,
 };
-use skotiq_alpaca::AlpacaCameraDriver;
 use skotiq_device::{
     BayerPattern, CameraDriver, ExposureParams, FrameType, MountDriver, TrackingRate,
 };
@@ -376,19 +376,25 @@ async fn alpaca_simulator_fault_contract_surfaces_device_and_payload_errors() {
 async fn an_alpaca_mount_takes_a_drive_rate_it_lists() {
     let (base_url, state) = start_simulator().await;
     let mut mount = AlpacaMount::new(AlpacaTelescope::from_server(&base_url, 0));
-    let listed = [TrackingRate::Sidereal, TrackingRate::Lunar, TrackingRate::Solar];
+    let listed = [
+        TrackingRate::Sidereal,
+        TrackingRate::Lunar,
+        TrackingRate::Solar,
+    ];
     assert_eq!(mount.tracking_rates().await, listed);
     assert_eq!(mount.describe().await.tracking_rates, listed);
 
-    mount.set_tracking_rate(TrackingRate::Lunar).await.expect("lunar");
-    assert_eq!(mount.get_tracking_rate().await.unwrap(), TrackingRate::Lunar);
-    assert!(state
-        .requests
-        .lock()
-        .unwrap()
-        .iter()
-        .any(|request| request.starts_with("PUT /api/v1/telescope/0/trackingrate")
-            && request.contains("TrackingRate=1")));
+    mount
+        .set_tracking_rate(TrackingRate::Lunar)
+        .await
+        .expect("lunar");
+    assert_eq!(
+        mount.get_tracking_rate().await.unwrap(),
+        TrackingRate::Lunar
+    );
+    assert!(state.requests.lock().unwrap().iter().any(|request| request
+        .starts_with("PUT /api/v1/telescope/0/trackingrate")
+        && request.contains("TrackingRate=1")));
     let status = mount.status().await.expect("status");
     assert!(status.can_set_tracking_rate);
     assert_eq!(status.tracking_rate.unwrap(), TrackingRate::Lunar);
@@ -409,7 +415,10 @@ async fn an_alpaca_camera_reports_its_sensor_and_what_each_frame_was_taken_with(
     assert!(sensor.color);
     assert_eq!(sensor.bayer_pattern, Some(BayerPattern::Bggr));
     assert_eq!((sensor.max_adu, sensor.bit_depth), (4095, 16));
-    assert_eq!(driver.describe().await.sensor.bayer_pattern, Some(BayerPattern::Bggr));
+    assert_eq!(
+        driver.describe().await.sensor.bayer_pattern,
+        Some(BayerPattern::Bggr)
+    );
 
     driver
         .start_exposure(ExposureParams {

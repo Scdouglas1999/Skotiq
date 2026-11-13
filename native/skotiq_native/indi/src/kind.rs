@@ -177,6 +177,23 @@ impl IndiDeviceDescription {
     }
 }
 
+/// The properties `device` has defined on `client`. A device defines them
+/// one by one after it connects, so an empty list is waited on for up to a
+/// second.
+pub(crate) async fn defined_properties(
+    client: &std::sync::Arc<tokio::sync::RwLock<crate::IndiClient>>,
+    device: &str,
+) -> Vec<IndiProperty> {
+    let started = std::time::Instant::now();
+    loop {
+        let properties = client.read().await.get_properties(device).await;
+        if !properties.is_empty() || started.elapsed() >= std::time::Duration::from_secs(1) {
+            return properties;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -271,22 +288,5 @@ mod tests {
         let device = device("SQM Simulator", Some(0), &[]);
         assert_eq!(device.kind(), Some(DeviceKind::Switch));
         assert!(device.is_settled());
-    }
-}
-
-/// The properties `device` has defined on `client`. A device defines them
-/// one by one after it connects, so an empty list is waited on for up to a
-/// second.
-pub(crate) async fn defined_properties(
-    client: &std::sync::Arc<tokio::sync::RwLock<crate::IndiClient>>,
-    device: &str,
-) -> Vec<IndiProperty> {
-    let started = std::time::Instant::now();
-    loop {
-        let properties = client.read().await.get_properties(device).await;
-        if !properties.is_empty() || started.elapsed() >= std::time::Duration::from_secs(1) {
-            return properties;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
 }

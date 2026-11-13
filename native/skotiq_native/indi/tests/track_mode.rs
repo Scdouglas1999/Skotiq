@@ -15,10 +15,16 @@ use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
 const MOUNT: &str = "Telescope Simulator";
-const MODES: [&str; 4] = ["TRACK_SIDEREAL", "TRACK_SOLAR", "TRACK_LUNAR", "TRACK_CUSTOM"];
+const MODES: [&str; 4] = [
+    "TRACK_SIDEREAL",
+    "TRACK_SOLAR",
+    "TRACK_LUNAR",
+    "TRACK_CUSTOM",
+];
 
 fn definitions() -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/drivers/telescope_simulator.after.xml");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/drivers/telescope_simulator.after.xml");
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
@@ -77,15 +83,28 @@ async fn simulator() -> (Arc<RwLock<IndiClient>>, Arc<Mutex<Vec<String>>>) {
 async fn an_indi_mount_takes_a_tracking_rate_its_track_mode_lists() {
     let (client, writes) = simulator().await;
     let mut mount = IndiMount::new(client, MOUNT);
-    let offered = [TrackingRate::Sidereal, TrackingRate::Solar, TrackingRate::Lunar];
+    let offered = [
+        TrackingRate::Sidereal,
+        TrackingRate::Solar,
+        TrackingRate::Lunar,
+    ];
     assert_eq!(mount.tracking_rates().await, offered);
     assert_eq!(mount.describe().await.tracking_rates, offered);
-    assert_eq!(mount.get_tracking_rate().await.unwrap(), TrackingRate::Sidereal);
+    assert_eq!(
+        mount.get_tracking_rate().await.unwrap(),
+        TrackingRate::Sidereal
+    );
 
-    mount.set_tracking_rate(TrackingRate::Lunar).await.expect("lunar");
+    mount
+        .set_tracking_rate(TrackingRate::Lunar)
+        .await
+        .expect("lunar");
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     while mount.get_tracking_rate().await.unwrap() != TrackingRate::Lunar {
-        assert!(tokio::time::Instant::now() < deadline, "the mount never tracked lunar");
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the mount never tracked lunar"
+        );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
     let sent = writes.lock().unwrap().clone();

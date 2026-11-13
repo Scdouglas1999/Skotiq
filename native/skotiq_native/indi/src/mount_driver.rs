@@ -392,12 +392,14 @@ impl MountDriver for IndiMount {
         let mut slew_rate: Option<f64> = None;
         let mut pulse: (Option<f64>, Option<f64>) = (None, None);
         for prop in &properties {
-            let is_pulse = prop.name == TELESCOPE_TIMED_GUIDE_NS || prop.name == TELESCOPE_TIMED_GUIDE_WE;
+            let is_pulse =
+                prop.name == TELESCOPE_TIMED_GUIDE_NS || prop.name == TELESCOPE_TIMED_GUIDE_WE;
             if prop.name != TELESCOPE_SLEW_RATE && !is_pulse {
                 continue;
             }
             for element in &prop.elements {
-                let Some(limits) = client.get_number_limits(device, &prop.name, element).await else {
+                let Some(limits) = client.get_number_limits(device, &prop.name, element).await
+                else {
                     continue;
                 };
                 if is_pulse {

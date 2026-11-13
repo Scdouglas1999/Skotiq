@@ -75,7 +75,8 @@ impl IndiCamera {
         let bit_depth = info(CCD_BITSPERPIXEL, "ADU scaling").await? as u32;
         if bit_depth == 0 {
             return Err(DriverError::Backend(
-                format!("INDI camera {device} reported invalid CCD_INFO.CCD_BITSPERPIXEL=0.").into(),
+                format!("INDI camera {device} reported invalid CCD_INFO.CCD_BITSPERPIXEL=0.")
+                    .into(),
             ));
         }
         let max_adu = match client
@@ -91,7 +92,10 @@ impl IndiCamera {
             None => (1u32 << bit_depth) - 1,
         };
         let cfa = client.get_property_value(device, CCD_CFA, CFA_TYPE).await;
-        let colour_word = self.sensor_type(client).await.is_some_and(|word| names_a_colour_sensor(&word));
+        let colour_word = self
+            .sensor_type(client)
+            .await
+            .is_some_and(|word| names_a_colour_sensor(&word));
         Ok(SensorInfo {
             width,
             height,

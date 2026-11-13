@@ -248,7 +248,10 @@ async fn a_cooler_that_cannot_be_read_back_is_unknown_until_it_is_set() {
     set.expect("cooler on");
     let after = after.expect("status");
     assert_eq!((before.cooler_on, before.target_temp), (None, None));
-    assert_eq!((after.cooler_on, after.target_temp), (Some(true), Some(-15.0)));
+    assert_eq!(
+        (after.cooler_on, after.target_temp),
+        (Some(true), Some(-15.0))
+    );
     camera.disconnect().await.unwrap();
 }
 

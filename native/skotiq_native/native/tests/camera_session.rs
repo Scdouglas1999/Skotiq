@@ -336,7 +336,14 @@ fn first_difference(expected: &str, actual: &str) -> String {
         .zip(&actual)
         .position(|(e, a)| e != a)
         .unwrap_or(expected.len().min(actual.len()));
-    let show = |lines: &[&str]| lines.iter().skip(at).take(4).map(|l| l.to_string()).collect::<Vec<_>>();
+    let show = |lines: &[&str]| {
+        lines
+            .iter()
+            .skip(at)
+            .take(4)
+            .map(|l| l.to_string())
+            .collect::<Vec<_>>()
+    };
     format!(
         "line {}: expected {:?}, got {:?} ({} vs {} lines)",
         at + 1,
