@@ -10,7 +10,6 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../utils/snackbar_helper.dart';
@@ -29,10 +28,11 @@ class CenteringDialog extends ConsumerStatefulWidget {
   final ValueChanged<CenteringResult?>? onClose;
 
   /// Called each time a centering run this dialog started ends, however it
-  /// ended: centered, failed, aborted, or refused before the first exposure.
-  /// The dialog itself stays open on the result, so a caller that shows a busy
-  /// state for the run needs this rather than the dialog's close.
-  final VoidCallback? onRunEnded;
+  /// ended: centered, failed, aborted, or refused before the first exposure
+  /// (null). The dialog itself stays open on the result, so a caller that
+  /// shows a busy state for the run, or acts on a centered target, needs this
+  /// rather than the dialog's close.
+  final ValueChanged<CenteringResult?>? onRunEnded;
 
   const CenteringDialog({
     super.key,
@@ -83,10 +83,10 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
   @override
   void initState() {
     super.initState();
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final defaultExposure = profile?.defaultCenteringExposure ?? 5.0;
     _exposureController = TextEditingController(
-      text: defaultExposure.toString(),
+      text: ManualCentering.exposureFor(
+        ref.read(activeEquipmentProfileProvider),
+      ).toString(),
     );
   }
 
@@ -105,11 +105,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
   /// without changing both call sites in lockstep.
   static const double _minExposureSeconds = 0.01;
   static const double _maxExposureSeconds = 600.0;
-
-  /// Centering convergence tolerance in arcseconds. A fixed constant, kept out
-  /// of the (user-editable) exposure field so the live offset bar can reference
-  /// it during a run without reparsing — and never mixed up with the exposure.
-  static const double _toleranceArcsec = 30.0;
 
   /// Parse the "Solve exposure" field into a finite exposure in seconds inside
   /// the canonical [`_minExposureSeconds`, `_maxExposureSeconds`] bounds.
@@ -141,41 +136,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
 
   void _setExposureError(String message) {
     setState(() => _exposureError = message);
-  }
-
-  /// Build the centering config from an already-validated [exposureTime]. The
-  /// caller is responsible for validating the exposure via
-  /// [_parseValidExposureSeconds] first; this method never substitutes a
-  /// default for a bad value.
-  /// Settings this run depends on (solver path/timeout plus the centering mount
-  /// sync), awaited rather than read cold: a run started before the provider
-  /// resolves would silently use an empty solver path and the built-in
-  /// defaults instead of the operator's configuration.
-  Future<AppSettingsState?> _resolvedAppSettings() async {
-    try {
-      return await ref.read(appSettingsProvider.future);
-    } catch (_) {
-      return ref.read(appSettingsProvider).valueOrNull;
-    }
-  }
-
-  CenteringConfig _buildCenteringConfig(
-    double exposureTime,
-    AppSettingsState? settings,
-  ) {
-    final profile = ref.read(activeEquipmentProfileProvider);
-    return CenteringConfig(
-      maxIterations: 5,
-      toleranceArcsec: _toleranceArcsec,
-      exposureTime: exposureTime,
-      binning: profile?.defaultBinX ?? 2,
-      gain: profile?.defaultGain,
-      offset: profile?.defaultOffset,
-      // Settings → Plate Solving → "Sync mount when centering". Without the
-      // sync each correction re-issues the slew that produced the mis-pointed
-      // frame, so the offset never changes and the run ends on max iterations.
-      syncMount: settings?.centeringSyncMount ?? true,
-    );
   }
 
   @override
@@ -433,11 +393,11 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
                     borderRadius:
                         BorderRadius.circular(SkotiqTokens.radiusInline4),
                     child: LinearProgressIndicator(
-                      value: (status.currentOffsetArcsec! / _toleranceArcsec)
+                      value: (status.currentOffsetArcsec! / ManualCentering.toleranceArcsec)
                               .clamp(0.0, 2.0) /
                           2.0,
                       backgroundColor: colors.surfaceAlt,
-                      color: status.currentOffsetArcsec! <= _toleranceArcsec
+                      color: status.currentOffsetArcsec! <= ManualCentering.toleranceArcsec
                           ? colors.success
                           : colors.accent,
                       minHeight: 6,
@@ -450,7 +410,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontFeatures: [const FontFeature.tabularFigures()],
-                    color: status.currentOffsetArcsec! <= _toleranceArcsec
+                    color: status.currentOffsetArcsec! <= ManualCentering.toleranceArcsec
                         ? colors.success
                         : colors.textPrimary,
                   ),
@@ -517,7 +477,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
     try {
       await _runCentering(exposureTime);
     } finally {
-      widget.onRunEnded?.call();
+      widget.onRunEnded?.call(_result);
     }
   }
 
@@ -548,19 +508,18 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
       return;
     }
 
-    final appSettings = await _resolvedAppSettings();
-    if (host.isStale) return;
-    final solverConfig = PlateSolverConfig(
-      timeoutSeconds: appSettings?.plateSolveTimeout ?? 60,
-      searchRadius: appSettings?.plateSolveSearchRadius,
-    );
-
     try {
+      final centering = ManualCentering.of(
+        await ref.read(appSettingsProvider.future),
+        ref.read(activeEquipmentProfileProvider),
+        exposureSeconds: exposureTime,
+      );
+      if (host.isStale) return;
       final result = await centeringService.centerOnTarget(
         targetRa: widget.targetRa!,
         targetDec: widget.targetDec!,
-        solverConfig: solverConfig,
-        config: _buildCenteringConfig(exposureTime, appSettings),
+        solverConfig: centering.solver,
+        config: centering.config,
         onStatusUpdate: (status) {
           if (host.isCurrent) {
             ref.read(centeringStatusProvider.notifier).state = status;

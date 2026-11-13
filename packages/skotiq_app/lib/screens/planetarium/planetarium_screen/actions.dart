@@ -387,19 +387,16 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     }
 
     _dismissPopup();
+    if (!mounted) return;
 
-    CenteringResult? centeringResult;
-    if (mounted) {
-      centeringResult = await showDialog<CenteringResult>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => CenteringDialog(
-          targetRa: coords.ra,
-          targetDec: coords.dec,
-          targetName: objectName,
-        ),
-      );
-    }
+    // The rotation follows the centering run as soon as it ends; the dialog
+    // stays open on its result.
+    final centeringResult = await showCenteringDialog(
+      context: context,
+      targetRa: coords.ra,
+      targetDec: coords.dec,
+      targetName: objectName,
+    );
 
     if (centeringResult == null || !centeringResult.success) {
       if (mounted && centeringResult != null) {

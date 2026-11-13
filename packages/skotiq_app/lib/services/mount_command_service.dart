@@ -124,6 +124,8 @@ class MountCommandService {
               'This mount reports that park is unsupported',
             );
           }
+          final refused = await _clearForMove(deviceId);
+          if (refused != null) return refused;
           await _deviceService.parkMount();
         }
         return CommandActionResult.ok;
@@ -145,6 +147,8 @@ class MountCommandService {
             'This mount reports that park is unsupported',
           );
         }
+        final refused = await _clearForMove(deviceId);
+        if (refused != null) return refused;
         await _deviceService.parkMount();
         return CommandActionResult.ok;
       } catch (e) {
@@ -172,6 +176,31 @@ class MountCommandService {
     });
   }
 
+  /// Stops guiding before a mount move this app starts (a GoTo, a park, a
+  /// home, a centering run): a guider left running chases the move and loses
+  /// its star. Guiding is not restarted afterwards, because nothing is waiting
+  /// on it. Returns the refusal to give when guiding could not be stopped,
+  /// and the mount must then stay where it is; null when the move may go.
+  Future<CommandActionResult?> stopGuidingForMove() async {
+    final guider = _ref.read(guiderStateProvider);
+    if (!guider.isGuiding && !guider.isCalibrating) return null;
+    try {
+      await _ref.read(phd2ControllerProvider).stopGuiding();
+      return null;
+    } catch (e) {
+      return CommandActionResult.failure(
+        'Guiding did not stop, so the mount was not moved: '
+        '${userFacingError(e)}',
+      );
+    }
+  }
+
+  /// Stops guiding for a move of [deviceId]: the refusal to give when the
+  /// move must not go, because guiding did not stop or the mount changed
+  /// while it was stopping.
+  Future<CommandActionResult?> _clearForMove(String deviceId) async =>
+      await stopGuidingForMove() ?? _connectionChanged(deviceId);
+
   /// Slews the mount to the specified RA/Dec coordinates.
   ///
   /// Completes when the slew is over, not when the driver accepts it: a
@@ -196,6 +225,8 @@ class MountCommandService {
             'This mount reports that GoTo slewing is unsupported',
           );
         }
+        final refused = await _clearForMove(deviceId);
+        if (refused != null) return refused;
         await _deviceService.slewMountToCoordinates(ra, dec);
         if (showFeedback) {
           return const CommandActionResult.success(message: 'Slew complete');
@@ -337,6 +368,8 @@ class MountCommandService {
         if (_mountState.isParked) {
           return const CommandActionResult.failure(homeWhileParkedMessage);
         }
+        final refused = await _clearForMove(deviceId);
+        if (refused != null) return refused;
         final outcome = await _deviceService.findMountHome();
         return switch (outcome) {
           MountHomeOutcome.confirmed => const CommandActionResult.success(

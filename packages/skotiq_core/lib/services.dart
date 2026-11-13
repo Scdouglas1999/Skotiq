@@ -40,6 +40,7 @@ export 'src/services/thumbnail_sidecar_service.dart';
 export 'src/services/plate_solve_service.dart';
 export 'src/services/first_light/first_light_orchestrator.dart';
 export 'src/services/centering_service.dart';
+export 'src/services/manual_centering.dart';
 export 'src/services/profile_service.dart';
 export 'src/services/sequence_repository.dart';
 export 'src/services/local_sequence_repository.dart';
