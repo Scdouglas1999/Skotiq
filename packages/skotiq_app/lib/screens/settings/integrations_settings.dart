@@ -51,8 +51,7 @@ import 'package:skotiq_plugins/src/plugin_registration.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:skotiq_core/providers.dart' show pluginEnablementProvider;
-import 'package:skotiq_core/backend.dart' show HostDataDispatch;
-import 'package:skotiq_core/providers.dart' show backendProvider;
+import 'package:skotiq_core/providers.dart' show isRemoteModeProvider;
 
 import '../../router/settings_sections.dart';
 import 'widgets/settings_widgets.dart';
@@ -101,7 +100,7 @@ class IntegrationsSettings extends ConsumerWidget {
     // Plugin code and credentials live on the process that executes the
     // sequence. A thin client must not register/configure a second local host
     // and imply those changes affect the remote rig.
-    if (ref.watch(backendProvider).remoteHost != null) {
+    if (ref.watch(isRemoteModeProvider)) {
       return const SettingsPage(
         title: 'Integrations',
         description:

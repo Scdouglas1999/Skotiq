@@ -759,7 +759,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// Returns the new project id, or null when there is no framed target or the
   /// rig FOV cannot be resolved (in which case no rows are written).
   Future<int?> createDurableMosaicProject({String? name}) async {
-    if (_ref.read(backendProvider).remoteHost != null) {
+    if (_ref.read(isRemoteModeProvider)) {
       throw StateError(
         'Durable mosaic projects must be created on the imaging host.',
       );
@@ -829,7 +829,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// deliberately NO fallback to scanning the `targets` table, so the framing
   /// restore never resurrects phantom library rows.
   Future<void> loadMostRecentTarget() async {
-    if (_ref.read(backendProvider).remoteHost != null) return;
+    if (_ref.read(isRemoteModeProvider)) return;
     final dao = _ref.read(settingsDaoProvider);
     final raw = await dao.read(StoreSettings.lastFramedTarget);
     if (raw == null) return;

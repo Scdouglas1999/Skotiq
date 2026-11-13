@@ -2,7 +2,6 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/remote_host.dart';
 import '../../models/backend/event_types.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
@@ -148,7 +147,7 @@ void applySequencerEventToSequenceProviders(
   if (event == null) return;
   final run = read(runRecordProvider.notifier);
   // On a linked client the mirror folds the host's events.
-  final mirrored = read(backendProvider).remoteHost != null;
+  final mirrored = read(isRemoteModeProvider);
   if (!mirrored && !run.eventFoldClaimed) foldRunEvent(run, event);
 
   // A sequence exposes in Rust and surfaces only through events. Leaving the

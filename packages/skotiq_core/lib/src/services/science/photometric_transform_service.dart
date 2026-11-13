@@ -1,3 +1,4 @@
+import '../../backend/roles/host_data/photometric_transforms.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -25,7 +26,7 @@ import '../../providers/logging_service_provider.dart';
 ///   T      = color transform coefficient
 ///   (B-V)  = color index
 ///   zp     = photometric zero point
-class PhotometricTransformService {
+class PhotometricTransformService implements PhotometricTransforms {
   final Ref _ref;
 
   PhotometricTransformService(this._ref);
@@ -340,6 +341,27 @@ class PhotometricTransformService {
   // NOTE: transform application lives on the model
   // (PhotometricTransformCoefficients.applyTransform) so there is exactly
   // one implementation; the science pipeline calls it directly.
+
+  @override
+  Future<PhotometricTransformFit> fit({
+    required List<CatalogStarMatch> starMatches,
+    required String filterName,
+    int? equipmentProfileId,
+  }) async {
+    final coefficients = computeTransformCoefficients(
+      starMatches: starMatches,
+      filterName: filterName,
+      equipmentProfileId: equipmentProfileId,
+    );
+    return (
+      coefficients: coefficients,
+      refusal: coefficients == null ? lastRefusalReason : null,
+    );
+  }
+
+  @override
+  Future<void> save(PhotometricTransformCoefficients coefficients) =>
+      saveTransform(coefficients);
 
   Future<int> saveTransform(
     PhotometricTransformCoefficients coefficients,

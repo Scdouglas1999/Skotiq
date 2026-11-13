@@ -80,7 +80,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       );
     }
     await _saveSettings(rows);
-    if (ref.read(backendProvider).remoteHost == null) {
+    if (!ref.read(isRemoteModeProvider)) {
       _patchState(
         (current) => AppSettingsCodec.fromRows({
           ...AppSettingsCodec.toRows(current),
@@ -858,7 +858,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   /// Save several settings in one write and show them.
   Future<void> _setAll(List<SettingValue<Object?>> values) async {
-    final remote = ref.read(backendProvider).remoteHost != null;
+    final remote = ref.read(isRemoteModeProvider);
     final rows = <String, String>{
       for (final entry in values)
         for (final row in entry.rows.entries)

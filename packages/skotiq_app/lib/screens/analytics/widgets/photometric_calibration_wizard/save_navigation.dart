@@ -121,13 +121,7 @@ extension _PhotometricWizardSaveNavigation
     });
 
     try {
-      if (authority.remoteHost case final linkedHost?) {
-        await linkedHost.science.savePhotometricTransform(coeff);
-      } else {
-        await ref
-            .read(photometricTransformServiceProvider)
-            .saveTransform(coeff);
-      }
+      await ref.read(photometricTransformsProvider).save(coeff);
       if (!_isCurrentOperation(generation, authority)) return;
       _update(() => _statusMessage = 'Saved successfully!');
       await Future.delayed(const Duration(milliseconds: 500));

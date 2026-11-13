@@ -606,33 +606,13 @@ String? _formatAnalyticsIntegration(double seconds) =>
         : DurationFormat.seconds(seconds, style: DurationStyle.short);
 
 final dbSessionImagesProvider =
-    StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
-  final backend = ref.watch(backendProvider);
-  if (backend.remoteHost case final linkedHost?) {
-    return _pollRemoteSessionImages(
-      linkedHost,
-      sessionId,
-      interval: ref.watch(analyticsRemoteImagePollIntervalProvider),
-    );
-  }
-  return ref.watch(imagesDaoProvider).watchImagesForSession(sessionId);
-});
+    StreamProvider.family<List<DbCapturedImage>, int>(
+  (ref, sessionId) =>
+      ref.watch(capturedImageRowsProvider).watchSession(sessionId),
+);
 
-final standaloneImagesProvider = StreamProvider<List<DbCapturedImage>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend.remoteHost case final linkedHost?) {
-    return _pollRemoteStandaloneImages(
-      linkedHost,
-      interval: ref.watch(analyticsRemoteImagePollIntervalProvider),
-    );
-  }
-  return ref.watch(imagesDaoProvider).watchStandaloneImages();
-});
-
-/// Remote image catalogs are low-churn and do not need to hammer the host.
-/// Exposed so tests can exercise retry/distinct behavior without waiting 10s.
-final analyticsRemoteImagePollIntervalProvider = Provider<Duration>(
-  (ref) => const Duration(seconds: 10),
+final standaloneImagesProvider = StreamProvider<List<DbCapturedImage>>(
+  (ref) => ref.watch(capturedImageRowsProvider).watchStandalone(),
 );
 
 /// The label of the History target filter's "no filter" entry.

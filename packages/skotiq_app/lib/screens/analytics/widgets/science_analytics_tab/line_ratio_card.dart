@@ -286,50 +286,11 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
     }
 
     try {
-      if (backend.remoteHost case final linkedHost?) {
-        final result = await linkedHost.science.generateSessionLineRatios(sessionId);
-        if (!mounted || !_ownsOperation(generation, sessionId, backend)) return;
-        ref.invalidate(sessionLineRatioProductsProvider(sessionId));
-        setState(() {
-          final files = (result['files'] as List?)?.join(', ') ?? 'host frames';
-          _statusMessage = 'Generated using $files.';
-        });
-        return;
-      }
-
-      final images =
-          await ref.read(imagesDaoProvider).getImagesForSession(sessionId);
+      final status = await ref
+          .read(analyticsExportsProvider)
+          .generateLineRatios(sessionId);
       if (!mounted || !_ownsOperation(generation, sessionId, backend)) return;
-      final ha =
-          _findLatestByFilter(images, {'ha', 'halpha', 'h-alpha', 'h alpha'});
-      final oiii = _findLatestByFilter(images, {'oiii', 'o3'});
-      final sii = _findLatestByFilter(images, {'sii', 's2'});
-
-      if (ha == null || oiii == null || sii == null) {
-        setState(() {
-          _statusMessage =
-              'Need latest H-alpha, OIII, and SII frames in this session.';
-        });
-        return;
-      }
-
-      await ref.read(scienceProcessingServiceProvider).generateLineRatios(
-            sessionId: sessionId,
-            set: NarrowbandSet(
-              hAlphaPath: ha.filePath,
-              oiiiPath: oiii.filePath,
-              siiPath: sii.filePath,
-            ),
-            hAlphaImageId: ha.id,
-            oiiiImageId: oiii.id,
-            siiImageId: sii.id,
-          );
-
-      if (!mounted || !_ownsOperation(generation, sessionId, backend)) return;
-      setState(() {
-        _statusMessage =
-            'Generated using ${ha.fileName}, ${oiii.fileName}, ${sii.fileName}.';
-      });
+      setState(() => _statusMessage = status);
     } catch (error) {
       if (mounted && _ownsOperation(generation, sessionId, backend)) {
         setState(() {
@@ -344,28 +305,6 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
     }
   }
 
-  DbCapturedImage? _findLatestByFilter(
-      List<DbCapturedImage> images, Set<String> names) {
-    final filtered = images.where((image) {
-      final filter = (image.filter ?? '').toLowerCase().trim();
-      for (final name in names) {
-        // Match on exact filter name or as a whole-word within the filter
-        // string.  Prevents false positives like "Shah" matching "ha".
-        if (filter == name) return true;
-        final pattern =
-            RegExp('(?:^|[\\s_-])${RegExp.escape(name)}(?:[\\s_-]|\$)');
-        if (pattern.hasMatch(filter)) return true;
-      }
-      return false;
-    }).toList();
-
-    if (filtered.isEmpty) {
-      return null;
-    }
-
-    filtered.sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
-    return filtered.first;
-  }
 }
 
 class _MetricLine extends StatelessWidget {

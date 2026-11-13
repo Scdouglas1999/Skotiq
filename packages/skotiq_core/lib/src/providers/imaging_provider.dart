@@ -7,7 +7,6 @@ import '../models/imaging/imaging_models.dart';
 import '../models/imaging/auto_stretch_settings.dart';
 import '../models/backend/device_capabilities.dart';
 import '../models/equipment/equipment_models.dart';
-import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_role.dart';
 import 'capability_provider.dart' show cameraSensitivityProvider;
@@ -677,7 +676,7 @@ class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
 /// the list as frames land: rows still accepted (a grader's reject or a
 /// frame-watch exclusion clears `is_accepted`).
 final sessionNightSeedProvider = FutureProvider<void>((ref) async {
-  if (ref.watch(backendProvider).remoteHost != null) return;
+  if (ref.watch(isRemoteModeProvider)) return;
   final now = DateTime.now();
   final window = observingNightWindow(now);
   final rows = await ref

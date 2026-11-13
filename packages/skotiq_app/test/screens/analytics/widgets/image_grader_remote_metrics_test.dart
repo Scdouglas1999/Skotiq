@@ -15,8 +15,7 @@ void main() {
     ]);
 
     final metrics = await loadImageGraderPsfMetrics(
-      backend: backend,
-      localScienceDao: null,
+      products: backend.remoteHost!.scienceProducts(),
       frames: [frame],
       sessionId: 42,
     );

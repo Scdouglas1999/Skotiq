@@ -3,13 +3,13 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_app/screens/analytics/analytics_exports.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/services.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
-
-class _MockLocalBackend extends Mock implements SkotiqBackend {}
 
 class _MockScienceReportExporter extends Mock
     implements ScienceReportExporter {}
@@ -22,15 +22,13 @@ void main() {
     );
     addTearDown(() => temp.delete(recursive: true));
     final backend = _MockNetworkBackend();
-    final localExporter = _MockScienceReportExporter();
     when(
       () => backend.generateObservationReport(12),
     ).thenAnswer((_) async => Uint8List.fromList([0x25, 0x50, 0x44, 0x46]));
 
-    final file = await exportScienceShortcutReport(
-      backend: backend,
-      sessionId: 12,
-      localExporter: localExporter,
+    final file = await saveHostScienceReport(
+      backend,
+      12,
       documentsDirectoryProvider: () async => temp,
       generatedAt: DateTime.utc(2026, 7, 13, 1, 2, 3),
     );
@@ -44,7 +42,6 @@ void main() {
     );
     expect(await file.readAsBytes(), [0x25, 0x50, 0x44, 0x46]);
     verify(() => backend.generateObservationReport(12)).called(1);
-    verifyNever(() => localExporter.exportToDisk(any()));
   });
 
   test('local shortcut preserves the Markdown exporter path', () async {
@@ -53,15 +50,17 @@ void main() {
     );
     addTearDown(() => temp.delete(recursive: true));
     final expected = File('${temp.path}/report.md');
-    final backend = _MockLocalBackend();
     final exporter = _MockScienceReportExporter();
     when(() => exporter.exportToDisk(4)).thenAnswer((_) async => expected);
-
-    final file = await exportScienceShortcutReport(
-      backend: backend,
-      sessionId: 4,
-      localExporter: exporter,
+    final container = ProviderContainer(
+      overrides: [
+        remoteHostProvider.overrideWithValue(null),
+        scienceReportExporterProvider.overrideWithValue(exporter),
+      ],
     );
+    addTearDown(container.dispose);
+
+    final file = await container.read(analyticsExportsProvider).scienceReport(4);
 
     expect(file.path, expected.path);
     verify(() => exporter.exportToDisk(4)).called(1);

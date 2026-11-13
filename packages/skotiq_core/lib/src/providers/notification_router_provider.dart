@@ -186,7 +186,7 @@ const _legacySenderRows = [
 /// transport configs down with it.
 final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
   await ref.read(notificationSecretsMigrationProvider.future);
-  if (ref.read(diagnosticsBackendProvider).remoteHost != null) return;
+  if (ref.read(isRemoteModeProvider)) return;
   final dao = ref.read(settingsDaoProvider);
   final secrets = ref.read(secretsStoreProvider);
   try {
@@ -994,7 +994,7 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   ref.listen(appSettingsProvider, (prev, next) {
     // On a linked client these settings mirror the host's, as markers when
     // the link has no admin access; they are not this computer's credentials.
-    if (ref.read(diagnosticsBackendProvider).remoteHost != null) return;
+    if (ref.read(isRemoteModeProvider)) return;
     final before = prev?.valueOrNull;
     final after = next.valueOrNull;
     if (before == null || after == null) return;

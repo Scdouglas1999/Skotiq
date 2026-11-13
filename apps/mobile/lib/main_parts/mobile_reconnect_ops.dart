@@ -559,7 +559,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // pushing this phone's documents path replaced the rig's checkpoint
         // directory with one that cannot exist there, so every checkpoint
         // write failed and a mid-night crash became unrecoverable.
-        if (ref.read(backendProvider).remoteHost == null) {
+        if (!ref.read(isRemoteModeProvider)) {
           final docsDir = await resolveSkotiqDocumentsDirectory();
           await executor.initializeCheckpoints(docsDir.path);
         }

@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/scheduler/target_progress.dart';
 import '../services/scheduler/target_progress_service.dart';
-import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'scheduler/integration_goal_service_provider.dart';
@@ -30,7 +29,7 @@ final targetProgressProvider = FutureProvider.autoDispose
       // changes; the heavy aggregation work happens in the service.
       final images = await ref.watch(allDbImagesProvider.future);
       final targets = await ref.watch(allDbTargetsProvider.future);
-      final useHostImages = ref.watch(backendProvider).remoteHost != null;
+      final useHostImages = ref.watch(isRemoteModeProvider);
 
       for (final target in targets) {
         if (target.id == targetId) {
@@ -54,7 +53,7 @@ final allTargetProgressProvider =
     FutureProvider.autoDispose<Map<int, TargetProgress>>((ref) async {
       final images = await ref.watch(allDbImagesProvider.future);
       final targets = await ref.watch(allDbTargetsProvider.future);
-      final useHostImages = ref.watch(backendProvider).remoteHost != null;
+      final useHostImages = ref.watch(isRemoteModeProvider);
 
       final service = ref.watch(targetProgressServiceProvider);
       return service.forTargets(

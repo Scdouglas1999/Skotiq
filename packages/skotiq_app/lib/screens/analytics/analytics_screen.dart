@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Used by part files (history_cards.dart, session_detail_dialog.dart) for
@@ -12,19 +11,15 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/utils.dart';
 
 // Exports hand off through revealExportedFile (share sheet on mobile, path
 // snackbar on desktop) rather than calling share_plus directly — shareXFiles is
 // unimplemented on Linux/Windows and threw an internal API name at the user.
 import '../../utils/darkroom_navigation.dart';
 import '../../utils/exported_file_reveal.dart';
-import 'package:path/path.dart' as path;
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../tours/tour_target.dart';
@@ -34,6 +29,7 @@ import '../science/science_screen.dart';
 import '../../widgets/run_status/run_status_presentation.dart';
 import '../sequencer/widgets/session_report_dialog.dart';
 import '../../router/analytics_route.dart';
+import 'analytics_exports.dart';
 import 'quick_capture_selection.dart';
 import 'session_elapsed.dart';
 import 'widgets/analytics_empty_state.dart';

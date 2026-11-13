@@ -582,7 +582,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
     // timer that can race the GUI/headless host and command the same flip.
     if (!settings.standaloneMonitoringEnabled ||
         !settings.triggerMethod.supportsStandaloneMonitoring ||
-        _ref.read(backendProvider).remoteHost != null) {
+        _ref.read(isRemoteModeProvider)) {
       return;
     }
     _pollTimer = Timer.periodic(_pollInterval, (_) => evaluateOnce());
@@ -590,7 +590,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
 
   /// Public for tests — runs a single poll cycle and returns the decision.
   MeridianMonitorDecision evaluateOnce() {
-    if (_ref.read(backendProvider).remoteHost != null) {
+    if (_ref.read(isRemoteModeProvider)) {
       return MeridianMonitorDecision.inactive;
     }
     final settings = _ref.read(globalMeridianFlipSettingsProvider);

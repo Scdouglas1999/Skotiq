@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -102,7 +101,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
   /// the local DB write would be lost). Gate the mutation affordances on a
   /// slave with a clear notice instead of letting ProjectService throw.
   bool _blockedOnRemote() {
-    if (ref.read(backendProvider).remoteHost == null) return false;
+    if (!ref.read(isRemoteModeProvider)) return false;
     if (mounted) {
       context.showInfoSnackBar('Projects are managed on the imaging host.');
     }

@@ -24,36 +24,9 @@ class _AavsoExportButtonState extends ConsumerState<_AavsoExportButton> {
 
     setState(() => _exporting = true);
     try {
-      final backend = ref.read(backendProvider);
-      late final String filePath;
-      if (backend.remoteHost case final linkedHost?) {
-        final bytes = await linkedHost.science.exportSessionAavso(
-          widget.sessionId,
-          targetStarName: targetName.trim(),
-        );
-        final exportDir = await resolveSkotiqExportsDirectory();
-        filePath = path.join(
-          exportDir.path,
-          'AAVSO_${targetName.trim().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.txt',
-        );
-        await File(filePath).writeAsBytes(bytes, flush: true);
-      } else {
-        final scienceDao = ref.read(scienceDaoProvider);
-        final settingsDao = ref.read(settingsDaoProvider);
-        final imagesDao = ref.read(imagesDaoProvider);
-
-        final service = AavsoExportService(
-          scienceDao: scienceDao,
-          settingsDao: settingsDao,
-          imagesDao: imagesDao,
-          softwareLabel: ref.read(appVersionLabelProvider),
-        );
-
-        filePath = await service.exportSession(
-          sessionId: widget.sessionId,
-          targetStarName: targetName.trim(),
-        );
-      }
+      final filePath = await ref
+          .read(analyticsExportsProvider)
+          .aavsoExport(widget.sessionId, targetName.trim());
 
       if (!mounted) return;
 

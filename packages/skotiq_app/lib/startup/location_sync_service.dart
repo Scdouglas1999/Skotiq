@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
@@ -100,7 +99,7 @@ final locationSyncProvider = Provider<void>((ref) {
 /// could restore a site the host has since changed. A location edited on the
 /// client reaches the host through the settings save.
 Future<void> _syncLocationToBackend(Ref ref, ObserverLocation? site) async {
-  if (ref.read(backendProvider).remoteHost != null) return;
+  if (ref.read(isRemoteModeProvider)) return;
   try {
     final backend = ref.read(profileSettingsBackendProvider);
     developer.log(

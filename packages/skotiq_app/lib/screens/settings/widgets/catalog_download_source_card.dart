@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -76,7 +75,7 @@ class _CatalogDownloadSourceCardState
     final colors = SkotiqColors.of(context);
     final settings = ref.watch(appSettingsProvider);
     final saved = settings.valueOrNull?.catalogBaseUrl ?? '';
-    final linked = ref.watch(backendProvider).remoteHost != null;
+    final linked = ref.watch(isRemoteModeProvider);
     final adminOnlyRefused = hostRefusesAdminOnly(ref);
     final bodyStyle = SkotiqTypography.bodySm.copyWith(
       color: colors.textSecondary,

@@ -150,14 +150,7 @@ class _PhotometricCalibrationWizardState
 }
 
 final calibrationSessionImagesProvider =
-    FutureProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
-  final backend = ref.watch(backendProvider);
-  if (backend.remoteHost case final linkedHost?) {
-    return linkedHost.imagingRecords.getSessionImageRows(sessionId).then(
-          (rows) => rows
-              .map((row) => DbCapturedImage.fromJson(row))
-              .toList(growable: false),
-        );
-  }
-  return ref.read(imagesDaoProvider).getImagesForSession(sessionId);
-});
+    FutureProvider.family<List<DbCapturedImage>, int>(
+  (ref, sessionId) =>
+      ref.watch(imagingRecordsProvider).getImagesForSession(sessionId),
+);

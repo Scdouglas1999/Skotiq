@@ -39,7 +39,7 @@ void main() {
       createdAt: timestamp,
       isAccepted: true,
     );
-    when(() => backend.getSessionImageRows(7)).thenAnswer(
+    when(() => backend.getAllImageRows()).thenAnswer(
       (_) async => [hostImage.toJson()],
     );
     when(() => backend.getSessionById(7)).thenAnswer(
@@ -56,13 +56,15 @@ void main() {
     );
     addTearDown(container.dispose);
 
+    final rows = container.listen(dbSessionImagesProvider(7), (_, __) {});
+    addTearDown(rows.close);
     final images = await container.read(dbSessionImagesProvider(7).future);
     expect(images.single.id, 99);
     expect(
       await container.read(scienceSessionTargetIdProvider(7).future),
       42,
     );
-    verify(() => backend.getSessionImageRows(7)).called(1);
+    verify(() => backend.getAllImageRows()).called(1);
     verify(() => backend.getSessionById(7)).called(1);
   });
 }

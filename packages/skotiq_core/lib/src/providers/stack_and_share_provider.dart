@@ -170,7 +170,7 @@ class StackAndShareNotifier extends StateNotifier<StackAndShareState> {
     int sessionId, {
     StackAndShareConfig? config,
   }) async {
-    if (_ref.read(backendProvider).remoteHost != null) {
+    if (_ref.read(isRemoteModeProvider)) {
       state = const StackAndShareState(
         progress: StackAndShareProgress(phase: StackAndSharePhase.error),
         errorMessage:
@@ -310,7 +310,7 @@ final recentStackedResultsProvider =
 /// would move tens of megabytes to draw a few small squares.
 final stackResultThumbnailPathProvider = FutureProvider.autoDispose
     .family<String?, int>((ref, id) async {
-      if (ref.watch(backendProvider).remoteHost != null) return null;
+      if (ref.watch(isRemoteModeProvider)) return null;
       final result = await ref.watch(stackResultViewerProvider(id).future);
       final file = await _localPreviewFile(ref, result);
       if (file == null || !await file.exists()) return null;

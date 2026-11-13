@@ -64,8 +64,7 @@ class _YourSkyAtlas extends ConsumerWidget {
     final regionsAsync = ref.watch(skyAtlasRegionsProvider);
     final coverageAsync = ref.watch(skyAtlasCoverageProvider);
     final backend = ref.watch(backendProvider);
-    final canNameRegions =
-        backend.ownsDeviceBridge || backend.remoteHost != null;
+    final canNameRegions = !backend.hasNoHost;
 
     return Column(
       children: [

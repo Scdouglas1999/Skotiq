@@ -27,7 +27,7 @@ final _coordinateCharacters =
 /// Pick a source — one of the user's targets (active target / library) or a
 /// custom RA-Dec + radius (covers a mosaic, polar field, or any patch of sky) —
 /// give it a name, and create the region through the authority-aware
-/// [skyAtlasRegionWriterProvider]. On a companion the metadata write runs on
+/// [yourSkyAtlasProvider]. On a companion the metadata write runs on
 /// the imaging host; atlas pixels and fold history never move to the client.
 class NameRegionSheet extends ConsumerStatefulWidget {
   const NameRegionSheet({super.key});
@@ -435,7 +435,7 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
 
     final authority = ref.read(backendProvider);
     try {
-      await ref.read(skyAtlasRegionWriterProvider).ensureRegion(
+      await ref.read(yourSkyAtlasProvider).ensureRegion(
             name: effectiveName,
             centerRaDeg: raDeg,
             centerDecDeg: decDeg,

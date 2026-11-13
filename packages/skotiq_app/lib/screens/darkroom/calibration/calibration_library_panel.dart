@@ -123,7 +123,7 @@ class CalibrationLibraryPanelState
   }
 
   Widget build(BuildContext context) {
-    final isRemote = ref.watch(backendProvider).remoteHost != null;
+    final isRemote = ref.watch(isRemoteModeProvider);
     final shown = _typeFilter == null
         ? _records
         : _records.where((r) => r.type == _typeFilter).toList();

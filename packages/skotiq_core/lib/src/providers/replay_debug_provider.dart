@@ -175,7 +175,7 @@ final _replayHostSettingsProvider = FutureProvider<ReplayDebugSettings>((
 /// authoritative value. Corruption/host failure surfaces as an error, never
 /// a silent `true`.
 final replayDebugEnabledProvider = FutureProvider<bool>((ref) async {
-  if (ref.watch(backendProvider).remoteHost != null) {
+  if (ref.watch(isRemoteModeProvider)) {
     final settings = await ref.watch(_replayHostSettingsProvider.future);
     return settings.enabled;
   }
@@ -189,7 +189,7 @@ final replayDebugEnabledProvider = FutureProvider<bool>((ref) async {
 /// (unset → 90; corrupt/out-of-range throws → AsyncError); remote reads the
 /// host's authoritative value.
 final replayDebugRetentionDaysProvider = FutureProvider<int>((ref) async {
-  if (ref.watch(backendProvider).remoteHost != null) {
+  if (ref.watch(isRemoteModeProvider)) {
     final settings = await ref.watch(_replayHostSettingsProvider.future);
     return settings.retentionDays;
   }
@@ -376,7 +376,7 @@ class ReplayDebugSettingsController {
   /// retried without the caller having to know which providers to poke (the
   /// host-settings fetch is private to this file).
   void invalidateSettings() {
-    if (_ref.read(backendProvider).remoteHost != null) {
+    if (_ref.read(isRemoteModeProvider)) {
       _ref.invalidate(_replayHostSettingsProvider);
     }
     _ref.invalidate(replayDebugEnabledProvider);

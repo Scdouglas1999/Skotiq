@@ -875,7 +875,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
 
   /// Force immediate re-evaluation of all safety sources
   void forceEvaluation() {
-    if (_ref.read(backendProvider).remoteHost != null) {
+    if (_ref.read(isRemoteModeProvider)) {
       unawaited(_refreshRemoteStatus());
       return;
     }
@@ -890,7 +890,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// route awaits this before answering, so an unbounded wait would hang the
   /// request rather than merely delaying it.
   Future<void> evaluateNow({Duration timeout = _evaluateNowTimeout}) async {
-    if (_ref.read(backendProvider).remoteHost != null) {
+    if (_ref.read(isRemoteModeProvider)) {
       await _refreshRemoteStatus();
       return;
     }

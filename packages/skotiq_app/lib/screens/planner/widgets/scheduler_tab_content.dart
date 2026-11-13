@@ -79,7 +79,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       if (!mounted) return;
       _remotePollTicks++;
       if (_remotePollTicks % 3 == 0 &&
-          ref.read(backendProvider).remoteHost != null) {
+          ref.read(isRemoteModeProvider)) {
         ref.invalidate(schedulerRemoteSnapshotProvider);
       }
       setState(() {});

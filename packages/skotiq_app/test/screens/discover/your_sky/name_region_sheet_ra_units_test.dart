@@ -47,9 +47,6 @@ Widget _surface(NetworkBackend backend) {
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
-      skyAtlasRegionWriterProvider.overrideWithValue(
-        SkyAtlasRegionWriter.remote(backend),
-      ),
       allDbTargetsProvider.overrideWith((ref) => Stream.value(const [])),
     ],
     child: const MaterialApp(home: Scaffold(body: NameRegionSheet())),

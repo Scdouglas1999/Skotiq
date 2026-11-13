@@ -694,7 +694,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
     final picker = ref.read(stackResultSavePickerProvider);
     final share = ref.read(stackResultShareProvider);
     final service = ref.read(stackShareExportServiceProvider);
-    final stampPersistedResult = ref.read(backendProvider).remoteHost == null;
+    final stampPersistedResult = !ref.read(isRemoteModeProvider);
 
     final (extension, allowed, title) = switch (format) {
       ShareExportFormat.png => ('png', ['png'], 'Export PNG'),

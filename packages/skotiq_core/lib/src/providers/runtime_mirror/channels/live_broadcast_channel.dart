@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show BroadcastApi;
 
 import '../../../services/live_stacking_broadcast_service.dart';
-import '../../../backend/remote_host.dart';
 import '../../backend_provider.dart';
 import '../../web_server_provider.dart';
 import '../runtime_mirror_channel.dart';
@@ -149,7 +148,7 @@ final _mirroredLiveBroadcastProvider = StateProvider<LiveBroadcast?>(
 /// is. A host reads its own; a linked client reads the host's through
 /// [LiveBroadcastChannel].
 final liveBroadcastProvider = Provider<LiveBroadcast?>((ref) {
-  if (ref.watch(backendProvider).remoteHost != null) {
+  if (ref.watch(isRemoteModeProvider)) {
     return ref.watch(_mirroredLiveBroadcastProvider);
   }
   final state = ref.watch(_localBroadcastStateProvider);

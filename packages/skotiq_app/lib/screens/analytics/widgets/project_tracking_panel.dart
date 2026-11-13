@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
@@ -37,13 +36,9 @@ enum ProjectSortMode {
 /// goal, not a favorite, no captured subs, no integration time, and not
 /// referenced by any imaging session.
 final untrackedTargetsCountProvider = FutureProvider<int?>((ref) async {
-  final backend = ref.watch(backendProvider);
   ref.watch(allDbTargetsProvider);
   ref.watch(allSessionsProvider);
-  if (backend.remoteHost case final linkedHost?) {
-    return linkedHost.imagingRecords.countUntrackedTargets();
-  }
-  return ref.read(targetsDaoProvider).countUntrackedTargets();
+  return ref.watch(targetLibraryProvider).countUntrackedTargets();
 });
 
 /// Full-featured project tracking panel for the analytics screen.

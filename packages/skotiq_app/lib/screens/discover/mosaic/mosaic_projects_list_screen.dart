@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -38,7 +37,7 @@ class MosaicProjectsListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    if (ref.watch(backendProvider).remoteHost != null) {
+    if (ref.watch(isRemoteModeProvider)) {
       return Scaffold(
         backgroundColor: colors.background,
         body: SafeArea(
