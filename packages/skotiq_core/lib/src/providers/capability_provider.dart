@@ -5,6 +5,7 @@ import '../models/equipment/equipment_models.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
+import 'equipment/mount_state_provider.dart';
 import '../services/logging_service.dart';
 
 /// Provider to fetch camera capabilities for a device
@@ -12,11 +13,8 @@ import '../services/logging_service.dart';
 final cameraCapabilitiesProvider =
     FutureProvider.family<CameraCapabilities?, String>((ref, deviceId) async {
       if (deviceId.isEmpty) return null;
-      // Read again when this camera finishes connecting. Before that a native
-      // driver answers with a 0 x 0, 0-bit sensor rather than an error, and
-      // the answer was kept for the life of the app: on the rig 2026-11-08 the
-      // pre-flight check said "Connect a camera" with the camera connected and
-      // the plan "needs 0 MB".
+      // A camera that is not connected has no capabilities to report, so the
+      // answer is read again when it connects.
       ref.watch(
         cameraStateProvider.select(
           (state) =>
@@ -111,6 +109,15 @@ final cameraHasCoolerProvider = Provider<bool>((ref) {
 final mountCapabilitiesProvider =
     FutureProvider.family<MountCapabilities?, String>((ref, deviceId) async {
       if (deviceId.isEmpty) return null;
+      // A mount that is not connected has no capabilities to report, so the
+      // answer is read again when it connects.
+      ref.watch(
+        mountStateProvider.select(
+          (state) =>
+              state.deviceId == deviceId &&
+              state.connectionState == DeviceConnectionState.connected,
+        ),
+      );
       final backend = ref.watch(deviceBackendProvider);
       return backend.getMountCapabilities(deviceId);
     });

@@ -591,7 +591,7 @@ final List<EventPayload> eventWireSamples = [
     SequencerEvent.triggerFired(
       triggerId: 'triggerId274',
       triggerName: 'triggerName275',
-      action: 'action276',
+      action: SequencerTriggerAction.retry,
     ),
   ),
   EventPayload.sequencer(
@@ -926,7 +926,7 @@ final List<EventPayload> eventWireSamples = [
     SequencerEvent.triggerFired(
       triggerId: 'triggerId495',
       triggerName: 'triggerName496',
-      action: 'action497',
+      action: SequencerTriggerAction.pause,
     ),
   ),
   EventPayload.sequencer(

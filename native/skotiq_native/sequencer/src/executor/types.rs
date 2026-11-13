@@ -6,6 +6,54 @@
 
 use super::*;
 
+/// What a fired trigger did, as its `TriggerFired` event and decision row
+/// name it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerFiredAction {
+    Continue,
+    Pause,
+    Autofocus,
+    NextTarget,
+    Retry,
+    /// Parked the mount and ended the run.
+    ParkAndAbort,
+    CustomBranch,
+    MeridianFlip,
+    Dither,
+    Recenter,
+    PauseAndWaitForClear,
+    SlewToGapAndContinue,
+    SwitchTargetOrFilter,
+    /// Told the operator and kept imaging.
+    Notify,
+    /// Ended the run without parking: "Park before dawn" is off.
+    Abort,
+    /// Skipped a target whose end condition was already met when the run
+    /// reached it.
+    SkipTarget,
+}
+
+impl From<&RecoveryAction> for TriggerFiredAction {
+    fn from(action: &RecoveryAction) -> Self {
+        match action {
+            RecoveryAction::Continue => Self::Continue,
+            RecoveryAction::Pause => Self::Pause,
+            RecoveryAction::Autofocus => Self::Autofocus,
+            RecoveryAction::NextTarget => Self::NextTarget,
+            RecoveryAction::Retry { .. } => Self::Retry,
+            RecoveryAction::ParkAndAbort => Self::ParkAndAbort,
+            RecoveryAction::CustomBranch => Self::CustomBranch,
+            RecoveryAction::MeridianFlip(_) => Self::MeridianFlip,
+            RecoveryAction::Dither(_) => Self::Dither,
+            RecoveryAction::Recenter => Self::Recenter,
+            RecoveryAction::PauseAndWaitForClear => Self::PauseAndWaitForClear,
+            RecoveryAction::SlewToGapAndContinue => Self::SlewToGapAndContinue,
+            RecoveryAction::SwitchTargetOrFilter => Self::SwitchTargetOrFilter,
+            RecoveryAction::Notify => Self::Notify,
+        }
+    }
+}
+
 /// pre-loaded per-frame defect-map application state.
 ///
 /// The bridge loads the `.ndm` file into memory once when the user toggles
@@ -288,7 +336,7 @@ pub enum ExecutorEvent {
     TriggerFired {
         trigger_id: String,
         trigger_name: String,
-        action: String,
+        action: TriggerFiredAction,
     },
     /// The run dithered the mount and the guider settled. Sent once per
     /// dither, whoever asked for it: a Dither node, a Smart Exposure plan's

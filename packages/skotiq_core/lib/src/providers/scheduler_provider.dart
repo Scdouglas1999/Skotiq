@@ -49,6 +49,7 @@ import 'settings_provider.dart';
 // generates EventPayload_Guiding / EventPayload_Equipment as part-of-library
 // classes, so a plain import surfaces them here).
 import 'package:skotiq_bridge/skotiq_bridge.dart';
+import 'host_role.dart';
 import 'linked_host.dart';
 import '../services/end_of_night_calibration/eon_trigger.dart'
     show EonEndReason;
@@ -63,6 +64,7 @@ import 'scheduler/target_constraint_service_provider.dart';
 part 'scheduler/scheduler_engine_providers.dart';
 part 'scheduler/scheduler_candidate_loader.dart';
 part 'scheduler/scheduler_config.dart';
+part 'scheduler/scheduler_control.dart';
 part 'scheduler/scheduler_readiness.dart';
 part 'scheduler/scheduler_remote_and_goals.dart';
 

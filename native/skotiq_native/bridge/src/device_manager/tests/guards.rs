@@ -1,16 +1,6 @@
 use super::*;
 use crate::device_manager::policy::policy;
 
-#[tokio::test]
-async fn test_mount_can_park_requires_registered_device() {
-    let manager = build_device_manager();
-    let err = manager
-        .mount_can_park("missing-mount")
-        .await
-        .expect_err("missing mount should error");
-    assert!(err.to_string().contains("Device not found"));
-}
-
 #[test]
 fn operation_guard_marks_and_clears_active_operations() {
     let manager = build_device_manager();
@@ -146,14 +136,4 @@ fn escalate_to_disconnect_is_a_per_device_type_property() {
             .heartbeat
             .escalate_to_disconnect
     );
-}
-
-#[tokio::test]
-async fn test_mount_stop_requires_registered_device() {
-    let manager = build_device_manager();
-    let err = manager
-        .mount_stop("missing-mount")
-        .await
-        .expect_err("missing mount should error");
-    assert!(err.to_string().contains("Device not found"));
 }

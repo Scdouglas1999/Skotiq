@@ -88,7 +88,6 @@ fn build_device_manager() -> DeviceManager {
         observed_identities: RwLock::new(HashMap::new()),
         expected_models: Default::default(),
         reconnect_config: ReconnectConfig::default(),
-        stop_reconnect: Arc::new(RwLock::new(false)),
         handles: Default::default(),
         native_devices: RwLock::new(HashMap::new()),
         indi_clients: RwLock::new(HashMap::new()),
