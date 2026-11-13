@@ -295,3 +295,35 @@ async fn an_indi_frame_is_read_while_other_devices_keep_the_connection_busy() {
         .expect("frame");
     assert_eq!(&frame.data[..4], &[1, 2, 3, 4]);
 }
+
+/// An INDI client stops trying to get a lost server back after five
+/// attempts (about half a minute). The pool then handed that dead client to
+/// every later connect, so no device on a server that had been down for a
+/// minute could be connected again until Skotiq was restarted.
+#[tokio::test]
+async fn a_connect_revives_a_pooled_connection_that_was_lost() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let port = listener.local_addr().expect("address").port();
+    tokio::spawn(async move {
+        while let Ok((socket, _)) = listener.accept().await {
+            tokio::spawn(async move {
+                let (reader, _writer) = socket.into_split();
+                let mut lines = BufReader::new(reader).lines();
+                while let Ok(Some(_)) = lines.next_line().await {}
+            });
+        }
+    });
+    let manager = build_device_manager();
+    let lost = skotiq_indi::IndiClient::new("127.0.0.1", Some(port));
+    assert!(!lost.is_connected().await);
+    manager.indi_clients.write().await.insert(
+        format!("127.0.0.1:{port}"),
+        std::sync::Arc::new(tokio::sync::RwLock::new(lost)),
+    );
+
+    let client = manager
+        .indi_server("127.0.0.1", port)
+        .await
+        .expect("the server is up again");
+    assert!(client.read().await.is_connected().await);
+}

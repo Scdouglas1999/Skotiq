@@ -151,7 +151,8 @@ impl DeviceManager {
     }
 
     /// The shared connection to the INDI server at `host:port`, opened on
-    /// first use. Every device on one server goes through one connection.
+    /// first use and again when it was lost. Every device on one server goes
+    /// through one connection.
     pub(crate) async fn indi_server(
         &self,
         host: &str,
@@ -160,6 +161,15 @@ impl DeviceManager {
         let server_key = format!("{host}:{port}");
         let mut clients = self.indi_clients.write().await;
         if let Some(client) = clients.get(&server_key) {
+            // A client whose server went away tries to get it back a few
+            // times and then stops. It is connected again here, in place,
+            // so the devices that still hold it are reached again too.
+            let mut pooled = client.write().await;
+            if !pooled.is_connected().await {
+                pooled.disconnect().await?;
+                pooled.connect().await?;
+            }
+            drop(pooled);
             return Ok(client.clone());
         }
         let mut client = skotiq_indi::IndiClient::new(host, Some(port));
