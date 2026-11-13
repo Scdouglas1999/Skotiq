@@ -6,11 +6,6 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_config`, `describe_error`, `ensure_parent_dir`, `stitch_mosaic_impl`, `wcs_from_header`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `OutputArgs`, `PanelArgs`, `StitchConfigArgs`, `StitchMosaicArgs`, `StitchMosaicResult`, `WcsArgs`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`
-
 /// Stitch N plate-solved panel masters into one mosaic master.
 ///
 /// Each panel is read from FITS; its WCS is taken from the explicit `wcs` block

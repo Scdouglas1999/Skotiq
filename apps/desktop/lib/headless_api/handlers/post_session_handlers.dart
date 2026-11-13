@@ -157,7 +157,7 @@ class PostSessionHandlers implements RouteSource {
   /// Refuse an `exposuresSec` list the bridge is going to refuse anyway,
   /// while the answer can still be a 400 instead of a job id.
   ///
-  /// `exposures_per_light` (`bridge/src/api/post_session/helpers.rs`) requires
+  /// `exposures_per_light` (`processing/src/post_session/helpers.rs`) requires
   /// one exposure per light or none at all, and every entry finite and `>= 0`.
   /// It runs INSIDE the bridge call, which happens after [JobManager.start] has
   /// already minted and returned an id — so a body the server could read as

@@ -480,7 +480,7 @@ class IntegrationSettings {
       // Post-integration finishing knobs. Each sub-block carries the
       // enabled flag plus the native config field names (camelCase, matching
       // the `#[serde(rename_all = "camelCase")]` *Args DTOs in
-      // bridge/src/api/finishing_*.rs). They ride inside the integration JSON
+      // processing/src/finishing/*.rs). They ride inside the integration JSON
       // so a new knob never needs an FFI regen.
       'finishing': {
         // Drizzle config mirrors DrizzleConfigArgs (+ top-level `bayer`).
@@ -492,9 +492,10 @@ class IntegrationSettings {
           'bayer': bayerDrizzle,
         },
         // Deconvolution mirrors the native DeconvolvePreviewArgs shape
-        // (finishing_enhance.rs): a top-level `estimatePsf` bool, a nested
-        // `psf` (PsfArgs.kind) used only when estimatePsf is false, and a
-        // nested `config` (DeconvConfigArgs.iterations/regularization). The
+        // (processing/src/finishing/enhance.rs): a top-level `estimatePsf`
+        // bool, a nested `psf` (PsfArgs.kind) used only when estimatePsf is
+        // false, and a nested `config`
+        // (DeconvConfigArgs.iterations/regularization). The
         // empirical PSF can only be produced by the estimate-from-stars path,
         // so psfKind == empirical maps to estimatePsf: true; the analytic
         // kinds (gaussian/moffat) map to estimatePsf: false and route the kind
