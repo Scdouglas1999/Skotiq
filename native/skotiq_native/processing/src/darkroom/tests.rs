@@ -1816,3 +1816,58 @@ fn a_cause_is_never_blank_and_never_carries_control_bytes() {
     );
     assert_eq!(readable_cause("no such file"), "no such file");
 }
+
+/// A render that stops at a failing step names the step in fields, so the app
+/// marks it without reading the sentence, and still carries the sentence.
+#[test]
+fn a_failed_step_is_reported_in_fields_beside_its_sentence() {
+    use crate::darkroom::args::FailedStep;
+    use skotiq_imaging::recipe::{OpError, Recipe, RecipeError};
+
+    let recipe = Recipe::from_json(&recipe_json(
+        "r1",
+        "master.fits",
+        json!([crop_step(0, 0, 8, 8, true), stretch_step()]),
+    ))
+    .expect("the recipe must decode");
+    let failure = RecipeError::Step {
+        index: 1,
+        source: Box::new(OpError::Failed {
+            op_id: "stretch",
+            op_version: 1,
+            reason: "the white point is below the black point".to_string(),
+        }),
+    };
+
+    let payload = parse(&FailedStep::err(&recipe, &failure));
+    assert_eq!(payload["kind"], "step_failed");
+    assert_eq!(payload["index"], 1);
+    assert_eq!(payload["opId"], "stretch");
+    assert_eq!(payload["opVersion"], 1);
+    assert_eq!(
+        payload["reason"],
+        "the white point is below the black point"
+    );
+    assert_eq!(
+        payload["message"],
+        "step 2 failed: stretch@1: the white point is below the black point"
+    );
+
+    // A fault that names no operation keeps its own words as the reason.
+    let unnamed = RecipeError::Step {
+        index: 0,
+        source: Box::new(OpError::EmptyImage),
+    };
+    let payload = parse(&FailedStep::err(&recipe, &unnamed));
+    assert_eq!(payload["opId"], "crop");
+    assert_eq!(
+        payload["reason"],
+        "image is empty (zero width/height/channels or no pixel data)"
+    );
+
+    // Any other refusal stays the engine's sentence.
+    assert_eq!(
+        FailedStep::err(&recipe, &RecipeError::Cancelled),
+        "cancelled"
+    );
+}

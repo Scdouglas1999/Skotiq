@@ -1749,7 +1749,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         error.message,
         state.baseMasterPath,
       );
-      final failure = _failureOf(error.message, asked, askedIdentities);
+      final failure = _failureOf(error.failedStep, asked, askedIdentities);
       state = state.copyWith(
         rendering: false,
         cancelRequested: false,
@@ -1771,37 +1771,32 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
     }
   }
 
-  /// The step a render failure NAMES, or null when it names none this build can
-  /// join to one.
+  /// The step a render failure names, or null when it names none this build
+  /// can join to one.
   ///
-  /// The engine writes `step N failed: <opId>@<version>: <fault>`, where N
-  /// counts the recipe it was HANDED from 1 — [asked], which is the stack minus
-  /// any switched-off step this build cannot run. Both halves are checked: the
-  /// position has to exist in that list AND the operation at it has to be the
-  /// operation the message names. A message that fails either check attributes
-  /// nothing, because the alternative is badging a step the engine never ran.
+  /// The engine counts the recipe it was handed: [asked], which is the stack
+  /// minus any switched-off step this build cannot run. The position has to
+  /// exist in that list and the operation at it has to be the one the engine
+  /// names; otherwise nothing is attributed, because the alternative is
+  /// badging a step the engine never ran.
   ///
   /// [identities] is [asked]'s identity list, so the attribution survives an
   /// edit that moves the step before the failure reaches a card.
   static DarkroomRenderFailure? _failureOf(
-    String message,
+    DarkroomFailedStep? failed,
     List<DarkroomStep> asked,
     List<Object> identities,
   ) {
-    final match = RegExp(r'^step (\d+) failed: ([A-Za-z0-9_]+)@(\d+): (.+)$',
-            dotAll: true)
-        .firstMatch(message);
-    if (match == null) return null;
-    final ordinal = int.tryParse(match.group(1)!);
-    final version = int.tryParse(match.group(3)!);
-    if (ordinal == null || version == null) return null;
-    final at = ordinal - 1;
+    if (failed == null) return null;
+    final at = failed.index;
     if (at < 0 || at >= asked.length || at >= identities.length) return null;
     final step = asked[at];
-    if (step.opId != match.group(2) || step.opVersion != version) return null;
+    if (step.opId != failed.opId || step.opVersion != failed.opVersion) {
+      return null;
+    }
     return DarkroomRenderFailure(
       stepIdentity: identities[at],
-      reason: match.group(4)!,
+      reason: failed.reason,
     );
   }
 
