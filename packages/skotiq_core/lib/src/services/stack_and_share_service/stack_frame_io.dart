@@ -1,13 +1,13 @@
 part of '../stack_and_share_service.dart';
 
 extension _StackFrameIo on StackAndShareService {
-  /// Load [frame]'s raw linear pixels and apply in-memory calibration
-  /// (dark / flat / bias) using [context].
+  /// Load [frame]'s raw linear pixels and calibrate them with its matching
+  /// dark and the run's master flat / bias in [context].
   ///
   /// The light's exposure / gain / binning / temperature drive the per-frame
-  /// dark match (the master flat / bias in [context] are shared); a frame with
-  /// no matching dark and no master flat / bias is fed uncalibrated rather than
-  /// silently dropped — the selector already decided it belongs in the stack.
+  /// dark match; a frame with no matching dark and no master flat / bias is fed
+  /// uncalibrated rather than dropped, since the selector already decided it
+  /// belongs in the stack.
   Future<_RawFrame> _loadCalibrated(
     StackedFrameSelection frame,
     _CalibrationContext context,
@@ -17,7 +17,7 @@ extension _StackFrameIo on StackAndShareService {
 
     final meta = await _imagesDao.getImageById(frame.imageId);
     _ensureSameHost();
-    Uint16List? darkData;
+    String? darkPath;
     if (meta != null) {
       final match = await _darkLibrary.findMatchingDark(
         exposureTime: meta.exposureDuration,
@@ -29,96 +29,39 @@ extension _StackFrameIo on StackAndShareService {
         tolerances: context.tolerances,
       );
       _ensureSameHost();
-      if (match != null) {
-        darkData = await _loadMatchingPixels(
-          match.calibrationPath,
-          raw.pixelCount,
-        );
-        _ensureSameHost();
-      }
+      darkPath = match?.calibrationPath;
     }
 
-    final calibrated = _calibration.calibrateData(
+    final calibrated = await _calibration.calibrateData(
       width: raw.width,
       height: raw.height,
       lightData: raw.data,
-      darkData: darkData,
-      flatData: _validateDimensions(context.flatData, raw.pixelCount, 'flat'),
-      biasData: _validateDimensions(context.biasData, raw.pixelCount, 'bias'),
+      darkPath: darkPath,
+      flatPath: context.flatPath,
+      biasPath: context.biasPath,
     );
+    _ensureSameHost();
 
     return _RawFrame(width: raw.width, height: raw.height, data: calibrated);
   }
 
-  /// Build the shared calibration context (tolerances + master flat / bias
-  /// pixels) once per run. The flat / bias are loaded into u16 here so they are
-  /// not re-read from disk for every frame. Masters are read like lights, by
-  /// the native frame reader, so a FITS or XISF master in any sample format
-  /// comes in on the same 16-bit ADU scale.
-  Future<_CalibrationContext> _buildCalibrationContext() async {
-    final tolerances = _ref.read(darkLibraryMatchTolerancesProvider);
+  /// The run's shared calibration inputs: the dark-match tolerances and the
+  /// Settings master flat / bias, checked to exist once per run.
+  _CalibrationContext _buildCalibrationContext() {
     final settings = _ref.read(calibrationSettingsProvider);
-
-    Uint16List? flatData;
-    final flatPath = settings.masterFlatPath;
-    if (flatPath != null && flatPath.isNotEmpty) {
-      if (!File(flatPath).existsSync()) {
-        throw FileSystemException('Master flat file not found', flatPath);
+    String? existing(String? path, String label) {
+      if (path == null || path.isEmpty) return null;
+      if (!File(path).existsSync()) {
+        throw FileSystemException('Master $label file not found', path);
       }
-      flatData = (await _loadRawU16(flatPath)).data;
-      _ensureSameHost();
-    }
-
-    Uint16List? biasData;
-    final biasPath = settings.masterBiasPath;
-    if (biasPath != null && biasPath.isNotEmpty) {
-      if (!File(biasPath).existsSync()) {
-        throw FileSystemException('Master bias file not found', biasPath);
-      }
-      biasData = (await _loadRawU16(biasPath)).data;
-      _ensureSameHost();
+      return path;
     }
 
     return _CalibrationContext(
-      tolerances: tolerances,
-      flatData: flatData,
-      biasData: biasData,
+      tolerances: _ref.read(darkLibraryMatchTolerancesProvider),
+      flatPath: existing(settings.masterFlatPath, 'flat'),
+      biasPath: existing(settings.masterBiasPath, 'bias'),
     );
-  }
-
-  /// Load a calibration frame's pixels and assert it matches the light's pixel
-  /// count, so a mismatched master (wrong binning / sensor) fails loudly rather
-  /// than corrupting the calibration math.
-  Future<Uint16List> _loadMatchingPixels(
-    String path,
-    int expectedPixels,
-  ) async {
-    final pixels = (await _loadRawU16(path)).data;
-    if (pixels.length != expectedPixels) {
-      throw StateError(
-        'Calibration frame "$path" has ${pixels.length} pixels but the light '
-        'frame has $expectedPixels — they must share dimensions / binning.',
-      );
-    }
-    return pixels;
-  }
-
-  /// Guard a pre-loaded master against a per-light pixel-count mismatch.
-  /// Returns the master unchanged when it matches, throws when it does not, and
-  /// passes null through (the correction is simply skipped).
-  Uint16List? _validateDimensions(
-    Uint16List? master,
-    int expectedPixels,
-    String label,
-  ) {
-    if (master == null) return null;
-    if (master.length != expectedPixels) {
-      throw StateError(
-        'Master $label has ${master.length} pixels but the light frame has '
-        '$expectedPixels — they must share dimensions / binning.',
-      );
-    }
-    return master;
   }
 
   /// Read a frame's unstretched linear pixels and quantise to u16.

@@ -418,9 +418,8 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Push the selected map and correction strategy into the host's live
-  /// sequencer runtime. This is distinct from the persisted per-camera apply
-  /// flag and must run on the process that owns the executor.
+  /// Turn the host's correction of a camera's lights with the map stored for
+  /// this size and temperature on (with this strategy) or off.
   Future<void> applyDefectMapToSequencer({
     required String cameraId,
     required int width,
@@ -458,18 +457,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       lastRebuiltUnixSeconds: (status['lastRebuiltUnixSeconds'] as num).toInt(),
       applyDuringCapture: status['applyDuringCapture'] as bool,
       storedOnDisk: status['storedOnDisk'] as bool,
-    );
-  }
-
-  /// Toggle whether the host applies the stored defect map to lights at
-  /// capture time. Delegates to `POST /api/calibration/defect-maps/apply`.
-  Future<void> applyDefectMap({
-    required String cameraId,
-    required bool applyDuringCapture,
-  }) async {
-    await _post(
-      CalibrationApi.applyDefectMap,
-      body: {'cameraId': cameraId, 'applyDuringCapture': applyDuringCapture},
     );
   }
 

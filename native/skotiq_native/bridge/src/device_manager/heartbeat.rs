@@ -183,8 +183,9 @@ impl DeviceManager {
             return handle.heartbeat(device_id).await;
         }
         match driver_type {
-            // Every Alpaca and ASCOM device answers through its handle.
-            DriverType::Alpaca | DriverType::Ascom => Err(format!(
+            // Every Alpaca, ASCOM and simulated device answers through its
+            // handle.
+            DriverType::Alpaca | DriverType::Ascom | DriverType::Simulator => Err(format!(
                 "No {} heartbeat implementation for device {} ({:?})",
                 crate::device_manager::handle::protocol_label(*driver_type),
                 device_id,
@@ -195,51 +196,7 @@ impl DeviceManager {
                 self.perform_native_health_check(device_id, device_type)
                     .await
             }
-            DriverType::Simulator => {
-                Self::perform_simulator_health_check(device_id, device_type).await
-            }
         }
-    }
-
-    /// Health check for a simulator device.
-    ///
-    /// Reads the `connected` field from the matching `simulation.rs`
-    /// singleton instead of trivially returning `Ok(true)`. If
-    /// `connect_simulator` or `disconnect_simulator` has not been called for
-    /// the device (or the device is disconnected out-of-band by flipping the
-    /// singleton state), the heartbeat correctly reports `Ok(false)` and the
-    /// surrounding loop in `run_heartbeat_loop` escalates to a Disconnected
-    /// event after `failure_threshold` consecutive misses.
-    ///
-    /// `Err` is reserved for unrecognized device ids and unsupported device
-    /// types: those are a programming bug rather than a transient outage, so
-    /// they surface loudly instead of collapsing into `false`.
-    async fn perform_simulator_health_check(
-        device_id: &str,
-        device_type: &DeviceType,
-    ) -> Result<bool, String> {
-        if !device_id.starts_with("sim_") {
-            return Err(format!(
-                "simulator health check: device id '{}' is not a simulator id",
-                device_id
-            ));
-        }
-
-        use crate::simulator::camera::get_sim_camera_for;
-        use crate::simulator::mount::get_sim_mount;
-
-        let connected = match device_type {
-            DeviceType::Camera => get_sim_camera_for(device_id).read().await.status.connected,
-            DeviceType::Mount => get_sim_mount().read().await.status.connected,
-            other => {
-                return Err(format!(
-                    "simulator health check: no simulator implementation for device type {:?} (id '{}')",
-                    other, device_id
-                ));
-            }
-        };
-
-        Ok(connected)
     }
 
     /// Start heartbeat monitoring with custom configuration

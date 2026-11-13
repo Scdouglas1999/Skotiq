@@ -155,7 +155,7 @@ async fn observatory_accessory_simulators_support_status_and_safe_controls() {
 }
 
 #[tokio::test]
-async fn disconnect_simulator_marks_singleton_disconnected() {
+async fn disconnecting_a_simulator_marks_its_singleton_disconnected() {
     use crate::simulator::filter_wheel::get_sim_filterwheel;
 
     let _guard = simulator_singleton_test_lock().lock().await;
@@ -171,7 +171,7 @@ async fn disconnect_simulator_marks_singleton_disconnected() {
 
     release_simulator(&manager, &info)
         .await
-        .expect("disconnect_simulator should succeed for a valid sim fw id");
+        .expect("disconnecting the simulator should succeed for a valid sim fw id");
 
     let connected = get_sim_filterwheel().read().await.status.connected;
     assert!(
@@ -182,19 +182,8 @@ async fn disconnect_simulator_marks_singleton_disconnected() {
     // Idempotency: a second disconnect must succeed and leave it false.
     release_simulator(&manager, &info)
         .await
-        .expect("disconnect_simulator must be idempotent");
+        .expect("disconnecting the simulator must be idempotent");
     assert!(!get_sim_filterwheel().read().await.status.connected);
-
-    // Non-sim id surfaces an error.
-    let bogus = build_sim_info("ascom:foo", DeviceType::FilterWheel);
-    let err = release_simulator(&manager, &bogus)
-        .await
-        .expect_err("non-sim id must fail loudly");
-    assert!(
-        err.contains("not a simulator id"),
-        "error message must call out the prefix mismatch: {}",
-        err
-    );
 }
 
 #[tokio::test]
@@ -475,7 +464,7 @@ async fn camera_ops_simulator_gates_on_singleton_connected() {
     // Disconnect flips the singleton back; reads and writes both fail loud.
     release_simulator(&manager, &info)
         .await
-        .expect("disconnect_simulator should succeed");
+        .expect("disconnecting the simulator should succeed");
     let err = manager
         .camera_get_status(device_id)
         .await
@@ -534,7 +523,7 @@ async fn focuser_ops_simulator_gates_on_singleton_connected() {
     // Disconnect → write fails loud (no silent acceptance).
     release_simulator(&manager, &info)
         .await
-        .expect("disconnect_simulator should succeed");
+        .expect("disconnecting the simulator should succeed");
     let err = manager
         .focuser_move_abs(device_id, 12345)
         .await
@@ -570,7 +559,7 @@ async fn switch_and_cover_simulators_answer_only_while_connected() {
     for info in [&switch_info, &cover_info] {
         release_simulator(&manager, info)
             .await
-            .expect("disconnect_simulator should succeed for a supported sim type");
+            .expect("disconnecting the simulator should succeed for a supported sim type");
     }
 
     for err in [
@@ -617,6 +606,6 @@ async fn switch_and_cover_simulators_answer_only_while_connected() {
     for info in [&switch_info, &cover_info] {
         release_simulator(&manager, info)
             .await
-            .expect("disconnect_simulator should succeed");
+            .expect("disconnecting the simulator should succeed");
     }
 }

@@ -704,8 +704,17 @@ impl MountDriver for Lx200Mount {
         true
     }
 
-    async fn can_set_tracking_rate(&self) -> bool {
-        true
+    /// King rate only on OnStep; no custom rate is set.
+    async fn tracking_rates(&self) -> Vec<TrackingRate> {
+        let mut rates = vec![
+            TrackingRate::Sidereal,
+            TrackingRate::Lunar,
+            TrackingRate::Solar,
+        ];
+        if self.mount_type.is_onstep() {
+            rates.push(TrackingRate::King);
+        }
+        rates
     }
 
     async fn can_find_home(&self) -> Result<bool, DriverError> {

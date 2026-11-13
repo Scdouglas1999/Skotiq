@@ -1,38 +1,13 @@
 //! `ZwoCamera` state and inherent helpers.
 
 use super::*;
-use crate::camera_core::CoolerState;
+use crate::camera_core::{bayer_from_asi_index, raw16_container_max_adu, CameraCore};
 
 /// The cooler set-point a ZWO camera can hold for a requested `target_c`:
 /// `ASI_TARGET_TEMP` is whole degrees Celsius, so the request rounds to the
 /// nearest one.
 pub(crate) fn zwo_target_degrees(target_c: f64) -> f64 {
     target_c.round()
-}
-
-/// Full-scale ADU of the delivered pixel container for a ZWO sensor of
-/// `bit_depth` bits read out as [`ASIImgType::Raw16`].
-///
-/// The ASI SDK left-justifies sub-16-bit samples into the 16-bit buffer, so a
-/// 12-bit ADC produces values that are multiples of 16 spanning `0 ..= 4095 <<
-/// 4` (65520) — NOT `0 ..= 4095`. Verified on a live ASI1600MM-Cool: a
-/// nowhere-near-saturated 2 ms frame measured min 3856, max 5792, median 4464
-/// (every one an exact multiple of 16), and a saturated frame clipped at 65504
-/// (`4094 << 4`). Reporting `(1 << bit_depth) - 1` here made
-/// `/api/equipment/camera/status` claim `maxAdu: 4095` for the same camera whose
-/// frames reach 65504 — a 16x error that made every percent-of-full-scale
-/// consumer (flat-frame targets above all) unreachable.
-///
-/// `bit_depth >= 16` needs no shift. `bit_depth == 0` means the SDK never
-/// populated the property; fall back to the container's own ceiling rather than
-/// underflowing to 0, which would report "this camera cannot produce any signal".
-pub(crate) fn raw16_container_max_adu(bit_depth: u32) -> u32 {
-    const CONTAINER_BITS: u32 = 16;
-    const CONTAINER_MAX: u32 = u16::MAX as u32;
-    if bit_depth == 0 || bit_depth >= CONTAINER_BITS {
-        return CONTAINER_MAX;
-    }
-    (((1u32 << bit_depth) - 1) << (CONTAINER_BITS - bit_depth)) & CONTAINER_MAX
 }
 
 /// Single-pass summary of a downloaded raw frame, for diagnostics only.
@@ -71,8 +46,11 @@ impl FrameBufferStats {
 pub struct ZwoCamera {
     pub(crate) camera_id: i32,
     pub(crate) camera_info: Option<ASICameraInfo>,
-    pub(crate) connected: bool,
-    pub(crate) device_id: String,
+    /// The name is the model as the SDK states it (`ZWO ASI1600MM-Cool`) once
+    /// `load_camera_info` has run, and the device id before: the model only
+    /// exists in `ASICameraInfo`, and the device-identity check and the FITS
+    /// `INSTRUME` keyword read the name expecting the model.
+    pub(crate) core: CameraCore,
     /// Hardware serial read from the OPEN camera during `connect()`.
     ///
     /// `None` means "this unit has no readable serial" — see
@@ -81,32 +59,13 @@ pub struct ZwoCamera {
     /// open, and opening every camera during a discovery scan would fight with
     /// any other application holding one.
     pub(crate) serial_number: Option<String>,
-    /// Model as the SDK states it, e.g. `ZWO ASI1600MM-Cool`.
-    ///
-    /// Empty until `load_camera_info` has run, because the model only exists in
-    /// `ASICameraInfo` and that needs the SDK. [`DeviceDriver::name`] falls back
-    /// to the id string while it is empty; see the note there for why the id is
-    /// never an acceptable answer once the camera is open.
-    pub(crate) model_name: String,
-    pub(crate) current_bin: i32,
-    pub(crate) current_width: i32,
-    pub(crate) current_height: i32,
     pub(crate) image_type: ASIImgType,
-
-    pub(crate) current_gain: i32,
-    pub(crate) current_offset: i32,
-    pub(crate) exposure_time: f64,
     // The ASI SDK may leave ASI_EXP_SUCCESS latched after StopExposure. Track
     // whether Skotiq still owns an active acquisition so an aborted frame
     // cannot leave status permanently stuck at Downloading.
     pub(crate) exposure_active: AtomicBool,
-    pub(crate) current_subframe: Option<SubFrame>,
     /// `ASI_EXPOSURE`'s published `(min, max)` in microseconds, read at connect.
     pub(crate) exposure_range_us: Option<(i64, i64)>,
-    /// The last `set_cooler` command. `ASIGetControlValue(ASI_COOLER_ON)` is
-    /// read first in `get_status`; this answers when that read fails or the
-    /// camera has no cooler, so status never reports off after an on command.
-    pub(crate) cooler_state: Mutex<CoolerState>,
     pub(crate) temperature_skip_first_pending: Mutex<bool>,
 }
 
@@ -125,30 +84,15 @@ impl ZwoCamera {
     }
 
     pub fn new(camera_id: i32) -> Self {
+        let device_id = format!("native:zwo:{}", camera_id);
         Self {
             camera_id,
             camera_info: None,
-            connected: false,
-            device_id: format!("native:zwo:{}", camera_id),
+            core: CameraCore::new(device_id.clone(), device_id),
             serial_number: None,
-            model_name: String::new(),
-            current_bin: 1,
-            current_width: 0,
-            current_height: 0,
             image_type: ASIImgType::Raw16,
-            current_gain: 0,
-            current_offset: 0,
-            exposure_time: 0.0,
             exposure_active: AtomicBool::new(false),
-            current_subframe: None,
             exposure_range_us: None,
-            // Off at -10 C is the camera's power-on state. Reported only when
-            // both reads fail, which the rig has not shown; whether a failed
-            // read should say "unknown" instead is a rig-night question.
-            cooler_state: Mutex::new(CoolerState {
-                enabled: Some(false),
-                target_c: Some(-10.0),
-            }),
             temperature_skip_first_pending: Mutex::new(false),
         }
     }
@@ -181,18 +125,50 @@ impl ZwoCamera {
             ))
         })?;
 
-        // max_width/max_height are c_long in the SDK (i64 on Linux LP64, i32 on
-        // Windows LLP64). Our own fields are i32; sensor dimensions always fit.
-        self.current_width = info.max_width as i32;
-        self.current_height = info.max_height as i32;
         self.camera_info = Some(info);
-        // Cache the model now that the SDK has answered. `name()` has to hand
-        // back a `&str`, so the owned copy has to live in the struct — without
-        // it the only borrowable string was `device_id`, and every caller of
-        // `DeviceDriver::name()` was handed the enumeration index instead of
-        // the model.
-        self.model_name = self.camera_name();
+        self.core.name = self.camera_name();
+        self.describe_camera();
         Ok(())
+    }
+
+    /// Publish what the camera can do and how its frames come out, from
+    /// `ASICameraInfo` and the readout format; again whenever either changes.
+    pub(crate) fn describe_camera(&mut self) {
+        let Some(info) = &self.camera_info else {
+            return;
+        };
+        let max_bin = self.supported_bins().into_iter().max().unwrap_or(1);
+        let bit_depth = self.delivered_bit_depth();
+        self.core.capabilities = CameraCapabilities {
+            can_cool: info.is_cooler_cam != 0,
+            can_set_gain: true,
+            can_set_offset: true,
+            can_set_binning: true,
+            can_subframe: true,
+            has_shutter: info.mechanical_shutter != 0,
+            has_guider_port: info.st4_port != 0,
+            max_bin_x: max_bin,
+            max_bin_y: max_bin,
+            supports_readout_modes: false,
+        };
+        let color = info.is_color_cam != 0;
+        self.core.sensor_info = SensorInfo {
+            // max_width/max_height are c_long; a negative one is SDK
+            // corruption and reads as a 0 sensor, which nothing captures from.
+            width: u32::try_from(info.max_width).unwrap_or(0),
+            height: u32::try_from(info.max_height).unwrap_or(0),
+            pixel_size_x: info.pixel_size,
+            pixel_size_y: info.pixel_size,
+            // Container full scale, NOT the ADC range: RAW16 left-justifies
+            // sub-16-bit samples and RAW8 frames are scaled by 256 on
+            // download. See [`raw16_container_max_adu`] and the
+            // `SensorInfo::max_adu` contract.
+            max_adu: raw16_container_max_adu(bit_depth),
+            bit_depth,
+            color,
+            bayer_pattern: color.then(|| bayer_from_asi_index(info.bayer_pattern)),
+            saturation_adu: None,
+        };
     }
 
     /// Read this unit's hardware serial from the SDK.
@@ -339,9 +315,11 @@ impl ZwoCamera {
     /// when the SDK refuses to answer.
     ///
     /// Runs under the lock the caller already holds (same contract as
-    /// [`Self::get_control`]). See [`commit_zwo_cached_setting`] for why the
-    /// read-back matters: `ASISetControlValue` clamps out-of-range values
-    /// and still reports success.
+    /// [`Self::get_control`]). The value read back, not the one requested, is
+    /// what the frame's `GAIN`/`OFFSET` record: `ASISetControlValue` clamps an
+    /// out-of-range value and still reports success (an ASI1600MM-Cool with
+    /// gain 0-600 took 601, 1000 and 99999 all as 600), and a dark library
+    /// keyed on gain 99999 never matches a light taken at 600.
     pub(crate) fn read_back_control_sync(
         &self,
         sdk: &AsiSdk,
@@ -651,10 +629,9 @@ impl ZwoCamera {
         let result = unsafe { (sdk.set_start_pos)(self.camera_id, roi.x, roi.y) };
         check_open_camera_error(result)?;
 
-        self.current_bin = bin;
-        self.current_width = roi.width;
-        self.current_height = roi.height;
-        self.current_subframe = subframe_requested.then(|| roi.as_subframe());
+        self.core.bin_x = bin;
+        self.core.bin_y = bin;
+        self.core.subframe = subframe_requested.then(|| roi.as_subframe());
         Ok(())
     }
 
@@ -669,13 +646,8 @@ impl ZwoCamera {
     /// (`FrameRoi::within`), so the start never moves the pattern.
     pub(crate) fn delivered_bayer_pattern(&self, sdk: &AsiSdk) -> Option<BayerPattern> {
         let info = self.camera_info.as_ref().filter(|i| i.is_color_cam != 0)?;
-        let sensor = match info.bayer_pattern {
-            1 => BayerPattern::Bggr,
-            2 => BayerPattern::Grbg,
-            3 => BayerPattern::Gbrg,
-            _ => BayerPattern::Rggb,
-        };
-        let mono_binned = self.current_bin > 1
+        let sensor = bayer_from_asi_index(info.bayer_pattern);
+        let mono_binned = self.core.bin_x > 1
             && self
                 .get_control(sdk, ASIControlType::ASI_MONO_BIN)
                 .is_ok_and(|on| on != 0);
@@ -777,25 +749,4 @@ pub(crate) fn validate_zwo_eaf_target(
         )));
     }
     Ok(position)
-}
-
-/// Commit a control value to the driver's status cache after the SDK write
-/// succeeded.
-///
-/// `effective_value` MUST be a read-back of the control, not the value that
-/// was requested. `ASISetControlValue` returns `ASI_SUCCESS` for values
-/// outside a control's published range and silently clamps them — measured on
-/// an ASI1600MM-Cool (published gain 0-600, offset 0-100), gain 601/1000/99999
-/// all read out as gain 600 and offset 101/500/5000 all produced the gain-600
-/// pedestal. The cached number reaches `ImageMetadata.gain`/`.offset` and so
-/// the FITS `GAIN`/`OFFSET` keywords, and a dark library keyed on gain 99999
-/// can never match a light actually taken at gain 600.
-pub(crate) fn commit_zwo_cached_setting(
-    cache: &mut i32,
-    effective_value: i32,
-    sdk_result: Result<(), DriverError>,
-) -> Result<(), DriverError> {
-    sdk_result?;
-    *cache = effective_value;
-    Ok(())
 }

@@ -361,29 +361,27 @@ class CalibrationService {
     );
   }
 
-  /// Calibrate raw pixel data in memory.
-  ///
-  /// Takes u16 pixel data directly and returns calibrated u16 pixel data.
-  /// This is useful for live preview calibration without disk I/O.
-  Uint16List calibrateData({
+  /// Calibrate a single-plane u16 light in memory with the masters at these
+  /// paths, by the same rule as [calibrateFile]. A null path skips that
+  /// correction.
+  Future<Uint16List> calibrateData({
     required int width,
     required int height,
     required List<int> lightData,
-    Uint16List? darkData,
-    Uint16List? flatData,
-    Uint16List? biasData,
-  }) {
-    if (darkData == null && flatData == null && biasData == null) {
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
+  }) async {
+    if (darkPath == null && flatPath == null && biasPath == null) {
       return Uint16List.fromList(lightData);
     }
-
     return bridge.apiCalibrateImageData(
       width: width,
       height: height,
       lightData: lightData,
-      darkData: darkData,
-      flatData: flatData,
-      biasData: biasData,
+      darkPath: darkPath,
+      flatPath: flatPath,
+      biasPath: biasPath,
     );
   }
 

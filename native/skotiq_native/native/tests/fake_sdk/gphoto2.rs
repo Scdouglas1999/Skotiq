@@ -1,6 +1,5 @@
 // A software-only libgphoto2 for the gPhoto2 driver's tests, compiled with
-// `rustc --crate-type cdylib` into `libgphoto2.so` (tests/gphoto2_fake_sdk.rs,
-// tests/fake_sdk_linux/build_fakes.py).
+// `rustc --crate-type cdylib` into `libgphoto2.so` (tests/gphoto2_fake_sdk.rs).
 //
 // It answers the calls the driver makes the way libgphoto2 2.5 does
 // (gphoto2-camera.h, gphoto2-widget.h, gphoto2-abilities-list.h,

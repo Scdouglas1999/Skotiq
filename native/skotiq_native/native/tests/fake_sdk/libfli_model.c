@@ -18,8 +18,8 @@
  *                           FLIGetCoolerPower -EFAULT.
  *   camera  "/dev/fliusb0"  MaxCam knowndev CCD47-10: pixel 0.0 (table row 15),
  *                           visible (8,0)-(1064,1027), status UNKNOWN.
- *   focuser "FLI-0201"      extent 7000, position 3000, no external probe;
- *                           a 0-step move stops it at once.
+ *   focuser "FLI-0201"      extent 7000, position 3000, no external probe,
+ *                           1 step per ms; a 0-step move stops it at once.
  *   focuser "FLI-0202"      coasts 400 ms after a 0-step move.
  *   focuser "FLI-0203"      ignores a 0-step move, 1 step per ms.
  *   wheel   "FLI-0301"      CFW-1-7, 7 slots, position -1 until first move.
@@ -107,7 +107,7 @@ static struct device devices[] = {
   CAMERA("FLI-0101", "PL09000", "PL0123456", PROLINE, 20, 4, 3076, 3060, 12e-6),
   CAMERA("FLI-0102", "KAF-1300C0-2", "", MAXCAM, 4, 2, 1284, 1026, 20.0),
   CAMERA("/dev/fliusb0", "CCD47-10", "", MAXCAM, 8, 0, 1064, 1027, 0.0),
-  FOCUSER_("FLI-0201", "PDF0001", 3000, 7000, 10.0, 0),
+  FOCUSER_("FLI-0201", "PDF0001", 3000, 7000, 1.0, 0),
   FOCUSER_("FLI-0202", "PDF0002", 0, 7000, 2.0, 400),
   FOCUSER_("FLI-0203", "PDF0003", 0, 7000, 1.0, -1),
   WHEEL_("FLI-0301", "CFW-1-7", "CFW0001", -1, 7),

@@ -28,7 +28,7 @@ async fn full_session(fake: &FakeMount, knobs: &Knobs, mount: &mut dyn MountDriv
         mount.can_slew().await,
         mount.can_sync().await,
         mount.can_pulse_guide().await,
-        mount.can_set_tracking_rate().await,
+        !mount.tracking_rates().await.is_empty(),
         mount.can_find_home().await.unwrap_or(false),
         mount.can_set_park().await.unwrap_or(false)
     ));

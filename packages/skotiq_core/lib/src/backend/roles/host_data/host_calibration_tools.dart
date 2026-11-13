@@ -36,11 +36,6 @@ abstract interface class HostCalibrationTools {
     Map<String, dynamic> patch,
   );
 
-  Future<void> applyDefectMap({
-    required String cameraId,
-    required bool applyDuringCapture,
-  });
-
   Future<void> applyDefectMapToSequencer({
     required String cameraId,
     required int width,

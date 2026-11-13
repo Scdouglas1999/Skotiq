@@ -493,7 +493,7 @@ impl IndiMount {
     }
 
     /// Custom tracking rates in arcsec/s (`TELESCOPE_TRACK_RATE`).
-    pub async fn set_tracking_rate(&self, ra_rate: f64, dec_rate: f64) -> IndiResult<()> {
+    pub async fn set_custom_tracking_rate(&self, ra_rate: f64, dec_rate: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
             .set_numbers(

@@ -68,12 +68,6 @@ pub async fn api_camera_set_readout_mode(
 
 /// Capture a live-view / preview JPEG frame when the driver supports it.
 pub async fn api_camera_capture_preview(device_id: String) -> Result<Vec<u8>, SkotiqError> {
-    if device_id.starts_with("sim_") {
-        return Err(SkotiqError::OperationFailed(
-            "Simulator cameras do not support live view preview".to_string(),
-        ));
-    }
-
     let mgr = get_device_manager();
     mgr.camera_capture_preview(&device_id)
         .await
@@ -100,12 +94,6 @@ pub async fn api_camera_capture_preview(device_id: String) -> Result<Vec<u8>, Sk
 pub async fn api_camera_get_recommended_settings(
     device_id: String,
 ) -> Result<crate::device_capabilities::types::CameraRecommendedSettings, SkotiqError> {
-    if device_id.starts_with("sim_") {
-        // Simulator cameras have no manufacturer to recommend anything.
-        // Honest empty answer.
-        return Ok(crate::device_capabilities::types::CameraRecommendedSettings::default());
-    }
-
     let mgr = get_device_manager();
     let raw = mgr
         .camera_get_recommended_settings(&device_id)
