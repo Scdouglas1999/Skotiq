@@ -259,50 +259,6 @@ final runDashboardFilterTotalsProvider =
   );
 });
 
-/// Per-target integration budget progress for the
-/// active TargetHeader. `null` when the active target has no budget
-/// configured (so the dashboard hides the panel).
-class RunDashboardBudgetProgress {
-  final String targetId;
-
-  /// Resolved per-filter cap (seconds), keyed by filter name. Computed
-  /// from the budget config — same math as
-  /// `IntegrationBudget::resolved_filter_cap` on the Rust side.
-  final Map<String, double> resolvedCapSecs;
-
-  /// Total budget cap (seconds). `0.0` when no total cap is set.
-  final double totalSecs;
-
-  /// Completed per-filter integration (seconds), pulled from the
-  /// database's accepted-frame totals for the active session.
-  final Map<String, double> completedSecs;
-
-  /// True iff the budget is met (every per-filter cap reached OR
-  /// total reached). Computed locally for UI; the Rust runtime is the
-  /// authoritative source.
-  final bool budgetMet;
-
-  const RunDashboardBudgetProgress({
-    required this.targetId,
-    required this.resolvedCapSecs,
-    required this.totalSecs,
-    required this.completedSecs,
-    required this.budgetMet,
-  });
-
-  double get completedTotalSecs =>
-      completedSecs.values.fold(0.0, (a, b) => a + b);
-
-  double get fraction {
-    if (totalSecs > 0) {
-      return (completedTotalSecs / totalSecs).clamp(0.0, 1.0);
-    }
-    final capSum = resolvedCapSecs.values.fold<double>(0, (a, b) => a + b);
-    if (capSum <= 0) return 0;
-    return (completedTotalSecs / capSum).clamp(0.0, 1.0);
-  }
-}
-
 enum RunDashboardEventSeverity { info, warning, error, critical }
 
 /// A normalised event entry for the trigger feed.

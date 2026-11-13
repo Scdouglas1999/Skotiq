@@ -29,7 +29,6 @@ export 'screens/shell/shell_exit_recorder.dart';
 export 'screens/shell/widgets/window_chrome.dart'
     show WindowResizeEdges, WindowChromeState;
 
-export 'screens/sequencer/widgets/animated_tab_bar_view.dart';
 export 'screens/shell/widgets/startup_splash_gate.dart';
 export 'screens/shell/widgets/sequence_progress_card.dart';
 export 'screens/shell/widgets/mobile_sequence_overlay.dart';
