@@ -105,7 +105,7 @@ void main() {
       logger = _testLogger(tempDir);
       service = BackupService(
         database: db,
-        sequenceRepository: SequenceRepository(db.sequencesDao),
+        sequenceRepository: LocalSequenceRepository(db.sequencesDao),
         logger: logger,
         backupDirectoryProvider: () async => tempDir,
       );

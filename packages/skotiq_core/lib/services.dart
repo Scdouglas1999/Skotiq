@@ -41,6 +41,8 @@ export 'src/services/first_light/first_light_orchestrator.dart';
 export 'src/services/centering_service.dart';
 export 'src/services/profile_service.dart';
 export 'src/services/sequence_repository.dart';
+export 'src/services/local_sequence_repository.dart';
+export 'src/services/remote_sequence_repository.dart';
 export 'src/services/sequence_file_service.dart';
 export 'src/services/open_plan_service.dart';
 export 'src/services/snippet_file_service.dart';

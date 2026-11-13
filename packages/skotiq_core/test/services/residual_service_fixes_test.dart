@@ -38,6 +38,7 @@ import 'package:skotiq_core/src/services/sky_brightness_tracker.dart';
 
 import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/providers/plate_solve_service_provider.dart' as plate_solve;
+import 'package:skotiq_core/src/services/local_sequence_repository.dart';
 
 class _MockSessionsDao extends Mock implements SessionsDao {}
 
@@ -428,7 +429,7 @@ void main() {
           }),
         );
 
-        final repository = SequenceRepository(SequencesDao(database));
+        final repository = LocalSequenceRepository(SequencesDao(database));
         final service = BackupService(
           database: database,
           sequenceRepository: repository,
@@ -473,7 +474,7 @@ void main() {
 
         final service = BackupService(
           database: database,
-          sequenceRepository: SequenceRepository(SequencesDao(database)),
+          sequenceRepository: LocalSequenceRepository(SequencesDao(database)),
           logger: LoggingService(),
         );
 
@@ -648,7 +649,7 @@ void main() {
       addTearDown(database.close);
 
       final dao = SequencesDao(database);
-      final repository = SequenceRepository(dao);
+      final repository = LocalSequenceRepository(dao);
       final sequenceId = await dao.createSequence(
         SequencesCompanion.insert(name: 'Broken Sequence'),
       );
@@ -672,7 +673,7 @@ void main() {
         final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
         addTearDown(database.close);
 
-        final repository = SequenceRepository(SequencesDao(database));
+        final repository = LocalSequenceRepository(SequencesDao(database));
         final sequenceId = await repository.saveSequence(
           seq_models.Sequence.create(
             name: 'Smart Exposure Persistence',
@@ -713,7 +714,7 @@ void main() {
       addTearDown(database.close);
 
       final dao = SequencesDao(database);
-      final repository = SequenceRepository(dao);
+      final repository = LocalSequenceRepository(dao);
       final sequenceId = await dao.createSequence(
         SequencesCompanion.insert(
           name: 'Legacy Recovery Sequence',
