@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +17,7 @@ import '../providers/output_locations_provider.dart';
 import '../providers/darkroom_state_store_provider.dart';
 import '../providers/notification_service_provider.dart';
 import '../providers/post_session_seam_provider.dart';
+import 'logging_service.dart';
 
 /// Where a master build is.
 enum DarkroomJobStage {
@@ -314,9 +314,9 @@ Future<Map<String, List<DbCapturedImage>>> loadDarkroomTargets(
         name = FitsHeaderReader.stringValue(await read(f.filePath), 'OBJECT');
       } catch (e) {
         // Unreadable files stay listed under their session.
-        developer.log(
+        Log.debug(
           'Darkroom: no OBJECT for ${f.filePath}: $e',
-          name: 'darkroom',
+          source: 'darkroom',
         );
       }
     }
@@ -383,7 +383,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
           .read(darkroomStateStoreProvider)
           .read(darkroomBuildJobsStateKey);
     } catch (e) {
-      developer.log('Darkroom: saved builds not read: $e', name: 'darkroom');
+      Log.debug('Darkroom: saved builds not read: $e', source: 'darkroom');
     }
     if (saved == null) return;
     List<DarkroomBuildJob> jobs(String key) => [
@@ -423,9 +423,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     try {
       return DarkroomBuildJob.fromJson(Map<String, dynamic>.from(json));
     } catch (e) {
-      developer.log(
+      Log.debug(
         'Darkroom: a saved build was unreadable: $e',
-        name: 'darkroom',
+        source: 'darkroom',
       );
       return null;
     }
@@ -468,7 +468,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
       try {
         await store.write(darkroomBuildJobsStateKey, snapshot);
       } catch (e) {
-        developer.log('Darkroom: builds not saved: $e', name: 'darkroom');
+        Log.debug('Darkroom: builds not saved: $e', source: 'darkroom');
       }
     });
   }
@@ -891,7 +891,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     if (frames == null || frames.isEmpty) {
       throw StateError('No captured lights for $target.');
     }
-    final directory = await ref.read(targetMastersFolderProvider(target).future);
+    final directory = await ref.read(
+      targetMastersFolderProvider(target).future,
+    );
     _begin(
       DarkroomBuildJob(
         target: target,
@@ -1058,7 +1060,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
           );
     } catch (e) {
       // The job's own state still shows the outcome.
-      developer.log('Darkroom: notification not sent: $e', name: 'darkroom');
+      Log.debug('Darkroom: notification not sent: $e', source: 'darkroom');
     }
   }
 }

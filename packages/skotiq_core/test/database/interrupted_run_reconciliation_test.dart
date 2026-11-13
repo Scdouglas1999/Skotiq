@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'recovered_database.dart';
+import 'package:skotiq_core/src/models/sequence/sequence_run_status.dart';
 
 /// A `sequence_runs` row is only `running` while the owning process's executor
 /// is driving it, and that state lives in memory. So a row still marked
@@ -71,12 +72,20 @@ void main() {
         sequenceId: null,
         sequenceName: 'finished cleanly',
       );
-      await first.sequenceRunsDao.finishRun(completedId, 'completed', '{}');
+      await first.sequenceRunsDao.finishRun(
+        completedId,
+        SequenceRunStatus.completed,
+        '{}',
+      );
       final failedId = await first.sequenceRunsDao.startRun(
         sequenceId: null,
         sequenceName: 'failed cleanly',
       );
-      await first.sequenceRunsDao.finishRun(failedId, 'failed', '{}');
+      await first.sequenceRunsDao.finishRun(
+        failedId,
+        SequenceRunStatus.failed,
+        '{}',
+      );
       await first.close();
 
       final second = RecoveredDatabase(NativeDatabase(dbFile));

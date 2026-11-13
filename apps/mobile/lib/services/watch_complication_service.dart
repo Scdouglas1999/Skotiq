@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Thrown when the caller invokes the watch-complication service on a
 /// platform that does not (and cannot) support it.
@@ -154,10 +154,9 @@ class WatchComplicationService {
       final result = await _channel.invokeMethod<bool>('isSupported');
       return result ?? false;
     } on PlatformException catch (e, st) {
-      developer.log(
+      Log.error(
         '[WatchComplicationService] isSupported failed: ${e.message}',
-        name: 'WatchComplicationService',
-        level: 1000,
+        source: 'WatchComplicationService',
         error: e,
         stackTrace: st,
       );

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../models/darkroom/darkroom_job.dart' show kDarkroomJobMaxAttempts;
+import '../../models/sequence/sequence_run_status.dart';
 import '../database.dart';
 import '../integration_stage_marker.dart';
 import '../session_orphan_sweep.dart';
@@ -41,9 +42,13 @@ extension _CrashRecovery on SkotiqDatabase {
     // downtime. 'paused' is a LIVE status too — written while an executor
     // holds the run — so a process that died mid-pause leaves the same
     // stale row as one that died mid-exposure.
+    final liveTokens = [
+      for (final status in SequenceRunStatus.values)
+        if (status.isLive) "'${status.token}'",
+    ].join(', ');
     final interrupted = await customUpdate(
-      "UPDATE sequence_runs SET status = 'interrupted' "
-      "WHERE status IN ('running', 'paused')",
+      'UPDATE sequence_runs SET status = ? WHERE status IN ($liveTokens)',
+      variables: [Variable<String>(SequenceRunStatus.interrupted.token)],
       updates: {sequenceRuns},
       updateKind: UpdateKind.update,
     );

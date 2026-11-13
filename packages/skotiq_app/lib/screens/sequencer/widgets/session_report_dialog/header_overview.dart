@@ -23,7 +23,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${report.sessionName} - ${runStatusLabel(report.status)}',
+                '${report.sessionName} - ${runStatusTokenLabel(report.status)}',
                 style: SkotiqTypography.labelStrong
                     .copyWith(color: colors.textPrimary),
               ),
@@ -98,8 +98,7 @@ class _OverviewGrid extends StatelessWidget {
         ),
         _OverviewTile(
           label: 'Downtime',
-          value: DurationFormat.of(report.downtime,
-              style: DurationStyle.short),
+          value: DurationFormat.of(report.downtime, style: DurationStyle.short),
           colors: colors,
         ),
         _OverviewTile(

@@ -32,10 +32,9 @@ extension FlatWizardRun on FlatWizardNotifier {
     // Busy latch FIRST (synchronous, before any await) so a second start is
     // rejected even while the async validation below is in flight.
     if (_running) {
-      developer.log(
+      Log.warning(
         'FlatWizard: runCapture ignored — a run is already active',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
       );
       return;
     }
@@ -637,10 +636,9 @@ extension FlatWizardRun on FlatWizardNotifier {
         _setFinalStatus(queue: queue, cancelled: cancelled);
       }
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'FlatWizard: capture run failed: $e',
-        name: 'FlatWizardNotifier',
-        level: 1000,
+        source: 'FlatWizardNotifier',
         error: e,
         stackTrace: st,
       );
@@ -656,10 +654,9 @@ extension FlatWizardRun on FlatWizardNotifier {
         try {
           unawaited(ref.read(calibrationBacklogProvider.notifier).refresh());
         } on Object catch (e) {
-          developer.log(
+          Log.warning(
             'FlatWizard: calibration backlog refresh skipped: $e',
-            name: 'FlatWizardNotifier',
-            level: 900,
+            source: 'FlatWizardNotifier',
           );
         }
       }
@@ -712,10 +709,9 @@ extension FlatWizardRun on FlatWizardNotifier {
             sensorTemp: ref.read(cameraStateProvider).temperature,
           );
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         'FlatWizard: could not record $filePath: $e',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
         error: e,
         stackTrace: st,
       );
@@ -871,11 +867,10 @@ extension FlatWizardRun on FlatWizardNotifier {
       fwNotifier.setMoving(isMoving);
       settledHere = !isMoving && status.position == position;
     } catch (e) {
-      developer.log(
+      Log.warning(
         'FlatWizard: could not confirm the wheel position before moving to '
         '$position ($e) — commanding the move rather than assuming',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
       );
     }
     if (settledHere) {
@@ -885,10 +880,9 @@ extension FlatWizardRun on FlatWizardNotifier {
     try {
       await deviceBackend.filterWheelSetPosition(fwState.deviceId!, position);
     } catch (e) {
-      developer.log(
+      Log.error(
         'FlatWizard: filter wheel move to $position failed: $e',
-        name: 'FlatWizardNotifier',
-        level: 1000,
+        source: 'FlatWizardNotifier',
         error: e,
       );
       return 'filter wheel failed to move ($e)';
@@ -939,11 +933,10 @@ extension FlatWizardRun on FlatWizardNotifier {
     // A named-filter exposure is unsafe while position is unverified. Stop
     // rather than silently photographing through whichever filter happens to
     // be in the optical path.
-    developer.log(
+    Log.warning(
       'FlatWizard: filter wheel settle not confirmed within '
       '${maxWait.inSeconds}s (stopping fail-safe)',
-      name: 'FlatWizardNotifier',
-      level: 900,
+      source: 'FlatWizardNotifier',
     );
     return 'filter wheel did not confirm position $position within '
         '${maxWait.inSeconds}s';
@@ -1009,11 +1002,10 @@ extension FlatWizardRun on FlatWizardNotifier {
       // invisible on the appliance. Log at warning level AND surface a
       // non-fatal warning so the operator knows the flat LIBRARY did not learn
       // this exposure (their frames are still saved).
-      developer.log(
+      Log.warning(
         'FlatWizard: failed to record calibration to flat history for '
         '$filterName: $e',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
         error: e,
         stackTrace: st,
       );

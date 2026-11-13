@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../../database/database.dart' show DbCapturedImage;
 import '../../models/sequence/sequence_models.dart';
+import '../../models/sequence/sequence_run_status.dart';
 import '../calibration_master_builder.dart';
 import 'eon_plan.dart';
 import 'eon_settings.dart';
@@ -36,7 +37,7 @@ class EonRunResult {
   final int? runId;
 
   /// `completed`, `stopped`, `paused-stopped` or `failed`.
-  final String runStatus;
+  final SequenceRunStatus runStatus;
 }
 
 /// Everything the step does to the rig and the app, so the step itself can be
@@ -438,8 +439,8 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     final stopped = _cancelRequested;
     _cancelRequested = false;
     report.runId = result.runId;
-    report.runStatus = result.runStatus;
-    if (result.runStatus != 'completed' && !stopped) {
+    report.runStatus = result.runStatus.token;
+    if (result.runStatus != SequenceRunStatus.completed && !stopped) {
       report.problems.add(
         'The calibration run ${eonRunEndWords(result.runStatus)} before '
         'taking every frame',
@@ -615,7 +616,8 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     EonSettings config,
     EonReport report,
   ) async {
-    final groups = <(String, int, int?, int?, int, int), List<DbCapturedImage>>{};
+    final groups =
+        <(String, int, int?, int?, int, int), List<DbCapturedImage>>{};
     for (final frame in frames) {
       final type = frame.frameType.toLowerCase();
       if (type != 'dark' && type != 'bias') continue;
@@ -750,10 +752,13 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
 /// How a calibration run's recorded status reads in a sentence ("The
 /// calibration run was stopped before taking every frame"); the status
 /// itself (`paused-stopped`) is a record value, not words.
-String eonRunEndWords(String runStatus) => switch (runStatus) {
-  'stopped' || 'paused-stopped' => 'was stopped',
-  'failed' => 'failed',
-  'aborted' || 'cancelled' => 'was ended',
-  'interrupted' => 'was interrupted',
-  _ => 'ended',
+String eonRunEndWords(SequenceRunStatus runStatus) => switch (runStatus) {
+  SequenceRunStatus.stopped ||
+  SequenceRunStatus.stoppedResumable => 'was stopped',
+  SequenceRunStatus.failed => 'failed',
+  SequenceRunStatus.aborted => 'was ended',
+  SequenceRunStatus.interrupted => 'was interrupted',
+  SequenceRunStatus.completed ||
+  SequenceRunStatus.running ||
+  SequenceRunStatus.paused => 'ended',
 };

@@ -13,7 +13,6 @@
 library;
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io' show Directory;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -611,11 +610,10 @@ class _DarkroomFailureExitState extends ConsumerState<_DarkroomFailureExit> {
       // The image list is the honest fallback: a database that cannot answer
       // which night this master came from has not proved there is no night, so
       // the button stops claiming to know which one and says what it will open.
-      developer.log(
+      Log.warning(
         'The Darkroom could not resolve the session behind master $masterId, '
         'so its way out offers the image list instead',
-        name: 'DarkroomScreen',
-        level: 900,
+        source: 'DarkroomScreen',
         error: error,
       );
       sessionId = null;

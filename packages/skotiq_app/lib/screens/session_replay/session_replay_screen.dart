@@ -234,7 +234,7 @@ class _RunHeader extends StatelessWidget {
               ),
               _HeaderFact(
                 icon: SkotiqIcons.circle,
-                label: runStatusLabel(run.status),
+                label: runStatusTokenLabel(run.status),
               ),
             ],
           ),

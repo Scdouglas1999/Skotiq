@@ -23,11 +23,11 @@
 // snapshot the assistant will never see.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Channel name shared with the iOS AppDelegate and Android MainActivity.
 /// Kept here as the single source of truth.
@@ -280,10 +280,9 @@ class VoiceControlService {
     try {
       await _channel.invokeMethod<void>('publishStatus', snapshot.toJson());
     } on PlatformException catch (e, st) {
-      developer.log(
+      Log.error(
         '[VoiceControlService] publishStatus failed: ${e.message}',
-        name: 'VoiceControlService',
-        level: 1000,
+        source: 'VoiceControlService',
         error: e,
         stackTrace: st,
       );
@@ -302,10 +301,9 @@ class VoiceControlService {
     try {
       await _channel.invokeMethod<void>('clearStatus');
     } on PlatformException catch (e, st) {
-      developer.log(
+      Log.error(
         '[VoiceControlService] clearStatus failed: ${e.message}',
-        name: 'VoiceControlService',
-        level: 1000,
+        source: 'VoiceControlService',
         error: e,
         stackTrace: st,
       );
@@ -325,10 +323,9 @@ class VoiceControlService {
       final result = await _channel.invokeMethod<bool>('isSupported');
       return result ?? false;
     } on PlatformException catch (e, st) {
-      developer.log(
+      Log.error(
         '[VoiceControlService] isSupported failed: ${e.message}',
-        name: 'VoiceControlService',
-        level: 1000,
+        source: 'VoiceControlService',
         error: e,
         stackTrace: st,
       );

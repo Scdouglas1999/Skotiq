@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../../models/sequence/sequence_models.dart';
+import '../../../models/sequence/sequence_run_status.dart';
 import 'stop_confirmation.dart';
 
 /// The immutable intent + mutable progress of the ONE per-run finalization
@@ -36,7 +37,7 @@ class RunFinalization implements NativeStopConfirmationTarget {
 
   /// Durable `sequence_runs.status` to persist (`completed` / `failed` /
   /// `stopped` / `paused-stopped`).
-  final String runStatus;
+  final SequenceRunStatus runStatus;
 
   /// The settled UI state to publish on full success (`completed` / `failed` /
   /// `idle`).

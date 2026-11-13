@@ -282,13 +282,13 @@ extension _DeviceServiceMountControls on DeviceService {
           try {
             await _backend.mountAbort(deviceId);
           } catch (abortError) {
-            _safeLog(
+            logSafely(
+              _ref,
               (l) => l.warning(
                 'Mount $deviceId ignored Home; the follow-up abort also '
                 'failed: $abortError',
                 source: 'DeviceService',
               ),
-              'mount-home-abort',
             );
           }
         }

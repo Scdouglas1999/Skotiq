@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -13,7 +12,6 @@ import '../providers/database_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
-import '../providers/profile_activation_writethrough.dart';
 import '../providers/settings_provider.dart';
 import '../utils/json_validation.dart';
 import 'device_service.dart';
@@ -21,8 +19,8 @@ import 'optical_train_limits.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/device_service_providers.dart';
-import '../providers/logging_service_provider.dart';
 import '../providers/async_scope.dart';
+import 'logging_service.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';
@@ -35,12 +33,10 @@ class ProfileService {
 
   /// Read through the container: a continuation that outlives a backend swap
   /// must not touch this service's own `Ref`.
-  _BackendAuthority get _authority =>
-      _ref.container.backendScopes().begin();
+  _BackendAuthority get _authority => _ref.container.backendScopes().begin();
 
   EquipmentProfilesNotifier get _profilesNotifier =>
       _ref.read(equipmentProfilesProvider.notifier);
-
 
   /// Load and activate a profile, optionally connecting devices
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {
@@ -383,10 +379,9 @@ class ProfileService {
     final activeProfile = await _getActiveProfileModel(authority: authority);
 
     if (activeProfile == null) {
-      developer.log(
+      Log.warning(
         'ProfileService: No active profile to sync filters to',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
@@ -394,20 +389,18 @@ class ProfileService {
     final filterWheelState = _ref.read(filterWheelStateProvider);
 
     if (filterWheelState.connectionState != DeviceConnectionState.connected) {
-      developer.log(
+      Log.warning(
         'ProfileService: Filter wheel not connected',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
 
     final hwFilterNames = filterWheelState.filterNames;
     if (hwFilterNames.isEmpty) {
-      developer.log(
+      Log.warning(
         'ProfileService: No filter names from hardware',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
@@ -430,10 +423,9 @@ class ProfileService {
       authority: authority,
     );
 
-    developer.log(
+    Log.info(
       'ProfileService: Synced ${hwFilterNames.length} filters to profile "${activeProfile.name}"',
-      name: 'ProfileService',
-      level: 800,
+      source: 'ProfileService',
     );
     return true;
   }

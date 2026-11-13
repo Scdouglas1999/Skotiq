@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +8,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../utils/startup_surface_queue.dart';
 import 'startup_ui_context.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The background full check's request for a repair at the next start, set by
 /// the host once; [DatabaseRecoveryLauncher] shows it as a dialog and clears
@@ -146,11 +146,10 @@ class _DatabaseRecoveryLauncherState
         // and data may be missing. A read that keeps failing retries forever
         // and the notice never appears, so the failure must be recorded —
         // otherwise a recovered database looks exactly like a healthy one.
-        developer.log(
+        Log.error(
           'Could not read the database recovery marker; the recovery notice '
           'will not be shown until a retry succeeds: $e',
-          name: 'DatabaseRecovery',
-          level: 1000,
+          source: 'DatabaseRecovery',
         );
         if (!mounted) return;
         _hasReadMarker = false;
@@ -187,10 +186,9 @@ class _DatabaseRecoveryLauncherState
       } catch (e) {
         // Unverifiable is its own honest answer; the dialog says so rather
         // than guessing in either direction.
-        developer.log(
+        Log.warning(
           'Could not re-check the quarantined database at $backupPath: $e',
-          name: 'DatabaseRecovery',
-          level: 900,
+          source: 'DatabaseRecovery',
         );
       }
       if (!mounted) return;
@@ -387,10 +385,9 @@ class _DatabaseRecoveryLauncherState
       // The user asked for their data back and did not get it. Saying so in
       // the dialog matters more than the log line: a silently ignored
       // Restore looks identical to one that worked until the next launch.
-      developer.log(
+      Log.error(
         'Could not stage a restore of $backupPath: $e',
-        name: 'DatabaseRecovery',
-        level: 1000,
+        source: 'DatabaseRecovery',
       );
       _restoreError = userFacingError(e);
     }
@@ -415,11 +412,10 @@ class _DatabaseRecoveryLauncherState
       // launch. Harmless on its own, but a permanently failing acknowledge
       // means the marker store is unwritable, which is worth knowing before
       // the next recovery needs to record one.
-      developer.log(
+      Log.warning(
         'Could not acknowledge the database recovery marker; the notice will '
         'be shown again: $e',
-        name: 'DatabaseRecovery',
-        level: 900,
+        source: 'DatabaseRecovery',
       );
       if (mounted) _scheduleRetry();
     }
@@ -444,12 +440,11 @@ class _DatabaseRecoveryLauncherState
     final backoff = _retryFloor * (1 << _retryAttempt.clamp(0, 6));
     final delay = backoff > _retryCeiling ? _retryCeiling : backoff;
     if (delay == _retryCeiling && _retryAttempt == 6) {
-      developer.log(
+      Log.warning(
         'Database recovery notice still cannot be surfaced after '
         '$_retryAttempt attempts; continuing to poll every '
         '${_retryCeiling.inSeconds}s.',
-        name: 'DatabaseRecovery',
-        level: 900,
+        source: 'DatabaseRecovery',
       );
     }
     _retryAttempt++;

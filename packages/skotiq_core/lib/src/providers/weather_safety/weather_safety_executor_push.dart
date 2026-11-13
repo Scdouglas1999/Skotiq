@@ -188,10 +188,9 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
             .read(evaluateWeatherConditionsProvider.future)
             .timeout(const Duration(seconds: 60));
       } catch (error) {
-        developer.log(
+        Log.info(
           'weather: forecast refresh failed: $error',
-          name: 'WeatherSafety',
-          level: 800,
+          source: 'WeatherSafety',
         );
       } finally {
         subscription?.close();
@@ -269,10 +268,9 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
       // still a diagnosable condition (analyzer not ready yet, radar fetch
       // in-flight, or backend disconnected), so record it at a low severity
       // instead of silently dropping it.
-      developer.log(
+      Log.debug(
         'weather: cloud-motion push failed: $e',
-        name: 'WeatherSafety',
-        level: 700,
+        source: 'WeatherSafety',
         error: e,
         stackTrace: stack,
       );

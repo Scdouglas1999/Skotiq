@@ -9,7 +9,6 @@ import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/sequence_provider.dart';
 import '../providers/ui_notification_provider.dart';
-import 'logging_service.dart';
 import 'notification_service.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
@@ -228,7 +227,8 @@ class DeviceReconnectCoordinator {
     }
 
     if (isUserInitiatedDisconnect(deviceId)) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'Skipping auto-reconnect for user-initiated disconnect of '
           '${type.displayName} ($deviceId)',
@@ -251,7 +251,8 @@ class DeviceReconnectCoordinator {
     // "reconnecting" indicator the native side never emits an event for.
     if (nativeOwnsReconnect(type)) {
       _surfaceReconnecting(deviceId);
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'Deferring reconnect of ${type.displayName} ($deviceId) to the '
           'native auto-reconnect engine (single-owner policy); Dart '
@@ -265,7 +266,8 @@ class DeviceReconnectCoordinator {
     final autoReconnectEnabled = _getAutoReconnectFor(type);
 
     if (!autoReconnectEnabled) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'Auto-reconnect disabled for ${type.displayName} ($deviceId)',
           source: 'DeviceReconnectCoordinator',
@@ -312,7 +314,8 @@ class DeviceReconnectCoordinator {
         : _retryDelays.last;
     final generation = _reconnectGeneration;
 
-    _safeLog(
+    logSafely(
+      _ref,
       (logger) => logger.info(
         'Scheduling reconnection attempt ${attemptCount + 1}/'
         '$maxReconnectAttempts for ${type.displayName} ($deviceId) '
@@ -333,7 +336,8 @@ class DeviceReconnectCoordinator {
       _reconnectionsInFlight.add(reconnectKey);
       Object? reconnectFailure;
       try {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.info(
             'Attempting reconnection ${attemptCount + 1}/'
             '$maxReconnectAttempts for ${type.displayName} ($deviceId) at '
@@ -347,7 +351,8 @@ class DeviceReconnectCoordinator {
             ? deviceId
             : await resolveTarget(type, deviceId);
         if (target != deviceId) {
-          _safeLog(
+          logSafely(
+            _ref,
             (logger) => logger.warning(
               '${type.displayName} last at $deviceId is now at $target; '
               'reconnecting it there',
@@ -366,7 +371,8 @@ class DeviceReconnectCoordinator {
         _reconnectionAttempts.remove(reconnectKey);
         _reconnectExhausted.remove(reconnectKey);
 
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.info(
             'Successfully reconnected ${type.displayName} ($deviceId) at '
             '${DateTime.now().toIso8601String()}',
@@ -379,7 +385,8 @@ class DeviceReconnectCoordinator {
         await _considerSequenceResume(type);
       } catch (e) {
         reconnectFailure = e;
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'Reconnection attempt ${attemptCount + 1}/'
             '$maxReconnectAttempts failed for ${type.displayName} '
@@ -416,7 +423,8 @@ class DeviceReconnectCoordinator {
       _reconnectExhausted.remove(key);
       _reconnectionAttempts.remove(key);
       final deviceId = key.substring(prefix.length);
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'A ${type.displayName} came onto the bus; trying $deviceId again',
           source: 'DeviceReconnectCoordinator',
@@ -437,7 +445,8 @@ class DeviceReconnectCoordinator {
     if (!_reconnectExhausted.add(reconnectKey)) {
       return;
     }
-    _safeLog(
+    logSafely(
+      _ref,
       (logger) => logger.error(
         'Failed to reconnect ${type.displayName} ($deviceId) after '
         '$maxReconnectAttempts attempts; automatic retries are exhausted',
@@ -463,7 +472,8 @@ class DeviceReconnectCoordinator {
     try {
       await _backend.saveCheckpoint();
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.error(
           'Failed to save checkpoint after critical $deviceType disconnect '
           '($deviceId): $e',
@@ -492,7 +502,8 @@ class DeviceReconnectCoordinator {
       await _pauseSequence();
       _pausedForDeviceLoss = true;
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'Failed to pause sequence after critical $deviceType disconnect '
           '($deviceId): $e',
@@ -572,7 +583,8 @@ class DeviceReconnectCoordinator {
         await _resumeSequence();
         _pausedForDeviceLoss = false;
       } catch (e) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'Failed to resume sequence after reconnecting ${type.displayName}: '
             '$e',
@@ -645,7 +657,8 @@ class DeviceReconnectCoordinator {
             duration: const Duration(seconds: 15),
           );
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'UI notification for reconnect-failed dropped: $e',
           source: 'DeviceReconnectCoordinator',
@@ -666,7 +679,8 @@ class DeviceReconnectCoordinator {
             source: 'Device Monitor',
           );
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'External notification for reconnect-failed dropped: $e',
           source: 'DeviceReconnectCoordinator',
@@ -685,7 +699,8 @@ class DeviceReconnectCoordinator {
             duration: const Duration(seconds: 5),
           );
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'UI notification for reconnect-success dropped: $e',
           source: 'DeviceReconnectCoordinator',
@@ -705,23 +720,14 @@ class DeviceReconnectCoordinator {
                   'successfully and is back online.',
             );
       } on Object catch (e) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'External notification for reconnect-success dropped: $e',
             source: 'DeviceReconnectCoordinator',
           ),
         );
       }
-    }
-  }
-
-  void _safeLog(void Function(LoggingService logger) emit) {
-    try {
-      final logger = _ref.read(loggingServiceProvider);
-      emit(logger);
-    } on Object {
-      // Logger may be unavailable mid-disposal. Diagnostic-only failure;
-      // do not propagate up the reconnect path.
     }
   }
 }

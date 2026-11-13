@@ -33,11 +33,11 @@
 
 import 'dart:async';
 import 'dart:collection';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_core/services.dart';
 
 /// UDP push notification receiver. Verifies HMAC + fingerprint match,
 /// surfaces decoded frames on [incoming], and deduplicates against any
@@ -330,10 +330,10 @@ class LanPushNotificationReceiver {
       LanPushLogLevel.warning => 900,
       LanPushLogLevel.error => 1000,
     };
-    developer.log(
+    Log.write(
+      LogLevel.fromDeveloperLevel(lvl),
       message + (fields == null ? '' : ' fields=$fields'),
-      name: 'LanPushNotificationReceiver',
-      level: lvl,
+      source: 'LanPushNotificationReceiver',
     );
   }
 }

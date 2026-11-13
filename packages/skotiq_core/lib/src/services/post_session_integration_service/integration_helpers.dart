@@ -124,7 +124,9 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
     );
   }
 
-  Map<String, List<DbCapturedImage>> _groupByFilter(List<DbCapturedImage> subs) {
+  Map<String, List<DbCapturedImage>> _groupByFilter(
+    List<DbCapturedImage> subs,
+  ) {
     final out = <String, List<DbCapturedImage>>{};
     for (final sub in subs) {
       final bucket = _filterBucket(sub.filter);

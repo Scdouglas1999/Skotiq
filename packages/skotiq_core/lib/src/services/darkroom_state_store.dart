@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-
 import '../database/database.dart';
 
 /// Durable Darkroom state that must outlive the process: the master builds

@@ -163,22 +163,15 @@ class CameraTemperaturePoller {
       final power = status.coolerPower;
       final targetTemp = status.targetTemp;
 
-      try {
-        final logger = _ref.read(loggingServiceProvider);
-        logger.debug(
+      logSafely(
+        _ref,
+        (logger) => logger.debug(
           'Camera temp: ${temp?.toStringAsFixed(1) ?? "null"}°C, '
           'power: ${power?.toStringAsFixed(0) ?? "null"}%, '
           'target: ${targetTemp?.toStringAsFixed(1) ?? "null"}°C',
           source: 'CameraTemperaturePoller',
-        );
-      } on Object catch (e) {
-        // Why: logger lookup happens inside a temperature poll tick; if the
-        // logging service itself is mid-disposal we must not propagate up the
-        // poll loop. Diagnostic-only failure — emit to stderr so it isn't
-        // fully silent.
-        // ignore: avoid_print
-        print('CameraTemperaturePoller: temp-log emission failed: $e');
-      }
+        ),
+      );
 
       if (temp != null) {
         _ref.read(cameraStateProvider.notifier).updateTemperature(temp, power);
@@ -229,23 +222,13 @@ class CameraTemperaturePoller {
       _ref
           .read(deviceReadHealthProvider.notifier)
           .recordFailure(DeviceType.camera, deviceId, e);
-      try {
-        final logger = _ref.read(loggingServiceProvider);
-        logger.warning(
+      logSafely(
+        _ref,
+        (logger) => logger.warning(
           'Temperature polling error: $e',
           source: 'CameraTemperaturePoller',
-        );
-      } on Object catch (loggerErr) {
-        // Why: nested catch around logger emission during the poll-loop's
-        // error path. If the logging provider is itself disposing we must
-        // not re-throw — that would mask the original temperature-polling
-        // failure. Surface to stderr so it isn't fully silent.
-        // ignore: avoid_print
-        print(
-          'CameraTemperaturePoller: warn-log emission failed: '
-          '$loggerErr (original temp-poll error: $e)',
-        );
-      }
+        ),
+      );
     }
   }
 }

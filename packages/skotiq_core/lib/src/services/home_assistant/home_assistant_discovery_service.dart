@@ -15,7 +15,6 @@
 // whole device instead of showing stale state.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -36,6 +35,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'ha_discovery_payloads.dart';
 import 'ha_mqtt_session_client.dart';
 import 'home_assistant_discovery_config.dart';
+import '../logging_service.dart';
 
 const _logName = 'HomeAssistantDiscovery';
 
@@ -146,16 +146,15 @@ class HomeAssistantDiscoveryService {
       }
       _publishStates();
       _stateTimer = Timer.periodic(haStatePublishInterval, (_) => _tick());
-      developer.log(
+      Log.debug(
         '[HomeAssistant] Discovery active on ${_broker.host}:${_broker.port} '
         'as device "${payloads.deviceName}"',
-        name: _logName,
+        source: _logName,
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[HomeAssistant] Failed to start discovery session: $e',
-        name: _logName,
-        level: 900,
+        source: _logName,
         error: e,
       );
       _client = null;
@@ -267,10 +266,9 @@ class HomeAssistantDiscoveryService {
         client.publish(topic, entry.value, retain: true);
         _published[topic] = entry.value;
       } catch (e) {
-        developer.log(
+        Log.warning(
           '[HomeAssistant] State publish failed: $e',
-          name: _logName,
-          level: 900,
+          source: _logName,
         );
         return;
       }
@@ -403,17 +401,16 @@ class HomeAssistantDiscoveryService {
     String label,
     Future<void> Function() action,
   ) async {
-    developer.log('[HomeAssistant] Command from HA: $label', name: _logName);
+    Log.debug('[HomeAssistant] Command from HA: $label', source: _logName);
     try {
       await action();
     } catch (e) {
       // Executor throws on invalid transitions (e.g. pause while idle);
       // log it and let the next state tick republish the truth so the
       // HA switch snaps back.
-      developer.log(
+      Log.warning(
         '[HomeAssistant] Command "$label" rejected: $e',
-        name: _logName,
-        level: 900,
+        source: _logName,
       );
     } finally {
       _publishStates();

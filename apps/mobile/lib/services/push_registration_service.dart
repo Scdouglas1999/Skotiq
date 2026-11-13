@@ -46,7 +46,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -54,6 +53,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show PushApi;
+import 'package:skotiq_core/services.dart';
 
 /// Registers this device's push token (APNs on iOS, FCM on Android) with a
 /// paired desktop server so the server can deliver off-LAN critical alerts.
@@ -126,9 +126,9 @@ class PushRegistrationService {
       return;
     }
     if (deviceId.isEmpty) {
-      developer.log(
+      Log.debug(
         'Skipping $_platform registration: empty deviceId (not paired yet)',
-        name: 'PushRegistration',
+        source: 'PushRegistration',
       );
       return;
     }
@@ -150,9 +150,9 @@ class PushRegistrationService {
       // Defensive: should be unreachable on iOS/Android (the host always
       // registers the channel). Treat as "host has no push support" rather
       // than crashing.
-      developer.log(
+      Log.debug(
         'skotiq/push channel unavailable; $_platform registration skipped',
-        name: 'PushRegistration',
+        source: 'PushRegistration',
       );
       return;
     } on PlatformException catch (e) {
@@ -160,16 +160,15 @@ class PushRegistrationService {
         // Expected on Android builds without google-services.json: the owner
         // has not provisioned a Firebase project, so background push is
         // dormant by design. Info-level, not an error.
-        developer.log(
+        Log.debug(
           'FCM not provisioned in this build; background push dormant',
-          name: 'PushRegistration',
+          source: 'PushRegistration',
         );
         return;
       }
-      developer.log(
+      Log.warning(
         'registerForRemoteNotifications failed: ${e.message}',
-        name: 'PushRegistration',
-        level: 900,
+        source: 'PushRegistration',
       );
       // Fall through — a token may still be cached from a prior launch.
     }
@@ -207,11 +206,7 @@ class PushRegistrationService {
     } on MissingPluginException {
       return null;
     } on PlatformException catch (e) {
-      developer.log(
-        '$method failed: ${e.message}',
-        name: 'PushRegistration',
-        level: 900,
-      );
+      Log.warning('$method failed: ${e.message}', source: 'PushRegistration');
       return null;
     }
   }
@@ -227,19 +222,17 @@ class PushRegistrationService {
         return null;
       case 'onApnsRegistrationError':
       case 'onFcmRegistrationError':
-        developer.log(
+        Log.warning(
           '$_platform registration error from host: ${call.arguments}',
-          name: 'PushRegistration',
-          level: 900,
+          source: 'PushRegistration',
         );
         return null;
       default:
         // Unknown host->Dart call. Surface loudly in dev logs but don't throw
         // back across the channel.
-        developer.log(
+        Log.warning(
           'Unhandled skotiq/push call: ${call.method}',
-          name: 'PushRegistration',
-          level: 900,
+          source: 'PushRegistration',
         );
         return null;
     }
@@ -255,10 +248,10 @@ class PushRegistrationService {
     if (target == null) {
       // Token arrived before any `ensureRegistered` captured a server. Hold it
       // implicitly: the next ensureRegistered pulls it via getApnsToken.
-      developer.log(
+      Log.debug(
         '$_platform token received before a registration target was set; '
         'will register on next connect',
-        name: 'PushRegistration',
+        source: 'PushRegistration',
       );
       return;
     }
@@ -299,25 +292,20 @@ class PushRegistrationService {
 
       if (response.statusCode == 200) {
         _lastRegistered = registrationKey;
-        developer.log(
+        Log.debug(
           'Registered $_platform token with ${target.host}:${target.port}',
-          name: 'PushRegistration',
+          source: 'PushRegistration',
         );
       } else {
-        developer.log(
+        Log.warning(
           'register-token rejected (${response.statusCode}): ${response.body}',
-          name: 'PushRegistration',
-          level: 900,
+          source: 'PushRegistration',
         );
       }
     } catch (e) {
       // Network error, server down, timeout — best-effort, retried next
       // foreground/connect.
-      developer.log(
-        'register-token POST failed: $e',
-        name: 'PushRegistration',
-        level: 900,
-      );
+      Log.warning('register-token POST failed: $e', source: 'PushRegistration');
     }
   }
 }

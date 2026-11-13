@@ -45,7 +45,6 @@
 // distinguishable from an empty one. Cancellations — the expected outcome of a
 // superseded pan/zoom generation — are dropped quietly.
 
-import 'dart:developer' as developer;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show VoidCallback;
@@ -58,6 +57,7 @@ import '../services/hips/hips_tile_cache.dart';
 import '../services/hips/hips_tile_fetcher.dart';
 import '../services/hips/hips_tile_loader.dart';
 import '../models/framing_models.dart' show FramingTarget, SurveySource;
+import '../services/logging_service.dart';
 
 /// Default bounds for the framing tile [HipsTileCache].
 ///
@@ -194,10 +194,9 @@ final framingHipsPropertiesProvider = FutureProvider.autoDispose
         // error state. Consumers treat an errored/absent properties value as "no
         // metadata" and fall back to the canvas snapshot. No silent blank, no
         // fabricated value.
-        developer.log(
+        Log.warning(
           'HiPS framing properties fetch failed for ${source.name}: ${e.message}',
-          name: 'HipsFramingProvider',
-          level: 900, // WARNING
+          source: 'HipsFramingProvider',
           error: e,
           stackTrace: st,
         );

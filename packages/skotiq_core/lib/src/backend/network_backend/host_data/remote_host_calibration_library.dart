@@ -48,7 +48,6 @@ final class RemoteHostCalibrationLibrary implements CalibrationLibrary {
   @override
   Future<CalibrationMatchSet> match(
     LightFrameContext context, {
-    CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
     bool includeRemote = true,
   }) => _host.matchCalibrationMasters(context);
 

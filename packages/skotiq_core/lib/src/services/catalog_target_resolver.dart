@@ -1,4 +1,3 @@
-
 import '../database/database.dart' as db;
 import 'package:skotiq_astro/skotiq_astro.dart';
 

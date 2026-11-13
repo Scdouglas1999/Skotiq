@@ -6,7 +6,6 @@
 // per-transport config.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
@@ -14,6 +13,7 @@ import '../../../models/backend/event_types.dart';
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
+import '../../logging_service.dart';
 
 /// Endpoint constant — kept private so other transports cannot reach
 /// into Pushover's URL by accident (self-audit requirement).
@@ -87,10 +87,9 @@ class PushoverTransport extends NotificationTransport {
       if (response.statusCode == 200) {
         return NotificationResult.ok(statusCode: 200);
       }
-      developer.log(
+      Log.warning(
         '[Notifications/Pushover] HTTP ${response.statusCode}: ${response.body}',
-        name: 'PushoverTransport',
-        level: 900,
+        source: 'PushoverTransport',
       );
       return NotificationResult.fail(
         'Pushover responded ${response.statusCode}',
@@ -101,10 +100,9 @@ class PushoverTransport extends NotificationTransport {
         'Pushover request timed out after ${_timeout.inSeconds}s',
       );
     } catch (e) {
-      developer.log(
+      Log.error(
         '[Notifications/Pushover] Send failed: $e',
-        name: 'PushoverTransport',
-        level: 1000,
+        source: 'PushoverTransport',
         error: e,
       );
       return NotificationResult.fail(e.toString());

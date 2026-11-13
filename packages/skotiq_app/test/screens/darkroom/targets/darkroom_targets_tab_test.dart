@@ -155,7 +155,6 @@ class _CountingLibrary extends CalibrationLibraryService {
   @override
   Future<CalibrationMatchSet> match(
     LightFrameContext context, {
-    CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
     bool includeRemote = true,
   }) async {
     matches++;
@@ -274,8 +273,8 @@ Future<_Harness> _pump(
       darkroomTargetCalibrationProvider
           .overrideWith((ref, key) async => _library()),
       outputLocationsProvider.overrideWith(
-        (ref) async =>
-            OutputLocations(captureFolder: '/data', documents: Directory('/home')),
+        (ref) async => OutputLocations(
+            captureFolder: '/data', documents: Directory('/home')),
       ),
       darkroomFileExistsProvider.overrideWithValue((_) => true),
       subThumbnailProvider.overrideWith(

@@ -41,10 +41,9 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
       // If the user edited while we were reading the DB, honour their edit and
       // discard the stale on-disk value rather than overwriting it.
       if (_revision != revisionAtStart) {
-        developer.log(
+        Log.debug(
           '[PolarAlignmentConfigNotifier] Skipping stale load — user edited during load',
-          name: 'PolarAlignmentConfigNotifier',
-          level: 700,
+          source: 'PolarAlignmentConfigNotifier',
         );
         return;
       }
@@ -52,17 +51,15 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
       if (setting != null) {
         final json = jsonDecode(setting) as Map<String, dynamic>;
         state = PolarAlignmentConfig.fromJson(json);
-        developer.log(
+        Log.info(
           '[PolarAlignmentConfigNotifier] Loaded config from DB',
-          name: 'PolarAlignmentConfigNotifier',
-          level: 800,
+          source: 'PolarAlignmentConfigNotifier',
         );
       }
     } catch (e) {
-      developer.log(
+      Log.error(
         '[PolarAlignmentConfigNotifier] Failed to load config: $e',
-        name: 'PolarAlignmentConfigNotifier',
-        level: 1000,
+        source: 'PolarAlignmentConfigNotifier',
         error: e,
       );
     }
@@ -82,10 +79,9 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
           .write(StoreSettings.polarAlignment, json);
       // Clear any previously-surfaced save error now that a save succeeded.
       ref.read(polarAlignmentConfigSaveErrorProvider.notifier).state = null;
-      developer.log(
+      Log.info(
         '[PolarAlignmentConfigNotifier] Saved config to DB',
-        name: 'PolarAlignmentConfigNotifier',
-        level: 800,
+        source: 'PolarAlignmentConfigNotifier',
       );
     } catch (e) {
       // Surface the failure so the UI can show the settings were NOT persisted,
@@ -93,10 +89,9 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
       // seeing an apparent success.
       ref.read(polarAlignmentConfigSaveErrorProvider.notifier).state =
           'Failed to save polar alignment settings: $e';
-      developer.log(
+      Log.error(
         '[PolarAlignmentConfigNotifier] Failed to save config: $e',
-        name: 'PolarAlignmentConfigNotifier',
-        level: 1000,
+        source: 'PolarAlignmentConfigNotifier',
         error: e,
       );
       rethrow;

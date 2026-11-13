@@ -26,7 +26,8 @@ class IntegrationGoalService {
   /// in tests — the local-DB path below is then taken verbatim, unchanged.
   final HostPlanningData? _remote;
 
-  IntegrationGoalService(this._db, {HostPlanningData? remote}) : _remote = remote;
+  IntegrationGoalService(this._db, {HostPlanningData? remote})
+    : _remote = remote;
 
   void _notifyMutated() {
     if (!_mutations.isClosed) _mutations.add(null);

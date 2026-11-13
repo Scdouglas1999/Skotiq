@@ -10,6 +10,7 @@ import '../../../backend/skotiq_backend.dart';
 import '../../../models/replay_decision.dart' show DecisionCategory;
 import '../../../models/sequence/instruction_progress_detail.dart';
 import '../../../models/sequence/sequence_models.dart';
+import '../../../models/sequence/sequence_run_status.dart';
 import '../../../services/logging_service.dart';
 import '../../../utils/remote_path.dart';
 import '../../equipment_provider.dart';
@@ -46,7 +47,7 @@ import '../../../models/backend/backend_types.dart';
 typedef RunTerminalSink =
     void Function(
       SequenceExecutionState uiState,
-      String runStatus, {
+      SequenceRunStatus runStatus, {
       String? error,
       String? warning,
     });
@@ -190,7 +191,7 @@ class RunEventHandler {
       case RunFailed(:final error):
         _onTerminal(
           SequenceExecutionState.failed,
-          'failed',
+          SequenceRunStatus.failed,
           error: error ?? 'Unknown error',
         );
       case RunStopped():
@@ -462,12 +463,12 @@ class RunEventHandler {
     if (skipped && framesCaptured == 0) {
       _onTerminal(
         SequenceExecutionState.failed,
-        'failed',
+        SequenceRunStatus.failed,
         error: kNothingImagedRunError,
       );
       return;
     }
-    _onTerminal(SequenceExecutionState.completed, 'completed');
+    _onTerminal(SequenceExecutionState.completed, SequenceRunStatus.completed);
   }
 
   /// Learn the obstruction the run met at this site, so planning keeps clear
@@ -530,7 +531,7 @@ class RunEventHandler {
         stopEvidence?.author == SequenceStopAuthor.operatorPress;
     _onTerminal(
       SequenceExecutionState.idle,
-      operatorStopped ? 'stopped' : 'aborted',
+      operatorStopped ? SequenceRunStatus.stopped : SequenceRunStatus.aborted,
       warning: operatorStopped || stopEvidence == null
           ? null
           : sequenceStoppedMessage(stopEvidence),

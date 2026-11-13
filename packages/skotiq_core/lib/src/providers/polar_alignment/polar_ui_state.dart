@@ -97,10 +97,9 @@ class PolarAlignmentUiStateNotifier
         state = PolarAlignmentUiState.fromJson(json);
       }
     } catch (e) {
-      developer.log(
+      Log.error(
         '[PolarAlignmentUiStateNotifier] Failed to load UI state: $e',
-        name: 'PolarAlignmentUiStateNotifier',
-        level: 1000,
+        source: 'PolarAlignmentUiStateNotifier',
         error: e,
       );
     }
@@ -114,10 +113,9 @@ class PolarAlignmentUiStateNotifier
         jsonEncode(state.toJson()),
       );
     } catch (e) {
-      developer.log(
+      Log.error(
         '[PolarAlignmentUiStateNotifier] Failed to save UI state: $e',
-        name: 'PolarAlignmentUiStateNotifier',
-        level: 1000,
+        source: 'PolarAlignmentUiStateNotifier',
         error: e,
       );
     }

@@ -33,7 +33,6 @@ abstract interface class CalibrationLibrary {
   /// the reasons and warnings behind each pick.
   Future<CalibrationMatchSet> match(
     LightFrameContext context, {
-    CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
     bool includeRemote = true,
   });
 

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/device_heartbeat_health_provider.dart';
-import 'logging_service.dart';
 import '../providers/logging_service_provider.dart';
 
 /// Routes native heartbeat events to [deviceHeartbeatHealthProvider].
@@ -53,7 +52,8 @@ class DeviceHeartbeatRouter {
   }) {
     if (deviceId == null || deviceId.isEmpty) return;
     if (status == null || status.isEmpty) {
-      _log(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'HeartbeatStatusChanged for $deviceId missing status field; '
           'dropping. Payload may be malformed.',
@@ -142,7 +142,8 @@ class DeviceHeartbeatRouter {
     try {
       _ref.read(deviceHeartbeatHealthProvider.notifier).clearDevice(deviceId);
     } on Object catch (e) {
-      _log(
+      logSafely(
+        _ref,
         (l) => l.warning('Heartbeat provider clear failed for $deviceId: $e'),
       );
     }
@@ -156,20 +157,11 @@ class DeviceHeartbeatRouter {
       final notifier = _ref.read(deviceHeartbeatHealthProvider.notifier);
       apply(notifier);
     } on Object catch (e) {
-      _log(
+      logSafely(
+        _ref,
         (l) =>
             l.warning('Heartbeat provider dispatch failed ($contextTag): $e'),
       );
-    }
-  }
-
-  void _log(void Function(LoggingService logger) emit) {
-    try {
-      final logger = _ref.read(loggingServiceProvider);
-      emit(logger);
-    } on Object {
-      // Diagnostic-only failure during logger lookup; swallow so the
-      // heartbeat path stays fail-soft.
     }
   }
 }

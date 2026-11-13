@@ -120,10 +120,9 @@ class SettingWriter<T> {
         await Future<void>.sync(() => write(value));
         if (epoch == _epoch && generation == _generation) _confirmed = value;
       } catch (error, stackTrace) {
-        developer.log(
+        Log.warning(
           'Settings write failed; the input shows the last confirmed value',
-          name: 'SettingsInput',
-          level: 900,
+          source: 'SettingsInput',
           error: error,
           stackTrace: stackTrace,
         );

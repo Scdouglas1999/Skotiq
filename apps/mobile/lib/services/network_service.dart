@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_core/services.dart';
 
 enum NetworkStatus { connected, disconnected, reconnecting }
 
@@ -68,18 +68,17 @@ class NetworkService {
 
   Future<void> initialize() async {
     if (_isInitialized) {
-      developer.log('Already initialized', name: 'NetworkService', level: 800);
+      Log.info('Already initialized', source: 'NetworkService');
       return;
     }
 
-    developer.log('Initializing...', name: 'NetworkService', level: 800);
+    Log.info('Initializing...', source: 'NetworkService');
 
     _lastKnownServer = await EnhancedSkotiqDiscovery.loadLastServer();
     if (_lastKnownServer != null) {
-      developer.log(
+      Log.info(
         'Loaded last known server: ${_lastKnownServer!.name}',
-        name: 'NetworkService',
-        level: 800,
+        source: 'NetworkService',
       );
     }
 
@@ -117,16 +116,15 @@ class NetworkService {
         // Caught + degraded: stream errors are non-fatal but we lose
         // connectivity-change events until the OS re-emits. Warn so the
         // gap is visible if reconnects start failing.
-        developer.log(
+        Log.warning(
           'Connectivity stream error: $error',
-          name: 'NetworkService',
-          level: 900,
+          source: 'NetworkService',
         );
       },
     );
 
     _isInitialized = true;
-    developer.log('Initialized', name: 'NetworkService', level: 800);
+    Log.info('Initialized', source: 'NetworkService');
 
     // Try to reconnect to the last server on ANY usable link, not just
     // WiFi. A Tailscale tailnet host (100.x / fd7a:115c::) is reachable
@@ -164,7 +162,7 @@ class NetworkService {
   }
 
   Future<void> dispose() async {
-    developer.log('Disposing...', name: 'NetworkService', level: 800);
+    Log.info('Disposing...', source: 'NetworkService');
     await _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
     _reconnectTimer?.cancel();
@@ -174,11 +172,7 @@ class NetworkService {
   }
 
   void _onConnectivityChanged(List<ConnectivityResult> results) {
-    developer.log(
-      'Connectivity changed: $results',
-      name: 'NetworkService',
-      level: 800,
-    );
+    Log.info('Connectivity changed: $results', source: 'NetworkService');
 
     final hadConnection = _state.hasConnection;
     final hasConnection =
@@ -200,10 +194,9 @@ class NetworkService {
     // _attemptReconnect is the real arbiter; a LAN host on cellular simply
     // fails it and backs off.
     if (!hadConnection && hasConnection) {
-      developer.log(
+      Log.info(
         'Network link regained ($results), attempting to reconnect...',
-        name: 'NetworkService',
-        level: 800,
+        source: 'NetworkService',
       );
       _attemptReconnect();
     }
@@ -214,7 +207,7 @@ class NetworkService {
     // re-probes so the session rides the transition.
     if (hadConnection && !hasConnection) {
       // Lost all transport — degraded UX, surface as warning.
-      developer.log('All network lost', name: 'NetworkService', level: 900);
+      Log.warning('All network lost', source: 'NetworkService');
       _updateState(
         _state.copyWith(
           status: NetworkStatus.disconnected,
@@ -228,7 +221,7 @@ class NetworkService {
       // On cellular only. Surface the data-usage hint, and for a tailnet
       // host kick a reconnect probe — it may have just dropped off WiFi
       // mid-session and the tailnet path is still live over cellular.
-      developer.log('Using mobile data', name: 'NetworkService', level: 900);
+      Log.warning('Using mobile data', source: 'NetworkService');
       _updateState(
         _state.copyWith(
           statusMessage: lastServerIsTailscale
@@ -266,10 +259,9 @@ class NetworkService {
 
   Future<void> _attemptReconnect() async {
     if (_lastKnownServer == null) {
-      developer.log(
+      Log.info(
         'No last known server to reconnect to',
-        name: 'NetworkService',
-        level: 800,
+        source: 'NetworkService',
       );
       return;
     }
@@ -296,10 +288,9 @@ class NetworkService {
       );
 
       if (isReachable) {
-        developer.log(
+        Log.info(
           'Reconnected to ${_lastKnownServer!.name}',
-          name: 'NetworkService',
-          level: 800,
+          source: 'NetworkService',
         );
         _updateState(
           _state.copyWith(
@@ -310,10 +301,9 @@ class NetworkService {
         );
       } else {
         // Caught + degraded path — reconnect failed, retry scheduled.
-        developer.log(
+        Log.warning(
           'Server not reachable, will retry...',
-          name: 'NetworkService',
-          level: 900,
+          source: 'NetworkService',
         );
         _updateState(
           _state.copyWith(
@@ -327,10 +317,9 @@ class NetworkService {
     } catch (e, st) {
       // Caught + retry scheduled — log as severe so the failure chain is
       // attributable in DevTools even though we degrade gracefully.
-      developer.log(
+      Log.error(
         'Reconnect error: $e',
-        name: 'NetworkService',
-        level: 1000,
+        source: 'NetworkService',
         error: e,
         stackTrace: st,
       );
@@ -358,10 +347,9 @@ class NetworkService {
 
   Future<DiscoveredServer?> rediscoverServer() async {
     if (!_state.hasConnection) {
-      developer.log(
+      Log.warning(
         'No network connection for discovery',
-        name: 'NetworkService',
-        level: 900,
+        source: 'NetworkService',
       );
       return null;
     }
@@ -395,10 +383,9 @@ class NetworkService {
     } catch (e, st) {
       // Caught + surfaced to UI via statusMessage; severe so the underlying
       // error chain is preserved.
-      developer.log(
+      Log.error(
         'Discovery error: $e',
-        name: 'NetworkService',
-        level: 1000,
+        source: 'NetworkService',
         error: e,
         stackTrace: st,
       );
@@ -413,10 +400,9 @@ class NetworkService {
   }
 
   Future<void> connectToServer(DiscoveredServer server) async {
-    developer.log(
+    Log.info(
       'Connecting to ${server.name} at ${server.host}:${server.webPort}',
-      name: 'NetworkService',
-      level: 800,
+      source: 'NetworkService',
     );
 
     await EnhancedSkotiqDiscovery.saveLastServer(server);
@@ -432,11 +418,7 @@ class NetworkService {
   }
 
   Future<void> disconnect() async {
-    developer.log(
-      'Disconnecting from server',
-      name: 'NetworkService',
-      level: 800,
-    );
+    Log.info('Disconnecting from server', source: 'NetworkService');
 
     await EnhancedSkotiqDiscovery.clearLastServer();
     _lastKnownServer = null;

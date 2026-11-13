@@ -56,9 +56,7 @@ class FrameAutoGrader {
     );
     if (reason == null) return false;
 
-    await _ref
-        .read(imagingRecordsProvider)
-        .rejectImage(image.id, reason);
+    await _ref.read(imagingRecordsProvider).rejectImage(image.id, reason);
     _ref
         .read(loggingServiceProvider)
         .info(

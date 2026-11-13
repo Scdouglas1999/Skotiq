@@ -15,8 +15,6 @@
 /// disabled" path the operator opted into.
 library;
 
-import 'dart:developer' as developer;
-
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
@@ -59,12 +57,11 @@ class CollaborationHandlers implements RouteSource {
     } on BadRequestError {
       rethrow;
     } catch (e, st) {
-      developer.log(
+      Log.error(
         '[API] collaboration handler failed',
-        name: 'collaboration_handlers',
+        source: 'collaboration_handlers',
         error: e,
         stackTrace: st,
-        level: 1000,
       );
       return jsonInternalServerError(const {
         'error': 'collaboration_request_failed',

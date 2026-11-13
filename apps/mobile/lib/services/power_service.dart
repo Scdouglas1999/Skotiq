@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:battery_plus/battery_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
+import 'package:skotiq_core/services.dart';
 
 enum BatteryWarningLevel { normal, low, veryLow, critical }
 
@@ -64,19 +64,14 @@ class PowerService {
       if (enableCpuWakeLock) {
         await WakelockPlus.enable();
         _wakeLockActive = true;
-        developer.log(
-          'Wake lock acquired (CPU)',
-          name: 'PowerService',
-          level: 800,
-        );
+        Log.info('Wake lock acquired (CPU)', source: 'PowerService');
       }
     } catch (e, st) {
       // Caught + degraded: imaging may pause when OS suspends. Severe so
       // operators notice in the log file post-session.
-      developer.log(
+      Log.error(
         'Failed to acquire wake lock: $e',
-        name: 'PowerService',
-        level: 1000,
+        source: 'PowerService',
         error: e,
         stackTrace: st,
       );
@@ -89,14 +84,13 @@ class PowerService {
     try {
       await WakelockPlus.disable();
       _wakeLockActive = false;
-      developer.log('Wake lock released', name: 'PowerService', level: 800);
+      Log.info('Wake lock released', source: 'PowerService');
     } catch (e, st) {
       // Caught + degraded: wake lock stays held until process exit. This
       // leaks battery; severe so it surfaces in the log file.
-      developer.log(
+      Log.error(
         'Failed to release wake lock: $e',
-        name: 'PowerService',
-        level: 1000,
+        source: 'PowerService',
         error: e,
         stackTrace: st,
       );
@@ -107,10 +101,9 @@ class PowerService {
     if (_isMonitoring) return;
 
     _isMonitoring = true;
-    developer.log(
+    Log.info(
       'Started battery monitoring (interval: ${batteryCheckIntervalSeconds}s)',
-      name: 'PowerService',
-      level: 800,
+      source: 'PowerService',
     );
 
     _batteryMonitorTimer = Timer.periodic(
@@ -129,11 +122,7 @@ class PowerService {
     _isMonitoring = false;
     _lastWarningLevel = BatteryWarningLevel.normal;
 
-    developer.log(
-      'Stopped battery monitoring',
-      name: 'PowerService',
-      level: 800,
-    );
+    Log.info('Stopped battery monitoring', source: 'PowerService');
   }
 
   Future<void> _checkBatteryLevel() async {
@@ -188,10 +177,9 @@ class PowerService {
     } catch (e, st) {
       // Caught + degraded: a single failed sample is fine, the periodic
       // timer keeps trying. Warn so repeated failures are visible.
-      developer.log(
+      Log.warning(
         'Error checking battery level: $e',
-        name: 'PowerService',
-        level: 900,
+        source: 'PowerService',
         error: e,
         stackTrace: st,
       );
@@ -211,13 +199,13 @@ class PowerService {
   }
 
   Future<void> startImagingSession() async {
-    developer.log('Starting imaging session', name: 'PowerService', level: 800);
+    Log.info('Starting imaging session', source: 'PowerService');
     await acquireWakeLock();
     startBatteryMonitoring();
   }
 
   Future<void> stopImagingSession() async {
-    developer.log('Stopping imaging session', name: 'PowerService', level: 800);
+    Log.info('Stopping imaging session', source: 'PowerService');
     stopBatteryMonitoring();
     await releaseWakeLock();
   }

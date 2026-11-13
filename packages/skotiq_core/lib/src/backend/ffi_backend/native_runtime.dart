@@ -99,10 +99,9 @@ _sweepNativeDiscovery() async {
             final text = e.toString();
             if (!text.contains('RustLib') &&
                 !text.contains('not initialized')) {
-              developer.log(
+              Log.warning(
                 '[Discovery] Native discovery error for ${type.name}: $e',
-                name: 'NativeBridge',
-                level: 900,
+                source: 'NativeBridge',
               );
             }
           }
@@ -114,12 +113,11 @@ _sweepNativeDiscovery() async {
     for (final entry in found.entries)
       if (entry.value.isNotEmpty) '${entry.value.length} ${entry.key.name}',
   ];
-  developer.log(
+  Log.info(
     counts.isEmpty
         ? '[Discovery] Complete: no devices found'
         : '[Discovery] Complete: ${counts.join(', ')}',
-    name: 'NativeBridge',
-    level: 800,
+    source: 'NativeBridge',
   );
   return found;
 }

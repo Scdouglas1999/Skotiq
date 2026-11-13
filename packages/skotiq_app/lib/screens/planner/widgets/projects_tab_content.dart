@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,7 +11,8 @@ import 'package:skotiq_core/providers.dart';
 // catalogs, not only the target library. catalogStateProvider: and when no
 // catalog has been downloaded there is nothing on this machine to search, so
 // the sheet must say that instead of "nothing matches".
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' show catalogStateProvider;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show catalogStateProvider;
 import 'package:skotiq_astro/skotiq_astro.dart' show CatalogSearchResult;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -21,6 +20,7 @@ import '../editors/integration_goals_editor.dart';
 import '../../sequencer/widgets/smart_night_dialog.dart';
 import '../../../router/app_routes.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/services.dart';
 
 part 'projects_tab_content/project_header.dart';
 part 'projects_tab_content/progress_widgets.dart';
@@ -530,7 +530,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       if (incompleteIds.isEmpty) {
         context.showSuccessSnackBar(
           '"${active.name}" has no incomplete targets left to '
-'plan — every target has met its integration goals.',
+          'plan — every target has met its integration goals.',
         );
         return;
       }
@@ -670,11 +670,10 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       // in this file with no snackbar (it is a repair the operator never asked
       // for), so the log is the only signal that the selection on screen is not
       // the one that will come back after a restart.
-      developer.log(
+      Log.warning(
         'Could not persist the reconciled active project ($resolved); the tab '
         'shows it but the selection was not saved: $e',
-        name: 'ProjectsTab',
-        level: 900,
+        source: 'ProjectsTab',
       );
       _reconcileFailedFor = resolved;
     }

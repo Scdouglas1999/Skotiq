@@ -12,7 +12,6 @@ import '../utils/json_validation.dart';
 import 'sequence_file_service.dart';
 import 'sequence_repository.dart';
 
-
 /// The saved sequences in this process's own database.
 final class LocalSequenceRepository implements SequenceRepository {
   /// [runsDao], [versionsDao] and [fileService] are needed only by the run

@@ -179,8 +179,8 @@ class CalibrationSettingsPanel extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        'How far a dark\'s sensor temperature may be from '
-                        'the light\'s.',
+                        'Darks this close to the light\'s sensor temperature '
+                        'are preferred. With none, the nearest is used.',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textMuted,
                         ),

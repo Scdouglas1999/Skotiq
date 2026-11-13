@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -253,7 +252,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
                             currentImage != null &&
                             (_isCentering || _result != null))
                           const SizedBox(width: 16),
-
                         Expanded(
                           flex: 1,
                           child: SingleChildScrollView(
@@ -269,20 +267,15 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
                                     widget.targetDec != null)
                                   _buildCoordinatesCompact(
                                       centeringStatus, colors, theme),
-
                                 if (widget.targetRa != null &&
                                     widget.targetDec != null)
                                   const SizedBox(height: 12),
-
                                 _buildExposureSettings(colors, theme),
                                 const SizedBox(height: 12),
-
                                 if (_isCentering)
                                   _buildStatusSection(centeringStatus, colors),
-
                                 if (_result != null && !_isCentering)
                                   _buildResultSection(_result!, colors),
-
                                 if (centeringStatus
                                     .iterationHistory.isNotEmpty) ...[
                                   const SizedBox(height: 12),
@@ -548,7 +541,8 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
       if (host.isCurrent) {
         setState(() {
           _isCentering = false;
-          _solverMissingMessage = 'Plate-solver detection failed: ${userFacingError(e)}';
+          _solverMissingMessage =
+              'Plate-solver detection failed: ${userFacingError(e)}';
         });
       }
       return;
@@ -607,5 +601,4 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
       }
     }
   }
-
 }

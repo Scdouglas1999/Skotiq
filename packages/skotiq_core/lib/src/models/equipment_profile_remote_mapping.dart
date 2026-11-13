@@ -91,61 +91,15 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.DbEquipmentProfile row) {
 /// left absent so SQLite assigns the autoincrement key.
 db.EquipmentProfilesCompanion remoteProfileToCompanion(
   remote_profile.EquipmentProfile profile,
-) {
-  return db.EquipmentProfilesCompanion.insert(
-    name: profile.name,
-    description: Value(profile.description),
-
-    cameraId: Value(profile.cameraId),
-    mountId: Value(profile.mountId),
-    focuserId: Value(profile.focuserId),
-    filterWheelId: Value(profile.filterWheelId),
-    guiderId: Value(profile.guiderId),
-    guideCameraId: Value(profile.guideCameraId),
-    guideFocalLength: Value(profile.guideFocalLength),
-    rotatorId: Value(profile.rotatorId),
-    domeId: Value(profile.domeId),
-    weatherId: Value(profile.weatherId),
-    safetyMonitorId: Value(profile.safetyMonitorId),
-    switchId: Value(profile.switchId),
-    coverCalibratorId: Value(profile.coverCalibratorId),
-
-    focalLength: Value(profile.focalLength),
-    aperture: Value(profile.aperture),
-    focalRatio: Value(profile.focalRatio),
-
-    defaultGain: Value(profile.defaultGain),
-    defaultOffset: Value(profile.defaultOffset),
-    defaultBinX: Value(profile.defaultBinX),
-    defaultBinY: Value(profile.defaultBinY),
-    defaultCoolingTemp: Value(profile.defaultCoolingTemp),
-    coolOnConnect: Value(profile.coolOnConnect),
-    defaultCenteringExposure: Value(profile.defaultCenteringExposure),
-
-    filterNames: Value(profile.filterNames),
-    filterFocusOffsets: Value(profile.filterFocusOffsets),
-
-    meridianFlipOverrides: Value(profile.meridianFlipOverrides),
-
-    cameraName: Value(profile.cameraName),
-    mountName: Value(profile.mountName),
-    focuserName: Value(profile.focuserName),
-    filterWheelName: Value(profile.filterWheelName),
-    guiderName: Value(profile.guiderName),
-    guideCameraName: Value(profile.guideCameraName),
-    rotatorName: Value(profile.rotatorName),
-    safetyMonitorName: Value(profile.safetyMonitorName),
-    switchName: Value(profile.switchName),
-
-    telescopeName: Value(profile.telescopeName),
-    telescopeFocalLength: Value(profile.telescopeFocalLength),
-    telescopeAperture: Value(profile.telescopeAperture),
-
-    profileIcon: Value(profile.profileIcon),
-    profileColor: Value(profile.profileColor),
-    sortOrder: Value(profile.sortOrder),
-  );
-}
+) => remoteProfileToDbRow(profile)
+    .toCompanion(false)
+    .copyWith(
+      id: const Value.absent(),
+      isDefault: const Value.absent(),
+      isActive: const Value.absent(),
+      createdAt: const Value.absent(),
+      updatedAt: const Value.absent(),
+    );
 
 /// UPDATE / SLAVE-POLL READER: REST wire model -> full Drift row for
 /// `dao.updateProfile(...)` (which does a full-row `.replace`).

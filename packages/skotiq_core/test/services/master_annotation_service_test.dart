@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/imaging/annotation.dart';
 import 'package:skotiq_core/src/services/master_annotation_service.dart';
-import 'package:skotiq_core/src/services/wcs_overlay.dart';
+import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 DeepSkyObject _dso({
@@ -35,15 +35,26 @@ Star _star(String id, String name, double raDeg, double decDeg) => Star(
   magnitude: 2.0,
 );
 
+(double, double) _skyOf(SolvedWcs wcs, double x, double y) {
+  final sky = GnomonicProjection(wcs).pixelToWorld(x: x, y: y);
+  return (sky.raDegrees, sky.decDegrees);
+}
+
 void main() {
   // WCS centred at RA=10°, Dec=20°, 2"/px, 200×200, no rotation.
-  WcsOverlay buildWcs() => WcsOverlay(
-    crpix1: 100,
-    crpix2: 100,
-    crval1: 10.0,
-    crval2: 20.0,
-    cdelt1: 2.0 / 3600.0,
-    cdelt2: 2.0 / 3600.0,
+  SolvedWcs buildWcs() => const SolvedWcs(
+    raHours: 10.0 / 15.0,
+    decDegrees: 20.0,
+    rotationDeg: 0,
+    pixelScaleArcsec: 2.0,
+    imageWidth: 200,
+    imageHeight: 200,
+    cd1_1: 2.0 / 3600.0,
+    cd1_2: 0,
+    cd2_1: 0,
+    cd2_2: 2.0 / 3600.0,
+    referenceX: 100,
+    referenceY: 100,
   );
 
   test(
@@ -52,7 +63,7 @@ void main() {
       final wcs = buildWcs();
       // Place a galaxy at the projection of pixel (150, 100): +50px in X from the
       // crpix centre at 2"/px. The marker must land back on (150, 100).
-      final (gRa, gDec) = wcs.pixelToCelestial(150, 100);
+      final (gRa, gDec) = _skyOf(wcs, 150, 100);
 
       final svc = MasterAnnotationService(
         dsoSearch:
@@ -75,12 +86,7 @@ void main() {
         starSearch: (_, __, {maxMagnitude}) async => const [],
       );
 
-      final layer = await svc.annotate(
-        wcs: wcs,
-        width: 200,
-        height: 200,
-        fovDeg: 200 * 2.0 / 3600.0,
-      );
+      final layer = await svc.annotate(wcs: wcs);
 
       expect(layer.width, 200);
       expect(layer.height, 200);
@@ -101,8 +107,8 @@ void main() {
     final wcs = buildWcs();
 
     // One in-frame star (centre) + one far off-frame DSO (well outside bounds).
-    final (inRa, inDec) = wcs.pixelToCelestial(100, 100);
-    final (outRa, outDec) = wcs.pixelToCelestial(5000, 5000);
+    final (inRa, inDec) = _skyOf(wcs, 100, 100);
+    final (outRa, outDec) = _skyOf(wcs, 5000, 5000);
 
     final svc = MasterAnnotationService(
       dsoSearch:
@@ -120,12 +126,7 @@ void main() {
       ],
     );
 
-    final layer = await svc.annotate(
-      wcs: wcs,
-      width: 200,
-      height: 200,
-      fovDeg: 200 * 2.0 / 3600.0,
-    );
+    final layer = await svc.annotate(wcs: wcs);
 
     // The off-frame DSO and off-frame star are both clipped; only Vega remains.
     expect(layer.items, hasLength(1));
@@ -138,7 +139,7 @@ void main() {
 
   test('maps OpenNGC type codes to annotation kinds', () async {
     final wcs = buildWcs();
-    final (centreRa, centreDec) = wcs.pixelToCelestial(100, 100);
+    final (centreRa, centreDec) = _skyOf(wcs, 100, 100);
 
     Future<AnnotationKind> kindFor(String code) async {
       final svc = MasterAnnotationService(
@@ -153,12 +154,7 @@ void main() {
             ],
         starSearch: (_, __, {maxMagnitude}) async => const [],
       );
-      final layer = await svc.annotate(
-        wcs: wcs,
-        width: 200,
-        height: 200,
-        fovDeg: 200 * 2.0 / 3600.0,
-      );
+      final layer = await svc.annotate(wcs: wcs);
       return layer.items.single.kind;
     }
 
@@ -182,12 +178,7 @@ void main() {
       starSearch: (_, __, {maxMagnitude}) async =>
           throw StateError('should not search'),
     );
-    final layer = await svc.annotate(
-      wcs: buildWcs(),
-      width: 0,
-      height: 0,
-      fovDeg: 1.0,
-    );
+    final layer = await svc.annotate(wcs: buildWcs());
     expect(layer.items, isEmpty);
   });
 
@@ -203,12 +194,7 @@ void main() {
       starSearch: (_, __, {maxMagnitude}) async =>
           throw StateError('catalog offline'),
     );
-    final layer = await svc.annotate(
-      wcs: buildWcs(),
-      width: 200,
-      height: 200,
-      fovDeg: 0.1,
-    );
+    final layer = await svc.annotate(wcs: buildWcs());
     expect(layer.items, isEmpty);
     expect(layer.width, 200);
   });

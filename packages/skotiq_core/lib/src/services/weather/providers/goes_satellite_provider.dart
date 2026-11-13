@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
@@ -6,6 +5,7 @@ import '../radar_colormaps.dart';
 import '../radar_provider.dart';
 import '../radar_tile_decoder.dart';
 import '../../../models/weather/weather_models.dart';
+import '../../logging_service.dart';
 
 /// GOES satellite infrared imagery provider for cloud cover visualization.
 ///
@@ -106,11 +106,10 @@ class GoesSatelliteProvider extends RadarProvider {
 
       final frame = await _decodeFrame(timestamp, fov);
 
-      developer.log(
+      Log.info(
         'Built satellite frame for $timestamp, layer: $_layerName '
         '(${frame.isNoData ? "no-data" : "with spatial data"})',
-        name: 'GoesSatellite',
-        level: 800,
+        source: 'GoesSatellite',
       );
 
       return RadarFetchResult.success([frame]);
@@ -173,10 +172,9 @@ class GoesSatelliteProvider extends RadarProvider {
       if (response.statusCode == 200) {
         image = _decoder.decodePng(response.bodyBytes);
       } else {
-        developer.log(
+        Log.warning(
           'GOES GetMap status ${response.statusCode}',
-          name: 'GoesSatellite',
-          level: 900,
+          source: 'GoesSatellite',
         );
       }
     } on http.ClientException {
@@ -185,11 +183,7 @@ class GoesSatelliteProvider extends RadarProvider {
       // would read as a fresh satellite update.
       rethrow;
     } catch (e) {
-      developer.log(
-        'GOES GetMap fetch failed: $e',
-        name: 'GoesSatellite',
-        level: 900,
-      );
+      Log.warning('GOES GetMap fetch failed: $e', source: 'GoesSatellite');
     }
 
     if (image == null) {

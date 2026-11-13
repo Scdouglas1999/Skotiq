@@ -130,7 +130,7 @@ void main() {
           const SequenceTerminalRunResult(
             generation: 1,
             outcome: SequenceExecutionState.completed,
-            runStatus: 'completed',
+            runStatus: SequenceRunStatus.completed,
             runId: 10,
             dbSessionId: 20,
           ),
@@ -149,7 +149,7 @@ void main() {
           const SequenceTerminalRunResult(
             generation: 2,
             outcome: SequenceExecutionState.idle,
-            runStatus: 'stopped',
+            runStatus: SequenceRunStatus.stopped,
             runId: 11,
             dbSessionId: 21,
           ),
@@ -176,7 +176,7 @@ void main() {
           const SequenceTerminalRunResult(
             generation: 3,
             outcome: SequenceExecutionState.idle,
-            runStatus: 'aborted',
+            runStatus: SequenceRunStatus.aborted,
             runId: 12,
             dbSessionId: 22,
           ),
@@ -204,7 +204,7 @@ void main() {
           const SequenceTerminalRunResult(
             generation: 4,
             outcome: SequenceExecutionState.idle,
-            runStatus: 'aborted',
+            runStatus: SequenceRunStatus.aborted,
             runId: 13,
             dbSessionId: 24,
           ),
@@ -253,7 +253,7 @@ void main() {
           const SequenceTerminalRunResult(
             generation: 1,
             outcome: SequenceExecutionState.completed,
-            runStatus: 'completed',
+            runStatus: SequenceRunStatus.completed,
             runId: 1,
             dbSessionId: 2,
           ),

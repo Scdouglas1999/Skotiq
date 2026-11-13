@@ -34,10 +34,11 @@ extension _CenteringSlewSettle on CenteringService {
       } on Object catch (e) {
         consecutiveQueryFailures++;
         lastQueryError = e;
-        // ignore: avoid_print
-        print(
-          'CenteringService: post-slew status poll failed '
-          '($consecutiveQueryFailures/${CenteringService._maxConsecutiveQueryFailures}): $e',
+        Log.warning(
+          'Post-slew status poll failed '
+          '($consecutiveQueryFailures/${CenteringService._maxConsecutiveQueryFailures})',
+          source: 'CenteringService',
+          error: e,
         );
 
         if (consecutiveQueryFailures >=

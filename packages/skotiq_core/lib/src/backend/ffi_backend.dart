@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert' show jsonDecode;
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -39,6 +38,7 @@ import 'bridge_event_mapper.dart' show recoveryFieldsFromTyped;
 import '../services/ip_geolocation.dart';
 import 'frame_capture_metadata.dart';
 import '../models/backend/backend_types.dart';
+import '../services/logging_service.dart';
 
 part 'ffi_backend/native_runtime.dart';
 part 'ffi_backend/event_mapping.dart';

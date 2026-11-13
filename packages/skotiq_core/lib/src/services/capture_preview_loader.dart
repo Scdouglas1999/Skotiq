@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +11,7 @@ import '../providers/imaging_provider.dart';
 import 'imaging_service.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
+import 'logging_service.dart';
 
 /// Publishes JPEG-first capture previews and loads host raw data in the background.
 class CapturePreviewPublisher {
@@ -117,11 +117,10 @@ class CapturePreviewPublisher {
       // native bridge and the network backend.
       final expectedPixels = expectedWidth * expectedHeight;
       if (rawList.length != expectedPixels) {
-        developer.log(
+        Log.warning(
           '[CapturePreview] Raw sample count ${rawList.length} does not match '
           '${expectedWidth}x$expectedHeight ($expectedPixels pixels)',
-          name: 'CapturePreview',
-          level: 900,
+          source: 'CapturePreview',
         );
         _read(ref, currentImageProvider.notifier).state = current.copyWith(
           rawLoadStatus: RawLoadStatus.failed,
@@ -138,10 +137,9 @@ class CapturePreviewPublisher {
         rawLoadStatus: RawLoadStatus.ready,
       );
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         '[CapturePreview] Background raw load failed: $e',
-        name: 'CapturePreview',
-        level: 900,
+        source: 'CapturePreview',
         error: e,
         stackTrace: st,
       );

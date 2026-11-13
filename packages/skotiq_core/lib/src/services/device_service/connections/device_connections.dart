@@ -119,10 +119,7 @@ extension _DeviceServiceConnections on DeviceService {
     }
     _ref
         .read(uiNotificationProvider.notifier)
-        .showSuccess(
-          'The $noun connected after all.',
-          title: type.displayName,
-        );
+        .showSuccess('The $noun connected after all.', title: type.displayName);
   }
 
   Future<void> _disconnect(DeviceType type) {

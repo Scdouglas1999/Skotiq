@@ -1,5 +1,4 @@
 import 'dart:collection';
-import 'dart:developer' as developer;
 import '../errors/error_text.dart';
 import '../providers/ui_notification_provider.dart';
 import 'logging_service.dart';
@@ -127,18 +126,20 @@ class ErrorService {
       _errorHistory.removeFirst();
     }
 
-    // Print to debug console
-    developer.log(
-      entry.logMessage,
-      name: 'ErrorService',
-      level: entry.severity.toLogLevel().index * 200 + 500,
-    );
-
-    _loggingService?.log(
-      entry.severity.toLogLevel(),
-      entry.message,
-      source: '${entry.category.name}:${entry.operation}',
-    );
+    final logging = _loggingService;
+    if (logging != null) {
+      logging.log(
+        entry.severity.toLogLevel(),
+        entry.message,
+        source: '${entry.category.name}:${entry.operation}',
+      );
+    } else {
+      Log.write(
+        entry.severity.toLogLevel(),
+        entry.logMessage,
+        source: 'ErrorService',
+      );
+    }
 
     // Push to UI notifications for error and critical severity
     if (_uiNotificationNotifier != null) {
@@ -244,5 +245,4 @@ class ErrorService {
   bool get hasCriticalErrors {
     return _errorHistory.any((e) => e.severity == ErrorSeverity.critical);
   }
-
 }

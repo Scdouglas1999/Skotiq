@@ -46,11 +46,10 @@ Future<String?> _darkroomOutputDirectory(Ref ref) async {
     // Opening at the platform default is what naming no directory does, so a
     // failed read must not stop an export the operator asked for; the log is
     // where the failed read is answerable.
-    developer.log(
+    Log.warning(
       'Darkroom: the output folders could not be read, so the save chooser '
       'opens at the platform default: $error',
-      name: 'Darkroom',
-      level: 900,
+      source: 'Darkroom',
       stackTrace: stack,
     );
     return null;
@@ -1268,11 +1267,10 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         // The path is on the sheet's own outcome block either way, so the
         // operator can still find the file; only the hand-off is lost, and the
         // reason for it belongs in the log rather than in a toast.
-        developer.log(
+        Log.warning(
           'Darkroom: the export was written to $outputPath but could not be '
           'revealed or shared: $revealError',
-          name: 'Darkroom',
-          level: 900,
+          source: 'Darkroom',
           stackTrace: revealStack,
         );
         if (mounted) {

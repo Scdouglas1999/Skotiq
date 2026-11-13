@@ -304,10 +304,9 @@ class AutofocusSettings extends Equatable {
         } catch (e) {
           // Skip malformed individual filter entries rather than losing all data
           assert(() {
-            developer.log(
+            Log.warning(
               'Skipping malformed filter config for "${entry.key}": $e',
-              name: 'ImagingModels',
-              level: 900,
+              source: 'ImagingModels',
             );
             return true;
           }());
@@ -318,10 +317,9 @@ class AutofocusSettings extends Equatable {
       // Corrupted JSON in DB — return empty rather than crashing the app.
       // The next save will overwrite the corrupt data with valid JSON.
       assert(() {
-        developer.log(
+        Log.warning(
           'Failed to parse af_filter_settings JSON: $e',
-          name: 'ImagingModels',
-          level: 900,
+          source: 'ImagingModels',
         );
         return true;
       }());

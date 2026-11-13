@@ -279,10 +279,9 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
         attempt++;
 
         if (attempt >= maxAttempts) {
-          developer.log(
+          Log.error(
             '[NetworkBackend] Request failed after $maxAttempts attempts: $e',
-            name: 'NetworkBackend',
-            level: 1000,
+            source: 'NetworkBackend',
             error: e,
           );
           rethrow;
@@ -295,10 +294,9 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
         }
 
         if (!_isTransientFailure(e)) {
-          developer.log(
+          Log.error(
             '[NetworkBackend] Non-transient failure, not retrying: $e',
-            name: 'NetworkBackend',
-            level: 1000,
+            source: 'NetworkBackend',
             error: e,
           );
           rethrow;
@@ -306,10 +304,9 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
 
         // Calculate backoff delay: 1s, 2s, 4s
         final delay = Duration(seconds: 1 << (attempt - 1));
-        developer.log(
+        Log.warning(
           '[NetworkBackend] Transient failure, retrying in ${delay.inSeconds}s (attempt $attempt/$maxAttempts): $e',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
           error: e,
         );
         await Future.delayed(delay);
@@ -437,10 +434,9 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
         return ticket;
       }
     } catch (e) {
-      developer.log(
+      Log.debug(
         'WS ticket unavailable; falling back to legacy ?token=: $e',
-        name: 'NetworkBackend',
-        level: 700,
+        source: 'NetworkBackend',
       );
     }
     return null;

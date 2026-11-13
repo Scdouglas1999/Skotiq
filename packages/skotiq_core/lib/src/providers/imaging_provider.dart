@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/database.dart' as db;
 import '../models/imaging/imaging_models.dart';
@@ -29,6 +28,7 @@ import '../settings/app_settings_state.g.dart';
 import '../settings/capture_format.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
+import '../services/logging_service.dart';
 
 final exposureSettingsProvider = StateProvider<ExposureSettings>((ref) {
   return const ExposureSettings(
@@ -85,10 +85,9 @@ void updateManualExposureSettings(Ref ref, ExposureSettings settings) {
           .read(settingsDaoProvider)
           .mergeJsonObjectSetting(key, changed, base: full);
     } catch (error, stack) {
-      developer.log(
+      Log.error(
         'Failed to save manual capture settings: $error',
-        name: 'ImagingSettings',
-        level: 1000,
+        source: 'ImagingSettings',
         error: error,
         stackTrace: stack,
       );
@@ -287,10 +286,9 @@ Future<void> _reloadExposureSettings(
         stored = _exposureSettingsFromJson(jsonDecode(value));
       }
     } on Object catch (error) {
-      developer.log(
+      Log.warning(
         'Could not re-read the capture settings after a change: $error',
-        name: 'ImagingSettings',
-        level: 900,
+        source: 'ImagingSettings',
       );
       return;
     }
@@ -398,10 +396,9 @@ class AutoStretchSettingsNotifier extends StateNotifier<AutoStretchSettings> {
         state = loaded;
       }
     } catch (e) {
-      developer.log(
+      Log.error(
         'Failed to load auto-stretch settings: $e',
-        name: 'AutoStretch',
-        level: 1000,
+        source: 'AutoStretch',
       );
     }
   }
@@ -440,10 +437,9 @@ class AutoStretchSettingsNotifier extends StateNotifier<AutoStretchSettings> {
           .read(settingsDaoProvider)
           .write(StoreSettings.autoStretch, jsonEncode(settings.toJson()));
     } catch (e) {
-      developer.log(
+      Log.error(
         'Failed to save auto-stretch settings: $e',
-        name: 'AutoStretch',
-        level: 1000,
+        source: 'AutoStretch',
       );
       rethrow;
     }
@@ -499,10 +495,9 @@ class FocusSettingsNotifier extends StateNotifier<FocusSettings> {
       if (!mounted) return;
       _adopt(settings);
     } catch (e) {
-      developer.log(
+      Log.error(
         'Failed to initialize focus settings from app settings: $e',
-        name: 'FocusSettings',
-        level: 1000,
+        source: 'FocusSettings',
       );
     }
   }
@@ -560,10 +555,9 @@ class FocusSettingsNotifier extends StateNotifier<FocusSettings> {
         await notifier.setAfMethod(next.method);
       }
     } catch (error) {
-      developer.log(
+      Log.error(
         'Could not save the autofocus panel setting: $error',
-        name: 'FocusSettings',
-        level: 1000,
+        source: 'FocusSettings',
       );
     }
   }

@@ -5,7 +5,7 @@
 library;
 
 import 'dart:convert';
-import 'dart:developer' as developer;
+import '../services/logging_service.dart';
 
 /// Base exception for all Skotiq backend errors.
 ///
@@ -139,11 +139,10 @@ class SkotiqException implements Exception {
       }
       return null;
     } on FormatException catch (e) {
-      developer.log(
+      Log.warning(
         'SkotiqException: malformed structured-error JSON envelope: '
         '${e.message} (input length=${message.length})',
-        name: 'SkotiqException',
-        level: 900, // warning
+        source: 'SkotiqException',
       );
       return null;
     }

@@ -20,7 +20,6 @@
 // broadcast.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:skotiq_core/services.dart' show sanitizeEndpointForDisplay;
@@ -32,6 +31,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/services.dart';
 
 /// REST surface for the headless OTA update flow.
 ///
@@ -314,10 +314,10 @@ class UpdateHandlers {
     } on Object catch (e) {
       // Why: best-effort install-dir resolution; fall back to the OS name
       // rather than failing the request if the executable path can't be parsed.
-      developer.log(
+      Log.debug(
         'Update handler: could not resolve executable dir, '
         'falling back to OS name: $e',
-        name: 'skotiq.headless',
+        source: 'skotiq.headless',
       );
       return Platform.operatingSystem;
     }

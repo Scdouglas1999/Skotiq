@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -16,6 +15,7 @@ import '../router/app_routes.dart';
 import 'tour.dart';
 import 'tour_runner.dart';
 import '../utils/snackbar_helper.dart';
+import 'package:skotiq_core/services.dart';
 
 part 'overlay/card.dart';
 part 'overlay/coach_marks.dart';
@@ -186,10 +186,9 @@ class _TourOverlayState extends ConsumerState<TourOverlay>
       try {
         await operation();
       } catch (error, stack) {
-        developer.log(
+        Log.warning(
           'Tour progress was not saved',
-          name: 'TourOverlay',
-          level: 900,
+          source: 'TourOverlay',
           error: error,
           stackTrace: stack,
         );
@@ -319,10 +318,10 @@ class _TourOverlayState extends ConsumerState<TourOverlay>
       isOnShow: tourTargetIsOnShow,
     );
     if (landing == null) return false;
-    developer.log(
+    Log.debug(
       'Passing over ${tour.id} step ${run.stepIndex} -> $landing '
       '(${tour.steps[run.stepIndex].target?.name} is not on show)',
-      name: 'TourOverlay',
+      source: 'TourOverlay',
     );
     // One move across the whole absent run, so none of those steps is ever
     // the current step for longer than the write takes.
@@ -331,10 +330,9 @@ class _TourOverlayState extends ConsumerState<TourOverlay>
       Object error,
       StackTrace stack,
     ) {
-      developer.log(
+      Log.warning(
         'Could not pass over an absent tour step',
-        name: 'TourOverlay',
-        level: 900,
+        source: 'TourOverlay',
         error: error,
         stackTrace: stack,
       );

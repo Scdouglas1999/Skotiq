@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:skotiq_core/errors.dart' show userFacingError, failureText;
@@ -6,6 +5,7 @@ import 'package:skotiq_core/utils.dart' show ExportTarget, chooseExportTarget;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Result of a "download this remote file to the device" flow.
 ///
@@ -82,7 +82,8 @@ Future<FileDownloadOutcome> downloadFileToDevice({
   try {
     tmpDir = await (temporaryDirectory ?? getTemporaryDirectory)();
   } catch (e) {
-    return FileDownloadOutcome.failed('Could not open a temp directory: ${userFacingError(e)}');
+    return FileDownloadOutcome.failed(
+        'Could not open a temp directory: ${userFacingError(e)}');
   }
   final tempPath = p.join(
     tmpDir.path,
@@ -128,7 +129,8 @@ Future<FileDownloadOutcome> downloadFileToDevice({
     return FileDownloadOutcome.saved(target.path);
   } catch (e) {
     await _deleteQuietly(tempPath);
-    return FileDownloadOutcome.failed('Could not save the file: ${userFacingError(e)}');
+    return FileDownloadOutcome.failed(
+        'Could not save the file: ${userFacingError(e)}');
   }
 }
 
@@ -140,10 +142,9 @@ Future<void> _deleteQuietly(String path) async {
     // The download outcome reported to the caller is unaffected, but these
     // temps are full-size images and logs — one we cannot remove is disk the
     // operator will never account for, so it must not vanish silently.
-    developer.log(
+    Log.warning(
       'Could not remove the temporary download file $path: $e',
-      name: 'FileDownload',
-      level: 900,
+      source: 'FileDownload',
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../models/backend/device_types.dart' show DeviceType, PierSide;
@@ -7,6 +6,7 @@ import 'device_read_health_provider.dart';
 import 'device_connection_notifier.dart';
 import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
+import '../../services/logging_service.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
@@ -134,10 +134,9 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
     final interval = state.isSlewing
         ? (companion ? _companionSlewingPollInterval : _slewingPollInterval)
         : (companion ? _companionPollInterval : _normalPollInterval);
-    developer.log(
+    Log.info(
       '[Mount] Starting position polling (interval: ${interval.inMilliseconds}ms)',
-      name: 'MountStateNotifier',
-      level: 800,
+      source: 'MountStateNotifier',
     );
     _positionPollTimer = Timer.periodic(interval, (_) => _pollPosition());
   }
@@ -146,10 +145,9 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
     if (_positionPollTimer != null) {
       _positionPollTimer!.cancel();
       _positionPollTimer = null;
-      developer.log(
+      Log.info(
         '[Mount] Stopped position polling',
-        name: 'MountStateNotifier',
-        level: 800,
+        source: 'MountStateNotifier',
       );
     }
   }
@@ -249,10 +247,9 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
             .read(deviceReadHealthProvider.notifier)
             .recordFailure(DeviceType.mount, deviceId, e);
       }
-      developer.log(
+      Log.warning(
         '[Mount] Position poll failed: $e',
-        name: 'MountStateNotifier',
-        level: 900,
+        source: 'MountStateNotifier',
         error: e,
       );
     } finally {

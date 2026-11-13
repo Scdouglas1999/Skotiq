@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-
 import '../../database/daos/images_dao.dart';
 import '../../database/daos/science_dao.dart';
 import '../logging_service.dart';

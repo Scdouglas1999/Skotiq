@@ -1,20 +1,14 @@
-// Pure-Dart gnomonic (TAN) projection between sky (RA, Dec) and image pixel
-// coordinates. Used by the catalog overlay (F5-CATALOG-OVERLAY) to draw
-// Messier / NGC / IC / bright stars on a plate-solved capture.
-//
-// Why a dedicated module: the legacy `WcsOverlay` in `wcs_overlay.dart`
-// uses a small-angle approximation (no `tan`, no proper denominator) that
-// breaks down at the >1 degree FOV scales most amateur astrographs work at.
-// Catalog overlay needs the real spherical math so a galaxy 30 arcmin off
-// the optical axis still lands on the correct pixel.
+// Gnomonic (TAN) projection between sky (RA, Dec) and image pixel
+// coordinates: the one projection for every overlay and cross-match on a
+// plate-solved frame.
 
 import 'dart:math' as math;
 
 /// Solved World Coordinate System for a captured frame, expressed in the
 /// units the existing `PlateSolveResult` carries:
 ///
-/// - [raHours]      — image-centre right ascension (hours, J2000)
-/// - [decDegrees]   — image-centre declination (degrees, J2000)
+/// - [raHours]      — right ascension of the reference pixel (hours, J2000)
+/// - [decDegrees]   — declination of the reference pixel (degrees, J2000)
 /// - [rotationDeg]  — field rotation in degrees as the native parser reports
 ///                    it (ASTAP's CROTA2: east of north if not flipped).
 /// - [pixelScaleArcsec] — plate scale in arcseconds per pixel.
@@ -24,8 +18,8 @@ import 'dart:math' as math;
 /// values at pixel centres: (0, 0) is the centre of the first stored pixel,
 /// x runs along a row and y along the stored row order. This is the frame the
 /// star detector reports in and the order the preview draws rows in. The
-/// reference pixel is the image centre, `((W - 1) / 2, (H - 1) / 2)`, which is
-/// ASTAP's CRPIX less one.
+/// reference pixel is ([referenceX], [referenceY]) when given, else the image
+/// centre `((W - 1) / 2, (H - 1) / 2)`; either is the FITS CRPIX less one.
 ///
 /// The sky-to-pixel mapping is the standard FITS one: `(xi, eta) = CD (u, v)`
 /// with `(u, v)` the offset from the reference pixel. When the CD matrix is
@@ -65,6 +59,10 @@ class SolvedWcs {
   /// matrix carries its own parity.
   final bool mirrored;
 
+  /// 0-based reference pixel, or null for the image centre.
+  final double? referenceX;
+  final double? referenceY;
+
   const SolvedWcs({
     required this.raHours,
     required this.decDegrees,
@@ -85,7 +83,72 @@ class SolvedWcs {
     this.apCoeffs = const [],
     this.bpCoeffs = const [],
     this.mirrored = false,
+    this.referenceX,
+    this.referenceY,
   });
+
+  /// The WCS a FITS header states as CRVAL (degrees), CRPIX (1-based) and a CD
+  /// matrix (degrees per pixel), or null when a scalar is missing or not
+  /// finite, or the matrix is singular.
+  static SolvedWcs? tryFromFitsCd({
+    required double? crval1,
+    required double? crval2,
+    required double? crpix1,
+    required double? crpix2,
+    required double? cd1_1,
+    required double? cd1_2,
+    required double? cd2_1,
+    required double? cd2_2,
+    required int imageWidth,
+    required int imageHeight,
+  }) {
+    if (crval1 == null ||
+        crval2 == null ||
+        crpix1 == null ||
+        crpix2 == null ||
+        cd1_1 == null ||
+        cd1_2 == null ||
+        cd2_1 == null ||
+        cd2_2 == null) {
+      return null;
+    }
+    final determinant = cd1_1 * cd2_2 - cd1_2 * cd2_1;
+    final scalars = [crval1, crval2, crpix1, crpix2, determinant];
+    if (!scalars.every((v) => v.isFinite) || determinant.abs() <= 1e-30) {
+      return null;
+    }
+    return SolvedWcs(
+      raHours: crval1 / 15.0,
+      decDegrees: crval2,
+      rotationDeg: rotationFromCd(
+        cd1_1: cd1_1,
+        cd1_2: cd1_2,
+        cd2_1: cd2_1,
+        cd2_2: cd2_2,
+      ),
+      pixelScaleArcsec: math.sqrt(determinant.abs()) * 3600.0,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
+      cd1_1: cd1_1,
+      cd1_2: cd1_2,
+      cd2_1: cd2_1,
+      cd2_2: cd2_2,
+      referenceX: crpix1 - 1.0,
+      referenceY: crpix2 - 1.0,
+    );
+  }
+
+  /// Radius in degrees of a catalog cone search that covers the frame: half
+  /// the diagonal plus a 10 % margin, kept to the range a cone search answers
+  /// usefully.
+  double get coneSearchRadiusDegrees {
+    final halfDiagonal =
+        0.5 *
+        math.sqrt(imageWidth * imageWidth + imageHeight * imageHeight) *
+        pixelScaleArcsec /
+        3600.0;
+    return (halfDiagonal * 1.1).clamp(0.05, 30.0);
+  }
 
   /// True iff a full, finite, invertible CD matrix is present.
   bool get hasCdMatrix =>
@@ -274,7 +337,7 @@ class GnomonicProjection {
   final double _invCd2_1;
   final double _invCd2_2;
 
-  /// 0-based reference pixel (the image centre).
+  /// 0-based reference pixel.
   final double _refX;
   final double _refY;
 
@@ -299,8 +362,8 @@ class GnomonicProjection {
       _invCd1_2 = -_cd1_2 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
       _invCd2_1 = -_cd2_1 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
       _invCd2_2 = _cd1_1 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
-      _refX = (wcs.imageWidth - 1) / 2.0,
-      _refY = (wcs.imageHeight - 1) / 2.0;
+      _refX = wcs.referenceX ?? (wcs.imageWidth - 1) / 2.0,
+      _refY = wcs.referenceY ?? (wcs.imageHeight - 1) / 2.0;
 
   /// Project (RA, Dec) to image pixels using the TAN (gnomonic) projection.
   ///
@@ -381,6 +444,12 @@ class GnomonicProjection {
       decDegrees: decRad * 180.0 / math.pi,
     );
   }
+
+  /// Sky position of the image centre.
+  ({double raDegrees, double decDegrees}) get imageCentre => pixelToWorld(
+    x: (wcs.imageWidth - 1) / 2.0,
+    y: (wcs.imageHeight - 1) / 2.0,
+  );
 
   /// Direction of north and east on the image at the reference pixel, as
   /// unit vectors in pixel coordinates (+x along a row, +y along the stored

@@ -13,13 +13,13 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     try {
       capabilities = await _backend.getCameraCapabilities(deviceId);
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Camera capabilities unknown at connect; applying the profile gain '
           'and offset: $e',
           source: 'DeviceService',
         ),
-        'camera-capabilities-on-connect',
       );
     }
     final keepsOwnIso = capabilities?.isoSpeeds.isNotEmpty ?? false;
@@ -31,17 +31,14 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       final activeProfile = _ref.read(activeEquipmentProfileProvider);
       if (activeProfile?.defaultGain != null && !keepsOwnIso) {
         try {
-          await _backend.cameraSetGain(
-            deviceId,
-            activeProfile!.defaultGain!,
-          );
+          await _backend.cameraSetGain(deviceId, activeProfile!.defaultGain!);
         } catch (e) {
-          _safeLog(
+          logSafely(
+            _ref,
             (l) => l.warning(
               'Profile gain could not be applied on connect: $e',
               source: 'DeviceService',
             ),
-            'profile-gain-on-connect',
           );
         }
       }
@@ -52,12 +49,12 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
             activeProfile!.defaultOffset!,
           );
         } catch (e) {
-          _safeLog(
+          logSafely(
+            _ref,
             (l) => l.warning(
               'Profile offset could not be applied on connect: $e',
               source: 'DeviceService',
             ),
-            'profile-offset-on-connect',
           );
         }
       }
@@ -74,12 +71,12 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
         }
       }
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Cool-on-connect failed (profile lookup or cooling command): $e',
           source: 'DeviceService',
         ),
-        'cool-on-connect',
       );
     }
 
@@ -264,20 +261,20 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       try {
         await _backend.cameraSetCooling(deviceId: deviceId, enabled: false);
         notifier.setCooling(false);
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.info(
             'Cooler disabled as part of camera disconnect',
             source: 'DeviceService',
           ),
-          'disconnect-cooler-off',
         );
       } catch (e) {
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.warning(
             'Could not disable cooler during disconnect: $e',
             source: 'DeviceService',
           ),
-          'disconnect-cooler-off',
         );
       }
     }
@@ -301,12 +298,12 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       notifier.setSlewing(status.slewing);
     } catch (e) {
       // If status query fails, log but don't fail the connection
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Failed to get initial mount status for ($deviceId): $e',
           source: 'DeviceService',
         ),
-        'mount-initial-status-fail',
       );
     }
 
@@ -347,13 +344,13 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
         await _ref
             .read(appSettingsProvider.notifier)
             .updateLocation(elevation: elevation);
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.info(
             'The site elevation was not set; using the '
             '${elevation.toStringAsFixed(0)} m that $deviceName reports',
             source: 'DeviceService',
           ),
-          'mount-site-elevation-adopted',
         );
       }
 
@@ -376,12 +373,12 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
               .raise(comparison);
       }
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Mount site/time reconciliation skipped for ($deviceId): $e',
           source: 'DeviceService',
         ),
-        'mount-site-reconcile-fail',
       );
     }
   }
@@ -393,13 +390,13 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     if (!comparison.canApply(direction)) {
       // The operator asked for a direction this mount cannot do. Say so once
       // rather than silently doing nothing every single connect.
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Mount ${comparison.deviceId} cannot sync '
           '${direction.name}: ${comparison.unavailableReason(direction)}',
           source: 'DeviceService',
         ),
-        'mount-site-direction-unavailable',
       );
       return;
     }
@@ -408,21 +405,21 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
         .read(mountSiteReconcilerProvider)
         .apply(comparison, direction);
     if (failures.isEmpty) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.info(
           'Mount ${comparison.deviceId} site/time synced ${direction.name}',
           source: 'DeviceService',
         ),
-        'mount-site-synced',
       );
     } else {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Mount ${comparison.deviceId} site/time sync '
           '${direction.name} partially failed: ${failures.join('; ')}',
           source: 'DeviceService',
         ),
-        'mount-site-sync-partial',
       );
     }
   }
@@ -524,12 +521,9 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     // computes its focuser delta against 0 — double-applying an offset
     // that is already physically embodied in the focuser position (the
     // rig was focused with the current filter in place).
-    if (status.position >= 0 &&
-        status.position < status.filterNames.length) {
+    if (status.position >= 0 && status.position < status.filterNames.length) {
       _lastAppliedFilterOffsetByWheel[deviceId] =
-          _resolveConfiguredFilterOffset(
-            status.filterNames[status.position],
-          );
+          _resolveConfiguredFilterOffset(status.filterNames[status.position]);
     }
 
     // After connection, sync profile/session filter names to the native

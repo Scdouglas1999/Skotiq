@@ -18,6 +18,7 @@ import 'package:skotiq_desktop/headless_api/handlers/db_read_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -530,7 +531,11 @@ void main() {
           sequenceId: null,
           sequenceName: 'NGC 7000 imaging',
         );
-        await db.sequenceRunsDao.finishRun(runId, 'completed', '{}');
+        await db.sequenceRunsDao.finishRun(
+          runId,
+          SequenceRunStatus.completed,
+          '{}',
+        );
 
         final response = await translateHandlerErrors(
           handlers.handleGetSequenceRunById(
@@ -659,7 +664,11 @@ void main() {
             sequenceId: null,
             sequenceName: 'Empty run',
           );
-          await db.sequenceRunsDao.finishRun(runId, 'completed', '{}');
+          await db.sequenceRunsDao.finishRun(
+            runId,
+            SequenceRunStatus.completed,
+            '{}',
+          );
 
           final response = await translateHandlerErrors(
             handlers.handleGetSequenceRunEvents(
@@ -708,7 +717,11 @@ void main() {
           sequenceId: null,
           sequenceName: 'No-frame run',
         );
-        await db.sequenceRunsDao.finishRun(runId, 'aborted', '{}');
+        await db.sequenceRunsDao.finishRun(
+          runId,
+          SequenceRunStatus.aborted,
+          '{}',
+        );
 
         final response = await translateHandlerErrors(
           handlers.handleGetSequenceRunFrames(

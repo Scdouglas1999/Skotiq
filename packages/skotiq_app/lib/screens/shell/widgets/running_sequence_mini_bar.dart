@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +11,7 @@ import '../../../router/app_routes.dart';
 import '../../../widgets/run_status/sequence_status_visuals.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Persistent app-shell mini-player for a running sequence.
 ///
@@ -94,11 +93,10 @@ class RunningSequenceMiniBar extends ConsumerWidget {
                         try {
                           context.go(AppRoute.sequencer.path);
                         } catch (e, stack) {
-                          developer.log(
+                          Log.warning(
                             '[RunningSequenceMiniBar] Could not return to the '
                             'sequencer: $e',
-                            name: 'RunningSequenceMiniBar',
-                            level: 900,
+                            source: 'RunningSequenceMiniBar',
                             error: e,
                             stackTrace: stack,
                           );

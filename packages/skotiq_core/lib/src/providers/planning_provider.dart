@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +24,7 @@ import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import 'planning/project_service_provider.dart';
 import 'scheduler/integration_goal_service_provider.dart';
+import '../services/logging_service.dart';
 
 /// Riverpod plumbing for the multi-night planner: [ProjectService] /
 /// [ForecastPlanningService] and the [OpenMeteoCloudProvider] forecast feed,
@@ -105,11 +105,10 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
         state = parsed;
       }
     } catch (error, stackTrace) {
-      developer.log(
+      Log.error(
         'Failed to hydrate the active planner project for '
         '${settingAtStart.key}',
-        name: 'ActiveProjectNotifier',
-        level: 1000,
+        source: 'ActiveProjectNotifier',
         error: error,
         stackTrace: stackTrace,
       );
@@ -212,10 +211,9 @@ final projectListProvider = StreamProvider<List<Project>>((ref) {
       unchanged: listEquals,
       interval: const Duration(seconds: 10),
       onRetainedError: (error, stackTrace) {
-        developer.log(
+        Log.warning(
           'Remote project poll failed; retaining last value',
-          name: 'PlanningProvider',
-          level: 900,
+          source: 'PlanningProvider',
           error: error,
           stackTrace: stackTrace,
         );

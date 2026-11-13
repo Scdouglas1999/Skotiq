@@ -12,7 +12,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,6 +26,7 @@ import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'notification_router_provider.dart';
 import '../database/daos/settings_dao.dart';
+import '../services/logging_service.dart';
 
 class HomeAssistantConfigNotifier
     extends AsyncNotifier<HomeAssistantDiscoveryConfig> {
@@ -40,10 +40,9 @@ class HomeAssistantConfigNotifier
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[HomeAssistantProviders] Bad config blob: $e',
-        name: 'HomeAssistantProviders',
-        level: 900,
+        source: 'HomeAssistantProviders',
       );
       return const HomeAssistantDiscoveryConfig();
     }
