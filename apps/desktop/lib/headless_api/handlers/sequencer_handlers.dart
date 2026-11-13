@@ -15,7 +15,7 @@ import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:shelf/shelf.dart';
 
-import '../../headless/host_checkpoint_directory.dart';
+import '../../host/host_checkpoint_directory.dart';
 import '../command_correlator.dart';
 import '../response_helpers.dart';
 import '../sequence_wire_validation.dart';
