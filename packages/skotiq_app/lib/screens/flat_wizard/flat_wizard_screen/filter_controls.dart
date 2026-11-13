@@ -58,7 +58,7 @@ class _FilterChecklist extends ConsumerWidget {
       return const EmptyState.compact(
         icon: LucideIcons.filter,
         title: 'No filters',
-        body: 'Connect a filter wheel to batch flats by filter.',
+        body: 'Connect a filter wheel or add filters to the profile.',
       );
     }
 

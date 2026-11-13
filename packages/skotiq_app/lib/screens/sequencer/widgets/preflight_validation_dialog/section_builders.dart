@@ -129,7 +129,7 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
     final sequence = ref.read(currentSequenceProvider);
     final filterRenames = sequence != null &&
             result.issues.any((i) => i.code == kFilterNameMismatchCode)
-        ? filterRenamesFor(sequence, ref.read(filterNamesToMatchProvider))
+        ? filterRenamesFor(sequence, ref.read(effectiveFiltersProvider))
         : const <String, String>{};
     final sections = <_PreflightSection>[
       _PreflightSection(

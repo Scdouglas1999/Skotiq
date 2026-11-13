@@ -150,7 +150,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     final exposure = mosaicWizardExposureSettingsForContext(
       ref.read(smartNightExposureContextProvider).valueOrNull,
     );
-    final filters = ref.read(profileFiltersProvider);
+    final filters = ref.read(effectiveFiltersProvider);
     if (filters.isEmpty) {
       _filterRows.add(_MosaicFilterRow(
         filterName: exposure.filterName ?? 'Light',
@@ -208,31 +208,75 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     return total;
   }
 
-  // Per-panel overhead model. These reflect the [MosaicSequenceOptions] the
-  // generator actually emits in [_createSequence] (centerAfterSlew: true,
-  // autofocusPerPanel: false) so the preview's estimate agrees with the built
-  // sequence instead of using one opaque 60 s lump.
-  static const double _slewSecsPerPanel = 30.0;
-  static const double _centerSecsPerPanel = 30.0; // plate-solve + recenter
-  static const double _autofocusSecsPerPanel = 60.0;
+  MosaicConfig get _config => MosaicConfig(
+        centerRa: _centerRa,
+        centerDec: _centerDec,
+        panelWidthArcmin: _panelWidthArcmin,
+        panelHeightArcmin: _panelHeightArcmin,
+        overlapPercent: _overlapPercent,
+        rotation: _rotation,
+        panelsHorizontal: _panelsHorizontal,
+        panelsVertical: _panelsVertical,
+      );
 
-  double _perPanelOverheadSecs({
-    required bool centerAfterSlew,
-    required bool autofocusPerPanel,
-  }) {
-    var overhead = _slewSecsPerPanel;
-    if (centerAfterSlew) overhead += _centerSecsPerPanel;
-    if (autofocusPerPanel) overhead += _autofocusSecsPerPanel;
-    return overhead;
-  }
+  /// The mosaic's steps as they go into the sequence: every active panel,
+  /// under one root instruction set.
+  ({Map<String, SequenceNode> nodes, String rootId}) _mosaicNodes(
+    MosaicService mosaicService,
+    MosaicConfig config,
+  ) {
+    final exposure = _effectiveExposure(
+      mosaicWizardExposureSettingsForContext(
+        ref.read(smartNightExposureContextProvider).valueOrNull,
+      ),
+    );
 
-  double _calculateTotalTime(double exposureSecsPerPanel) {
-    // Mirror the options used by _createSequence so preview == built sequence.
-    final overheadPerPanel = _perPanelOverheadSecs(
+    final options = MosaicSequenceOptions(
+      serpentineOrdering: true,
       centerAfterSlew: true,
       autofocusPerPanel: false,
+      // W1 altitude gate: default each panel's minAltitude to the Smart Night
+      // floor so every panel TargetHeader carries a `start_when AltitudeAbove`
+      // wait (serialized as `min_altitude`) — matching the headless mosaic
+      // path. STRENGTHENS the no-daylight/altitude gate for wizard-built
+      // mosaics; never weakens the existing Dart Sun gate (W1) or W5.
+      minAltitude: const SmartNightSettings().minAltitudeDeg,
     );
-    return _activePanelCount * (exposureSecsPerPanel + overheadPerPanel);
+
+    final nodes = mosaicService.createMosaicSequence(
+      mosaicName: _mosaicName,
+      config: config,
+      exposure: exposure,
+      options: options,
+    );
+
+    final rootNode = nodes.values.firstWhere(
+      (node) => node is InstructionSetNode && node.parentId == null,
+    );
+
+    final disabledChildIds = _disabledTargetSubtreeIds(nodes, rootNode);
+    return (
+      nodes: Map<String, SequenceNode>.fromEntries(
+        nodes.entries.where((entry) => !disabledChildIds.contains(entry.key)),
+      ),
+      rootId: rootNode.id,
+    );
+  }
+
+  /// How long the mosaic takes from now, timed as the sequence it builds.
+  Duration _estimatedTime() {
+    final built = _mosaicNodes(const MosaicService(), _config);
+    return ref
+        .watch(planTimerProvider)
+        .time(
+          Sequence.create(
+            name: _mosaicName,
+            nodes: built.nodes,
+            rootNodeId: built.rootId,
+          ),
+          DateTime.now(),
+        )
+        .total;
   }
 
   void _generateMosaic() {
@@ -243,16 +287,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     _logWizardAction('load-into-sequencer requested');
     const mosaicService = MosaicService();
 
-    final config = MosaicConfig(
-      centerRa: _centerRa,
-      centerDec: _centerDec,
-      panelWidthArcmin: _panelWidthArcmin,
-      panelHeightArcmin: _panelHeightArcmin,
-      overlapPercent: _overlapPercent,
-      rotation: _rotation,
-      panelsHorizontal: _panelsHorizontal,
-      panelsVertical: _panelsVertical,
-    );
+    final config = _config;
 
     final validation = mosaicService.validateMosaic(config);
     if (!validation.isValid) {
@@ -273,42 +308,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
   }
 
   void _createSequence(MosaicService mosaicService, MosaicConfig config) {
-    final exposure = _effectiveExposure(
-      mosaicWizardExposureSettingsForContext(
-        ref.read(smartNightExposureContextProvider).valueOrNull,
-      ),
-    );
-
-    final options = MosaicSequenceOptions(
-      serpentineOrdering: true,
-      centerAfterSlew: true,
-      autofocusPerPanel: false,
-      // W1 altitude gate: default each panel's minAltitude to the Smart Night
-      // floor so every panel TargetHeader carries a `start_when AltitudeAbove`
-      // wait (serialized as `min_altitude`) — matching the headless mosaic
-      // path. STRENGTHENS the no-daylight/altitude gate for wizard-built
-      // mosaics; never weakens the existing Dart Sun gate (W1) or W5.
-      minAltitude: const SmartNightSettings().minAltitudeDeg,
-    );
-
-    final nodes = mosaicService.createMosaicSequence(
-      mosaicName:
-          'Mosaic ${_centerRa.toStringAsFixed(2)}h ${_centerDec.toStringAsFixed(1)}°',
-      config: config,
-      exposure: exposure,
-      options: options,
-    );
-
+    final built = _mosaicNodes(mosaicService, config);
     final sequenceNotifier = ref.read(currentSequenceProvider.notifier);
-
-    final rootNode = nodes.values.firstWhere(
-      (node) => node is InstructionSetNode && node.parentId == null,
-    );
-
-    final disabledChildIds = _disabledTargetSubtreeIds(nodes, rootNode);
-    final enabledNodes = Map<String, SequenceNode>.fromEntries(
-      nodes.entries.where((entry) => !disabledChildIds.contains(entry.key)),
-    );
 
     try {
       if (ref.read(currentSequenceProvider) == null) {
@@ -324,8 +325,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
       // of replaying addNode in that order (which attached children to the
       // current root and duplicated panel headers).
       sequenceNotifier.mergeTemplateNodes(
-        templateNodes: enabledNodes,
-        templateRootId: rootNode.id,
+        templateNodes: built.nodes,
+        templateRootId: built.rootId,
         targetId: currentRootId,
       );
     } on SequenceLockedException catch (error) {

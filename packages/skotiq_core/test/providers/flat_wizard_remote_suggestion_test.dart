@@ -1,5 +1,5 @@
 // Coverage for the remote flat-suggestion fallback in
-// `FlatWizardNotifier.loadFiltersFromWheel`.
+// `FlatWizardNotifier.loadFilters`.
 //
 // On a remote client the local `flat_history` table is empty, so the wizard
 // derives a suggested exposure from the master via `NetworkBackend.listFlats`.
@@ -44,10 +44,13 @@ class _FixedBackendNotifier extends BackendNotifier {
 /// Filter-wheel notifier seeded with a fixed set of filter names. The
 /// override slot requires the concrete `FilterWheelStateNotifier`, so we
 /// extend it and just seed the state — the inherited profile listener is
-/// inert here (it only acts when a wheel is connected).
+/// inert here (it acts only on a wheel with a device id).
 class _SeededFilterWheelNotifier extends FilterWheelStateNotifier {
   _SeededFilterWheelNotifier(super.ref, List<String> names) {
-    state = FilterWheelState(filterNames: names);
+    state = FilterWheelState(
+      connectionState: DeviceConnectionState.connected,
+      filterNames: names,
+    );
   }
 }
 
@@ -98,7 +101,7 @@ void main() {
       notifier.debugRemoteFaultSink = faults.add;
 
       // Must complete without the transport exception escaping.
-      await notifier.loadFiltersFromWheel();
+      await notifier.loadFilters();
 
       final settings = container.read(flatWizardProvider).filterSettings;
       expect(settings, hasLength(1));
@@ -135,7 +138,7 @@ void main() {
     final faults = <Object>[];
     notifier.debugRemoteFaultSink = faults.add;
 
-    await notifier.loadFiltersFromWheel();
+    await notifier.loadFilters();
 
     final settings = container.read(flatWizardProvider).filterSettings;
     expect(settings, hasLength(1));
@@ -165,9 +168,9 @@ void main() {
     final container = makeContainer(backend);
     final notifier = container.read(flatWizardProvider.notifier);
     await Future.wait([
-      notifier.loadFiltersFromWheel(),
-      notifier.loadFiltersFromWheel(),
-      notifier.loadFiltersFromWheel(),
+      notifier.loadFilters(),
+      notifier.loadFilters(),
+      notifier.loadFilters(),
     ]);
 
     // One load for the first call, one follow-up for the two that arrived

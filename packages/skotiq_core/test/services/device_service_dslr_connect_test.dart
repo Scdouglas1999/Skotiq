@@ -42,14 +42,6 @@ void main() {
     when(
       () => backend.cameraGetRecommendedSettings(any()),
     ).thenAnswer((_) async => const CameraRecommendedSettings(notes: ''));
-    when(
-      () => backend.startDeviceHeartbeat(
-        deviceType: any(named: 'deviceType'),
-        deviceId: any(named: 'deviceId'),
-        intervalMs: any(named: 'intervalMs'),
-      ),
-    ).thenAnswer((_) async {});
-    when(() => backend.stopDeviceHeartbeat(any())).thenAnswer((_) async {});
     when(() => backend.discoverDevices(DeviceType.camera)).thenAnswer(
       (_) async => [
         const DeviceInfo(

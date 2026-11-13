@@ -51,7 +51,17 @@ class DeviceReconnectCoordinator {
        _connect = connect,
        _retryDelays = retryDelays ?? reconnectDelays,
        _reconnectAttemptOverride = reconnectAttempt,
-       _reconnectTarget = reconnectTarget;
+       _reconnectTarget = reconnectTarget {
+    // A pause this coordinator placed is its to lift only while it lasts: once
+    // the run leaves it (the operator resumed, stopped, or it ended), a later
+    // pause is someone else's.
+    ref.listen<SequenceExecutionState>(sequenceExecutionStateProvider, (
+      _,
+      next,
+    ) {
+      if (next != SequenceExecutionState.paused) _pausedForDeviceLoss = false;
+    });
+  }
 
   final Ref _ref;
   final SkotiqBackend _backend;
@@ -62,6 +72,11 @@ class DeviceReconnectCoordinator {
   bool get _hostOwnsRecovery => _backend.remoteHost != null;
   final Future<void> Function() _resumeSequence;
   final Future<void> Function() _pauseSequence;
+
+  /// The run is paused because this coordinator paused it for a lost camera
+  /// or mount. Only such a pause is lifted when the devices come back; a pause
+  /// the operator or the run's own recovery placed waits for the operator.
+  bool _pausedForDeviceLoss = false;
 
   /// The device service's connect: the one writer of a slot during a
   /// connect. It throws when the connect fails.
@@ -432,20 +447,18 @@ class DeviceReconnectCoordinator {
     _showReconnectionFailedNotification(type, deviceId);
   }
 
-  /// Handle disconnection of critical devices (camera, mount) during
-  /// sequence execution: snapshot a fresh checkpoint and pause the run.
-  /// The reconnect path will resume automatically via
-  /// [_considerSequenceResume] once both critical devices are back.
+  /// Handle disconnection of critical devices (camera, mount) during a live
+  /// run: snapshot a fresh checkpoint and pause the run. The reconnect path
+  /// lifts that pause via [_considerSequenceResume] once both critical devices
+  /// are back; a run already paused keeps its pause and is left to whoever
+  /// placed it.
   Future<void> handleCriticalDeviceDisconnect(
     String deviceType,
     String deviceId,
   ) async {
     if (_hostOwnsRecovery) return;
     final sequenceState = _ref.read(sequenceExecutionStateProvider);
-    if (sequenceState != SequenceExecutionState.running &&
-        sequenceState != SequenceExecutionState.paused) {
-      return;
-    }
+    if (!sequenceState.isLive) return;
 
     try {
       await _backend.saveCheckpoint();
@@ -477,6 +490,7 @@ class DeviceReconnectCoordinator {
 
     try {
       await _pauseSequence();
+      _pausedForDeviceLoss = true;
     } catch (e) {
       _safeLog(
         (logger) => logger.warning(
@@ -519,15 +533,16 @@ class DeviceReconnectCoordinator {
     );
   }
 
-  /// After a successful reconnect, resume a paused sequence if and only
-  /// if every critical device listed in the active profile is back.
+  /// After a successful reconnect, lift the pause this coordinator placed if
+  /// and only if every critical device listed in the active profile is back.
   Future<void> _considerSequenceResume(DeviceType type) async {
     if (type != DeviceType.camera && type != DeviceType.mount) {
       return;
     }
 
     final sequenceState = _ref.read(sequenceExecutionStateProvider);
-    if (sequenceState != SequenceExecutionState.paused) {
+    if (!_pausedForDeviceLoss ||
+        sequenceState != SequenceExecutionState.paused) {
       return;
     }
 
@@ -555,6 +570,7 @@ class DeviceReconnectCoordinator {
     if (allCriticalDevicesConnected) {
       try {
         await _resumeSequence();
+        _pausedForDeviceLoss = false;
       } catch (e) {
         _safeLog(
           (logger) => logger.warning(
@@ -567,17 +583,15 @@ class DeviceReconnectCoordinator {
     }
   }
 
-  /// Resume a paused sequence after an AUTHORITATIVE device-connected event,
-  /// regardless of which actor reconnected the device.
+  /// Lift this coordinator's device-loss pause after an AUTHORITATIVE
+  /// device-connected event, whichever actor reconnected the device.
   ///
   /// The Dart coordinator exhausts its own retry budget in ~35s, but the Rust
-  /// reconnection loop keeps retrying for minutes. Without this hook, a
-  /// reconnect driven by the Rust loop (after the Dart side already gave up)
-  /// would reconnect the device yet leave the sequence paused — the operator
-  /// wakes to a rig that is "connected but idle". Wiring this to the live
-  /// connected event closes that gap. Safe to call for any device type: only
-  /// camera/mount drive a resume, and resume only fires once ALL critical
-  /// devices are back (see [_considerSequenceResume]).
+  /// reconnection loop keeps retrying for minutes; a device the Rust loop
+  /// brings back after the Dart side gave up still ends the pause. Safe to
+  /// call for any device type: only camera/mount drive a resume, and resume
+  /// only fires once ALL critical devices are back (see
+  /// [_considerSequenceResume]).
   Future<void> onAuthoritativeDeviceConnected(
     String deviceType,
     String deviceId,

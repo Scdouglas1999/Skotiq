@@ -31,47 +31,37 @@ Future<String?> _defaultDarkroomSavePicker({
   return target?.path;
 }
 
-/// Where the save chooser opens: the profile's own darkroom output folder.
+/// Where the save chooser opens: the night's darkroom folder
+/// ([OutputLocations.darkroom]), else the output root, else the platform
+/// default.
 ///
-/// The chooser used to open wherever the process was launched from — for a
-/// release build, the bundle directory — while the profile's capture path and
-/// its `darkroom/` subfolder were configured, known, and already where every
-/// draft render and night report of this night had been written.
-///
-/// The directory is only OFFERED, never created and never written to: a chooser
-/// that opens at a path the operator then navigates away from must not have
-/// left a folder behind. `getSaveLocation` ignores an initial directory that
-/// does not exist, which is the same as not naming one, so a night that has not
-/// written a darkroom folder yet falls back to the capture root and then to the
-/// platform default.
-Future<String?> _darkroomOutputDirectory(SettingsDao settings) async {
-  final String configured;
+/// The directory is only offered, never created: a chooser the operator then
+/// navigates away from must not leave a folder behind, and `getSaveLocation`
+/// ignores an initial directory that does not exist.
+Future<String?> _darkroomOutputDirectory(Ref ref) async {
+  final OutputLocations locations;
   try {
-    configured = (await settings.read(AppSettingDefs.imageOutputPath)).trim();
+    locations = await ref.read(outputLocationsProvider.future);
   } catch (error, stack) {
-    // The chooser opening at the platform default is the documented behaviour
-    // of naming no directory, so a settings read that fails must not stop an
-    // export the operator asked for — but it is still a database read that did
-    // not work, and the log is where that is answerable.
+    // Opening at the platform default is what naming no directory does, so a
+    // failed read must not stop an export the operator asked for; the log is
+    // where the failed read is answerable.
     developer.log(
-      'Darkroom: the capture output path could not be read, so the save '
-      'chooser opens at the platform default: $error',
+      'Darkroom: the output folders could not be read, so the save chooser '
+      'opens at the platform default: $error',
       name: 'Darkroom',
       level: 900,
       stackTrace: stack,
     );
     return null;
   }
-  if (configured.isEmpty) return null;
-  final darkroom = p.join(configured, 'darkroom');
-  if (await Directory(darkroom).exists()) return darkroom;
-  if (await Directory(configured).exists()) return configured;
+  if (await locations.darkroom.exists()) return locations.darkroom.path;
+  if (await Directory(locations.root).exists()) return locations.root;
   return null;
 }
 
 /// Override point for the Darkroom export destination (tests script this).
 final darkroomSavePickerProvider = Provider<DarkroomSavePicker>((ref) {
-  final settings = ref.watch(settingsDaoProvider);
   return ({
     required String suggestedName,
     required List<String> allowedExtensions,
@@ -81,7 +71,7 @@ final darkroomSavePickerProvider = Provider<DarkroomSavePicker>((ref) {
       suggestedName: suggestedName,
       allowedExtensions: allowedExtensions,
       confirmButtonText: confirmButtonText,
-      initialDirectory: await _darkroomOutputDirectory(settings),
+      initialDirectory: await _darkroomOutputDirectory(ref),
     );
   };
 });

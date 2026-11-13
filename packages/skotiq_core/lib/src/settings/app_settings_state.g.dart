@@ -286,10 +286,16 @@ class AppSettingsState {
   final String catalogBaseUrl;
   final bool webServerEnabled;
   final int webServerPort;
+  /// A camera's gain, or a DSLR or mirrorless body's ISO: no camera's gain and
+  /// no body's ISO is above the bound.
   final int defaultGain;
+  /// The black-level pedestal, in ADU of a 16-bit frame.
   final int defaultOffset;
   final bool enableMeridianFlip;
   final bool tempCompensation;
+  /// Focuser steps per degree Celsius. Negative is common and zero tracks the
+  /// temperature without moving; a degree never asks for more than the
+  /// focuser step limit.
   final double tempCoefficient;
   /// Temperature compensation waits until the correction it owes is at least
   /// this many steps, so probe noise and slow drift do not step the focuser

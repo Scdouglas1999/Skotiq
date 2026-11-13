@@ -5,22 +5,29 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   /// astronomical dark. The host starts it itself, so it does not depend on
   /// this client staying awake or connected. Returns when it will start.
   Future<DateTime?> armHostStartAtDark() async {
-    final response = await _post('night/scheduled-start', const {}, null, 1);
+    final response = await _post(
+      SequencerApi.armScheduledStart,
+      body: const {},
+      maxAttempts: 1,
+    );
     return parseHostScheduledStart(response['at']);
   }
 
   /// Remote-only: cancel the host's scheduled start.
   Future<void> cancelHostScheduledStart() async {
-    await _post('night/scheduled-start/cancel', const {}, null, 1);
+    await _post(
+      SequencerApi.cancelScheduledStart,
+      body: const {},
+      maxAttempts: 1,
+    );
   }
 
   /// Remote-only: tell the host the telescope is capped for its darks.
   Future<EonStatus?> confirmHostEndOfNightCapped() async {
     final response = await _post(
-      'calibration/end-of-night/confirm-capped',
-      const {},
-      null,
-      1,
+      CalibrationApi.confirmEndOfNightCapped,
+      body: const {},
+      maxAttempts: 1,
     );
     return EonStatus.fromHostJson(response['status']);
   }
@@ -28,10 +35,9 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   /// Remote-only: stop the host's end-of-night calibration (skip the darks).
   Future<EonStatus?> cancelHostEndOfNight() async {
     final response = await _post(
-      'calibration/end-of-night/cancel',
-      const {},
-      null,
-      1,
+      CalibrationApi.cancelEndOfNight,
+      body: const {},
+      maxAttempts: 1,
     );
     return EonStatus.fromHostJson(response['status']);
   }
@@ -63,13 +69,16 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     double? fovDegrees,
     int? timeoutSeconds,
   }) async {
-    final start = await _post('plate-solve', {
-      'imagePath': imagePath,
-      if (ra != null) 'ra': ra,
-      if (dec != null) 'dec': dec,
-      if (fovDegrees != null) 'fov': fovDegrees,
-      if (timeoutSeconds != null) 'timeoutSeconds': timeoutSeconds,
-    });
+    final start = await _post(
+      ImagingApi.plateSolve,
+      body: {
+        'imagePath': imagePath,
+        if (ra != null) 'ra': ra,
+        if (dec != null) 'dec': dec,
+        if (fovDegrees != null) 'fov': fovDegrees,
+        if (timeoutSeconds != null) 'timeoutSeconds': timeoutSeconds,
+      },
+    );
     final jobId = start['jobId'] as String?;
     final Map<String, dynamic> response;
     if (jobId == null || jobId.isEmpty) {
@@ -147,7 +156,7 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<PlateSolverDetection> detectPlateSolvers() async {
-    final response = await _get('plate-solver/detect');
+    final response = await _get(ImagingApi.detectPlateSolvers);
     return PlateSolverDetection(
       astapPath: response['astapPath'] as String?,
       astrometryPath: response['astrometryPath'] as String?,
@@ -160,9 +169,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<PlateSolverInfo> verifyPlateSolver(String executablePath) async {
-    final response = await _post('plate-solver/verify', {
-      'executablePath': executablePath,
-    });
+    final response = await _post(
+      ImagingApi.verifyPlateSolver,
+      body: {'executablePath': executablePath},
+    );
     return PlateSolverInfo(
       path: response['path'] as String,
       flavour: response['flavour'] as String,
@@ -172,7 +182,7 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<PlateSolverPreference> getPlateSolverConfig() async {
-    final response = await _get('plate-solver/config');
+    final response = await _get(ImagingApi.getPlateSolverConfig);
     return PlateSolverPreference(
       astapPath: (response['astapPath'] as String?) ?? '',
       astrometryPath: (response['astrometryPath'] as String?) ?? '',
@@ -185,61 +195,64 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<void> setPlateSolverConfig(PlateSolverPreference pref) async {
-    await _post('plate-solver/config', {
-      'astapPath': pref.astapPath,
-      'astrometryPath': pref.astrometryPath,
-      'catalogPath': pref.catalogPath,
-      'solverChoice': pref.choice.serialized,
-    });
+    await _post(
+      ImagingApi.setPlateSolverConfig,
+      body: {
+        'astapPath': pref.astapPath,
+        'astrometryPath': pref.astrometryPath,
+        'catalogPath': pref.catalogPath,
+        'solverChoice': pref.choice.serialized,
+      },
+    );
   }
 
   @override
   Future<void> sequencerStart() async {
-    await _post('sequencer/start');
+    await _post(SequencerApi.start);
   }
 
   @override
   Future<void> sequencerStop({String? origin}) async {
     // A remote client's stop is an operator action; the origin is not
     // forwarded because the host treats an unlabelled stop as operator.
-    await _post('sequencer/stop');
+    await _post(SequencerApi.stop);
   }
 
   /// Host-authoritative secondary-rig status. These operations deliberately
   /// live on [NetworkBackend] rather than the generic sequencer role because
   /// the local implementation is still an FRB-owned background capture loop.
   Future<Map<String, dynamic>> secondaryRigGetStatus() {
-    return _get('sequencer/secondary-rig');
+    return _get(SequencerApi.secondaryRigStatus);
   }
 
   Future<void> secondaryRigStart(Map<String, dynamic> config) async {
-    await _post('sequencer/secondary-rig/start', config);
+    await _post(SequencerApi.secondaryRigStart, body: config);
   }
 
   Future<void> secondaryRigStop() async {
-    await _post('sequencer/secondary-rig/stop');
+    await _post(SequencerApi.secondaryRigStop);
   }
 
   @override
   Future<void> sequencerPause() async {
-    await _post('sequencer/pause');
+    await _post(SequencerApi.pause);
   }
 
   @override
   Future<void> sequencerResume() async {
-    await _post('sequencer/resume');
+    await _post(SequencerApi.resume);
   }
 
   @override
   Future<void> sequencerSkip() async {
-    await _post('sequencer/skip');
+    await _post(SequencerApi.skip);
   }
 
   @override
   Future<void> sequencerSkipToNode(String nodeId) async {
     // Forwarded to the remote host's sequencer.skip-to-node
     // endpoint. Server side maps to api_sequencer_skip_to_node.
-    await _post('sequencer/skip-to-node', {'nodeId': nodeId});
+    await _post(SequencerApi.skipToNode, body: {'nodeId': nodeId});
   }
 
   @override
@@ -255,28 +268,31 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     // host side too — does not yet wire the remote dispatch path
     // (that lands with the remote-protocol pack); for now this
     // is a faithful forwarder so the wire format is stable from day 1.
-    await _post('sequencer/plugin-node-finished', {
-      'nodeId': nodeId,
-      'success': success,
-      if (message != null) 'message': message,
-      if (structuredDetailJson != null)
-        'structuredDetailJson': structuredDetailJson,
-    });
+    await _post(
+      SequencerApi.pluginNodeFinished,
+      body: {
+        'nodeId': nodeId,
+        'success': success,
+        if (message != null) 'message': message,
+        if (structuredDetailJson != null)
+          'structuredDetailJson': structuredDetailJson,
+      },
+    );
   }
 
   @override
   Future<void> sequencerReset() async {
-    await _post('sequencer/reset');
+    await _post(SequencerApi.reset);
   }
 
   @override
   Future<void> sequencerLoadJson(String json) async {
-    await _post('sequencer/load', {'json': json});
+    await _post(SequencerApi.load, body: {'json': json});
   }
 
   @override
   Future<void> sequencerSetSimulationMode(bool enabled) async {
-    await _post('sequencer/simulation', {'enabled': enabled});
+    await _post(SequencerApi.setSimulationMode, body: {'enabled': enabled});
   }
 
   @override
@@ -297,14 +313,17 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     String? rotatorId,
     List<String>? filterNames,
   }) async {
-    await _post('sequencer/devices', {
-      'cameraId': cameraId,
-      'mountId': mountId,
-      'focuserId': focuserId,
-      'filterwheelId': filterwheelId,
-      'rotatorId': rotatorId,
-      'filterNames': filterNames,
-    });
+    await _post(
+      SequencerApi.setDevices,
+      body: {
+        'cameraId': cameraId,
+        'mountId': mountId,
+        'focuserId': focuserId,
+        'filterwheelId': filterwheelId,
+        'rotatorId': rotatorId,
+        'filterNames': filterNames,
+      },
+    );
   }
 
   @override
@@ -319,16 +338,17 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<void> sequencerSetSavePath(String? path) async {
-    await _post('sequencer/save-path', {'path': path});
+    await _post(SequencerApi.setSavePath, body: {'path': path});
   }
 
   @override
   Future<void> sequencerSetActiveSequenceRunId(int? sequenceRunId) async {
     // Replay Debug — POST through the standard sequencer
     // sub-API; the network backend just forwards primitives.
-    await _post('sequencer/active-sequence-run-id', {
-      'sequence_run_id': sequenceRunId,
-    });
+    await _post(
+      SequencerApi.setActiveSequenceRunId,
+      body: {'sequence_run_id': sequenceRunId},
+    );
   }
 
   @override
@@ -338,9 +358,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     // Remote staging mirrors the FFI path. The headless API owns the
     // deserialisation; an unrecognised endpoint on an older headless build is
     // surfaced rather than swallowed.
-    await _post('sequencer/update-pending-integration-carry-over', {
-      'carry_over': carryOver,
-    });
+    await _post(
+      SequencerApi.updatePendingIntegrationCarryOver,
+      body: {'carry_over': carryOver},
+    );
   }
 
   @override
@@ -354,14 +375,17 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }) async {
     // Forwarded to the remote host so the remote rig's
     // executor sees the same analyzer reading the local controller has.
-    await _post('sequencer/update-cloud-motion', {
-      'currentCoverPercent': currentCoverPercent,
-      'predictedArrivalMinutes': predictedArrivalMinutes,
-      'predictedOpeningMinutes': predictedOpeningMinutes,
-      'predictedOpeningDurationSecs': predictedOpeningDurationSecs,
-      'predictedClearSkyAlt': predictedClearSkyAlt,
-      'predictedClearSkyAz': predictedClearSkyAz,
-    });
+    await _post(
+      SequencerApi.updateCloudMotion,
+      body: {
+        'currentCoverPercent': currentCoverPercent,
+        'predictedArrivalMinutes': predictedArrivalMinutes,
+        'predictedOpeningMinutes': predictedOpeningMinutes,
+        'predictedOpeningDurationSecs': predictedOpeningDurationSecs,
+        'predictedClearSkyAlt': predictedClearSkyAlt,
+        'predictedClearSkyAz': predictedClearSkyAz,
+      },
+    );
   }
 
   @override
@@ -371,10 +395,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }) async {
     // Forwarded to the host so its in-sequencer WeatherUnsafe trigger sees
     // the verdict this controller computed.
-    await _post('sequencer/update-weather-verdict', {
-      'unsafeOverride': unsafeOverride,
-      'advisory': advisory,
-    });
+    await _post(
+      SequencerApi.updateWeatherVerdict,
+      body: {'unsafeOverride': unsafeOverride, 'advisory': advisory},
+    );
   }
 
   @override
@@ -382,10 +406,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     required int durationSecs,
     required String reason,
   }) async {
-    await _post('sequencer/weather-operator-clear', {
-      'durationSecs': durationSecs,
-      'reason': reason,
-    });
+    await _post(
+      SequencerApi.weatherOperatorClear,
+      body: {'durationSecs': durationSecs, 'reason': reason},
+    );
   }
 
   @override
@@ -393,7 +417,7 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     // Fetched lazily by the dashboard tick. The remote
     // endpoint mirrors the local FRB call.
     try {
-      final response = await _get('sequencer/cloud-motion');
+      final response = await _get(SequencerApi.getCloudMotion);
       if (!response.containsKey('cloud_motion')) {
         throw const FormatException(
           'GET /api/sequencer/cloud-motion returned no `cloud_motion` field',
@@ -424,12 +448,15 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     int? databaseId,
     required bool isDirty,
   }) async {
-    await _put('sequencer/editor-sequence', <String, dynamic>{
-      'open': sequence != null,
-      if (sequence != null) 'sequence': sequence,
-      if (databaseId != null) 'databaseId': databaseId,
-      'isDirty': isDirty,
-    });
+    await _put(
+      SequencerApi.putEditorSequence,
+      body: <String, dynamic>{
+        'open': sequence != null,
+        if (sequence != null) 'sequence': sequence,
+        if (databaseId != null) 'databaseId': databaseId,
+        'isDirty': isDirty,
+      },
+    );
   }
 
   /// Remote-only: whether the host has a run in flight (running, paused,
@@ -454,9 +481,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   /// Remote-only: stop the host's run through its own executor, keeping or
   /// discarding its resume point as the operator chose.
   Future<void> sequencerStopOnHost({required bool preserveCheckpoint}) async {
-    await _post('sequencer/stop', <String, dynamic>{
-      'preserveCheckpoint': preserveCheckpoint,
-    });
+    await _post(
+      SequencerApi.stop,
+      body: <String, dynamic>{'preserveCheckpoint': preserveCheckpoint},
+    );
   }
 
   /// Remote-only: fetch the host's live autopilot preview decision so the
@@ -464,20 +492,21 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   /// against its empty local catalog (which always yields "nothing eligible").
   /// Not part of the abstract backend — only a NetworkBackend slave calls this.
   Future<SchedulerDecision> getSchedulerPreview() async {
-    final response = await _get('scheduler/preview');
+    final response = await _get(SchedulerApi.previewDecision);
     return SchedulerDecision.fromJson(Map<String, dynamic>.from(response));
   }
 
   @override
   Future<void> sequencerUpdateConditionsScore(ConditionsScore? score) async {
-    await _post('sequencer/update-conditions-score', {
-      'score': score?.toJson(),
-    });
+    await _post(
+      SequencerApi.updateConditionsScore,
+      body: {'score': score?.toJson()},
+    );
   }
 
   @override
   Future<AdaptiveSwapSnapshot?> sequencerGetAdaptiveSwapSnapshot() async {
-    final response = await _get('sequencer/adaptive-swap');
+    final response = await _get(SequencerApi.getAdaptiveSwap);
     final value = response['adaptive_swap'];
     if (value == null) return null;
     if (value is String) return AdaptiveSwapDriver.decodeSnapshotJson(value);
@@ -500,22 +529,22 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     // controller has. Older headless servers may not implement the
     // endpoint; we don't swallow errors here (the user explicitly
     // pushed and would want to know).
-    await _post('sequencer/update-sky-brightness', {'mag': mag});
+    await _post(SequencerApi.updateSkyBrightness, body: {'mag': mag});
   }
 
   @override
   Future<void> recoveryTryNow() async {
-    await _post('sequencer/recovery/try-now', const {});
+    await _post(SequencerApi.recoveryTryNow, body: const {});
   }
 
   @override
   Future<void> recoveryAbort() async {
-    await _post('sequencer/recovery/abort', const {});
+    await _post(SequencerApi.recoveryAbort, body: const {});
   }
 
   @override
   Future<String?> getCurrentRecoveryJson() async {
-    final response = await _get('sequencer/recovery/current');
+    final response = await _get(SequencerApi.getCurrentRecovery);
     // The server returns `{"context": null}` for an idle executor or
     // `{"context": "<json>"}` while recovering.
     final ctx = response['context'];
@@ -525,13 +554,13 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<String> getRecoveryHistoryJson() async {
-    final response = await _get('sequencer/recovery/history');
+    final response = await _get(SequencerApi.getRecoveryHistory);
     return (response['history'] as String?) ?? '[]';
   }
 
   @override
   Future<SequencerStatus> sequencerGetStatus() async {
-    final response = await _get('sequencer/status');
+    final response = await _get(SequencerApi.status);
     return SequencerStatus(
       state: response['state'] as String? ?? 'Idle',
       currentNodeId: response['currentNodeId'] as String?,
@@ -550,30 +579,30 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<void> sequencerSetCheckpointDir(String path) async {
-    await _post('sequencer/checkpoint/dir', {'path': path});
+    await _post(SequencerApi.setCheckpointDir, body: {'path': path});
   }
 
   @override
   Future<bool> hasCheckpoint() async {
-    final response = await _get('sequencer/checkpoint/has');
+    final response = await _get(SequencerApi.hasCheckpoint);
     return response['hasCheckpoint'] as bool? ?? false;
   }
 
   @override
   Future<CheckpointInfo?> getCheckpointInfo() async {
-    final response = await _get('sequencer/checkpoint/info');
+    final response = await _get(SequencerApi.getCheckpointInfo);
     if (response['info'] == null) return null;
     return CheckpointInfo.fromJson(response['info'] as Map<String, dynamic>);
   }
 
   @override
   Future<void> resumeFromCheckpoint() async {
-    await _post('sequencer/checkpoint/resume', {});
+    await _post(SequencerApi.resumeFromCheckpoint, body: {});
   }
 
   @override
   Future<void> sequencerRequestMeridianFlip() async {
-    await _post('sequencer/request-meridian-flip', {});
+    await _post(SequencerApi.requestMeridianFlip, body: {});
   }
 
   @override
@@ -591,35 +620,38 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     required bool resumeGuiding,
     required double settleTimeSecs,
   }) async {
-    await _post('sequencer/meridian-flip', {
-      'mountId': mountId,
-      if (cameraId != null) 'cameraId': cameraId,
-      if (focuserId != null) 'focuserId': focuserId,
-      if (coverCalibratorId != null) 'coverCalibratorId': coverCalibratorId,
-      'targetName': targetName,
-      'targetRaHours': targetRaHours,
-      'targetDecDegrees': targetDecDegrees,
-      'pauseGuiding': pauseGuiding,
-      'autoCenter': autoCenter,
-      'refocusAfter': refocusAfter,
-      'resumeGuiding': resumeGuiding,
-      'settleTimeSecs': settleTimeSecs,
-    });
+    await _post(
+      SequencerApi.performMeridianFlip,
+      body: {
+        'mountId': mountId,
+        if (cameraId != null) 'cameraId': cameraId,
+        if (focuserId != null) 'focuserId': focuserId,
+        if (coverCalibratorId != null) 'coverCalibratorId': coverCalibratorId,
+        'targetName': targetName,
+        'targetRaHours': targetRaHours,
+        'targetDecDegrees': targetDecDegrees,
+        'pauseGuiding': pauseGuiding,
+        'autoCenter': autoCenter,
+        'refocusAfter': refocusAfter,
+        'resumeGuiding': resumeGuiding,
+        'settleTimeSecs': settleTimeSecs,
+      },
+    );
   }
 
   @override
   Future<void> discardCheckpoint() async {
-    await _post('sequencer/checkpoint/discard', {});
+    await _post(SequencerApi.discardCheckpoint, body: {});
   }
 
   @override
   Future<void> saveCheckpoint() async {
-    await _post('sequencer/checkpoint/save', {});
+    await _post(SequencerApi.saveCheckpoint, body: {});
   }
 
   @override
   Future<LocationSettings> getLocationFromInternet() async {
-    final response = await _get('location');
+    final response = await _get(ProfileApi.getLocationFromInternet);
     return LocationSettings(
       latitude: (response['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (response['longitude'] as num?)?.toDouble() ?? 0.0,
@@ -629,41 +661,46 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<CameraStatus> getCameraStatus(String deviceId) async {
-    final response = await _get('equipment/camera/status', {
-      'deviceId': deviceId,
-    });
+    final response = await _get(
+      EquipmentApi.cameraStatus,
+      query: {'deviceId': deviceId},
+    );
     return CameraStatus.fromJson(response);
   }
 
   @override
   Future<MountStatus> getMountStatus(String deviceId) async {
-    final response = await _get('equipment/mount/status', {
-      'deviceId': deviceId,
-    });
+    final response = await _get(
+      EquipmentApi.mountStatus,
+      query: {'deviceId': deviceId},
+    );
     return MountStatus.fromJson(response);
   }
 
   @override
   Future<FocuserStatus> getFocuserStatus(String deviceId) async {
-    final response = await _get('equipment/focuser/status', {
-      'deviceId': deviceId,
-    });
+    final response = await _get(
+      EquipmentApi.focuserStatus,
+      query: {'deviceId': deviceId},
+    );
     return FocuserStatus.fromJson(response);
   }
 
   @override
   Future<FilterWheelStatus> getFilterWheelStatus(String deviceId) async {
-    final response = await _get('equipment/filter-wheel/status', {
-      'deviceId': deviceId,
-    });
+    final response = await _get(
+      EquipmentApi.filterWheelStatus,
+      query: {'deviceId': deviceId},
+    );
     return FilterWheelStatus.fromJson(response);
   }
 
   @override
   Future<RotatorStatus> getRotatorStatus(String deviceId) async {
-    final response = await _get('equipment/rotator/status', {
-      'deviceId': deviceId,
-    });
+    final response = await _get(
+      EquipmentApi.rotatorStatus,
+      query: {'deviceId': deviceId},
+    );
     return RotatorStatus.fromJson(response);
   }
 
@@ -686,9 +723,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   @override
   Future<CameraCapabilities?> getCameraCapabilities(String deviceId) async {
     try {
-      final response = await _get('equipment/camera/capabilities', {
-        'deviceId': deviceId,
-      });
+      final response = await _get(
+        EquipmentApi.cameraCapabilities,
+        query: {'deviceId': deviceId},
+      );
       _requireRemoteCapabilityFields(
         response,
         'equipment/camera/capabilities',
@@ -704,9 +742,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   @override
   Future<MountCapabilities?> getMountCapabilities(String deviceId) async {
     try {
-      final response = await _get('equipment/mount/capabilities', {
-        'deviceId': deviceId,
-      });
+      final response = await _get(
+        EquipmentApi.mountCapabilities,
+        query: {'deviceId': deviceId},
+      );
       _requireRemoteCapabilityFields(
         response,
         'equipment/mount/capabilities',
@@ -722,9 +761,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   @override
   Future<FocuserCapabilities?> getFocuserCapabilities(String deviceId) async {
     try {
-      final response = await _get('equipment/focuser/capabilities', {
-        'deviceId': deviceId,
-      });
+      final response = await _get(
+        EquipmentApi.focuserCapabilities,
+        query: {'deviceId': deviceId},
+      );
       _requireRemoteCapabilityFields(
         response,
         'equipment/focuser/capabilities',
@@ -742,9 +782,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     String deviceId,
   ) async {
     try {
-      final response = await _get('equipment/filter-wheel/capabilities', {
-        'deviceId': deviceId,
-      });
+      final response = await _get(
+        EquipmentApi.filterWheelCapabilities,
+        query: {'deviceId': deviceId},
+      );
       _requireRemoteCapabilityFields(
         response,
         'equipment/filter-wheel/capabilities',
@@ -760,9 +801,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   @override
   Future<RotatorCapabilities?> getRotatorCapabilities(String deviceId) async {
     try {
-      final response = await _get('equipment/rotator/capabilities', {
-        'deviceId': deviceId,
-      });
+      final response = await _get(
+        EquipmentApi.rotatorCapabilities,
+        query: {'deviceId': deviceId},
+      );
       _requireRemoteCapabilityFields(
         response,
         'equipment/rotator/capabilities',
@@ -776,7 +818,10 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   Future<List<DeviceQuirk>> deviceQuirks(String deviceId) async {
-    final response = await _get('equipment/quirks', {'deviceId': deviceId});
+    final response = await _get(
+      EquipmentApi.deviceQuirks,
+      query: {'deviceId': deviceId},
+    );
     return [
       for (final quirk in response['quirks'] as List<dynamic>)
         DeviceQuirk.fromJson(quirk as Map<String, dynamic>),

@@ -9,8 +9,9 @@
 //      mount's minPulseGuideMs is rejected and blocks the save.
 //   3. in_range_accepted_with_caps_window — values inside the mount window
 //      are accepted and pushed to the config notifier unchanged.
-//   4. null_caps_uses_default_bounds — with no mount caps the existing
-//      75..1200 envelope applies: 1200 is accepted, 1201 is rejected.
+//   4. null_caps_only_orders_the_pulses — with no mount caps any ordered
+//      pair is accepted (the guider's own defaults are not a mount limit),
+//      and a max pulse at or below the min pulse is refused.
 //   5. hint_reflects_caps_window / hint_absent_without_caps — the supported
 //      range hint is shown only when the mount actually reports a range.
 //
@@ -120,11 +121,16 @@ MountCapabilities _caps({double? minPulse, double? maxPulse}) =>
       maxPulseGuideMs: maxPulse,
     );
 
-/// Returns the [TextField] paired with [label] in a config input row.
-Finder _fieldFor(String label) => find.descendant(
-      of: find.widgetWithText(Row, label),
-      matching: find.byType(TextField),
-    );
+/// The input for the config field labelled [label].
+Finder _fieldFor(String label) => find.byKey(ValueKey(switch (label) {
+      'Min pulse' => 'builtin-guider-min-pulse',
+      'Max pulse' => 'builtin-guider-max-pulse',
+      _ => throw ArgumentError.value(label),
+    }));
+
+const _rangeRefusal =
+    'The mount pulse-guides from 75 to 900 ms; keep min and max pulse inside '
+    'that.';
 
 /// Enter [value] into the field for [label] and tap Apply, draining the
 /// resulting snackbar / state frames so the tree settles.
@@ -158,7 +164,7 @@ void main() {
     await _setAndApply(tester, 'Max pulse', '1200');
 
     expect(
-      find.text('Max pulse 1200 ms exceeds the mount maximum of 900 ms'),
+      find.text(_rangeRefusal),
       findsOneWidget,
       reason: 'A max pulse above the mount ceiling must surface an error.',
     );
@@ -174,7 +180,7 @@ void main() {
     await _setAndApply(tester, 'Min pulse', '40');
 
     expect(
-      find.text('Min pulse 40 ms is below the mount minimum of 75 ms'),
+      find.text(_rangeRefusal),
       findsOneWidget,
       reason: 'A min pulse below the mount floor must surface an error.',
     );
@@ -189,7 +195,7 @@ void main() {
 
     await _setAndApply(tester, 'Max pulse', '600');
 
-    expect(find.textContaining('exceeds the mount maximum'), findsNothing,
+    expect(find.text(_rangeRefusal), findsNothing,
         reason: 'An in-range max pulse must not surface the range error.');
     expect(notifier.pushed, hasLength(1),
         reason: 'An in-range save must push exactly one config.');
@@ -200,32 +206,29 @@ void main() {
         reason: 'Untouched fields must be preserved.');
   });
 
-  testWidgets('null_caps_uses_default_bounds: 1200 accepted, 1201 rejected',
+  testWidgets('null_caps_only_orders_the_pulses: 1500 accepted, 50 refused',
       (tester) async {
     final notifier = await _pumpAndExpand(tester, null);
 
-    // 1200 sits on the inclusive ceiling of the 75..1200 default window.
-    await _setAndApply(tester, 'Max pulse', '1200');
+    await _setAndApply(tester, 'Max pulse', '1500');
     expect(notifier.pushed, hasLength(1),
-        reason: 'With null caps the default ceiling is 1200, so 1200 passes.');
-    expect(notifier.pushed.single.maxPulseMs, 1200.0);
+        reason: 'Without a mount range the guider defaults are no ceiling.');
+    expect(notifier.pushed.single.maxPulseMs, 1500.0);
 
-    // 1201 is past the default ceiling and must be rejected.
-    await _setAndApply(tester, 'Max pulse', '1201');
+    await _setAndApply(tester, 'Max pulse', '50');
     expect(
-      find.text('Max pulse 1201 ms exceeds the mount maximum of 1200 ms'),
+      find.text('Max pulse must be longer than min pulse.'),
       findsOneWidget,
-      reason: '1201 exceeds the 75..1200 default and must be rejected.',
     );
     expect(notifier.pushed, hasLength(1),
-        reason: 'The rejected 1201 must not push a second config.');
+        reason: 'The refused pair must not push a second config.');
   });
 
   testWidgets('hint_reflects_caps_window: shows mount-supported range',
       (tester) async {
     await _pumpAndExpand(tester, _caps(minPulse: 75, maxPulse: 900));
 
-    expect(find.text('Mount supports 75-900 ms'), findsNWidgets(2),
+    expect(find.textContaining('Mount supports 75-900 ms'), findsNWidgets(2),
         reason: 'Both the Min and Max pulse fields must show the range hint.');
   });
 

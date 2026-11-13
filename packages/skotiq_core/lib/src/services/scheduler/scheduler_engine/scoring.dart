@@ -51,25 +51,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     if (stillNeeded.isEmpty && c.goals.isNotEmpty) {
       rejections.add('all integration goals complete');
     }
-    final filtersOnEquipmentLower = c.availableFilters
-        .map((f) => f.toLowerCase())
-        .toSet();
     final hasUsableGoal = stillNeeded.isEmpty
         ? c
               .goals
               .isEmpty // no goals at all is fine - free-form imaging
-        : stillNeeded.any(
-            (p) =>
-                // An EMPTY goal filter means "no filter requirement", which is
-                // what a rig with no filter wheel has to be able to express.
-                // Matching it against the wheel's filter list rejected it —
-                // `availableFilters` is empty on such a rig, so `contains('')`
-                // is false — and the effect was inverted: a wheel-less target
-                // that scheduled fine free-form became UNSCHEDULABLE the moment
-                // the operator followed the empty-state prompt and added a goal.
-                p.goal.filter.isEmpty ||
-                filtersOnEquipmentLower.contains(p.goal.filter.toLowerCase()),
-          );
+        : stillNeeded.any((p) => _wheelTakes(p.goal, c.availableFilters));
     if (c.goals.isNotEmpty && !hasUsableGoal && stillNeeded.isNotEmpty) {
       final missingFilters = stillNeeded
           .map((p) => p.goal.filter)
@@ -374,20 +360,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     List<String> availableFilters,
   ) {
     if (progress.isEmpty) return 0.5;
-    final available = availableFilters.map((f) => f.toLowerCase()).toSet();
     var totalNeeded = 0;
     var totalGoal = 0;
     for (final p in progress) {
       totalGoal += p.goal.frameCount;
-      // Same rule as the admission check and buildSequenceForCandidate: an
-      // empty goal filter means "no filter requirement". Testing it for
-      // membership of the wheel's filter list scored an unfiltered goal on a
-      // wheel-less rig as already-complete, so the autopilot ranked a target
-      // it had never imaged below one that was finished.
-      if (p.goal.filter.isNotEmpty &&
-          !available.contains(p.goal.filter.toLowerCase())) {
-        continue;
-      }
+      if (!_wheelTakes(p.goal, availableFilters)) continue;
       totalNeeded += p.remainingFrames;
     }
     if (totalGoal <= 0) return 0.5;

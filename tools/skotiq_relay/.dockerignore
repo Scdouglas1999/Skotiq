@@ -1,0 +1,3 @@
+# Workspace-only files: the image builds the relay alone.
+pubspec_overrides.yaml
+.dart_tool/

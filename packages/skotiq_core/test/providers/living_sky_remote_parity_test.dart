@@ -24,10 +24,6 @@
 // (not the empty local DAO/seam). The complementary HOST-mode branch is covered
 // by sky_atlas_service_test.dart / the First Light service tests; the
 // remote-triage refresh path is covered by first_light_remote_triage_refresh_test.dart.
-//
-// The wire-route safety net (every NetworkBackend Living-Sky call maps to a
-// registered + advertised headless route) lives in the contract test at
-// apps/desktop/test/headless_api/network_backend_contract_test.dart.
 
 import 'dart:async';
 import 'dart:typed_data';

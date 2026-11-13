@@ -110,8 +110,8 @@
         "reason": "Holds a Riverpod Ref; reads coImagingSessionServiceProvider, deviceBackendProvider, exposureSettingsProvider."
       },
       "services/darkroom_build_jobs.dart": {
-        "count": 5,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads darkroomBuildServiceProvider, darkroomStateStoreProvider, databaseProvider, notificationServiceProvider, postSessionSeamProvider."
+        "count": 6,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads darkroomBuildServiceProvider, darkroomStateStoreProvider, databaseProvider, notificationServiceProvider, postSessionSeamProvider, targetMastersFolderProvider."
       },
       "services/default_science_backend.dart": {
         "count": 6,

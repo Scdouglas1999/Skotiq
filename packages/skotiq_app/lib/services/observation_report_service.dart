@@ -969,12 +969,6 @@ class ObservationReportService {
     return '${_listMean(hfrValues).toStringAsFixed(2)} px';
   }
 
-  Future<Directory> _getExportDirectory() async {
-    final docsDir = await _documentsDirectoryProvider();
-    final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
-    if (!await exportDir.exists()) {
-      await exportDir.create(recursive: true);
-    }
-    return exportDir;
-  }
+  Future<Directory> _getExportDirectory() =>
+      resolveSkotiqExportsDirectory(documents: _documentsDirectoryProvider);
 }

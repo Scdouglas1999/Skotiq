@@ -8,6 +8,7 @@ library;
 export 'src/models/equipment/equipment_models.dart';
 export 'src/models/equipment/unified_device.dart';
 export 'src/models/equipment/discovery_state.dart';
+export 'src/models/equipment/filter_names.dart';
 export 'src/models/mount_guard.dart';
 export 'src/models/mount_site_reconciliation.dart';
 export 'src/models/equipment_profile.dart';
@@ -145,6 +146,12 @@ export 'src/models/backend/fits_header.dart';
 export 'src/models/backend/image_result.dart';
 export 'src/models/backend/platform_capabilities.dart';
 export 'src/models/backend/remote_api_compatibility.dart';
+export 'src/models/backend/backend_connection_state.dart';
+export 'src/models/backend/remote_catalog_models.dart';
+export 'src/models/backend/remote_science_bundle.dart';
+export 'src/models/backend/remote_session_status.dart';
+export 'src/models/backend/remote_stacked_result.dart';
+export 'src/models/backend/remote_update_models.dart';
 // Recovery Mode — Dart mirror of the Rust `RecoveryContext`,
 // `RecoveryHistoryEntry`, `RecoveryCause`, and `RecoveryPhase` so the Run
 // Dashboard recovery banner and post-session report render the same data

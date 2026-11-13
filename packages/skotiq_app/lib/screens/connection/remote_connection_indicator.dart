@@ -17,6 +17,7 @@ import 'share_session_dialog.dart';
 
 import 'work_locally.dart';
 import '../../router/app_routes.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Four-state model for the shared remote-connection indicator.
 ///

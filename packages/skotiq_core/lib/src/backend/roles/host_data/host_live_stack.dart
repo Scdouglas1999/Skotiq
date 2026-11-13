@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../services/live_stacking_service.dart';
-import '../../network_backend.dart';
+import '../../../models/backend/remote_stacked_result.dart';
 
 /// The live stack a linked imaging host builds from the frames it captures.
 ///
@@ -23,9 +23,7 @@ abstract interface class HostLiveStack {
 
   Future<void> stackingStop();
 
-  Future<List<RemoteStackedResult>> stackingGetSavedResults({
-    int limit = 20,
-  });
+  Future<List<RemoteStackedResult>> stackingGetSavedResults({int limit = 20});
 
   Future<RemoteStackedResult> stackingGetSavedResult(int resultId);
 

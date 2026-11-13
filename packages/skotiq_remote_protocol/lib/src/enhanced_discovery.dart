@@ -11,6 +11,7 @@ import 'discovery.dart';
 import 'network_uri.dart';
 import 'server_compatibility.dart';
 import 'tailnet_detector.dart';
+import 'wire/routes/system_api.dart';
 
 /// SharedPreferences keys for server persistence.
 ///
@@ -619,7 +620,7 @@ class EnhancedSkotiqDiscovery {
               scheme: server.scheme,
               host: server.host,
               port: server.webPort,
-              pathAndQuery: '/api/info',
+              pathAndQuery: SystemApi.info.route.path,
             ),
             headers: _authHeaders(server.authToken),
           )
@@ -710,7 +711,7 @@ class EnhancedSkotiqDiscovery {
               scheme: lowered,
               host: host,
               port: port,
-              pathAndQuery: '/api/info',
+              pathAndQuery: SystemApi.info.route.path,
             ),
             headers: _authHeaders(authToken),
           )
@@ -755,7 +756,7 @@ class EnhancedSkotiqDiscovery {
               scheme: lowered,
               host: host,
               port: port,
-              pathAndQuery: '/api/status',
+              pathAndQuery: SystemApi.status.route.path,
             ),
             headers: _authHeaders(authToken),
           )

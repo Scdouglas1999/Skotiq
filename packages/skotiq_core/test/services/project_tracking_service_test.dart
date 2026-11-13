@@ -208,4 +208,24 @@ void main() {
     expect(perGoal.map((g) => g.seconds), [600, 1200]);
     expect(perGoal.map((g) => g.frames), [2, 4]);
   });
+
+  test('a goal counts the frames filed under the wheel\'s longer name for '
+      'its filter, and a closer spelling hides a looser one', () {
+    final frames = [
+      for (var i = 1; i <= 4; i++) _frame(i, filter: 'Ha 7nm', exposure: 300),
+      for (var i = 5; i <= 6; i++) _frame(i, filter: 'L', exposure: 300),
+      for (var i = 7; i <= 9; i++)
+        _frame(i, filter: 'L-eXtreme', exposure: 300),
+    ];
+    final accepted = acceptedLightsByFilter(frames);
+    expect(acceptedInGoalFilter(accepted, 'Ha').frames, 4);
+    expect(acceptedInGoalFilter(accepted, 'H-alpha').seconds, 1200);
+    expect(acceptedInGoalFilter(accepted, 'L').frames, 2);
+    expect(acceptedInGoalFilter(accepted, 'OIII').frames, 0);
+    final perGoal = acceptedPerGoal(accepted, [
+      _goal('Ha', 300, 2),
+      _goal('H-alpha', 300, 10),
+    ]);
+    expect(perGoal.map((g) => g.frames), [2, 2]);
+  });
 }

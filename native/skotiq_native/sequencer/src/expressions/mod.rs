@@ -32,7 +32,8 @@ pub use catalog::{catalog_json, variable_catalog, VariableEntry, VariableGroup};
 pub use errors::InterpolationError;
 pub use parser::{parse_template, TemplatePart};
 pub use resolver::{
-    interpolate, interpolate_optional, resolve_variable, EvaluationFrame, VariableValue,
+    interpolate, interpolate_optional, interpolate_with, resolve_variable, EvaluationFrame,
+    VariableValue,
 };
 
 /// Convert a dotted catalog name (`target.alt`, `equipment.focal_length`,

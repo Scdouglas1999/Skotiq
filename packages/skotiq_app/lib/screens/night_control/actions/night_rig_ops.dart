@@ -256,8 +256,6 @@ class ServiceNightRigOps implements NightRigOps {
           targetRa: target.raHours,
           targetDec: target.decDegrees,
           solverConfig: PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: settings.astapPath,
             timeoutSeconds: settings.plateSolveTimeout,
             searchRadius: settings.plateSolveSearchRadius,
           ),

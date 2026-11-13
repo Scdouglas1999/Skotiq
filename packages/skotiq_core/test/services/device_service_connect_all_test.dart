@@ -167,13 +167,6 @@ void main() {
           canSetOffset: true,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       await service.connect(DeviceType.camera, deviceId);
@@ -349,13 +342,6 @@ void main() {
           hasTemperature: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       final profile = buildProfile(
@@ -440,13 +426,6 @@ void main() {
           canSetOffset: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       const profile = EquipmentProfileModel(
@@ -506,13 +485,6 @@ void main() {
           canSetOffset: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       final profile = buildProfile(cameraId: cameraId, mountId: mountId);
@@ -571,13 +543,6 @@ void main() {
       when(
         () => mockBackend.getMountStatus(mountId),
       ).thenThrow(Exception('no status in this test'));
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       await service.connectProfile(
@@ -647,13 +612,6 @@ void main() {
       when(
         () => mockBackend.getMountStatus(mountId),
       ).thenThrow(Exception('no status in this test'));
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       final profile = buildProfile(cameraId: cameraId, mountId: mountId);
@@ -733,13 +691,6 @@ void main() {
           canSetOffset: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       final profile = buildProfile(cameraId: goodCamera, mountId: badMountId);
@@ -818,13 +769,6 @@ void main() {
           canSetTrackingRate: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       const profile = EquipmentProfileModel(

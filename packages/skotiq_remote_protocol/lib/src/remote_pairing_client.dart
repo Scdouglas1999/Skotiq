@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 
 import 'server_compatibility.dart';
 import 'network_uri.dart';
+import 'wire/routes/pairing_api.dart';
+import 'wire/routes/system_api.dart';
 
 /// Result of `POST /api/pairing/start`.
 class RemotePairingStartResult {
@@ -181,7 +183,7 @@ class RemotePairingClient {
   /// and when it expires, so a passive network observer cannot harvest it.
   Future<RemotePairingStartResult> start() async {
     final response = await http
-        .post(_uri('/api/pairing/start'), headers: _headers)
+        .post(_uri(PairingApi.start.route.path), headers: _headers)
         .timeout(timeout);
 
     if (response.statusCode != 200) {
@@ -203,7 +205,7 @@ class RemotePairingClient {
   /// fingerprint".
   Future<String?> fetchFingerprint() async {
     final response = await http
-        .get(_uri('/api/info'), headers: _headers)
+        .get(_uri(SystemApi.info.route.path), headers: _headers)
         .timeout(timeout);
     if (response.statusCode != 200) {
       throw RemotePairingException(
@@ -266,7 +268,7 @@ class RemotePairingClient {
 
     final response = await http
         .post(
-          _uri('/api/pairing/verify'),
+          _uri(PairingApi.verify.route.path),
           headers: _headers,
           body: jsonEncode({
             'code': code.trim(),
@@ -315,7 +317,7 @@ class RemotePairingClient {
 
     final response = await http
         .post(
-          _uri('/api/pairing/lan-claim'),
+          _uri(PairingApi.lanClaim.route.path),
           headers: _headers,
           body: jsonEncode({
             'deviceId': deviceId,

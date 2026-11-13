@@ -19,6 +19,7 @@ import '../../../utils/device_type_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../focuser_backlash/effective_backlash_readout.dart';
 import '../../../widgets/troubleshooter/connection_troubleshooter_dialog.dart';
+import '../../settings/widgets/settings_widgets.dart';
 import '../utils/device_error_subtitle.dart';
 import '../utils/meridian_flip_pointer.dart';
 import 'device_tile_width.dart';

@@ -92,6 +92,10 @@ void main() {
         darkroomBuildServiceProvider.overrideWithValue(service),
         postSessionSeamProvider.overrideWithValue(seam),
         notificationServiceProvider.overrideWithValue(notifications),
+        outputLocationsProvider.overrideWith(
+          (ref) async =>
+              OutputLocations(captureFolder: folder.path, documents: folder),
+        ),
       ],
     );
   });
@@ -292,7 +296,6 @@ void main() {
         .startUnattended(
           'NGC891',
           requireCalibration: false,
-          outputRoot: Directory('${folder.path}/auto'),
         );
     await native.buildStarted.future;
     final job = container.read(darkroomBuildJobsProvider)!;
@@ -309,7 +312,6 @@ void main() {
           .startUnattended(
             'NGC891',
             requireCalibration: false,
-            outputRoot: Directory('${folder.path}/auto'),
           );
       expect(job.stage, DarkroomJobStage.done);
       expect(job.unattended, isTrue);
@@ -317,7 +319,7 @@ void main() {
       expect(notifications.sent.single, contains('Masters ready: NGC891'));
       expect(notifications.sent.single, contains('No filter has flats (L, R)'));
       expect(notifications.links.single, 'darkroom_target:NGC891');
-      expect(job.directory, '${folder.path}/auto/NGC891');
+      expect(job.directory, '${folder.path}/Masters/NGC891');
     },
   );
 
@@ -333,7 +335,6 @@ void main() {
           .startUnattended(
             'NGC891',
             requireCalibration: false,
-            outputRoot: Directory('${folder.path}/auto'),
           );
       expect(job.stage, DarkroomJobStage.awaitingReview);
       expect(native.built, isEmpty);
@@ -366,6 +367,10 @@ void main() {
           darkroomBuildServiceProvider.overrideWithValue(service),
           postSessionSeamProvider.overrideWithValue(seam),
           notificationServiceProvider.overrideWithValue(notifications),
+          outputLocationsProvider.overrideWith(
+            (ref) async =>
+                OutputLocations(captureFolder: folder.path, documents: folder),
+          ),
         ],
       );
       addTearDown(small.dispose);
@@ -374,7 +379,6 @@ void main() {
           .startUnattended(
             'NGC891',
             requireCalibration: false,
-            outputRoot: Directory('${folder.path}/auto'),
           );
       expect(job.stage, DarkroomJobStage.failed);
       expect(native.built, isEmpty);
@@ -405,7 +409,6 @@ void main() {
         .startUnattended(
           'NGC891',
           requireCalibration: false,
-          outputRoot: Directory('${folder.path}/auto'),
           announce: false,
         );
     expect(job.stage, DarkroomJobStage.done);
@@ -482,7 +485,6 @@ void main() {
       await jobs.startUnattended(
         'NGC891',
         requireCalibration: false,
-        outputRoot: Directory('${folder.path}/auto'),
       );
       await jobs.flush();
 
@@ -498,7 +500,7 @@ void main() {
       await restored.accept();
       final done = after.read(darkroomBuildJobsProvider)!;
       expect(done.stage, DarkroomJobStage.done);
-      expect(done.directory, '${folder.path}/auto/NGC891');
+      expect(done.directory, '${folder.path}/Masters/NGC891');
       expect(native.built, ['L', 'R']);
     });
 
@@ -509,7 +511,6 @@ void main() {
       final running = jobs.startUnattended(
         'NGC891',
         requireCalibration: false,
-        outputRoot: Directory('${folder.path}/auto'),
       );
       await native.buildStarted.future;
       await jobs.flush();
@@ -548,13 +549,11 @@ void main() {
       await jobs.startUnattended(
         'NGC891',
         requireCalibration: false,
-        outputRoot: Directory('${folder.path}/auto'),
       );
       native.retained = .9;
       await jobs.startUnattended(
         'M81',
         requireCalibration: false,
-        outputRoot: Directory('${folder.path}/auto'),
       );
       expect(container.read(darkroomBuildJobsProvider)!.target, 'M81');
       final held = container.read(darkroomHeldBuildsProvider);

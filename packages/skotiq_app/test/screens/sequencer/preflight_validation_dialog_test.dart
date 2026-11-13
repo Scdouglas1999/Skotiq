@@ -119,7 +119,7 @@ void main() {
     final container = ProviderContainer(overrides: [
       inMemoryDatabaseOverride(),
       if (wheelFilters != null)
-        filterNamesToMatchProvider.overrideWithValue(wheelFilters),
+        effectiveFiltersProvider.overrideWithValue(wheelFilters),
       currentSequenceProvider.overrideWith(
         (ref) => _SeedingNotifier(ref, sequence ?? _sequence()),
       ),

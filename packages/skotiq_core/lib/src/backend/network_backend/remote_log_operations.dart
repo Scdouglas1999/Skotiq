@@ -19,7 +19,7 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
     if (categoryFilter != null && categoryFilter.isNotEmpty) {
       query['source'] = categoryFilter;
     }
-    final body = await _get('logs/recent', query);
+    final body = await _get(LogApi.recent, query: query);
     final entriesRaw = body['entries'];
     if (entriesRaw is! List) {
       // Malformed payload — surface loudly. A silent empty list would
@@ -56,7 +56,7 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
   /// GET /api/logs — list the host's on-disk log files (name, size,
   /// mtime, isCurrent) so a paired device can pick one to download.
   Future<List<RemoteLogFileInfo>> listServerLogFiles() async {
-    final body = await _get('logs');
+    final body = await _get(LogApi.listFiles);
     final filesRaw = body['files'];
     if (filesRaw is! List) {
       // Malformed payload — surface loudly, matching fetchRecentServerLogs.
@@ -86,8 +86,9 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
       throw ArgumentError.value(fileName, 'fileName', 'must not be empty');
     }
     return _downloadToFile(
-      'logs/files/${Uri.encodeComponent(fileName)}/download',
+      LogApi.downloadFile,
       localPath,
+      path: {'filename': fileName},
       onProgress: onProgress,
     );
   }
@@ -97,7 +98,7 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
   /// the per-file status map which the desktop log viewer surfaces but
   /// the mobile log tab does not currently need.
   Future<void> clearServerLogs() async {
-    await _post('logs/clear');
+    await _post(LogApi.clear);
   }
 
   /// Open a tail subscription against `GET /api/logs/tail` (SSE). The
@@ -149,7 +150,8 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
       if (severityMin != null && severityMin.isNotEmpty) {
         query['severity'] = severityMin;
       }
-      final uri = _apiUri('logs/tail', query);
+      final path = _endpointPath(LogApi.tail, ApiMethod.get);
+      final uri = _apiUri(path, query);
       try {
         client = HttpClient();
         final req = await client!.getUrl(uri);
@@ -161,10 +163,7 @@ mixin _NetworkBackendRemoteLogOperations on _NetworkBackendTransport {
           RemoteApiCompatibility.apiVersionHeader,
           RemoteApiCompatibility.clientApiVersion.format(),
         );
-        req.headers.set(
-          NetworkBackend._requestIdHeader,
-          _nextRequestId('logs/tail'),
-        );
+        req.headers.set(NetworkBackend._requestIdHeader, _nextRequestId(path));
         if (authToken != null && authToken!.isNotEmpty) {
           req.headers.set('Authorization', 'Bearer $authToken');
         }

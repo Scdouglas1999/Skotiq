@@ -584,6 +584,78 @@ class ImagingService {
     return candidate;
   }
 
+  /// The naming-pattern tokens a run fills in as it saves each frame, as the
+  /// native save template spells them: values that change from frame to
+  /// frame (number, time, sensor temperature) or that only the run knows (the
+  /// target a scheduler picked, the filter in the wheel, an adapted
+  /// exposure). Formats match [buildTimestampSubstitutions]. Every other
+  /// token is filled in when the plan is sent ([runFrameSaveTemplate]).
+  static const Map<String, String> runFrameTokens = {
+    r'$TARGET': r'${target.name}',
+    r'$FILTER': r'${filter}',
+    r'$EXPTIME': r'${exposure.duration:.1f}',
+    r'$EXPOSURE': r'${exposure.duration:.1f}',
+    r'$FRAMENUM': r'${frame:04}',
+    r'$SEQ': r'${frame:04}',
+    r'$DATE': r'${time.date}',
+    r'$TIME': r'${time.clock}',
+    r'$DATETIME': r'${time.date}_${time.clock}',
+    r'$TEMP': r'${camera.temp_c:.0f}C',
+  };
+
+  /// The values of the tokens a run does not fill in itself, for one capture
+  /// step of [sequence] sent at [sentAt]: what a manual capture's pattern
+  /// gives them, from the step instead of the Imaging panel.
+  static Map<String, String> runFrameFixedTokens({
+    required String sequence,
+    required FrameType frameType,
+    required int gain,
+    required int offset,
+    required String binning,
+    required String camera,
+    required String telescope,
+    required DateTime sentAt,
+  }) => {
+    r'$FRAMETYPE': frameType.name,
+    r'$GAIN': gain.toString(),
+    r'$OFFSET': offset.toString(),
+    r'$BINNING': binning,
+    r'$CAMERA': camera,
+    r'$TELESCOPE': telescope,
+    r'$SEQUENCE': sequence,
+    // The run's session, so a night past UTC midnight stays one session.
+    r'$SESSION': sentAt.toUtc().toIso8601String().substring(0, 10).replaceAll(
+      '-',
+      '',
+    ),
+  };
+
+  /// The Settings naming [pattern] as the save template (`save_to`) of a
+  /// run's frames: [runFrameTokens] become the run's placeholders, every
+  /// other token takes its value from [fixed], made safe as one path segment
+  /// as a manual capture's are. The same pattern names a manual capture and
+  /// a sequence frame alike.
+  ///
+  /// Throws the [ValidationException] a manual capture with [pattern] would,
+  /// so a pattern that cannot name a frame stops the run before it starts.
+  static String runFrameSaveTemplate(
+    String pattern,
+    Map<String, String> fixed,
+  ) {
+    buildImageFilePath(
+      pattern: pattern,
+      basePath: '/',
+      extension: 'fits',
+      substitutions: {for (final token in _patternVariables) token: 'x'},
+      pathContext: path.posix,
+    );
+    return pattern.replaceAllMapped(_patternVarRegex, (m) {
+      final token = m.group(0)!;
+      return runFrameTokens[token] ??
+          _sanitizePathComponent(fixed[token]!).replaceAll(r'${', r'$${');
+    });
+  }
+
   /// Build the canonical substitution map for `$DATE`, `$TIME`, etc. given
   /// only the values that don't require provider access (camera state, mount
   /// state). Useful for unit tests that want to verify the UTC date/time

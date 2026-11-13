@@ -61,29 +61,27 @@ class _FilterChangeProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The profile's filters, falling back to the connected wheel's — see
-    // [builderFilterSource].
-    final filterNames = builderFilterSource(ref).names;
+    final filterNames = ref.watch(effectiveFiltersProvider);
 
     final filterOptions = <({int index, String name})>[
       for (int i = 0; i < filterNames.length; i++)
         (index: i, name: filterNames[i]),
     ];
 
-    // Find current selection. If the stored filter is no longer in the profile
-    // we surface it as an explicit "(not in profile)" option and select it,
+    // Find current selection. If the stored filter is no longer available
+    // we surface it as an explicit "(not available)" option and select it,
     // rather than silently snapping to the first filter (which would quietly
     // rewrite the node's filter on open).
     final matched = filterOptions.firstWhereOrNull(
       (f) => f.name == node.filterName || f.index == node.filterPosition,
     );
-    final bool missingFromProfile = filterOptions.isNotEmpty &&
+    final bool missingFromList = filterOptions.isNotEmpty &&
         matched == null &&
         node.filterName.isNotEmpty;
-    if (missingFromProfile) {
+    if (missingFromList) {
       filterOptions.add((
         index: _kMissingFilterSentinel,
-        name: '${node.filterName} (not in profile)'
+        name: '${node.filterName} (not available)'
       ));
     }
     final currentFilter =
@@ -101,7 +99,7 @@ class _FilterChangeProperties extends ConsumerWidget {
               ? NodeTextInput(
                   colors: colors,
                   value: node.filterName,
-                  hint: BuilderFilterSource.emptyHint,
+                  hint: noFiltersToPickHint,
                   onChanged: (value) {
                     ref.read(currentSequenceProvider.notifier).updateNode(
                           node.copyWith(filterName: value),
@@ -138,7 +136,7 @@ class _FilterChangeProperties extends ConsumerWidget {
                       }).toList(),
                       onChanged: (newValue) {
                         if (newValue != null) {
-                          // The synthetic "not in profile" row is display-only.
+                          // The synthetic "not available" row is display-only.
                           if (newValue.index == _kMissingFilterSentinel) return;
                           // Set BOTH name and position for reliable filter changes
                           ref.read(currentSequenceProvider.notifier).updateNode(
@@ -153,7 +151,7 @@ class _FilterChangeProperties extends ConsumerWidget {
                   ),
                 ),
         ),
-        if (missingFromProfile) ...[
+        if (missingFromList) ...[
           const SizedBox(height: SkotiqTokens.spaceXs),
           // ONE inline line, not a paragraph: it says what is wrong and what
           // to do, and the button beside it is the doing.
@@ -163,7 +161,7 @@ class _FilterChangeProperties extends ConsumerWidget {
               const SizedBox(width: SkotiqTokens.spaceXs),
               Expanded(
                 child: Text(
-                  'Filter is not in this profile.',
+                  'Filter is not on the wheel or in the profile.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.warning,
                   ),

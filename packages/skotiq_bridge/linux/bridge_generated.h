@@ -3346,11 +3346,6 @@ void frbgen_skotiq_bridge_wire__crate__api__polar_alignment__entrypoints__api_st
                                                                                                             int32_t *gain,
                                                                                                             int32_t *offset);
 
-void frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_start_device_heartbeat(int64_t port_,
-                                                                                  int32_t device_type,
-                                                                                  struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                  uint64_t interval_ms);
-
 void frbgen_skotiq_bridge_wire__crate__api__polar_alignment__run_loop__api_start_polar_alignment(int64_t port_,
                                                                                                  double exposure_time,
                                                                                                  double step_size,
@@ -3366,9 +3361,6 @@ void frbgen_skotiq_bridge_wire__crate__api__polar_alignment__run_loop__api_start
 
 void frbgen_skotiq_bridge_wire__crate__api__mosaic__api_stitch_mosaic(int64_t port_,
                                                                       struct wire_cst_list_prim_u_8_strict *args_json);
-
-void frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_stop_device_heartbeat(int64_t port_,
-                                                                                 struct wire_cst_list_prim_u_8_strict *device_id);
 
 void frbgen_skotiq_bridge_wire__crate__api__polar_alignment__entrypoints__api_stop_polar_alignment(int64_t port_);
 
@@ -3865,8 +3857,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_stop);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_get_device_health);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_start_device_heartbeat);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_stop_device_heartbeat);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__hotplug__api_rescan_devices);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_apply_stretch);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_auto_stretch_color_image);

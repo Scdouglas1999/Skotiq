@@ -10,6 +10,7 @@ import 'discovery.dart';
 import 'enhanced_discovery.dart';
 import 'network_uri.dart';
 import 'server_compatibility.dart';
+import 'wire/routes/system_api.dart';
 
 /// The DNS-SD service type every Skotiq host registers (GUI and headless).
 const String skotiqMdnsServiceType = '_skotiq._tcp';
@@ -47,9 +48,11 @@ class RigDiscovery {
     void publish() {
       if (controller.isClosed) return;
       final list = found.values.toList()
-        ..sort((a, b) => a.displayName.toLowerCase().compareTo(
-              b.displayName.toLowerCase(),
-            ));
+        ..sort(
+          (a, b) => a.displayName.toLowerCase().compareTo(
+            b.displayName.toLowerCase(),
+          ),
+        );
       controller.add(List.unmodifiable(list));
     }
 
@@ -96,7 +99,7 @@ class RigDiscovery {
               scheme: seed.scheme,
               host: seed.host,
               port: seed.webPort,
-              pathAndQuery: '/api/info',
+              pathAndQuery: SystemApi.info.route.path,
             ),
             headers: {
               SkotiqServerCompatibility.apiVersionHeader:
@@ -130,12 +133,7 @@ class RigDiscovery {
     Duration timeout = const Duration(seconds: 5),
   }) {
     return fetchInfo(
-      DiscoveredServer(
-        host: host,
-        webPort: port,
-        name: host,
-        scheme: scheme,
-      ),
+      DiscoveredServer(host: host, webPort: port, name: host, scheme: scheme),
       timeout: timeout,
     );
   }
@@ -235,16 +233,17 @@ class RigDiscovery {
         final round = remaining < const Duration(seconds: 2)
             ? remaining
             : const Duration(seconds: 2);
-        await for (final ptr in client
-            .lookup<PtrResourceRecord>(
-              ResourceRecordQuery.serverPointer(
-                '$skotiqMdnsServiceType.local',
-              ),
-              timeout: round,
-            )
-            .handleError((Object e) {
-              developer.log('mDNS PTR lookup: $e', name: 'RigDiscovery');
-            })) {
+        await for (final ptr
+            in client
+                .lookup<PtrResourceRecord>(
+                  ResourceRecordQuery.serverPointer(
+                    '$skotiqMdnsServiceType.local',
+                  ),
+                  timeout: round,
+                )
+                .handleError((Object e) {
+                  developer.log('mDNS PTR lookup: $e', name: 'RigDiscovery');
+                })) {
           if (!seen.add(ptr.domainName)) continue;
           resolutions.add(_resolveInstance(client, ptr.domainName, onFound));
         }

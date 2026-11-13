@@ -64,6 +64,28 @@ enum ApiResource {
 
   /// The name used in token grant specs and in 403 bodies.
   final String wireName;
+
+  /// Other spellings a token grant spec may use.
+  static const Map<String, ApiResource> _aliases = {
+    'filterwheel': filterWheel,
+    'guider': guiding,
+    'weather': safety,
+    'files': filesystem,
+    'co-imaging': coimaging,
+    // `/api/collaboration/*` is held to the `constellation` resource.
+    'collaboration': constellation,
+  };
+
+  /// The resource a grant spec names, by wire name or alias; null when it
+  /// names none.
+  static ApiResource? tryParse(String? value) {
+    final name = value?.trim().toLowerCase();
+    if (name == null) return null;
+    for (final resource in values) {
+      if (resource.wireName == name) return resource;
+    }
+    return _aliases[name];
+  }
 }
 
 /// Per-client request ceiling for one route.

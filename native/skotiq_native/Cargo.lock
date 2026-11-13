@@ -2098,7 +2098,6 @@ dependencies = [
  "rusb",
  "serde",
  "serde_json",
- "sha2",
  "skotiq_alpaca",
  "skotiq_ascom",
  "skotiq_device",
@@ -2107,6 +2106,7 @@ dependencies = [
  "skotiq_native",
  "skotiq_phd2",
  "skotiq_platesolve",
+ "skotiq_processing",
  "skotiq_sequencer",
  "tempfile",
  "thiserror",
@@ -2204,6 +2204,23 @@ dependencies = [
  "serde_json",
  "skotiq_imaging",
  "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "skotiq_processing"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "image",
+ "rayon",
+ "serde",
+ "serde_json",
+ "sha2",
+ "skotiq_imaging",
+ "skotiq_platesolve",
+ "tempfile",
  "tracing",
 ]
 

@@ -472,27 +472,6 @@ abstract class DeviceBackend {
   /// Returns null if the device is not connected or capabilities unavailable
   Future<RotatorCapabilities?> getRotatorCapabilities(String deviceId);
 
-  /// Start heartbeat monitoring for a device
-  ///
-  /// Periodically checks if the device is responding and emits disconnect
-  /// events if communication fails.
-  ///
-  /// # Arguments
-  /// * `deviceType` - Type of device to monitor
-  /// * `deviceId` - Unique identifier for the device
-  /// * `intervalMs` - Heartbeat interval in milliseconds (recommended: 10000)
-  Future<void> startDeviceHeartbeat({
-    required DeviceType deviceType,
-    required String deviceId,
-    required int intervalMs,
-  });
-
-  /// Stop heartbeat monitoring for a device
-  ///
-  /// # Arguments
-  /// * `deviceId` - The unique identifier for the device
-  Future<void> stopDeviceHeartbeat(String deviceId);
-
   /// The device types this backend's native side reconnects by itself once
   /// their heartbeat is lost. Whoever else reconnects devices leaves these
   /// alone, or the two connect the same device at once. Empty for a backend

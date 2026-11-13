@@ -1,18 +1,22 @@
 /// The body of an error response from the host.
 library;
 
-/// How an error is laid out on the wire. Three layouts are in service and
+/// How an error is laid out on the wire. Four layouts are in service and
 /// clients in the field read each of them, so the host keeps writing the one
-/// a route has always written; a reader accepts all three.
+/// a route has always written; a reader accepts all four.
 enum ApiErrorLayout {
   /// `{error: <code>, code, message, requestId?, ...details}`: thrown
-  /// failures. `code` repeats `error` so a reader can tell this body from the
-  /// older `{error: <category>, message}` pair, which carries no code.
+  /// failures.
   codeAsError,
 
   /// `{...details, error: <message>, code, message}`: `error` repeats the
   /// message for clients that only display it.
   messageAsError,
+
+  /// `{error: <code>, message, ...details}` with no `code` key. A few of
+  /// these routes write a short summary under `error` ("Access denied")
+  /// where the others write a code; it is read as the code all the same.
+  errorAsCode,
 
   /// `{error: <message>}` with no code: the oldest bodies.
   prose,
@@ -27,12 +31,10 @@ class ApiErrorBody {
     this.details,
   });
 
-  /// Reads any of the three layouts. Returns null when [json] is not an
-  /// error body: no message under `message` or `error`, or the older
-  /// `{error: <category>, message}` pair, which has no code and is left to
-  /// the caller.
+  /// Reads any of the four layouts. Returns null when [json] is not an
+  /// error body: no text under `message` or `error`.
   ///
-  /// A prose body has no code, so one is derived from [httpStatus].
+  /// A body that names no code is given one from [httpStatus].
   static ApiErrorBody? tryParse(Map<String, dynamic> json, {int? httpStatus}) {
     final explicitCode = _nonEmpty(json['code']);
     final messageField = _nonEmpty(json['message']);
@@ -44,12 +46,15 @@ class ApiErrorBody {
     final String code;
     if (explicitCode != null) {
       code = explicitCode;
-      layout = ApiErrorLayout.messageAsError;
-    } else if (messageField == null) {
+      layout = errorField == explicitCode
+          ? ApiErrorLayout.codeAsError
+          : ApiErrorLayout.messageAsError;
+    } else if (messageField != null && errorField != null) {
+      code = errorField;
+      layout = ApiErrorLayout.errorAsCode;
+    } else {
       code = codeForStatus(httpStatus);
       layout = ApiErrorLayout.prose;
-    } else {
-      return null;
     }
 
     final rawDetails = json['details'];
@@ -92,6 +97,11 @@ class ApiErrorBody {
       'error': message,
       'code': code,
       'message': message,
+    },
+    ApiErrorLayout.errorAsCode => {
+      'error': code,
+      'message': message,
+      if (details != null) ...details!,
     },
     ApiErrorLayout.prose => {'error': message},
   };

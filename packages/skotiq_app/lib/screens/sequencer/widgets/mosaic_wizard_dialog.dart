@@ -371,7 +371,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
                     exposureSecsPerPanel: exposureSecsPerPanel,
                     exposuresPerPanel: exposuresPerPanel,
                     estTimeHours:
-                        _calculateTotalTime(exposureSecsPerPanel) / 3600,
+                        _estimatedTime().inSeconds / 3600,
                     totalExposures: _activePanelCount * exposuresPerPanel,
                   ),
                   const SizedBox(height: 16),

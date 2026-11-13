@@ -184,31 +184,12 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
       ImageFileFormat.fromRecord(str) ?? ImageFileFormat.fits;
 
   @override
-  Future<void> startDeviceHeartbeat({
-    required DeviceType deviceType,
-    required String deviceId,
-    required int intervalMs,
-  }) async {
-    final bridgeType = _toBridgeDeviceType(deviceType);
-    await bridge.apiStartDeviceHeartbeat(
-      deviceType: bridgeType,
-      deviceId: deviceId,
-      intervalMs: BigInt.from(intervalMs),
-    );
-  }
-
-  @override
   Set<DeviceType> get nativeReconnectedDeviceTypes {
     if (!bridge.NativeBridge.isNativeAvailable) return const {};
     return _NativeProcessState.nativeReconnectedDeviceTypes ??= {
       for (final type in bridge.apiNativeReconnectedDeviceTypes())
         _fromBridgeDeviceType(type),
     };
-  }
-
-  @override
-  Future<void> stopDeviceHeartbeat(String deviceId) async {
-    await bridge.apiStopDeviceHeartbeat(deviceId: deviceId);
   }
 
   @override

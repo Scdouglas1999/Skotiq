@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Checks if a node type has a meaningful duration that should be displayed.
@@ -91,32 +90,14 @@ class NodeTimingSection extends ConsumerWidget {
     final sequence = ref.watch(currentSequenceProvider);
     if (sequence == null) return const SizedBox.shrink();
 
-    // Calculate timing for this node using the SHARED overhead model so the
-    // node chip, the timeline, and the run-dashboard total all agree
-    // (findings 5/9/16). The autofocus settings feed the runtime-injected AF
-    // term in the total, which has no node in the tree.
-    final overhead = ref.watch(sequencerOverheadConfigProvider);
-    final appSettings = ref.watch(appSettingsProvider).valueOrNull;
-    final estimator = SequenceTimeEstimator(overhead: overhead);
-    final now = DateTime.now();
-    final timings = estimator.estimateSequenceTiming(sequence, now);
-    final nodeTiming = timings.where((t) => t.nodeId == node.id).firstOrNull;
-
-    // Calculate total sequence duration for percentage, including the
-    // runtime-injected autofocus runs the executor splices in (filter-change
-    // AF + AF-interval cadence) so "Contributes X%" is measured against the
-    // same total the run dashboard shows.
-    final totalDuration = estimator.estimateTotalDuration(
-      sequence,
-      now,
-      autoFocusOnFilterChange: appSettings?.autoFocusOnFilterChange ?? false,
-      autoFocusEveryMinutes: appSettings?.autoFocusEveryMinutes ?? 0,
-    );
-
-    // Get node-specific duration details. The per-frame download overhead is
-    // drawn from the shared config so the "Total" line here matches the chip
-    // and the timeline rather than a divergent hard-coded 2 s literal.
-    final durationDetails = _getDurationDetails(ref, overhead);
+    // The node's time and the whole run's, from the plan's one timing. The
+    // details below are the node's inputs; every time on the panel is the
+    // estimator's.
+    final plan = ref.watch(currentPlanTimingProvider);
+    final nodeTiming = plan?.of(node.id);
+    final totalDuration = plan?.total ?? Duration.zero;
+    final durationDetails =
+        _getDurationDetails(ref, ref.watch(sequencerOverheadConfigProvider));
 
     if (nodeTiming == null && durationDetails == null) {
       return const SizedBox.shrink();
@@ -170,21 +151,16 @@ class NodeTimingSection extends ConsumerWidget {
     );
   }
 
-  /// Returns node-specific duration breakdown details, or null if not applicable.
-  ///
-  /// [overhead] is the shared [SequenceOverheadConfig] (from
-  /// [sequencerOverheadConfigProvider]) so the per-frame download cost shown in
-  /// the breakdown matches the estimator, the chip, and the run dashboard.
+  /// The node's inputs that set its time (counts, per-frame download from
+  /// [overhead], settle and timeout settings), or null when it has none.
   List<_DurationDetail>? _getDurationDetails(
     WidgetRef ref,
     SequenceOverheadConfig overhead,
   ) {
     if (node is ExposureNode) {
       final exposure = node as ExposureNode;
-      final exposureTotal = exposure.durationSecs * exposure.count;
       final downloadOverhead =
           exposure.count * overhead.downloadOverheadPerExposureSecs;
-      final total = exposureTotal + downloadOverhead;
 
       return [
         _DurationDetail(
@@ -195,10 +171,6 @@ class NodeTimingSection extends ConsumerWidget {
         _DurationDetail(
           label: 'Download overhead',
           value: '~${downloadOverhead.toStringAsFixed(0)}s',
-        ),
-        _DurationDetail(
-          label: 'Total',
-          value: DurationFormat.of(Duration(seconds: total.round()), style: DurationStyle.short),
         ),
       ];
     }
@@ -221,10 +193,7 @@ class NodeTimingSection extends ConsumerWidget {
         exposureDuration = autofocus.exposureDuration;
       }
 
-      // Calculate: (stepsOut * 2 + 1) data points, each with exposuresPerPoint exposures
       final dataPoints = stepsOut * 2 + 1;
-      final totalExposures = dataPoints * exposuresPerPoint;
-      final totalSecs = totalExposures * exposureDuration;
 
       return [
         _DurationDetail(
@@ -234,10 +203,6 @@ class NodeTimingSection extends ConsumerWidget {
         _DurationDetail(
           label: 'Exposures/point',
           value: '$exposuresPerPoint x ${exposureDuration}s',
-        ),
-        _DurationDetail(
-          label: 'Est. duration',
-          value: DurationFormat.of(Duration(seconds: totalSecs.round()), style: DurationStyle.short),
         ),
         if (autofocus.useSettingsDefaults)
           const _DurationDetail(
@@ -282,22 +247,9 @@ class NodeTimingSection extends ConsumerWidget {
       }
     }
 
-    if (node is SlewNode) {
-      return const [
-        _DurationDetail(
-          label: 'Est. slew time',
-          value: '~30s',
-        ),
-      ];
-    }
-
     if (node is CenterNode) {
       final center = node as CenterNode;
       return [
-        const _DurationDetail(
-          label: 'Est. centering time',
-          value: '~30s',
-        ),
         _DurationDetail(
           label: 'Max attempts',
           value: '${center.maxAttempts}',
@@ -307,29 +259,14 @@ class NodeTimingSection extends ConsumerWidget {
 
     if (node is MeridianFlipNode) {
       final flip = node as MeridianFlipNode;
-      var totalSecs = 120.0; // Base flip time
-      if (flip.autoCenter) {
-        totalSecs += 30; // Add centering time
-      }
-      totalSecs += flip.settleTime;
-
       return [
-        const _DurationDetail(
-          label: 'Flip duration',
-          value: '~2m',
+        _DurationDetail(
+          label: 'Auto-center',
+          value: flip.autoCenter ? 'Yes' : 'No',
         ),
-        if (flip.autoCenter)
-          const _DurationDetail(
-            label: 'Auto-center',
-            value: '~30s',
-          ),
         _DurationDetail(
           label: 'Settle time',
           value: '${flip.settleTime.toStringAsFixed(0)}s',
-        ),
-        _DurationDetail(
-          label: 'Est. total',
-          value: DurationFormat.of(Duration(seconds: totalSecs.round()), style: DurationStyle.short),
         ),
       ];
     }
@@ -346,8 +283,6 @@ class NodeTimingSection extends ConsumerWidget {
 
     if (node is WarmCameraNode) {
       final warm = node as WarmCameraNode;
-      final mins =
-          (warm.targetTemp - (-10.0)).clamp(0.0, 60.0) / warm.ratePerMin;
       return [
         _DurationDetail(
           label: 'Warming rate',
@@ -356,10 +291,6 @@ class NodeTimingSection extends ConsumerWidget {
         _DurationDetail(
           label: 'Target temp',
           value: '${warm.targetTemp.toStringAsFixed(1)}C',
-        ),
-        _DurationDetail(
-          label: 'Est. duration',
-          value: '~${mins.round()}m',
         ),
       ];
     }
@@ -374,42 +305,6 @@ class NodeTimingSection extends ConsumerWidget {
       ];
     }
 
-    if (node is FilterChangeNode) {
-      return const [
-        _DurationDetail(
-          label: 'Est. change time',
-          value: '~10s',
-        ),
-      ];
-    }
-
-    if (node is RotatorNode) {
-      return const [
-        _DurationDetail(
-          label: 'Est. rotation time',
-          value: '~15s',
-        ),
-      ];
-    }
-
-    if (node is ParkNode || node is UnparkNode) {
-      return const [
-        _DurationDetail(
-          label: 'Est. time',
-          value: '~30s',
-        ),
-      ];
-    }
-
-    if (node is HomeMountNode) {
-      return const [
-        _DurationDetail(
-          label: 'Est. time',
-          value: '~60s',
-        ),
-      ];
-    }
-
     if (node is StartGuidingNode) {
       final guiding = node as StartGuidingNode;
       return [
@@ -420,30 +315,8 @@ class NodeTimingSection extends ConsumerWidget {
       ];
     }
 
-    if (node is StopGuidingNode) {
-      return const [
-        _DurationDetail(
-          label: 'Est. time',
-          value: '~2s',
-        ),
-      ];
-    }
-
-    if (node is OpenDomeNode || node is CloseDomeNode || node is ParkDomeNode) {
-      return const [
-        _DurationDetail(
-          label: 'Est. time',
-          value: '~1m',
-        ),
-      ];
-    }
-
     if (node is PolarAlignmentNode) {
       return const [
-        _DurationDetail(
-          label: 'Est. time',
-          value: '~5m',
-        ),
         _DurationDetail(
           label: 'Note',
           value: '3 plate solves + adjustment',
@@ -461,16 +334,10 @@ class NodeTimingSection extends ConsumerWidget {
       ];
     }
 
-    // SciencePhotometry — count × exposure plus the
-    // standard per-frame download overhead, surfaced so the user sees
-    // upfront that a 600-frame V0376 Per burst is a 10-hour
-    // commitment.
     if (node is SciencePhotometryNode) {
       final phot = node as SciencePhotometryNode;
-      final exposureTotal = phot.exposureSecs * phot.count;
       final downloadOverhead =
           phot.count * overhead.downloadOverheadPerExposureSecs;
-      final total = exposureTotal + downloadOverhead;
       return [
         _DurationDetail(
           label: 'Frames',
@@ -484,10 +351,6 @@ class NodeTimingSection extends ConsumerWidget {
         _DurationDetail(
           label: 'Download overhead',
           value: '~${downloadOverhead.toStringAsFixed(0)}s',
-        ),
-        _DurationDetail(
-          label: 'Total',
-          value: DurationFormat.of(Duration(seconds: total.round()), style: DurationStyle.short),
         ),
       ];
     }

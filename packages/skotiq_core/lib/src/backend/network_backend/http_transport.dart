@@ -129,21 +129,13 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     return send();
   }
 
-  bool _isTransientFailure(dynamic error) {
+  bool _isTransientFailure(Object error) {
     if (error is dart_error.SkotiqError) {
       return error.isRecoverable;
     }
-    // Error parsing: the headless envelope's httpStatus tells
-    // us whether the request should be retried. Mirror the same status
-    // ranges as [_isTransientStatusCode] so retry behaviour is
-    // consistent whether the failure was decoded into a [ServerError] or
-    // a fallback [SkotiqError].
     if (error is ServerError) {
       final status = error.httpStatus;
-      if (status != null) {
-        return _isTransientStatusCode(status);
-      }
-      return false;
+      return status != null && _isTransientStatusCode(status);
     }
     if (error is SocketException) {
       return true;
@@ -174,122 +166,45 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     return statusCode == 408 || statusCode == 429 || statusCode >= 500;
   }
 
-  /// Parse an error response from the server.
+  /// The failure a non-success response stands for: the host's error body
+  /// when it sent one, otherwise the status alone.
   ///
-  /// Attempts to parse structured error JSON from the response body.
-  /// Falls back to creating an error from the status code and endpoint.
-  ///
-  /// Return type is [Exception] rather than the narrower
-  /// [dart_error.SkotiqError] because the headless server's new
-  /// envelope ({code, message, details}) is surfaced as a typed
-  /// [ServerError] — see the [error parsing] branch below.
-  /// Existing callers `throw` the result so the widened type doesn't
-  /// change their behaviour; the retry helper's
-  /// `_isTransientFailure` accepts any Object via duck-typing.
-  Exception _parseErrorResponse(
+  /// A 403 for a token the host does not know also latches the rejection, so
+  /// [_retryableRequest] fails fast and [_connect] stops retrying instead of
+  /// running the host's per-address auth-failure limiter into a lockout. A
+  /// scope or session-ownership 403 does not: that token is still good for
+  /// what it covers.
+  ServerError _parseErrorResponse(
     int statusCode,
     String responseBody,
     String method,
     String endpoint,
   ) {
-    _markAuthRejectedIfTerminal(statusCode, responseBody, method, endpoint);
-    try {
-      final json = jsonDecode(responseBody);
-      if (json is Map<String, dynamic>) {
-        // Error parsing: [ServerError.tryFromJson] is the single
-        // converged parser for the headless error envelope. It accepts
-        // the canonical {code, message}, the unified {error, code,
-        // message} transition shape, AND the legacy prose-only {error}
-        // bodies (synthesizing a code from the status). We still guard
-        // on the absence of `category` so we don't swallow the richer
-        // SkotiqError envelope, which always carries `category` and
-        // is decoded just below.
-        if (!json.containsKey('category')) {
-          final serverError = ServerError.tryFromJson(
-            json,
-            httpStatus: statusCode,
-          );
-          if (serverError != null) {
-            return serverError;
-          }
-        }
-
-        if (json.containsKey('category') && json.containsKey('message')) {
-          return dart_error.SkotiqError.fromJson(json);
-        }
-
-        // Check for legacy error format: {error: 'message', message: 'details'}
-        if (json.containsKey('error') || json.containsKey('message')) {
-          final errorMsg =
-              json['error'] as String? ??
-              json['message'] as String? ??
-              'Unknown error';
-          final detailMsg =
-              json['message'] as String? ?? json['details'] as String? ?? '';
-          final fullMessage = detailMsg.isNotEmpty && detailMsg != errorMsg
-              ? '$errorMsg: $detailMsg'
-              : errorMsg;
-
-          return dart_error.SkotiqError.fromString(fullMessage);
-        }
-      }
-    } catch (e, stackTrace) {
-      // Why: the server may return a non-JSON body (HTML error page, plain
-      // text from a misbehaving proxy, empty body). The structured-error
-      // path is best-effort; the HTTP-status fallback below always produces
-      // a useful SkotiqError. Logging at FINE keeps the dev console
-      // signal-only when servers regularly return non-JSON 5xx pages.
-      // Justification: trace-level (500) — diagnostic-only for the
-      // best-effort JSON decode path; HTTP-status fallback below is the
-      // real error surface.
-      developer.log(
-        '[NetworkBackend] _parseErrorResponse JSON decode failed '
-        '(status=$statusCode endpoint=$endpoint): $e',
-        name: 'NetworkBackend',
-        level: 500,
-        error: e,
-        stackTrace: stackTrace,
-      );
+    final body = _errorBody(statusCode, responseBody);
+    if (statusCode == HttpStatus.forbidden &&
+        body?.message == ApiErrorBody.invalidTokenMessage) {
+      _latchAuthRejection('$method $endpoint');
     }
-
-    final isTransient = _isTransientStatusCode(statusCode);
-    return dart_error.SkotiqError(
-      category: statusCode == 404
-          ? dart_error.BackendErrorCategory.connection
-          : statusCode == 400
-          ? dart_error.BackendErrorCategory.validation
-          : statusCode == 408 || statusCode == 504
-          ? dart_error.BackendErrorCategory.timeout
-          : dart_error.BackendErrorCategory.system,
-      message: 'HTTP $statusCode: $method $endpoint failed',
-      isRecoverable: isTransient,
-      isTimeout: statusCode == 408 || statusCode == 504,
+    return ServerError(
+      code: body?.code ?? ApiErrorBody.codeForStatus(statusCode),
+      message: body?.message ?? 'HTTP $statusCode: $method $endpoint failed',
+      httpStatus: statusCode,
+      details: body?.details?.cast<String, dynamic>(),
     );
   }
 
-  /// Latch the terminal auth-rejection flags when the server definitively
-  /// refuses the bearer token: a `403` whose body carries the auth
-  /// middleware's "Invalid authentication token" message.
-  ///
-  /// This runs inside the single error choke point every JSON helper (and
-  /// the raw download path) funnels through, so one dead-token response is
-  /// enough — after it latches, [_retryableRequest] fails fast without
-  /// touching the wire and [_connect] stops retrying, keeping a dead token
-  /// from flooding the server's per-IP auth-failure limiter into a `429`
-  /// lockout. Scope denials ("Insufficient scope", session-ownership 403s)
-  /// carry a different message and deliberately do NOT latch: a view-scope
-  /// token refused by a control endpoint is still valid for view traffic.
-  void _markAuthRejectedIfTerminal(
-    int statusCode,
-    String responseBody,
-    String method,
-    String endpoint,
-  ) {
-    if (statusCode != HttpStatus.forbidden ||
-        !responseBody.contains('Invalid authentication token')) {
-      return;
+  /// Null for a body that is not the host's: a proxy's HTML page, plain
+  /// text, nothing at all.
+  ApiErrorBody? _errorBody(int statusCode, String responseBody) {
+    final Object? json;
+    try {
+      json = jsonDecode(responseBody);
+    } on FormatException {
+      return null;
     }
-    _latchAuthRejection('$method $endpoint');
+    return json is Map<String, dynamic>
+        ? ApiErrorBody.tryParse(json, httpStatus: statusCode)
+        : null;
   }
 
   /// Longest a mutating request may keep retrying after its first attempt.
@@ -406,18 +321,39 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     Error.throwWithStackTrace(lastError!, lastStackTrace!);
   }
 
+  /// The request path of [endpoint] below `/api/`, with its `<name>`
+  /// parameters taken from [path]. [sends] is the verb the calling helper
+  /// puts on the wire.
+  String _endpointPath(
+    ApiEndpoint endpoint,
+    ApiMethod sends, [
+    Map<String, Object> path = const {},
+  ]) {
+    final route = endpoint.route;
+    if (route.method != sends) {
+      throw StateError('${route.signature} is not sent as ${sends.wireName}');
+    }
+    final filled = route.fill(path);
+    if (!filled.startsWith(_NetworkBackendTransport._apiPrefix)) {
+      throw StateError('${route.signature} is not an API route');
+    }
+    return filled.substring(_NetworkBackendTransport._apiPrefix.length);
+  }
+
+  Map<String, String>? _queryStrings(Map<String, dynamic>? query) =>
+      query?.map((key, value) => MapEntry(key, value.toString()));
+
   Future<Map<String, dynamic>> _get(
-    String endpoint, [
-    Map<String, dynamic>? queryParams,
-  ]) async {
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    Map<String, dynamic>? query,
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.get, path);
     return _retryableRequest(() async {
-      final uri = _apiUri(
-        endpoint,
-        queryParams?.map((k, v) => MapEntry(k, v.toString())),
-      );
+      final uri = _apiUri(target, _queryStrings(query));
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         send: (headers) => _http.get(uri, headers: headers),
       );
 
@@ -426,7 +362,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'GET',
-          endpoint,
+          target,
         );
       }
 
@@ -435,23 +371,25 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   }
 
   Future<Map<String, dynamic>> _post(
-    String endpoint, [
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
     Map<String, dynamic>? body,
-    Map<String, String>? extraHeaders,
+    Map<String, String>? headers,
     int maxAttempts = 3,
     Duration? timeout,
-  ]) async {
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.post, path);
     return _retryableRequest(
       maxAttempts: maxAttempts,
       timeout: timeout,
       mutating: true,
       () async {
-        final uri = _apiUri(endpoint);
+        final uri = _apiUri(target);
 
         final response = await _sendWithAuthRefresh(
-          endpoint: endpoint,
+          endpoint: target,
           jsonContent: true,
-          extraHeaders: extraHeaders,
+          extraHeaders: headers,
           send: (headers) => _http.post(
             uri,
             headers: headers,
@@ -459,15 +397,13 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           ),
         );
 
-        // Any 2xx is success: the host answers a create with 201 Created
-        // (POST /api/calibration/flats did), and treating that as a failure
-        // told the operator their flats were not recorded when they were.
+        // A create answers 201 Created, so any 2xx is success.
         if (response.statusCode < 200 || response.statusCode >= 300) {
           throw _parseErrorResponse(
             response.statusCode,
             response.body,
             'POST',
-            endpoint,
+            target,
           );
         }
         if (response.body.trim().isEmpty) return <String, dynamic>{};
@@ -495,7 +431,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       return null;
     }
     try {
-      final res = await _post('ws/ticket');
+      final res = await _post(AuthApi.wsTicketIssue);
       final ticket = res['ticket'];
       if (ticket is String && ticket.isNotEmpty) {
         return ticket;
@@ -510,12 +446,17 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     return null;
   }
 
-  Future<void> _delete(String endpoint) async {
+  Future<void> _delete(
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    Map<String, dynamic>? query,
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.delete, path);
     return _retryableRequest(mutating: true, () async {
-      final uri = _apiUri(endpoint);
+      final uri = _apiUri(target, _queryStrings(query));
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         send: (headers) => _http.delete(uri, headers: headers),
       );
 
@@ -524,21 +465,23 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'DELETE',
-          endpoint,
+          target,
         );
       }
     });
   }
 
   Future<Map<String, dynamic>> _put(
-    String endpoint, [
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
     Map<String, dynamic>? body,
-  ]) async {
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.put, path);
     return _retryableRequest(() async {
-      final uri = _apiUri(endpoint);
+      final uri = _apiUri(target);
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         jsonContent: true,
         send: (headers) => _http.put(
           uri,
@@ -552,7 +495,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'PUT',
-          endpoint,
+          target,
         );
       }
 
@@ -561,25 +504,29 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   }
 
   Future<Uint8List> _downloadBytes(
-    String endpoint, [
-    Map<String, dynamic>? queryParams,
-  ]) async {
-    final downloaded = await _downloadBytesWithHeaders(endpoint, queryParams);
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    Map<String, dynamic>? query,
+  }) async {
+    final downloaded = await _downloadBytesWithHeaders(
+      endpoint,
+      path: path,
+      query: query,
+    );
     return downloaded.bytes;
   }
 
   Future<({Uint8List bytes, Map<String, String> headers})>
   _downloadBytesWithHeaders(
-    String endpoint, [
-    Map<String, dynamic>? queryParams,
-  ]) async {
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    Map<String, dynamic>? query,
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.get, path);
     return _retryableRequest(() async {
-      final uri = _apiUri(
-        endpoint,
-        queryParams?.map((k, v) => MapEntry(k, v.toString())),
-      );
+      final uri = _apiUri(target, _queryStrings(query));
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         send: (headers) => _http.get(uri, headers: headers),
       );
       if (response.statusCode != 200) {
@@ -587,7 +534,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'GET',
-          endpoint,
+          target,
         );
       }
       return (
@@ -605,16 +552,18 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   /// are modest enough that an interrupted transfer just restarts, so the
   /// sidecar/Range/ETag machinery is deliberately not replicated here.
   Future<void> _downloadToFile(
-    String endpoint,
+    ApiEndpoint endpoint,
     String localPath, {
+    Map<String, Object> path = const {},
     void Function(double)? onProgress,
   }) async {
+    final target = _endpointPath(endpoint, ApiMethod.get, path);
     final file = File(localPath);
     await file.parent.create(recursive: true);
-    final response = await _openRawGetWithAuthRefresh(endpoint);
+    final response = await _openRawGetWithAuthRefresh(target);
     if (response.statusCode != HttpStatus.ok) {
       final body = await response.transform(utf8.decoder).join();
-      throw _parseErrorResponse(response.statusCode, body, 'GET', endpoint);
+      throw _parseErrorResponse(response.statusCode, body, 'GET', target);
     }
     final totalLength = response.contentLength;
     final sink = file.openWrite();
@@ -633,26 +582,24 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     }
     if (totalLength > 0 && received != totalLength) {
       throw FormatException(
-        '$endpoint transfer truncated ($received of $totalLength bytes)',
+        '$target transfer truncated ($received of $totalLength bytes)',
       );
     }
     onProgress?.call(1);
   }
 
   Future<Map<String, dynamic>> _postRaw(
-    String endpoint,
-    Map<String, dynamic> queryParams,
-    Uint8List bytes, {
+    ApiEndpoint endpoint, {
+    required Map<String, dynamic> query,
+    required Uint8List bytes,
     String contentType = 'application/octet-stream',
   }) async {
+    final target = _endpointPath(endpoint, ApiMethod.post);
     return _retryableRequest(() async {
-      final uri = _apiUri(
-        endpoint,
-        queryParams.map((key, value) => MapEntry(key, value.toString())),
-      );
+      final uri = _apiUri(target, _queryStrings(query));
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         extraHeaders: {HttpHeaders.contentTypeHeader: contentType},
         send: (headers) => _http.post(uri, headers: headers, body: bytes),
       );
@@ -662,7 +609,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'POST',
-          endpoint,
+          target,
         );
       }
 
@@ -671,14 +618,16 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   }
 
   Future<Uint8List> _postRawBytes(
-    String endpoint,
-    Map<String, dynamic> body,
-  ) async {
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    required Map<String, dynamic> body,
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.post, path);
     return _retryableRequest(() async {
-      final uri = _apiUri(endpoint);
+      final uri = _apiUri(target);
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         jsonContent: true,
         send: (headers) =>
             _http.post(uri, headers: headers, body: jsonEncode(body)),
@@ -688,7 +637,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'POST',
-          endpoint,
+          target,
         );
       }
       return response.bodyBytes;

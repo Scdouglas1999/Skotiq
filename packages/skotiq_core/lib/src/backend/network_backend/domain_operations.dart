@@ -55,13 +55,13 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
   /// Get all targets from the headless server
   /// Returns JSON maps that can be used to construct CelestialTarget objects
   Future<List<Map<String, dynamic>>> getAllTargets() async {
-    final response = await _get('targets');
+    final response = await _get(TargetApi.getAllTargets);
     return _domainObjectRows(response, 'targets', 'GET /api/targets');
   }
 
   Future<Map<String, dynamic>?> getTargetById(int id) async {
     try {
-      final response = await _get('targets/$id');
+      final response = await _get(TargetApi.getTargetById, path: {'id': id});
       return _domainNullableObject(response, 'target', 'GET /api/targets/$id');
     } on ServerError catch (error) {
       if (error.httpStatus == 404) return null;
@@ -70,37 +70,44 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
   }
 
   Future<List<Map<String, dynamic>>> searchTargets(String query) async {
-    final response = await _get('targets/search', {'query': query});
+    final response = await _get(
+      TargetApi.searchTargets,
+      query: {'query': query},
+    );
     return _domainObjectRows(response, 'targets', 'GET /api/targets/search');
   }
 
   Future<int> createTarget(Map<String, dynamic> target) async {
-    final response = await _post('targets', target);
+    final response = await _post(TargetApi.createTarget, body: target);
     return _domainId(response, 'POST /api/targets');
   }
 
   Future<void> updateTarget(int id, Map<String, dynamic> target) async {
-    await _put('targets/$id', target);
+    await _put(TargetApi.updateTarget, path: {'id': id}, body: target);
   }
 
   Future<void> deleteTarget(int id) async {
-    await _delete('targets/$id');
+    await _delete(TargetApi.deleteTarget, path: {'id': id});
   }
 
   Future<List<Map<String, dynamic>>> getFavoriteTargets() async {
-    final response = await _get('targets/favorites');
+    final response = await _get(TargetApi.getFavoriteTargets);
     return _domainObjectRows(response, 'targets', 'GET /api/targets/favorites');
   }
 
   Future<List<Map<String, dynamic>>> getTargetsByType(String objectType) async {
-    final response = await _get('targets/by-type', {'type': objectType});
+    final response = await _get(
+      TargetApi.getTargetsByType,
+      query: {'type': objectType},
+    );
     return _domainObjectRows(response, 'targets', 'GET /api/targets/by-type');
   }
 
   Future<List<Map<String, dynamic>>> getTargetsByPriority(int priority) async {
-    final response = await _get('targets/by-priority', {
-      'priority': priority.toString(),
-    });
+    final response = await _get(
+      TargetApi.getTargetsByPriority,
+      query: {'priority': priority.toString()},
+    );
     return _domainObjectRows(
       response,
       'targets',
@@ -111,7 +118,7 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
   // Sequence Management (CRUD - separate from sequencer execution)
 
   Future<List<Map<String, dynamic>>> getSequenceList() async {
-    final response = await _get('sequence-management/list');
+    final response = await _get(SequenceManagementApi.getAllSequences);
     return _domainObjectRows(
       response,
       'sequences',
@@ -120,7 +127,7 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
   }
 
   Future<List<Map<String, dynamic>>> getSequenceTemplates() async {
-    final response = await _get('sequence-management/templates');
+    final response = await _get(SequenceManagementApi.getAllTemplates);
     return _domainObjectRows(
       response,
       'templates',
@@ -129,22 +136,31 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
   }
 
   Future<int> createSequence(Map<String, dynamic> sequence) async {
-    final response = await _post('sequence-management', sequence);
+    final response = await _post(
+      SequenceManagementApi.createSequence,
+      body: sequence,
+    );
     return _domainId(response, 'POST /api/sequence-management');
   }
 
   Future<void> updateSequence(int id, Map<String, dynamic> sequence) async {
-    await _put('sequence-management/$id', sequence);
+    await _put(
+      SequenceManagementApi.updateSequence,
+      path: {'id': id},
+      body: sequence,
+    );
   }
 
   Future<void> deleteSequence(int id) async {
-    await _delete('sequence-management/$id');
+    await _delete(SequenceManagementApi.deleteSequence, path: {'id': id});
   }
 
   Future<int> duplicateSequence(int sourceId, String newName) async {
-    final response = await _post('sequence-management/$sourceId/duplicate', {
-      'newName': newName,
-    });
+    final response = await _post(
+      SequenceManagementApi.duplicateSequence,
+      path: {'id': sourceId},
+      body: {'newName': newName},
+    );
     return _domainId(
       response,
       'POST /api/sequence-management/$sourceId/duplicate',
@@ -157,17 +173,20 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     bool isTemplate = false,
     int? databaseId,
   }) async {
-    final response = await _post('sequence-management/save-full', {
-      'sequence': sequence,
-      'isTemplate': isTemplate,
-      if (databaseId != null) 'databaseId': databaseId,
-    });
+    final response = await _post(
+      SequenceManagementApi.saveFullSequence,
+      body: {
+        'sequence': sequence,
+        'isTemplate': isTemplate,
+        if (databaseId != null) 'databaseId': databaseId,
+      },
+    );
     return _domainId(response, 'POST /api/sequence-management/save-full');
   }
 
   /// Load all sequences with full node trees from the host.
   Future<List<Map<String, dynamic>>> listFullSequences() async {
-    final response = await _get('sequence-management/list-full');
+    final response = await _get(SequenceManagementApi.listFullSequences);
     return _domainObjectRows(
       response,
       'sequences',
@@ -177,7 +196,7 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
 
   /// Load all templates with full node trees from the host.
   Future<List<Map<String, dynamic>>> listFullTemplates() async {
-    final response = await _get('sequence-management/templates-full');
+    final response = await _get(SequenceManagementApi.listFullTemplates);
     return _domainObjectRows(
       response,
       'templates',
@@ -189,7 +208,10 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
   /// host's entire sequence and template libraries.
   Future<Map<String, dynamic>?> getFullSequence(int sequenceId) async {
     try {
-      final response = await _get('sequence-management/$sequenceId/full');
+      final response = await _get(
+        SequenceManagementApi.getFullSequence,
+        path: {'id': sequenceId},
+      );
       return _domainNullableObject(
         response,
         'sequence',
@@ -203,7 +225,7 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
 
   /// Load host-authoritative sequence-library metadata and run roll-ups.
   Future<List<RemoteSequenceSummary>> listSequenceSummaries() async {
-    final response = await _get('sequence-management/summaries');
+    final response = await _get(SequenceManagementApi.listSequenceSummaries);
     return _domainObjectRows(
       response,
       'summaries',
@@ -213,12 +235,19 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
 
   /// Replace the full tag list for a stored sequence on the host.
   Future<void> setSequenceTags(int sequenceId, List<String> tags) async {
-    await _put('sequence-management/$sequenceId/tags', {'tags': tags});
+    await _put(
+      SequenceManagementApi.setTags,
+      path: {'id': sequenceId},
+      body: {'tags': tags},
+    );
   }
 
   /// Toggle a stored sequence's favorite flag and return its new value.
   Future<bool> toggleSequenceFavorite(int sequenceId) async {
-    final response = await _post('sequence-management/$sequenceId/favorite');
+    final response = await _post(
+      SequenceManagementApi.toggleFavorite,
+      path: {'id': sequenceId},
+    );
     final value = response['isFavorite'];
     if (value is! bool) {
       throw const FormatException(
@@ -235,10 +264,11 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     Map<String, dynamic> sequence, {
     String? label,
   }) async {
-    final response = await _post('sequence-management/$sequenceId/versions', {
-      'sequence': sequence,
-      if (label != null) 'label': label,
-    });
+    final response = await _post(
+      SequenceManagementApi.snapshotVersion,
+      path: {'id': sequenceId},
+      body: {'sequence': sequence, if (label != null) 'label': label},
+    );
     return _domainId(
       response,
       'POST /api/sequence-management/$sequenceId/versions',
@@ -249,7 +279,10 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
   Future<List<RemoteSequenceVersionSummary>> listSequenceVersions(
     int sequenceId,
   ) async {
-    final response = await _get('sequence-management/$sequenceId/versions');
+    final response = await _get(
+      SequenceManagementApi.listVersions,
+      path: {'id': sequenceId},
+    );
     return _domainObjectRows(
       response,
       'versions',
@@ -260,7 +293,10 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
   /// Load one host-owned version snapshot, or `null` after a real 404.
   Future<RemoteSequenceVersion?> getSequenceVersion(int versionId) async {
     try {
-      final response = await _get('sequence-management/versions/$versionId');
+      final response = await _get(
+        SequenceManagementApi.getVersion,
+        path: {'versionId': versionId},
+      );
       final map = _domainNullableObject(
         response,
         'version',
@@ -277,7 +313,10 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     int sequenceId,
     Map<String, dynamic> node,
   ) async {
-    await _post('sequence-management/$sequenceId/nodes', node);
+    await _post(
+      SequenceManagementApi.createNode,
+      path: {'id': sequenceId},
+      body: node,
+    );
   }
-
 }

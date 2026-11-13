@@ -321,23 +321,21 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   ),
   _AfRow<int>(
     LucideIcons.arrowLeft,
-    _afInt(
-      title: 'Backlash IN',
+    _AfField<int>(
+      label: 'Backlash IN',
       read: (s) => s.afBacklashIn,
-      write: (n, v) => n.setAfBacklashIn(v),
-      min: 0,
-      max: 10000,
+      write: (ref, v) => _afNotifier(ref).setAfBacklashIn(v),
+      codec: IntCodec.of(AppSettingDefs.afBacklashIn),
     ),
     rightColumn: true,
   ),
   _AfRow<int>(
     LucideIcons.arrowRight,
-    _afInt(
-      title: 'Backlash OUT',
+    _AfField<int>(
+      label: 'Backlash OUT',
       read: (s) => s.afBacklashOut,
-      write: (n, v) => n.setAfBacklashOut(v),
-      min: 0,
-      max: 10000,
+      write: (ref, v) => _afNotifier(ref).setAfBacklashOut(v),
+      codec: IntCodec.of(AppSettingDefs.afBacklashOut),
     ),
     rightColumn: true,
   ),

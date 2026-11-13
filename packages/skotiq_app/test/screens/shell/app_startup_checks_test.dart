@@ -1,19 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 
 void main() {
-  group('catalog setup skip persistence', () {
-    test('only an explicit persisted true suppresses the prompt', () {
-      expect(catalogSetupWasSkipped('true'), isTrue);
-      expect(catalogSetupWasSkipped(' TRUE '), isTrue);
-      expect(catalogSetupWasSkipped(null), isFalse);
-      expect(catalogSetupWasSkipped('false'), isFalse);
-      expect(catalogSetupWasSkipped('garbage'), isFalse);
-    });
-  });
-
   test('failed resume is retried without losing the checkpoint prompt',
       () async {
     var choices = 0;
@@ -59,56 +47,4 @@ void main() {
     expect(outcome, AppStartupCheckpointOutcome.discarded);
     expect(discarded, isTrue);
   });
-
-  for (final outcome in [
-    AppStartupCheckpointOutcome.noRecovery,
-    AppStartupCheckpointOutcome.discarded,
-    AppStartupCheckpointOutcome.deferred,
-  ]) {
-    test('catalog setup waits for checkpoint outcome $outcome', () async {
-      final checkpoint = Completer<AppStartupCheckpointOutcome>();
-      final events = <String>[];
-
-      final checks = runAppStartupChecks(
-        checkCheckpoint: () async {
-          events.add('checkpoint-started');
-          final result = await checkpoint.future;
-          events.add('checkpoint-finished');
-          return result;
-        },
-        checkCatalogs: () async {
-          events.add('catalogs');
-        },
-      );
-
-      await Future<void>.delayed(Duration.zero);
-      expect(events, ['checkpoint-started']);
-
-      checkpoint.complete(outcome);
-      await checks;
-      expect(
-        events,
-        ['checkpoint-started', 'checkpoint-finished', 'catalogs'],
-      );
-    });
-  }
-
-  for (final outcome in [
-    AppStartupCheckpointOutcome.resumed,
-    AppStartupCheckpointOutcome.failed,
-  ]) {
-    test('catalog setup is suppressed after checkpoint outcome $outcome',
-        () async {
-      var catalogsChecked = false;
-
-      await runAppStartupChecks(
-        checkCheckpoint: () async => outcome,
-        checkCatalogs: () async {
-          catalogsChecked = true;
-        },
-      );
-
-      expect(catalogsChecked, isFalse);
-    });
-  }
 }

@@ -81,7 +81,7 @@ void insertSnippetGuarded(
   String? parentId,
   int? index,
 }) {
-  final profile = ref.read(activeEquipmentProfileProvider);
+  final filters = ref.read(effectiveFiltersProvider);
   withSequenceMutation(
     context,
     ref,
@@ -93,7 +93,7 @@ void insertSnippetGuarded(
             snippet,
             parentId: parentId,
             index: index,
-            profileFilterNames: profile?.filterNames,
+            availableFilters: filters,
           );
     },
   );

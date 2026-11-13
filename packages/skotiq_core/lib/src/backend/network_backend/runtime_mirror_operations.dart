@@ -11,7 +11,7 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
   Future<List<HostRuntimeUpdate>> getHostRuntimeState() async {
     final Map<String, dynamic> response;
     try {
-      response = await _get('runtime/state');
+      response = await _get(RuntimeStateApi.getState);
     } on ServerError catch (e) {
       if (e.httpStatus == 404) return const [];
       rethrow;
@@ -33,7 +33,10 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
   Future<List<SkotiqEvent>> getHostRecentEvents({int limit = 100}) async {
     final Map<String, dynamic> response;
     try {
-      response = await _get('runtime/recent-events', {'limit': limit});
+      response = await _get(
+        RuntimeStateApi.recentEvents,
+        query: {'limit': limit},
+      );
     } on ServerError catch (e) {
       if (e.httpStatus == 404) return const [];
       rethrow;
@@ -56,7 +59,7 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
   /// cooler history. Null when the host predates the endpoint.
   Future<Map<String, dynamic>?> getHostNightHistory() async {
     try {
-      return await _get('runtime/night-history');
+      return await _get(RuntimeStateApi.nightHistory);
     } on ServerError catch (e) {
       if (e.httpStatus == 404) return null;
       rethrow;
@@ -70,10 +73,9 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
     required String origin,
   }) async {
     await _post(
-      'runtime/state',
-      {'channel': channel, 'value': value, 'origin': origin},
-      null,
-      1,
+      RuntimeStateApi.report,
+      body: {'channel': channel, 'value': value, 'origin': origin},
+      maxAttempts: 1,
     );
   }
 
@@ -81,11 +83,11 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
   /// [manualLoopRequestJson]). The loop runs on the host; its progress comes
   /// back on the `manualLoop` runtime channel.
   Future<void> startHostManualLoop(Map<String, dynamic> request) async {
-    await _post('runtime/manual-loop', request, null, 1);
+    await _post(RuntimeStateApi.startManualLoop, body: request, maxAttempts: 1);
   }
 
   /// Stop the host's manual Loop, whichever window started it.
   Future<void> stopHostManualLoop() async {
-    await _post('runtime/manual-loop/stop', const {}, null, 1);
+    await _post(RuntimeStateApi.stopManualLoop, body: const {}, maxAttempts: 1);
   }
 }

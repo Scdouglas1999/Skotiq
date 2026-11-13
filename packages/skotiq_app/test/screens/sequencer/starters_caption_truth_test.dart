@@ -62,7 +62,7 @@ void main() {
           allSnippetsProvider.overrideWithValue(const []),
           sampleSequencesProvider
               .overrideWith((ref) async => [starter ?? _starter()]),
-          filterNamesToMatchProvider.overrideWithValue(wheel),
+          effectiveFiltersProvider.overrideWithValue(wheel),
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,

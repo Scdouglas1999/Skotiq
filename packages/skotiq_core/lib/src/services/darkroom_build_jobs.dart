@@ -10,11 +10,11 @@ import '../database/database.dart';
 import '../models/darkroom/darkroom_links.dart';
 import '../models/notification/notification_categories.dart';
 import '../providers/database_provider.dart';
-import '../utils/skotiq_data_directory.dart';
 import 'calibration/fits_header_reader.dart';
 import 'darkroom_build_service.dart';
 import 'notification_service.dart';
 import '../providers/darkroom_build_service_provider.dart';
+import '../providers/output_locations_provider.dart';
 import '../providers/darkroom_state_store_provider.dart';
 import '../providers/notification_service_provider.dart';
 import '../providers/post_session_seam_provider.dart';
@@ -273,13 +273,6 @@ final darkroomRecentBuildsProvider =
       DarkroomRecentBuilds.new,
     );
 
-/// The folder an unattended build of [target] writes into under [root]. One
-/// folder per target, so each night folds into the same build.
-Directory darkroomTargetBuildDirectory(Directory root, String target) =>
-    Directory(
-      p.join(root.path, target.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')),
-    );
-
 /// The light ids of [plan] that go into the build, by filter: the lights the
 /// accepted framing [preview] includes, or every planned light when there is
 /// no preview. Lights the crop leaves out are not counted as build progress.
@@ -299,14 +292,6 @@ Map<String, List<int>> darkroomBuildLightIds(
   }
   return byFilter;
 }
-
-/// Where unattended builds go unless told otherwise: one folder per target
-/// under `Documents/Skotiq/Masters`.
-final darkroomMastersRootProvider = FutureProvider<Directory>(
-  (ref) async => Directory(
-    p.join((await resolveSkotiqDocumentsDirectory()).path, 'Skotiq', 'Masters'),
-  ),
-);
 
 /// Every captured light, by target: the target's name, else the FITS
 /// `OBJECT`, else its session.
@@ -883,8 +868,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   }
 
   /// Build every filter of [target] from all its nights, with default choices
-  /// and no dialog, into the target's own folder under [outputRoot]: a new
-  /// night folds into the build already there. The build starts only when
+  /// and no dialog, into the target's masters folder
+  /// ([OutputLocations.mastersOf]): a new night folds into the build already
+  /// there. The build starts only when
   /// the common crop keeps at least [minRetainedArea] of the field;
   /// otherwise the job waits for review. Returns when the job ends or waits.
   ///
@@ -892,7 +878,6 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   /// passes false and sends one morning message for the whole night.
   Future<DarkroomBuildJob> startUnattended(
     String target, {
-    Directory? outputRoot,
     double minRetainedArea = defaultMinRetainedArea,
     bool announce = true,
     String? nightRunId,
@@ -906,9 +891,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     if (frames == null || frames.isEmpty) {
       throw StateError('No captured lights for $target.');
     }
-    final Directory root =
-        outputRoot ?? await ref.read(darkroomMastersRootProvider.future);
-    final directory = darkroomTargetBuildDirectory(root, target);
+    final directory = await ref.read(targetMastersFolderProvider(target).future);
     _begin(
       DarkroomBuildJob(
         target: target,

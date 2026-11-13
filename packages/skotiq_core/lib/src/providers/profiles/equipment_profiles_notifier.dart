@@ -38,6 +38,13 @@ typedef _LinkedProfiles = ({
   BackendNotifier owner,
 });
 
+typedef _LocalProfiles = ({
+  EquipmentProfilesDao dao,
+  ProfileSettingsBackend settings,
+  LoggingService logger,
+  HostMutationEventHub hub,
+});
+
 class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   /// The linked host's profiles, or null when the profiles are in this
   /// process's database.
@@ -133,163 +140,168 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     return EquipmentProfilesState(profiles: profiles, activeProfile: active);
   }
 
-  Future<int> createProfile({required String name, String? description}) async {
+  /// What a change to the profiles in this process's database works with,
+  /// resolved before the change: build() watches the profile streams, so a
+  /// read through this ref after a write trips Riverpod's rebuild guard.
+  _LocalProfiles get _local => (
+    dao: ref.read(equipmentProfilesDaoProvider),
+    settings: ref.read(profileSettingsBackendProvider),
+    logger: ref.read(loggingServiceProvider),
+    hub: ref.read(hostMutationEventHubProvider),
+  );
+
+  /// Save [profile] and return its id: a new profile when it has no id,
+  /// otherwise the fields it changes relative to the copy this notifier last
+  /// loaded, laid over the stored profile so an edit made elsewhere to another
+  /// field since then is kept. A changed [EquipmentProfileModel.isDefault]
+  /// sets or clears the startup profile as [setDefaultProfile] does; the
+  /// active flag, the sort order and the timestamps are not a save's to change.
+  Future<int> saveProfile(EquipmentProfileModel profile) async {
+    final loaded = _loadedCopy(profile.id);
+    final defaultChanged = loaded == null
+        ? profile.id == null && profile.isDefault
+        : profile.isDefault != loaded.isDefault;
     final remote = _remote;
+    final int id;
     if (remote != null) {
-      final current = await future;
-      _requireSameHost(remote);
-      final existingIds = current.profiles
-          .map((profile) => profile.id)
-          .whereType<int>()
-          .toSet();
-      await remote.host.saveProfile(
-        EquipmentProfileModel(
-          name: name,
-          description: description,
-        ).toRemoteProfile(),
-      );
-      _requireSameHost(remote);
-      final id =
-          int.tryParse(remote.host.lastSavedProfileId ?? '') ??
-          await _resolveRemoteProfileIdByName(
-            remote,
-            name,
-            excludingIds: existingIds,
-          );
-      if (id == null || id <= 0) {
-        throw StateError(
-          'Host saved profile "$name" but id could not be resolved',
+      id = await _saveOnHost(remote, profile, loaded);
+      if (defaultChanged) {
+        await _setDefaultOnHost(remote, profile.isDefault ? id : null);
+      }
+    } else {
+      final local = _local;
+      id = await _saveHere(local, profile, loaded);
+      if (defaultChanged) {
+        await _setDefaultHere(
+          local,
+          profile.isDefault ? id : null,
+          makeActive: true,
         );
       }
-      ref.invalidateSelf();
-      return id;
+      // Making it the default already gave the native store the saved row.
+      // Otherwise an active row goes to the native store as well; the save
+      // has committed, so a native failure is logged, not reported as one.
+      if (!(defaultChanged && profile.isDefault) &&
+          (await local.dao.getProfileById(id))?.isActive == true) {
+        await writeActiveProfileThrough(
+          dao: local.dao,
+          backend: local.settings,
+          logger: local.logger,
+          profileId: id,
+        );
+      }
     }
-
-    final dao = ref.read(equipmentProfilesDaoProvider);
-
-    final id = await dao.createProfile(
-      EquipmentProfilesCompanion.insert(
-        name: name,
-        description: Value(description),
-      ),
-    );
-
     ref.invalidateSelf();
-
     return id;
   }
 
-  /// Update an existing profile.
-  ///
-  /// In remote (slave) mode this routes the FULL profile to the host's
-  /// `POST /api/profiles` (SQLite-backed since the profiles layer); the host
-  /// decides create-vs-update by the parsed id, so a null-id model is accepted
-  /// as a remote CREATE. The local (host/desktop) DAO path still requires an id.
-  Future<int> updateProfile(EquipmentProfileModel profile) async {
-    final remote = _remote;
-    if (remote != null) {
-      final next = profile.toRemoteProfile();
-      await remote.host.saveProfileFields(
-        next,
-        fields: _changedRemoteFields(profile.id, next),
-      );
-      _requireSameHost(remote);
-      final savedId =
-          int.tryParse(remote.host.lastSavedProfileId ?? '') ??
-          profile.id ??
-          await _resolveRemoteProfileIdByName(
-            remote,
-            profile.name,
-          );
-      if (savedId == null || savedId <= 0) {
-        throw StateError(
-          'Host saved profile "${profile.name}" but returned no valid id',
-        );
-      }
-      ref.invalidateSelf();
-      return savedId;
+  EquipmentProfileModel? _loadedCopy(int? id) {
+    if (id == null) return null;
+    for (final candidate
+        in state.valueOrNull?.profiles ?? const <EquipmentProfileModel>[]) {
+      if (candidate.id == id) return candidate;
     }
-
-    if (profile.id == null) {
-      throw Exception('Cannot update profile without ID');
-    }
-
-    final dao = ref.read(equipmentProfilesDaoProvider);
-    final settingsBackend = ref.read(profileSettingsBackendProvider);
-    final logger = ref.read(loggingServiceProvider);
-    final dbProfile = await dao.getProfileById(profile.id!);
-
-    if (dbProfile == null) {
-      throw Exception('Profile not found');
-    }
-
-    final updated = dbProfile.copyWith(
-      name: profile.name,
-      description: Value(profile.description),
-      cameraId: Value(profile.cameraId),
-      mountId: Value(profile.mountId),
-      focuserId: Value(profile.focuserId),
-      filterWheelId: Value(profile.filterWheelId),
-      guiderId: Value(profile.guiderId),
-      guideCameraId: Value(profile.guideCameraId),
-      guideFocalLength: Value(profile.guideFocalLength),
-      rotatorId: Value(profile.rotatorId),
-      domeId: Value(profile.domeId),
-      weatherId: Value(profile.weatherId),
-      safetyMonitorId: Value(profile.safetyMonitorId),
-      switchId: Value(profile.switchId),
-      coverCalibratorId: Value(profile.coverCalibratorId),
-      focalLength: profile.focalLength,
-      aperture: profile.aperture,
-      focalRatio: Value(profile.focalRatio),
-      defaultGain: Value(profile.defaultGain),
-      defaultOffset: Value(profile.defaultOffset),
-      defaultBinX: profile.defaultBinX,
-      defaultBinY: profile.defaultBinY,
-      defaultCoolingTemp: Value(profile.defaultCoolingTemp),
-      coolOnConnect: profile.coolOnConnect,
-      defaultCenteringExposure: Value(profile.defaultCenteringExposure),
-      filterNames: Value(
-        profile.filterNames.isNotEmpty ? jsonEncode(profile.filterNames) : null,
-      ),
-      filterFocusOffsets: Value(
-        profile.filterFocusOffsets.isNotEmpty
-            ? jsonEncode(profile.filterFocusOffsets)
-            : null,
-      ),
-      updatedAt: DateTime.now(),
-    );
-
-    await dao.updateProfile(updated);
-    if (dbProfile.isActive) {
-      await writeActiveProfileThrough(
-        dao: dao,
-        backend: settingsBackend,
-        logger: logger,
-        profileId: profile.id!,
-        strict: true,
-      );
-    }
-    ref.invalidateSelf();
-    return profile.id!;
+    return null;
   }
 
-  /// The wire fields [next] changes relative to the copy of profile [id] this
-  /// client last loaded, or null when it has no copy to compare with (a new
-  /// profile, or one it has not loaded), in which case the whole profile is
-  /// sent.
+  Future<int> _saveOnHost(
+    _LinkedProfiles remote,
+    EquipmentProfileModel profile,
+    EquipmentProfileModel? loaded,
+  ) async {
+    final existingIds = <int>{
+      for (final known
+          in state.valueOrNull?.profiles ?? const <EquipmentProfileModel>[])
+        if (known.id != null) known.id!,
+    };
+    final next = profile.toRemoteProfile();
+    await remote.host.saveProfileFields(
+      next,
+      fields: _changedRemoteFields(loaded, next),
+    );
+    _requireSameHost(remote);
+    final savedId =
+        int.tryParse(remote.host.lastSavedProfileId ?? '') ??
+        profile.id ??
+        await _resolveRemoteProfileIdByName(
+          remote,
+          profile.name,
+          excludingIds: existingIds,
+        );
+    if (savedId == null || savedId <= 0) {
+      throw StateError(
+        'Host saved profile "${profile.name}" but returned no valid id',
+      );
+    }
+    return savedId;
+  }
+
+  Future<int> _saveHere(
+    _LocalProfiles local,
+    EquipmentProfileModel profile,
+    EquipmentProfileModel? loaded,
+  ) async {
+    final dao = local.dao;
+    final int id;
+    if (profile.id == null) {
+      id = await dao.createProfile(profile.toCompanion());
+    } else {
+      final stored = await dao.getProfileById(profile.id!);
+      if (stored == null) {
+        throw StateError('Profile ${profile.id} was not found.');
+      }
+      id = stored.id;
+      await dao.updateProfileColumns(
+        id,
+        _changedColumns(
+          dao.equipmentProfiles,
+          loaded ?? EquipmentProfileModel.fromDatabase(stored),
+          profile,
+        ),
+      );
+    }
+    _announceProfileChange(
+      local.hub,
+      profile.id == null
+          ? HostMutationAction.created
+          : HostMutationAction.updated,
+      id,
+    );
+    return id;
+  }
+
+  /// The columns [next] writes with a value other than [before]'s, plus the
+  /// update time. The columns a save does not own are left out.
+  static Map<String, Expression> _changedColumns(
+    $EquipmentProfilesTable table,
+    EquipmentProfileModel before,
+    EquipmentProfileModel next,
+  ) {
+    final notSaved = {
+      table.id.name,
+      table.isDefault.name,
+      table.isActive.name,
+      table.sortOrder.name,
+      table.createdAt.name,
+      table.updatedAt.name,
+    };
+    final previous = before.toCompanion().toColumns(false);
+    return {
+      for (final column in next.toCompanion().toColumns(false).entries)
+        if (!notSaved.contains(column.key) &&
+            previous[column.key] != column.value)
+          column.key: column.value,
+      table.updatedAt.name: Variable(DateTime.now()),
+    };
+  }
+
+  /// The wire fields [next] changes relative to [loaded], the copy this client
+  /// last loaded, or null when it has no copy to compare with (a new profile,
+  /// or one it has not loaded), in which case the whole profile is sent.
   Set<String>? _changedRemoteFields(
-    int? id,
+    EquipmentProfileModel? loaded,
     remote_profile.EquipmentProfile next,
   ) {
-    if (id == null) return null;
-    EquipmentProfileModel? loaded;
-    for (final candidate in state.valueOrNull?.profiles ?? const []) {
-      if (candidate.id == id) {
-        loaded = candidate;
-        break;
-      }
-    }
     if (loaded == null) return null;
     final before = jsonDecode(jsonEncode(loaded.toRemoteProfile().toJson()));
     final after = jsonDecode(jsonEncode(next.toJson()));
@@ -347,26 +359,19 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       return;
     }
 
-    // Resolve every collaborator BEFORE mutating SQLite. build() watches the
-    // profile streams, so a `ref.read` AFTER a SQLite mutation would trip
-    // Riverpod's "dependency changed before rebuild" guard.
-    final dao = ref.read(equipmentProfilesDaoProvider);
-    final settingsBackend = ref.read(profileSettingsBackendProvider);
-    final logger = ref.read(loggingServiceProvider);
-    final hub = ref.read(hostMutationEventHubProvider);
-
+    final local = _local;
     // Transactional truth: validate the target, push it into the native
     // executor store FIRST, and only THEN commit the SQLite active flag —
     // compensating the native store if the commit fails. This applies equally
     // to startup and operator-initiated activation.
     try {
       await activateProfileStrictTransactional(
-        dao: dao,
-        backend: settingsBackend,
-        logger: logger,
+        dao: local.dao,
+        backend: local.settings,
+        logger: local.logger,
         profileId: profileId,
       );
-      _announceProfileChange(hub, HostMutationAction.loaded, profileId);
+      _announceProfileChange(local.hub, HostMutationAction.loaded, profileId);
     } finally {
       ref.invalidateSelf();
     }
@@ -395,29 +400,31 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   }) async {
     final remote = _remote;
     if (remote != null) {
-      if (profileId != null) {
-        // Dedicated host endpoint: setDefaultProfile atomically unsets the
-        // previous default and makes this row active (makeActive is owned
-        // host-side). The generic saveProfile path could never flip the
-        // host's isDefault because the converter preserves existing.isDefault.
-        await remote.host.setDefaultProfileRemote(profileId.toString());
-      } else {
-        // Clear-default: dedicated host endpoint (the saveProfile path can't
-        // clear isDefault because the converter preserves the existing row's
-        // flag).
-        await remote.host.clearDefaultProfileRemote();
-      }
-      _requireSameHost(remote);
-      ref.invalidateSelf();
-      return;
+      await _setDefaultOnHost(remote, profileId);
+    } else {
+      await _setDefaultHere(_local, profileId, makeActive: makeActive);
     }
+    ref.invalidateSelf();
+  }
 
-    // Resolve collaborators up front (see [setActiveProfile] for why the reads
-    // must precede the SQLite mutation).
-    final dao = ref.read(equipmentProfilesDaoProvider);
-    final settingsBackend = ref.read(profileSettingsBackendProvider);
-    final logger = ref.read(loggingServiceProvider);
-    final hub = ref.read(hostMutationEventHubProvider);
+  /// The host's own endpoints set and clear its default, and setting one
+  /// also makes it active there: a profile save cannot, because the host
+  /// keeps a saved row's default flag.
+  Future<void> _setDefaultOnHost(_LinkedProfiles remote, int? profileId) async {
+    if (profileId != null) {
+      await remote.host.setDefaultProfileRemote(profileId.toString());
+    } else {
+      await remote.host.clearDefaultProfileRemote();
+    }
+    _requireSameHost(remote);
+  }
+
+  Future<void> _setDefaultHere(
+    _LocalProfiles local,
+    int? profileId, {
+    required bool makeActive,
+  }) async {
+    final dao = local.dao;
     if (profileId == null) {
       await dao.clearDefaultProfile();
     } else if (makeActive) {
@@ -426,8 +433,8 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       // the default-setting transaction as its commit step.
       await activateProfileStrictTransactional(
         dao: dao,
-        backend: settingsBackend,
-        logger: logger,
+        backend: local.settings,
+        logger: local.logger,
         profileId: profileId,
         commit: () => dao.setDefaultProfile(profileId, makeActive: true),
       );
@@ -435,13 +442,12 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       await dao.setDefaultProfile(profileId, makeActive: false);
     }
     _announceProfileChange(
-      hub,
+      local.hub,
       profileId != null && makeActive
           ? HostMutationAction.loaded
           : HostMutationAction.updated,
       profileId,
     );
-    ref.invalidateSelf();
   }
 
   /// Persist a new display order for the profiles.

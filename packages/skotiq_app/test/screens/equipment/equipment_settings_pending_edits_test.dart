@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/tabs/settings_tab.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
 
@@ -28,7 +29,7 @@ Future<void> _pumpFrames(WidgetTester tester, [int count = 4]) async {
 }
 
 bool _applyEnabled(WidgetTester tester) =>
-    tester.widget<FilledButton>(find.byKey(_applyKey)).onPressed != null;
+    tester.widget<SkotiqButton>(find.byKey(_applyKey)).onPressed != null;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

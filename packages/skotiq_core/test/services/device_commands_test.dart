@@ -118,6 +118,17 @@ void main() {
     verifyNever(() => backend.filterWheelSetByName(any(), any()));
   });
 
+  test('a name the filter-name rule matches moves the slot wheel, focus '
+      'offset included', () async {
+    await commands().filterWheelSetByName('wheel_1', 'H-alpha');
+    await commands().filterWheelSetByName('wheel_1', 'lum');
+    expect(service.calls, [
+      'setFilterWheelPosition 2',
+      'setFilterWheelPosition 0',
+    ]);
+    verifyNever(() => backend.filterWheelSetByName(any(), any()));
+  });
+
   test(
     'another wheel, or a name the wheel lacks, goes to the backend',
     () async {

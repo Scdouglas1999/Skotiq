@@ -557,8 +557,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
     final appSettings = await _resolvedAppSettings();
     if (host.isStale) return;
     final solverConfig = PlateSolverConfig(
-      type: PlateSolverType.astap,
-      executablePath: appSettings?.astapPath ?? '',
       timeoutSeconds: appSettings?.plateSolveTimeout ?? 60,
       searchRadius: appSettings?.plateSolveSearchRadius,
     );

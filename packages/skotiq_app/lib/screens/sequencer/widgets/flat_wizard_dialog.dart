@@ -125,15 +125,8 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
         ...wheel.filterNames,
       ].join('|');
 
-  List<String> _availableFilters(
-    FilterWheelState wheel,
-    List<String> profileFilters,
-  ) {
-    if (wheel.connectionState == DeviceConnectionState.connected &&
-        wheel.filterNames.isNotEmpty) {
-      return wheel.filterNames;
-    }
-    if (profileFilters.isNotEmpty) return profileFilters;
+  List<String> _availableFilters(List<String> filters) {
+    if (filters.isNotEmpty) return filters;
     final manualFilter = _manualFilterController.text.trim();
     return manualFilter.isEmpty ? const [] : [manualFilter];
   }
@@ -226,10 +219,8 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
     }
 
     final wheel = ref.read(filterWheelStateProvider);
-    final profileFilters = ref.read(profileFiltersProvider);
-    final filters = _orderedSelectedFilters(
-      _availableFilters(wheel, profileFilters),
-    );
+    final available = _availableFilters(ref.read(effectiveFiltersProvider));
+    final filters = _orderedSelectedFilters(available);
     if (filters.length > 1 &&
         (wheel.connectionState != DeviceConnectionState.connected ||
             wheel.deviceId == null)) {
@@ -242,8 +233,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
     }
     if (wheel.connectionState == DeviceConnectionState.connected &&
         wheel.deviceId != null) {
-      final missing =
-          filters.where((filter) => !wheel.filterNames.contains(filter));
+      final missing = filters.where((filter) => !available.contains(filter));
       if (missing.isNotEmpty) {
         setState(() {
           _errorMessage = 'The connected filter wheel does not report: '
@@ -310,7 +300,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
 
         if (liveWheel.connectionState == DeviceConnectionState.connected &&
             liveWheel.deviceId != null) {
-          final position = liveWheel.filterNames.indexOf(filter);
+          final position = available.indexOf(filter);
           final moveError = await ref
               .read(flatWizardProvider.notifier)
               .moveFilterWheelAndWait(position, token);
@@ -711,11 +701,9 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
   }
 
   Widget _buildFilterSelector(SkotiqColors colors) {
-    final profileFilters = ref.watch(profileFiltersProvider);
-    final wheel = ref.watch(filterWheelStateProvider);
-    final availableFilters = _availableFilters(wheel, profileFilters);
-    final usesManualFilter =
-        wheel.filterNames.isEmpty && profileFilters.isEmpty;
+    final filters = ref.watch(effectiveFiltersProvider);
+    final availableFilters = _availableFilters(filters);
+    final usesManualFilter = filters.isEmpty;
 
     final hasStaleSelection =
         _selectedFilters.any((filter) => !availableFilters.contains(filter));

@@ -64,6 +64,8 @@ pub struct EvaluationFrame {
     pub weather_humidity: Option<f64>,
     /// Sky-quality measurement (mag/arcsec²).
     pub sqm: Option<f64>,
+    /// Sensor temperature (°C) the camera reported with the frame.
+    pub sensor_temp_c: Option<f64>,
 }
 
 impl EvaluationFrame {
@@ -103,6 +105,18 @@ pub fn interpolate(
     ctx: &ExecutionContext,
     frame: &EvaluationFrame,
 ) -> Result<String, InterpolationError> {
+    interpolate_with(template, ctx, frame, |value| value)
+}
+
+/// [`interpolate`] with every rendered variable passed through `value_text`
+/// before it lands in the result, so a save path can keep a value inside its
+/// own path segment.
+pub fn interpolate_with(
+    template: &str,
+    ctx: &ExecutionContext,
+    frame: &EvaluationFrame,
+    value_text: impl Fn(String) -> String,
+) -> Result<String, InterpolationError> {
     let parts = parse_template(template)?;
     let mut out = String::with_capacity(template.len());
     for part in parts {
@@ -115,7 +129,7 @@ pub fn interpolate(
             } => {
                 let value = resolve_variable(&name, offset, ctx, frame)?;
                 let rendered = apply_format_spec(&name, offset, &value, format_spec.as_deref())?;
-                out.push_str(&rendered);
+                out.push_str(&value_text(rendered));
             }
         }
     }
@@ -295,6 +309,18 @@ pub fn resolve_variable(
                 .unwrap_or_else(now_utc)
                 .format("%Y-%m-%d")
                 .to_string(),
+        )),
+        "time.clock" => Ok(VariableValue::Str(
+            frame
+                .now_override
+                .unwrap_or_else(now_utc)
+                .format("%H-%M-%S")
+                .to_string(),
+        )),
+        // As the app's `$TEMP` reads a manual capture: the sensor, else what
+        // the cooler holds, else 0.
+        "camera.temp_c" => Ok(VariableValue::Float(
+            frame.sensor_temp_c.or(ctx.set_temp_c).unwrap_or(0.0),
         )),
         "moon.phase" => float_or_unresolvable(
             name,
@@ -714,6 +740,7 @@ mod tests {
             weather_temp_c: Some(12.4),
             weather_humidity: Some(67.0),
             sqm: Some(21.2),
+            sensor_temp_c: Some(-9.6),
         }
     }
     use chrono::TimeZone;
