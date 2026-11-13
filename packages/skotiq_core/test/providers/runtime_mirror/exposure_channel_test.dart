@@ -82,8 +82,8 @@ void main() {
     expect(client.container.read(cameraStateProvider).isExposing, isFalse);
   });
 
-  test('a host older than the exposure channel is followed by its events',
-      () async {
+  test('a client shows the host\'s exposure from the exposure channel only, '
+      'never from the camera\'s own events', () async {
     final client = mirrorClient(
       null,
       snapshot: () => const [
@@ -97,6 +97,6 @@ void main() {
       client.backend,
       _imaging('ExposureStarted', {'duration_secs': 30.0}),
     );
-    expect(client.container.read(cameraStateProvider).isExposing, isTrue);
+    expect(client.container.read(cameraStateProvider).isExposing, isFalse);
   });
 }

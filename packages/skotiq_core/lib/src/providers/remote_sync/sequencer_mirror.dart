@@ -45,8 +45,6 @@ void _applySequencerStatus(ProviderContainer container, SequencerStatus status) 
   // Why the host's guiding is stopped. Live StopReason events carry it too,
   // but only to a client that was listening when it was set: one that joined
   // during a tracking-limit hold read "Guider needs a look" with no reason.
-  if (status.reportsGuidingStopReason) {
-    container.read(guidingStopReasonProvider.notifier).state =
-        status.guidingStopReason;
-  }
+  container.read(guidingStopReasonProvider.notifier).state =
+      status.guidingStopReason;
 }

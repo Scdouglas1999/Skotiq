@@ -487,11 +487,6 @@ void main() {
       );
 
       await hydrateHostRuntimeState(client.container, client.backend);
-      await mirrorDevicesOfOlderHost(
-        client.container,
-        client.backend,
-        isCurrent: () => true,
-      );
 
       final slot = client.container.read(focuserStateProvider);
       expect(slot.connectionState, DeviceConnectionState.connecting);
@@ -513,86 +508,7 @@ void main() {
     });
   });
 
-  group('a host older than the device channels', () {
-    final olderHostState = [
-      const HostRuntimeUpdate(
-        channel: 'scheduledStart',
-        revision: 10,
-        value: null,
-      ),
-    ];
-    DeviceInfo device(String id, String name, DeviceType type) => DeviceInfo(
-      id: id,
-      name: name,
-      deviceType: type,
-      driverType: DriverType.simulator,
-      description: '',
-      driverVersion: '',
-    );
-
-    test('shows which devices it has connected, and says once that it '
-        'needs an update', () async {
-      final client = mirrorClient(null, snapshot: () => olderHostState);
-      when(() => client.backend.getConnectedDevices()).thenAnswer(
-        (_) async => [
-          device('cam-1', 'Main camera', DeviceType.camera),
-          device('mount-1', 'Mount', DeviceType.mount),
-        ],
-      );
-      Future<void> link() async {
-        await hydrateHostRuntimeState(client.container, client.backend);
-        await mirrorDevicesOfOlderHost(
-          client.container,
-          client.backend,
-          isCurrent: () => true,
-        );
-      }
-
-      await link();
-      await link();
-
-      final camera = client.container.read(cameraStateProvider);
-      expect(camera.connectionState, DeviceConnectionState.connected);
-      expect(camera.deviceName, 'Main camera');
-      expect(camera.temperature, isNull);
-      expect(
-        client.container.read(mountStateProvider).connectionState,
-        DeviceConnectionState.connected,
-      );
-      expect(
-        client.container.read(focuserStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
-      final notices = client.container.read(uiNotificationProvider);
-      expect(notices, hasLength(1));
-      expect(notices.single.title, 'Host needs an update');
-
-      when(
-        () => client.backend.getConnectedDevices(),
-      ).thenAnswer((_) async => const []);
-      await link();
-      expect(
-        client.container.read(cameraStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
-    });
-
-    test('a host that sends the device channels is not asked for its '
-        'device list', () async {
-      final host = mirrorHost();
-      final client = mirrorClient(host.container);
-      await hydrateHostRuntimeState(client.container, client.backend);
-      await mirrorDevicesOfOlderHost(
-        client.container,
-        client.backend,
-        isCurrent: () => true,
-      );
-      verifyNever(() => client.backend.getConnectedDevices());
-      expect(client.container.read(uiNotificationProvider), isEmpty);
-    });
-  });
-
-  test('a client older than a channel ignores it', () async {
+  test('a channel this client does not know changes nothing', () async {
     final client = mirrorClient(
       null,
       snapshot: () => [

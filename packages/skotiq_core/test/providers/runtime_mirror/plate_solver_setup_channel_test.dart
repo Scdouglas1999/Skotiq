@@ -115,17 +115,36 @@ void main() {
     verifyNever(() => client.backend.detectPlateSolvers());
   });
 
-  test('a client of a host from before the channel asks the host', () async {
+  test('until the host has told it, a client shows its solvers as not known '
+      'and asks no one', () async {
+    final client = mirrorClient(null, snapshot: () => const []);
+    await hydrateHostRuntimeState(client.container, client.backend);
+    client.container.listen(plateSolverDetectionProvider, (_, _) {});
+    client.container.listen(plateSolverPreferenceProvider, (_, _) {});
+    await settle();
+
+    expect(client.container.read(plateSolverDetectionProvider).isLoading, isTrue);
+    expect(client.container.read(plateSolverReadyProvider), isNull);
+    verifyNever(() => client.backend.detectPlateSolvers());
+    verifyNever(() => client.backend.getPlateSolverConfig());
+  });
+
+  test('a rescan on a client shows the host\'s answer at once', () async {
     final client = mirrorClient(null, snapshot: () => const []);
     when(
       () => client.backend.detectPlateSolvers(),
     ).thenAnswer((_) async => _astapOnly);
     await hydrateHostRuntimeState(client.container, client.backend);
+    client.container.listen(plateSolverDetectionProvider, (_, _) {});
 
+    final rescanned = await client.container
+        .read(plateSolverSettingsNotifierProvider.notifier)
+        .rescan();
+
+    expect(rescanned, isTrue);
     final detection = await client.container.read(
       plateSolverDetectionProvider.future,
     );
     expect(detection.astapPath, '/opt/astap/astap');
-    verify(() => client.backend.detectPlateSolvers()).called(1);
   });
 }

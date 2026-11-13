@@ -38,23 +38,13 @@ class ClientRuntimeMirrorState {
   /// tell a host value from one this client computed.
   Object? appliedValue(String channel) => _applied[channel];
 
-  bool hasApplied(String channel) => _applied.containsKey(channel);
-
-  /// Whether the host has sent a value for [channel], null included. A host
-  /// older than the channel never does.
-  bool hostPublishes(String channel) => _revisions.containsKey(channel);
 
   /// True while a host update is being written into [channel]'s provider.
   bool isApplying(String channel) => _applying.contains(channel);
 
-  /// Whether the operator has been told this host is older than some of
-  /// the channels.
-  bool olderHostNoticed = false;
-
   void reset() {
     _revisions.clear();
     _applied.clear();
-    olderHostNoticed = false;
   }
 }
 
@@ -77,7 +67,14 @@ void applyHostRuntimeUpdate(
     container.read(runtimeMirrorChannelsProvider),
     update.channel,
   );
-  if (channel == null) return;
+  if (channel == null) {
+    // Host and client run the same release, so they know the same channels.
+    Log.warning(
+      'Runtime update for unknown channel ${update.channel} dropped',
+      source: _logSource,
+    );
+    return;
+  }
   final state = container.read(clientRuntimeMirrorStateProvider);
   final last = state._revisions[update.channel];
   if (last != null &&

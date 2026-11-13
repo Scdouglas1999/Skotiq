@@ -27,11 +27,6 @@ Future<void> hydrateRemoteSessionState(
   // connected or reconnected after them.
   try {
     await hydrateHostRuntimeState(container, backend);
-    await mirrorDevicesOfOlderHost(
-      container,
-      backend,
-      isCurrent: () => container.backendScopeOver(backend).isCurrent,
-    );
   } catch (e) {
     // An unreachable endpoint leaves the values the events already applied.
     Log.warning(
@@ -84,9 +79,6 @@ final _rereadWithTheHost = <ProviderOrFamily>[
   allProfilesProvider,
   activeProfileProvider,
   appSettingsProvider,
-  // The host's plate solver can be set up while this client is linked.
-  plateSolverDetectionProvider,
-  plateSolverPreferenceProvider,
   savedSequencesProvider,
   savedSequenceSummariesProvider,
   // What the host's autopilot would slew to next.
