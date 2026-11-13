@@ -112,8 +112,8 @@ void main() {
           dstDb,
         ).restoreBackup(filePath: backupFile.path);
         expect(restore.success, isTrue, reason: restore.errorMessage);
-        expect(restore.categoryCounts['darkLibrary'], 2);
-        expect(restore.categoryCounts['notesJournal'], 2);
+        expect(restore.categoryCounts['dark_library'], 2);
+        expect(restore.categoryCounts['observation_logs'], 2);
 
         // Verify row content survived end-to-end.
         final darks = await dstDb.darkLibraryDao.getAllEntries();
@@ -208,7 +208,7 @@ void main() {
           dstDb,
         ).restoreBackup(filePath: backupFile.path);
         expect(restore.success, isTrue, reason: restore.errorMessage);
-        expect(restore.categoryCounts['weatherSettings'], 1);
+        expect(restore.categoryCounts['weather_settings'], 1);
 
         final restored = await dstDb.weatherSettingsDao.getOrCreateSettings();
         expect(restored.weatherSafetyEnabled, isTrue);
@@ -381,7 +381,7 @@ void main() {
     );
 
     test('backup format version is bumped', () {
-      expect(BackupService.backupVersion, '2.1');
+      expect(BackupService.backupVersion, '3.0');
     });
   });
 }
