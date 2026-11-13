@@ -431,6 +431,49 @@ void main() {
     });
 
     test(
+      'a scratch frame is saved by name where the host keeps them',
+      () async {
+        final backend = _SaveFitsBackend();
+        final local = ProviderContainer(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _TestBackendNotifier(ref, backend),
+            ),
+            appSettingsProvider.overrideWith(() => _TestSettings()),
+          ],
+        );
+        addTearDown(local.dispose);
+        final localHandlers = ImagingHandlers(local);
+
+        final response = await translateHandlerErrors(
+          localHandlers.handleSaveFitsFromLastCapture(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/imaging/save-fits-from-capture'),
+              body: jsonEncode({
+                'deviceId': 'camera-1',
+                'scratchName': 'liveview_camera_1.fits',
+                'headerData': {
+                  'frameType': 'LIGHT',
+                  'exposureTime': 2.0,
+                  'captureTimestamp': '2026-07-13T01:00:00Z',
+                },
+              }),
+            ),
+          ),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(backend.scratchName, 'liveview_camera_1.fits');
+        expect(
+          (jsonDecode(await response.readAsString()) as Map)['path'],
+          '/host-scratch/liveview_camera_1.fits',
+        );
+        expect(backend.calls, 0, reason: 'no keeper is written');
+      },
+    );
+
+    test(
       'a desktop host shows a remote client capture in its own image view',
       () async {
         final backend = _SaveFitsBackend();
@@ -809,6 +852,18 @@ class _SaveFitsBackend extends DisconnectedBackend {
         exposureTime: 120,
         timestamp: '2026-10-21T23:50:25.000Z',
       );
+
+  String? scratchName;
+
+  @override
+  Future<String> saveScratchFrameFromLastCapture({
+    required String deviceId,
+    required String name,
+    required FitsWriteHeader headerData,
+  }) async {
+    scratchName = name;
+    return '/host-scratch/$name';
+  }
 
   @override
   Future<String> saveFitsFromLastCapture({

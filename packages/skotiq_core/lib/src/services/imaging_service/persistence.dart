@@ -1,13 +1,15 @@
 part of '../imaging_service.dart';
 
 extension _ImagingServicePersistence on ImagingService {
-  /// Returns the path the frame is recorded by (see
+  /// Saves the keeper at [filePath], or with no [filePath] a scratch frame
+  /// named [scratchName]. Returns the path the frame is recorded by (see
   /// [ImagingBackend.saveFitsFromLastCapture]), or null when this backend no
   /// longer has authority.
   Future<String?> _saveFitsFile({
     required SkotiqBackend backend,
     required String deviceId,
-    required String filePath,
+    required String? filePath,
+    String? scratchName,
     required ExposureSettings exposureSettings,
     String? targetName,
     required DateTime timestamp,
@@ -31,6 +33,13 @@ extension _ImagingServicePersistence on ImagingService {
     );
 
     if (!_hasBackendAuthority(backend)) return null;
+    if (filePath == null) {
+      return backend.saveScratchFrameFromLastCapture(
+        deviceId: deviceId,
+        name: scratchName!,
+        headerData: header,
+      );
+    }
     return backend.saveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: filePath,

@@ -1225,9 +1225,26 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required String filePath,
     required FitsWriteHeader headerData,
     bool keepCameraFile = false,
-  }) async {
-    // Use the optimized endpoint that saves from server-side stored image
-    // No raw pixel data needs to be transferred
+  }) => _saveFromLastCapture({
+    'deviceId': deviceId,
+    'filePath': filePath,
+    'headerData': headerData.toJson(),
+    'keepCameraFile': keepCameraFile,
+  });
+
+  @override
+  Future<String> saveScratchFrameFromLastCapture({
+    required String deviceId,
+    required String name,
+    required FitsWriteHeader headerData,
+  }) => _saveFromLastCapture({
+    'deviceId': deviceId,
+    'scratchName': name,
+    'headerData': headerData.toJson(),
+  });
+
+  /// The host saves the frame its camera still holds; no pixels travel.
+  Future<String> _saveFromLastCapture(Map<String, Object?> body) {
     return _retryableRequest(() async {
       final endpoint = _endpointPath(
         ImagingApi.saveFitsFromLastCapture,
@@ -1242,15 +1259,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       headers.forEach((key, value) {
         request.headers.set(key, value);
       });
-
-      // Build request body - file path, device ID, and header (no pixel data)
-      // Use pure Dart type's toJson() for header serialization
-      final body = {
-        'deviceId': deviceId,
-        'filePath': filePath,
-        'headerData': headerData.toJson(),
-        'keepCameraFile': keepCameraFile,
-      };
 
       request.write(jsonEncode(body));
 

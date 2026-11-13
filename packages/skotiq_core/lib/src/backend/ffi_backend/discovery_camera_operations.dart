@@ -339,6 +339,29 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }
 
   @override
+  Future<String> saveScratchFrameFromLastCapture({
+    required String deviceId,
+    required String name,
+    required FitsWriteHeader headerData,
+  }) async {
+    if (name.isEmpty ||
+        name.startsWith('.') ||
+        name.contains('/') ||
+        name.contains(r'\')) {
+      throw ArgumentError.value(name, 'name', 'not a plain file name');
+    }
+    final folder = Directory(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}skotiq_captures',
+    );
+    await folder.create(recursive: true);
+    return saveFitsFromLastCapture(
+      deviceId: deviceId,
+      filePath: '${folder.path}${Platform.pathSeparator}$name',
+      headerData: headerData,
+    );
+  }
+
+  @override
   Future<void> updateFrameCards(
     String filePath,
     List<FitsKeywordWrite> cards,

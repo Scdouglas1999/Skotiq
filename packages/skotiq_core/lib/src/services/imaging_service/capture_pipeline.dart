@@ -412,6 +412,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         // Database indexing remains best-effort once the FITS is safely on
         // disk.
         String? savedFilePath;
+        String? scratchName;
         String? effectiveFilePath;
         int? dbImageId;
         bool isTempFile = false;
@@ -432,9 +433,8 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             );
             if (!_hasBackendAuthority(backend)) return null;
           } else {
-            // No output path configured - save to temp directory for annotation/plate solving
-            // This ensures live annotation can still work even without a configured save location
-            final String scratchName;
+            // A scratch frame, saved where the host keeps them, so solving and
+            // annotation work without a configured capture folder.
             if (!persistFrame) {
               // A live-view frame. It still has to reach the disk so "solve the
               // latest camera frame", annotation and the preview loader keep
@@ -455,35 +455,12 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                   .millisecondsSinceEpoch;
               scratchName = 'capture_$timestamp.fits';
             }
-            final hostFiles = backend.remoteHost?.files;
-            if (hostFiles != null) {
-              // The host writes the file, so the path has to be one of its own.
-              final roots = await hostFiles.browseRemoteDirectories();
-              if (!_hasBackendAuthority(backend)) return null;
-              savedFilePath = hostScratchFilePath(
-                roots.directories,
-                scratchName,
-              );
-              if (savedFilePath == null) {
-                throw StateError(
-                  'the imaging host lists no folder it will write to',
-                );
-              }
-            } else {
-              final skotiqTemp = Directory(
-                path.join(Directory.systemTemp.path, 'skotiq_captures'),
-              );
-              if (!await skotiqTemp.exists()) {
-                await skotiqTemp.create(recursive: true);
-              }
-              if (!_hasBackendAuthority(backend)) return null;
-              savedFilePath = path.join(skotiqTemp.path, scratchName);
-            }
             isTempFile = true;
             _logger.debug(
               persistFrame
-                  ? 'No output path configured, saving to temp: $savedFilePath'
-                  : 'Live-view frame, using scratch path: $savedFilePath',
+                  ? 'No output path configured, saving a scratch frame: '
+                        '$scratchName'
+                  : 'Live-view frame, saving scratch frame $scratchName',
               source: 'ImagingService',
             );
           }
@@ -494,6 +471,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             backend: backend,
             deviceId: deviceId,
             filePath: savedFilePath,
+            scratchName: scratchName,
             exposureSettings: settings,
             targetName: targetName,
             timestamp: observationStartedAt,
