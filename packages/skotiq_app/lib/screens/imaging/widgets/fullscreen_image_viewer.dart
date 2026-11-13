@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'image_display.dart';
+import '../../../widgets/image_preview/image_display.dart';
 
 /// Fullscreen, pinch-to-zoom inspect view of a captured frame.
 ///

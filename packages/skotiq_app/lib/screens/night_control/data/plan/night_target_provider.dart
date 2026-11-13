@@ -9,7 +9,7 @@ import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations, airmassForTrueAltitude;
 
 import '../tonight_night.dart';
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import '../session/session_events_provider.dart';
 import 'night_flip_provider.dart';

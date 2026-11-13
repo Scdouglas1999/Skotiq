@@ -18,7 +18,6 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart';
 import '../services/imaging_service.dart';
-import '../services/logging_service.dart';
 import '../services/plate_solve_service.dart';
 import '../services/wcs/gnomonic_projection.dart';
 import '../services/wcs/plate_solve_data_from_result.dart';
@@ -28,6 +27,8 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/mount_state_provider.dart';
 import 'frame_record_updates.dart';
+import 'logging_service_provider.dart';
+import 'plate_solve_service_provider.dart';
 
 /// Where a frame's background solve stands.
 enum FrameSolveStatus {

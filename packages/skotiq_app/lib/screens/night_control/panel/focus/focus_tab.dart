@@ -21,7 +21,7 @@ import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'focus_panel_vm.dart';
 import '../stale_readings_note.dart';
-import '../../../settings/settings_sections.dart';
+import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 
 /// Where "Settings…" goes.

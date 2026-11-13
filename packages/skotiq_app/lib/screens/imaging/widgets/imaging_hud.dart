@@ -9,6 +9,7 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../../widgets/frame_purpose_label.dart';
 import '../../../tours/tour_target.dart';
 import 'overlay_widgets.dart' show HistogramPainter;
+import 'package:skotiq_core/providers.dart';
 
 /// The glass HUD over the frame (05 §14, 06 §Imaging).
 ///

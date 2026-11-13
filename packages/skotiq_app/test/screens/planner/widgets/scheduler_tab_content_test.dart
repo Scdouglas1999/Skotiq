@@ -16,7 +16,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../scheduler/scheduler_test_doubles.dart';
+import '../scheduler_test_doubles.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {

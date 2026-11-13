@@ -32,13 +32,13 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
 import '../models/backend/event_types.dart' as core_events;
 import '../models/sequencer/recovery_status.dart';
 import '../models/sequence/sequence_models.dart';
-import '../services/logging_service.dart';
 import 'backend_provider.dart';
 import 'critical_alert_provider.dart';
 import 'event_provider.dart';
 import 'notification_router_provider.dart';
 import 'sequence_provider.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
 
 /// State of the current in-flight recovery loop. `null` whenever the
 /// executor is not in `Recovering`.

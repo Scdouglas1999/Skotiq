@@ -18,7 +18,6 @@
 library;
 
 export 'darkroom_seam.dart';
-export 'dawn_autopilot_providers.dart';
 export 'dawn_autopilot_service.dart';
 export 'dawn_draft_builder.dart';
 export 'dawn_job_report.dart';

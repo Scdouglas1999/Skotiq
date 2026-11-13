@@ -2,8 +2,6 @@
 library;
 
 import 'package:skotiq_core/models.dart' show DeviceType;
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show SkotiqServerCompatibility;
 import 'package:skotiq_remote_protocol/wire.dart';
 
 import 'rate_limiting.dart';

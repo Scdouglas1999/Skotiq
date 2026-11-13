@@ -8,7 +8,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../tonight_night.dart';
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
 import 'night_run_phase_provider.dart';

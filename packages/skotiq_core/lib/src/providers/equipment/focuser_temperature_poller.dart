@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/equipment/equipment_models.dart';
-import '../../services/logging_service.dart';
 import '../backend_provider.dart';
 import 'focuser_state_provider.dart';
+import '../logging_service_provider.dart';
 
 /// Reads a connected focuser's temperature on a fixed cadence on the machine
 /// that owns the rig.

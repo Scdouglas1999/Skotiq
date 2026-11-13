@@ -9,7 +9,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../sequencer/run_status_presentation.dart';
+import '../../widgets/run_status/run_status_presentation.dart';
 import '../../router/app_routes.dart';
 
 /// Past sequence runs on the linked imaging host, newest first; a row opens

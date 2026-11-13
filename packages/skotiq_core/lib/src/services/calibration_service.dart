@@ -11,7 +11,6 @@ import '../backend/skotiq_backend.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/imaging/frame_files.dart';
 import '../providers/async_scope.dart';
-import '../providers/backend_provider.dart';
 import '../providers/dark_library_provider.dart';
 import '../services/dark_library_service.dart';
 import '../services/logging_service.dart';
@@ -21,6 +20,7 @@ import '../utils/host_paths.dart';
 import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
 import '../database/daos/settings_dao.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Sentinel object used by [CalibrationSettings.copyWith] to distinguish
 /// "parameter not passed" from an explicit `null`.
@@ -409,23 +409,6 @@ class CalibrationService {
     return paths.join(dir, '${baseName}_cal$ext');
   }
 }
-
-final calibrationServiceProvider = Provider<CalibrationService>((ref) {
-  ref.watch(backendProvider);
-  return CalibrationService(ref);
-});
-
-/// Provider for calibration settings, loaded from app settings.
-final calibrationSettingsProvider =
-    StateNotifierProvider<CalibrationSettingsNotifier, CalibrationSettings>((
-      ref,
-    ) {
-      final backend = ref.watch(backendProvider);
-      return CalibrationSettingsNotifier(
-        ref,
-        remote: backend.remoteHost?.calibrationTools,
-      );
-    });
 
 /// Manages calibration settings with persistence via app settings.
 class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {

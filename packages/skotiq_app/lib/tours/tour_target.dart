@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 
 import '../router/app_routes.dart';
-import '../screens/analytics/analytics_route.dart';
-import '../screens/equipment/equipment_route.dart';
-import '../screens/planner/planner_route.dart';
-import '../screens/sequencer/sequencer_route.dart';
-import '../screens/settings/settings_sections.dart';
+import '../router/analytics_route.dart';
+import '../router/equipment_route.dart';
+import '../router/planner_route.dart';
+import '../router/sequencer_route.dart';
+import '../router/settings_sections.dart';
 
 /// Every control a guided tour can spotlight, named once.
 ///

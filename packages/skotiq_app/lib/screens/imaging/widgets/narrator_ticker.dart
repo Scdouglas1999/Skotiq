@@ -8,7 +8,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/narrator/narrator_card.dart';
-import '../../../widgets/narrator/narrator_feed.dart';
+import 'narrator_feed.dart';
 
 /// One-line Night Narrator strip for the imaging screen, sitting near the
 /// Science HUD.

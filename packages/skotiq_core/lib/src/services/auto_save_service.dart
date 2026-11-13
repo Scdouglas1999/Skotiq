@@ -14,7 +14,9 @@ import 'sequence_repository.dart';
 import 'backup_service.dart';
 import 'replay_debug_service.dart';
 import 'remote_sequence_editor_sync_lifecycle.dart';
-import 'sync/sync_service.dart';
+import '../providers/backup_service_provider.dart';
+import '../providers/sequence_repository_provider.dart';
+import '../providers/sync/sync_service_provider.dart';
 
 class AutoSaveConfig {
   final Duration sequenceInterval;

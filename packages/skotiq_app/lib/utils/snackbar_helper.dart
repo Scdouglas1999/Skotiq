@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../models/command_action_result.dart';
+import '../services/command_action_result.dart';
 import 'transient_bottom_inset.dart';
 
 /// Extension on BuildContext providing convenient SnackBar display methods.

@@ -10,9 +10,9 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/focus_model_curve_card.dart';
-import '../../../widgets/focuser_backlash/focuser_backlash_offer.dart';
-import '../../../widgets/focuser_controls.dart';
+import 'focus_model_curve_card.dart';
+import '../../equipment/focuser_backlash/focuser_backlash_offer.dart';
+import 'focuser_controls.dart';
 import 'panel_widgets.dart';
 
 /// Gap between the manual-focus step-size chips, in logical pixels.

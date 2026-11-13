@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'adaptive_chart_container.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 
 class ScienceTimelineScrubber extends StatefulWidget {
   final SkotiqColors colors;

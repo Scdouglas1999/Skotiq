@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/screens/shell/widgets/skotiq_bottom_navigation.dart';
 import 'package:skotiq_app/screens/shell/widgets/window_chrome.dart';
-import 'package:skotiq_app/widgets/remote_connection_indicator.dart';
+import 'package:skotiq_app/screens/connection/remote_connection_indicator.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';

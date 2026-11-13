@@ -16,6 +16,7 @@ import 'package:skotiq_core/database.dart' as db;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _Seam extends Mock implements PostSessionSeam {}
 

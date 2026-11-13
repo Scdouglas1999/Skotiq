@@ -11,7 +11,7 @@ import 'widgets/build_in_darkroom_button.dart';
 import 'widgets/darkroom_pass_banner.dart';
 import 'widgets/growth_curve_panel.dart';
 import 'widgets/improvement_curve_panel.dart';
-import 'widgets/master_overlay_view.dart';
+import '../../widgets/master_preview/master_overlay_view.dart';
 import 'widgets/night_report_panel.dart';
 import 'widgets/session_interruption_banner.dart';
 

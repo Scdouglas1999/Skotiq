@@ -10,6 +10,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'pass_view.dart';
+import 'package:skotiq_core/providers.dart';
 
 class DarkroomPassPage extends ConsumerStatefulWidget {
   const DarkroomPassPage({super.key, required this.runId});

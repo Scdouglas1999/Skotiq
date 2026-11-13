@@ -25,7 +25,7 @@ import 'conditions_provider.dart';
 import 'equipment_summary_provider.dart';
 import 'session_format.dart';
 import 'session_stats_provider.dart';
-import '../../../settings/settings_sections.dart';
+import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 
 final String _siteRoute = AppRoutes.settings(SettingsSectionId.location);

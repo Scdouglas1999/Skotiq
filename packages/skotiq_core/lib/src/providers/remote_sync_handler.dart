@@ -13,7 +13,7 @@ import '../models/imaging/imaging_models.dart'
     show CapturePreviewSource, ExposureSettings, FramePurpose;
 import '../services/device_service_lifecycle.dart';
 import '../services/capture_preview_loader.dart'
-    show capturePreviewPublisherProvider, capturedImageDataFromResult;
+    show capturedImageDataFromResult;
 import '../services/imaging_service.dart'
     show currentImageProvider, exposureProgressProvider;
 import '../utils/device_id.dart' show kPhd2CanonicalId, kPhd2DisplayName;
@@ -51,6 +51,7 @@ import 'settings_provider.dart' show appSettingsProvider;
 import 'target_progress_provider.dart'
     show allTargetProgressProvider, targetProgressProvider;
 import '../models/backend/backend_types.dart';
+import 'capture_preview_loader_provider.dart';
 
 part 'remote_sync/equipment_mirror.dart';
 part 'remote_sync/imaging_mirror.dart';

@@ -14,6 +14,7 @@ import '../models/equipment_profile_model.dart';
 import '../utils/skotiq_data_directory.dart';
 import 'logging_service.dart';
 import 'share_card_renderer.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Signature of the function used to persist an 8-bit RGBA buffer as a PNG.
 ///
@@ -529,16 +530,3 @@ class StackShareExportService {
     return null;
   }
 }
-
-/// Provider for the [StackShareExportService].
-///
-/// Reads the results DAO, active equipment profile, and logging providers
-/// lazily inside the service so it follows the same Drift instance and backend
-/// as the rest of the app, and so test overrides flow through. The save
-/// functions default to the native bridge; tests construct the service directly
-/// with pure-Dart substitutes.
-final stackShareExportServiceProvider = Provider<StackShareExportService>((
-  ref,
-) {
-  return StackShareExportService(ref);
-});

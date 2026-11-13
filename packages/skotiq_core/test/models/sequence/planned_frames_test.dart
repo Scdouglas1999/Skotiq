@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
-import 'package:skotiq_core/src/providers/sequence/target_progress_provider.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 
 // One frame count per step, read by the plan totals, the sequence total and

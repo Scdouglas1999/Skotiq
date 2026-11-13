@@ -47,6 +47,7 @@ import '../darkroom_controller.dart';
 import '../darkroom_measured_values.dart';
 import 'darkroom_image_library.dart';
 import '../../../router/app_routes.dart';
+import '../../../router/darkroom_route.dart';
 
 part 'editor_parts/_image_surface.dart';
 part 'editor_parts/_viewport.dart';

@@ -10,7 +10,7 @@ import 'package:skotiq_core/providers.dart'
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/dark_library_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
-import 'package:skotiq_core/src/services/calibration_service.dart';
+import 'package:skotiq_core/src/providers/calibration_service_providers.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

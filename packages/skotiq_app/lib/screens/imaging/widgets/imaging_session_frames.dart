@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
 import '../../night_control/data/session/session_frames_provider.dart';
+import 'package:skotiq_core/models.dart';
 
 /// The "Session frames" tab: tonight's light frames as thumbnails, grouped by
 /// target and filter, newest group and newest frame first, each with its

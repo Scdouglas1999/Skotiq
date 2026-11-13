@@ -34,9 +34,9 @@ import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/planning_provider.dart';
-import 'package:skotiq_core/src/services/planning/project_service.dart';
-import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart';
 import 'package:skotiq_core/src/services/weather/providers/openmeteo_cloud_provider.dart';
+import 'package:skotiq_core/src/providers/planning/project_service_provider.dart';
+import 'package:skotiq_core/src/providers/scheduler/integration_goal_service_provider.dart';
 
 class _FailingSettingsDao extends SettingsDao {
   _FailingSettingsDao(super.db);

@@ -29,7 +29,7 @@ const _generatedPath =
 const _catalogPath =
     'packages/skotiq_app/lib/screens/settings/settings_catalog.dart';
 const _sectionIdsPath =
-    'packages/skotiq_app/lib/screens/settings/settings_sections.dart';
+    'packages/skotiq_app/lib/router/settings_sections.dart';
 const _translationsPath =
     'packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart';
 const _libRoot = 'packages/skotiq_app/lib';

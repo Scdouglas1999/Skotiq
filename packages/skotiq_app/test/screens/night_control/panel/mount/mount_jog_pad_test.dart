@@ -10,7 +10,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/panel/mount/mount_jog.dart';
 import 'package:skotiq_app/screens/night_control/panel/mount/mount_move_pad.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';

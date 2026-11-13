@@ -11,9 +11,9 @@ import 'package:skotiq_core/src/models/backend/host_mutation_event.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 import 'package:skotiq_core/src/providers/remote_sync_handler.dart';
-import 'package:skotiq_core/src/services/profile_service.dart';
 import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/profile_service_provider.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

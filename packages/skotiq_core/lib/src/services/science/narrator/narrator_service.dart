@@ -73,6 +73,7 @@ import 'narrator_detectors.dart';
 import 'narrator_engine.dart';
 import 'narrator_event.dart';
 import '../../../backend/remote_host.dart';
+import '../../../providers/logging_service_provider.dart';
 
 /// Caps on the rolling per-input history the service keeps in memory between
 /// context builds. Generous enough for every detector's window; bounded so a

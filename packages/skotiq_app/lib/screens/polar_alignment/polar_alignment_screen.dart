@@ -10,7 +10,6 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../tours/tour_target.dart';
@@ -19,7 +18,7 @@ import 'polar_alignment_body_layout.dart';
 import 'polar_alignment_error_format.dart';
 import 'widgets/all_sky_target_reticle.dart';
 import 'widgets/polar_alignment_segmented_button.dart';
-import '../settings/settings_sections.dart';
+import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
 // File split: the PolarAlignmentScreen state keeps lifecycle and alignment
 // actions. Panel builders, helper widgets, and painters live in focused library

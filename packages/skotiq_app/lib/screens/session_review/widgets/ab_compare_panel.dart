@@ -5,7 +5,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../session_review_controller.dart';
-import 'master_preview_view.dart';
+import '../../../widgets/master_preview/master_preview_view.dart';
 
 /// Side-by-side A/B comparison of two [IntegrationSettings] recipes over the
 /// same accepted subs.

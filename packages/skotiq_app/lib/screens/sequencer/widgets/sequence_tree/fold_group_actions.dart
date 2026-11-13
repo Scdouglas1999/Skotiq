@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
 
-import '../../../../utils/sequence_mutator_helper.dart';
+import '../../sequence_mutator_helper.dart';
 import '../../sequence_fold_model.dart';
 
 /// Move [memberIds] under [parentId] so the run lands as one contiguous block

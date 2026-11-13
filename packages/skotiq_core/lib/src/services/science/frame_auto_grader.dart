@@ -4,8 +4,8 @@ import '../../database/database.dart' as db;
 import '../../providers/database_provider.dart';
 import '../../services/imaging_records_repository.dart';
 import '../../providers/science_provider.dart';
-import '../../services/logging_service.dart';
 import 'frame_grade_rules.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// Applies [FrameGradeRules] to a single frame immediately after capture.
 ///
@@ -100,7 +100,3 @@ class FrameAutoGrader {
         : (sorted[mid - 1] + sorted[mid]) / 2.0;
   }
 }
-
-final frameAutoGraderProvider = Provider<FrameAutoGrader>((ref) {
-  return FrameAutoGrader(ref);
-});

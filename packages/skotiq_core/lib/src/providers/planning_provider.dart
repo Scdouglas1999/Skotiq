@@ -12,7 +12,6 @@ import '../models/planning/project_progress.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../services/planning/forecast_planning_service.dart';
 import '../services/planning/project_service.dart';
-import '../services/scheduler/integration_goal_service.dart';
 import '../services/weather/providers/openmeteo_cloud_provider.dart';
 import '../services/weather/radar_provider.dart';
 import '../utils/resilient_poll_stream.dart';
@@ -24,6 +23,8 @@ import 'settings_provider.dart';
 import '../database/daos/settings_dao.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
+import 'planning/project_service_provider.dart';
+import 'scheduler/integration_goal_service_provider.dart';
 
 /// Riverpod plumbing for the multi-night planner: [ProjectService] /
 /// [ForecastPlanningService] and the [OpenMeteoCloudProvider] forecast feed,

@@ -139,9 +139,9 @@
 // as the kit's, so the mapping is one switch.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/providers.dart' show FrameExclusionKind;
 
 import '../../localization/skotiq_localizations.dart';
+import 'package:skotiq_core/models.dart';
 
 part 'contracts/plan_models.dart';
 part 'contracts/session_models.dart';

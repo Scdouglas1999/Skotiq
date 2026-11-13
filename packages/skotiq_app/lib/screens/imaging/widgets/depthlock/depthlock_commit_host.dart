@@ -4,7 +4,6 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 import 'depthlock_geometry.dart';

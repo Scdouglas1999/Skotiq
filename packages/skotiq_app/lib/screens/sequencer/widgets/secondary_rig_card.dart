@@ -14,10 +14,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 class SecondaryRigCard extends ConsumerWidget {
   const SecondaryRigCard({super.key});

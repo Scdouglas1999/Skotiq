@@ -25,6 +25,10 @@ import 'src/audit_scope.dart';
 ///                       directory, nothing under `src/` re-exports another
 ///                       layer or imports a barrel, and no import of a core
 ///                       barrel carries `hide`.
+///   app-shared          skotiq_app's shared folders (widgets/, services/,
+///                       utils/, tours/, localization/ and the route table
+///                       in router/) import no screen and none of the files
+///                       that put the app together.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -282,6 +286,32 @@ const _coreLayersInstead =
     'a Riverpod Ref may import providers/ only with a coreLayers entry in the '
     'baseline that says what it reads.';
 
+const _appLib = 'packages/skotiq_app/lib/';
+
+/// The folders of skotiq_app that any feature may import.
+const _appSharedFolders = {
+  'widgets',
+  'services',
+  'utils',
+  'tours',
+  'localization',
+  'router',
+};
+
+/// The files that put the app together, and so know every screen.
+const _appComposition = {
+  '${_appLib}app.dart',
+  '${_appLib}skotiq_app.dart',
+  '${_appLib}router/app_router.dart',
+};
+
+const _appSharedInstead =
+    'A file under widgets/, services/, utils/, tours/, localization/ or '
+    'router/ is used by two or more features and imports no screen. If only '
+    'one feature uses it, move it into screens/<feature>/. If it needs '
+    'something a screen declares, move that declaration down beside it (a '
+    'route or tab enum goes in router/), or pass the value in.';
+
 void main(List<String> args) {
   final scope = AuditScope.fromArgs(args);
   final baselinePath = argValue(args, '--baseline') ?? _defaultBaselinePath;
@@ -306,6 +336,7 @@ void main(List<String> args) {
   violations.addAll(_checkDartDirection(dartPackages, dartFiles));
   violations.addAll(_checkRustDirection());
   violations.addAll(_checkCoreBarrels(dartFiles));
+  violations.addAll(_checkAppShared(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);
   final srcImportSites = _srcImportSites(dartPackages, dartFiles);
@@ -455,6 +486,11 @@ enum _Rule {
     'core-barrels',
     'An import of skotiq_core names the layer it depends on.',
     _coreBarrelsInstead,
+  ),
+  appShared(
+    'app-shared',
+    'A shared folder of skotiq_app imports no screen.',
+    _appSharedInstead,
   );
 
   const _Rule(this.id, this.summary, this.instead);
@@ -817,6 +853,66 @@ String? _coreTarget(String from, String uri) {
   }
   final path = segments.join('/');
   return path.startsWith(_coreLib) ? path : null;
+}
+
+// ---------------------------------------------------------------------------
+// app-shared
+
+final _appDirectiveUri = RegExp(
+  r'''^\s*(?:import|export|part)\s+['"]([^'"]+)['"]''',
+);
+
+bool _isAppShared(String path) {
+  if (!path.startsWith(_appLib) || _appComposition.contains(path)) return false;
+  final folder = path.substring(_appLib.length).split('/').first;
+  return _appSharedFolders.contains(folder);
+}
+
+bool _isAboveAppShared(String target) =>
+    target.startsWith('${_appLib}screens/') ||
+    target.startsWith('${_appLib}startup/') ||
+    _appComposition.contains(target);
+
+List<_Violation> _checkAppShared(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!_isAppShared(path)) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final m = _appDirectiveUri.firstMatch(lines[i]);
+      if (m == null) continue;
+      final target = _appTarget(path, m.group(1)!);
+      if (target == null || !_isAboveAppShared(target)) continue;
+      out.add(
+        _Violation(
+          _Rule.appShared,
+          '$path:${i + 1}',
+          'imports ${target.substring(_appLib.length)}',
+          _appSharedInstead,
+        ),
+      );
+    }
+  }
+  return out;
+}
+
+/// The repository path [uri] names when imported from [from], for URIs into
+/// skotiq_app's lib; null for anything else.
+String? _appTarget(String from, String uri) {
+  if (uri.startsWith('package:skotiq_app/')) {
+    return '$_appLib${uri.substring('package:skotiq_app/'.length)}';
+  }
+  if (uri.contains(':')) return null;
+  final segments = from.split('/')..removeLast();
+  for (final part in uri.split('/')) {
+    if (part == '..') {
+      segments.removeLast();
+    } else if (part != '.') {
+      segments.add(part);
+    }
+  }
+  final path = segments.join('/');
+  return path.startsWith(_appLib) ? path : null;
 }
 
 // ---------------------------------------------------------------------------

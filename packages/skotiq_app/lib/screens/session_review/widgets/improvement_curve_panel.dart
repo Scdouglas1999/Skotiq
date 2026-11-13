@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:skotiq_core/models.dart' show IntegrationCurve;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../analytics/widgets/adaptive_chart_container.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 
 /// Narrative-view card visualising the marginal-SNR integration curve produced
 /// by the native optimizer (`api_analyze_night`).

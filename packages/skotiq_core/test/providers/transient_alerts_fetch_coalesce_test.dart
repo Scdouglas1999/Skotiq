@@ -27,6 +27,7 @@ import 'package:skotiq_core/src/services/transient_alert_service.dart';
 
 import '../fakes/fakes.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/providers/transient_alert_service_provider.dart';
 
 /// Service whose getAllAlerts hands back a controllable completer per call so
 /// the test can hold a fetch "in flight" and count how many fetches ran.

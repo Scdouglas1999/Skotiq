@@ -19,24 +19,12 @@ import 'logging_service.dart';
 import 'plate_solve_service.dart';
 import 'wcs/plate_solve_data_from_result.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/plate_solve_service_provider.dart';
 
 part 'annotation_pipeline.dart';
 part 'annotation_snr_tracker.dart';
 part 'click_identify_service.dart';
-
-final annotationServiceProvider = Provider<AnnotationService>((ref) {
-  final service = AnnotationService(ref, attachListeners: false);
-  ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-    service.handleBackendChanged(previous, next);
-  });
-  ref.listen<CapturedImageData?>(currentImageProvider, (previous, next) {
-    service.handleCurrentImageChanged(previous, next);
-  });
-  ref.listen<ImageStats?>(lastImageStatsProvider, (previous, next) {
-    service.handleImageStatsChanged(previous, next);
-  });
-  return service;
-});
 
 final currentAnnotationProvider = StateProvider<ImageAnnotation?>(
   (ref) => null,

@@ -8,7 +8,6 @@ import '../models/backend/host_mutation_event.dart';
 import '../models/defect_map.dart';
 import '../models/equipment/equipment_models.dart';
 import '../services/calibration/defect_map_service.dart';
-import '../services/logging_service.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import '../backend/remote_host.dart';
@@ -17,6 +16,7 @@ import 'capability_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart';
 import '../database/daos/settings_dao.dart';
+import 'logging_service_provider.dart';
 
 const Object _defectMapSettingsSentinel = Object();
 const Object _defectMapUiSentinel = Object();

@@ -6,8 +6,8 @@ import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../providers/settings_provider.dart';
-import 'logging_service.dart';
 import '../settings/app_settings_state.g.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Who and what a saved frame's header names: the observer, the site and the
 /// optics, from app settings and the active equipment profile.

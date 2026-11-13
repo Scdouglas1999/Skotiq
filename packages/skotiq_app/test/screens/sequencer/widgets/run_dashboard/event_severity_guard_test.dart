@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as sk_events;
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import '../../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 /// An event's declared severity is authoritative — payload-type classification

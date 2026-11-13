@@ -22,6 +22,8 @@ import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'ui_notification_provider.dart';
 import '../models/backend/backend_types.dart';
+import 'device_service_providers.dart';
+import 'logging_service_provider.dart';
 
 part 'guiding_provider/stats_and_graph.dart';
 part 'guiding_provider/controller.dart';

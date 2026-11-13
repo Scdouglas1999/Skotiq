@@ -19,7 +19,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
-import '../scheduler/scheduler_test_doubles.dart';
+import 'scheduler_test_doubles.dart';
 
 class _MockSettingsDao extends Mock implements SettingsDao {}
 

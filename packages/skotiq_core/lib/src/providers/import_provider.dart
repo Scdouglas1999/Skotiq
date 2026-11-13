@@ -4,8 +4,8 @@ import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import '../services/import/astrobin_importer.dart';
 import '../services/import/sequence_importer.dart';
-import '../services/sesame_name_resolver.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'sesame_name_resolver_provider.dart';
 
 /// Provides the singleton [SequenceImporter] used by the UI.
 final sequenceImporterProvider = Provider<SequenceImporter>((ref) {

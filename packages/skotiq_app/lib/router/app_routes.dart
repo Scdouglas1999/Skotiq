@@ -12,12 +12,12 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart' show AppScreen;
 
 import '../localization/skotiq_localizations.dart';
-import '../screens/analytics/analytics_route.dart';
-import '../screens/darkroom/darkroom_route.dart';
-import '../screens/equipment/equipment_route.dart';
-import '../screens/planner/planner_route.dart';
-import '../screens/sequencer/sequencer_route.dart';
-import '../screens/settings/settings_sections.dart';
+import 'analytics_route.dart';
+import 'darkroom_route.dart';
+import 'equipment_route.dart';
+import 'planner_route.dart';
+import 'sequencer_route.dart';
+import 'settings_sections.dart';
 
 /// The three things an operator does with this app, in the order a night runs.
 ///

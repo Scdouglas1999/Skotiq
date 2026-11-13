@@ -9,7 +9,6 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 // CatalogSearchResult: the Add Target sheet searches the installed sky
 // catalogs, not only the target library. catalogStateProvider: and when no
 // catalog has been downloaded there is nothing on this machine to search, so
@@ -18,7 +17,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart' show catalogStatePro
 import 'package:skotiq_astro/skotiq_astro.dart' show CatalogSearchResult;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../scheduler/widgets/integration_goals_editor.dart';
+import '../editors/integration_goals_editor.dart';
 import '../../sequencer/widgets/smart_night_dialog.dart';
 import '../../../router/app_routes.dart';
 

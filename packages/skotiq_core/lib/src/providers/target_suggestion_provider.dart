@@ -11,6 +11,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'profiles_provider.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
 
 final targetSuggestionServiceProvider = Provider<TargetSuggestionService>((
   ref,

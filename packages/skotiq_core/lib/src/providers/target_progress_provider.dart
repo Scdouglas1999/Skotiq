@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/scheduler/target_progress.dart';
-import '../services/scheduler/integration_goal_service.dart';
 import '../services/scheduler/target_progress_service.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'scheduler/integration_goal_service_provider.dart';
 
 /// Service-level access. Stateless, so a plain `Provider` suffices.
 final targetProgressServiceProvider = Provider<TargetProgressService>((ref) {

@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import 'device_connection_notifier.dart';
-import '../../services/device_service.dart';
 import '../profiles_provider.dart';
 import '../../models/equipment_profile_model.dart';
+import '../device_service_providers.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.

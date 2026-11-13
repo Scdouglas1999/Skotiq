@@ -11,10 +11,10 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/services.dart';
 // Validation rules are internal — import the implementation path
 // directly. Same convention as the smart_exposure rules tests.
 import 'package:skotiq_core/src/models/sequence/validation/rules/live_stacking_rules.dart';
+import 'package:skotiq_core/src/providers/live_stacking_broadcast_service_providers.dart';
 
 LiveStackingNode _makeNode({
   String name = 'Live Stacking',

@@ -11,7 +11,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../../models/command_action_result.dart';
+import '../../../services/command_action_result.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Where the mount pointed when a frame reached the screen.

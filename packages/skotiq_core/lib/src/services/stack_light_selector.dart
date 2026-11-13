@@ -1,11 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/targets_dao.dart';
 import '../database/database.dart';
 import '../models/imaging/stack_and_share_models.dart';
-import '../providers/database_provider.dart';
 
 /// Thrown by [StackLightSelector] when a selection run finds **zero** light
 /// frames that satisfy the [StackAndShareConfig] gates (frame-type, accepted,
@@ -354,14 +352,3 @@ class StackLightSelector {
     return null;
   }
 }
-
-/// Provider for the [StackLightSelector]. Reads the image / session / target
-/// DAOs from the shared database providers so it transparently follows the same
-/// Drift instance the rest of the app uses.
-final stackLightSelectorProvider = Provider<StackLightSelector>((ref) {
-  return StackLightSelector(
-    imagesDao: ref.watch(imagesDaoProvider),
-    sessionsDao: ref.watch(sessionsDaoProvider),
-    targetsDao: ref.watch(targetsDaoProvider),
-  );
-});

@@ -5,7 +5,7 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../settings_sections.dart';
+import '../../../router/settings_sections.dart';
 
 /// On a linked client, one line above a Settings section, or above one group
 /// of a section that keeps groups in both places, saying whose settings these

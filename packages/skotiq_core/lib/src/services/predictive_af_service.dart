@@ -28,7 +28,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart' as db;
 import '../backend/skotiq_backend.dart';
-import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
 part 'predictive_af_service/predictive_af_models.dart';

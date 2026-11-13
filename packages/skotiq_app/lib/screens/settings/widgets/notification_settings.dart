@@ -10,7 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
-import '../../../services/push_delivery_targets_provider.dart';
+import '../push_delivery_targets_provider.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../tours/tour_target.dart';
 import 'admin_only.dart';

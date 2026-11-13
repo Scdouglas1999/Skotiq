@@ -9,10 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/database.dart' show DbCapturedImage;
 import 'package:skotiq_core/errors.dart' show userFacingError;
-import 'package:skotiq_core/providers.dart'
-    show imagingBackendProvider, isRemoteModeProvider;
-import 'package:skotiq_core/services.dart' show loggingServiceProvider;
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors, SkotiqMark;
+import 'package:skotiq_core/providers.dart';
 
 /// Result of asking the backend (and then the local disk) for a frame's
 /// preview bytes.

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
 
@@ -10,8 +9,6 @@ import '../../database/daos/science_dao.dart';
 import '../../database/daos/sessions_dao.dart';
 import '../../database/daos/targets_dao.dart';
 import '../../database/database.dart';
-import '../../providers/app_version_provider.dart';
-import '../../providers/database_provider.dart';
 import 'period_analysis_service.dart';
 import '../../utils/skotiq_data_directory.dart';
 
@@ -416,15 +413,3 @@ class ScienceReportExporter {
   }
 
 }
-
-/// Riverpod provider — the exporter is stateless beyond its DAO refs, so
-/// we can construct it on every read with no performance penalty.
-final scienceReportExporterProvider = Provider<ScienceReportExporter>((ref) {
-  return ScienceReportExporter(
-    imagesDao: ref.watch(imagesDaoProvider),
-    scienceDao: ref.watch(scienceDaoProvider),
-    sessionsDao: ref.watch(sessionsDaoProvider),
-    targetsDao: ref.watch(targetsDaoProvider),
-    softwareLabel: ref.watch(appVersionLabelProvider),
-  );
-});

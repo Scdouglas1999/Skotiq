@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/imaging/color_calibration_result.dart';
@@ -343,18 +342,3 @@ class ColorCalibrationService {
     return false;
   }
 }
-
-/// Provider for the [ColorCalibrationService]. The star cone search binds the
-/// real on-disk HYG catalog; tests override [postSessionSeamProvider] and may
-/// construct the service directly with an in-memory [StarConeSearch] stub.
-final colorCalibrationServiceProvider = Provider<ColorCalibrationService>((
-  ref,
-) {
-  return ColorCalibrationService(
-    seam: ref.watch(postSessionSeamProvider),
-    starSearch: (center, radiusDegrees, {maxMagnitude}) => CatalogManager
-        .instance
-        .stars
-        .getStarsNear(center, radiusDegrees, maxMagnitude: maxMagnitude),
-  );
-});

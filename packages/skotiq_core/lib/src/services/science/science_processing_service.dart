@@ -23,20 +23,21 @@ import '../../utils/utc_timestamp.dart';
 import '../wcs/gnomonic_projection.dart';
 import '../wcs/wcs_sip_codec.dart';
 import 'aperture_photometry.dart';
-import 'default_science_backend.dart';
 import 'fits_header_writer.dart';
 import 'photometric_catalog_service.dart';
 import 'moving_object_linker.dart';
 import 'mpc_export_service.dart' show mpcBandForFilter;
-import 'photometric_transform_service.dart';
 import 'science_backend.dart';
-import 'frame_auto_grader.dart';
 import 'science_status.dart';
 import 'sub_exposure_noise.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../providers/logging_service_provider.dart';
+import '../../providers/science/default_science_backend_provider.dart';
+import '../../providers/science/frame_auto_grader_provider.dart';
+import '../../providers/science/photometric_catalog_service_provider.dart';
+import '../../providers/science/photometric_transform_service_provider.dart';
 
 part 'science_processing_service/private_helpers.dart';
-part 'science_processing_service/provider.dart';
 part 'science_processing_service/frame_lanes.dart';
 part 'science_processing_service/writeback.dart';
 

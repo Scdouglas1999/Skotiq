@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';

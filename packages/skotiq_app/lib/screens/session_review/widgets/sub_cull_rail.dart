@@ -9,11 +9,12 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../session_review_controller.dart';
-import '../../../services/image_download_service.dart';
+import '../image_download_service.dart';
 import '../../../utils/filter_label.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/image_decode_size.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
+import 'package:skotiq_core/models.dart';
 
 part 'sub_cull_rail_parts/_toolbar.dart';
 part 'sub_cull_rail_parts/_tiles.dart';

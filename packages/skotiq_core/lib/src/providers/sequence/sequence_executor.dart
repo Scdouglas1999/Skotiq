@@ -7,10 +7,6 @@ import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../services/sequence_file_service.dart';
-import '../../services/sequence_repository.dart'
-    show sequenceRepositoryProvider;
-import '../../services/live_stacking_broadcast_service.dart';
 import '../../services/safe_rig_service.dart';
 import '../../services/end_of_night_calibration/eon_deferral.dart';
 import '../../services/logging_service.dart';
@@ -57,6 +53,11 @@ import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
 import '../../models/backend/backend_types.dart';
 import '../../settings/app_settings_state.g.dart';
+import '../end_of_night_calibration/eon_deferral_provider.dart';
+import '../live_stacking_broadcast_service_providers.dart';
+import '../logging_service_provider.dart';
+import '../sequence_file_service_provider.dart';
+import '../sequence_repository_provider.dart';
 
 export 'sequence_executor/eta_smoothing.dart'
     show EtaSmoother, kEtaEmaAlpha, kEtaWindowSize;

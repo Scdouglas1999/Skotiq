@@ -6,6 +6,7 @@ import '../models/equipment_profile_remote_mapping.dart';
 import '../services/logging_service.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'logging_service_provider.dart';
 
 /// Push the SQLite-active profile into the native (Rust) executor store so the
 /// executor's `load_and_set_profile` side effects run.

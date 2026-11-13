@@ -85,15 +85,6 @@ final nightEndAutomationSettingsProvider =
       return NightEndAutomationSettings.load(ref.watch(settingsDaoProvider));
     });
 
-/// One line for the Darkroom header: what the end of the night will do.
-final nightEndAutomationSummaryProvider = Provider.autoDispose<String?>((ref) {
-  final settings = ref.watch(nightEndAutomationSettingsProvider).valueOrNull;
-  if (settings == null) return null;
-  final steps = settings.stepsOn;
-  if (steps.isEmpty) return 'Night end: off';
-  return 'Night end: ${steps.join(', ')}';
-});
-
 /// Writes the night-end switches.
 class NightEndAutomationActions {
   const NightEndAutomationActions(this._ref);
@@ -125,7 +116,3 @@ class NightEndAutomationActions {
         .toStringAsFixed(2),
   );
 }
-
-final nightEndAutomationActionsProvider = Provider(
-  NightEndAutomationActions.new,
-);

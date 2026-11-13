@@ -10,6 +10,7 @@ import '../../sequence/remote_sequence_editor_sync.dart';
 import '../../sequence_provider.dart';
 import '../../ui_notification_provider.dart';
 import '../runtime_mirror_channel.dart';
+import '../../sequence_file_service_provider.dart';
 
 /// The plan open in the editor, with what a document of it needs.
 typedef OpenPlan = ({

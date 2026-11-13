@@ -15,7 +15,7 @@ import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../planetarium_screen.dart';
 import 'sidebar_shared_widgets.dart';
 import '../../../router/app_routes.dart';
-import '../../planner/planner_route.dart';
+import '../../../router/planner_route.dart';
 
 class TonightTab extends ConsumerWidget {
   final SkotiqColors colors;

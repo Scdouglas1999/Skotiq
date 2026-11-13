@@ -7,7 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
-import 'package:skotiq_app/widgets/phd2/guide_controls_panel.dart';
+import 'package:skotiq_app/screens/guiding/widgets/guide_controls_panel.dart';
 import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';

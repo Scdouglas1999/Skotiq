@@ -42,6 +42,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/harness.dart' show TestBackendNotifier;
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 
 const String _masterPath = '/tmp/skotiq-test/m31_B.fits';
 

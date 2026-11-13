@@ -32,9 +32,9 @@ import 'package:skotiq_core/src/providers/profiles_provider.dart'
 import 'package:skotiq_core/src/models/equipment_profile_model.dart'
     show EquipmentProfileModel;
 import 'package:skotiq_core/src/providers/scheduler_provider.dart';
-import 'package:skotiq_core/src/services/planning/project_service.dart';
-import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart';
 import 'package:skotiq_core/src/services/scheduler/scheduler_engine.dart';
+import 'package:skotiq_core/src/providers/planning/project_service_provider.dart';
+import 'package:skotiq_core/src/providers/scheduler/integration_goal_service_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

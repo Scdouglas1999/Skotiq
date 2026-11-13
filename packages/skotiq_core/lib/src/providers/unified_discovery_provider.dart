@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/unified_device.dart';
 import '../models/equipment/discovery_state.dart';
-import '../services/device_service.dart';
 import '../services/device_matching_service.dart';
 import 'backend_provider.dart';
 import 'settings_provider.dart';
 import '../models/backend/backend_types.dart';
+import 'device_service_providers.dart';
 
 /// The one bucket a linked client's discovery fills: its host answers for
 /// every driver in a single sweep (see `_getAvailableBackends`).

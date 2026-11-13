@@ -1,6 +1,7 @@
 import '../../../services/centering_service.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
+import '../../centering_service_providers.dart';
 
 /// Progress of a centering run (state, attempt, offset). Centering is a loop
 /// in the process whose operator started it, so a run started on a client is

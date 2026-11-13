@@ -9,12 +9,9 @@ library;
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../database/daos/integrated_masters_dao.dart';
-import '../providers/database_provider.dart';
 import '../models/imaging/integrated_master.dart';
 import 'calibration/fits_header_reader.dart';
 import 'darkroom_build_service.dart' show DarkroomHeaderReader;
@@ -150,23 +147,3 @@ class LiveStackMasterLibrary {
     );
   }
 }
-
-final liveStackMasterLibraryProvider = Provider<LiveStackMasterLibrary>((ref) {
-  final stacking = ref.watch(liveStackingServiceProvider);
-  return LiveStackMasterLibrary(
-    currentResult: stacking.getCurrentResult,
-    saveMaster: (path) => stacking.saveMaster(filePath: path),
-    writePreview: (path, result) => bridge.apiSaveRgbaPngFile(
-      filePath: path,
-      width: result.width,
-      height: result.height,
-      rgba: stacking.autoStretchPreview(
-        width: result.width,
-        height: result.height,
-        data: result.data,
-        channels: result.channels,
-      ),
-    ),
-    masters: ref.watch(integratedMastersDaoProvider),
-  );
-});

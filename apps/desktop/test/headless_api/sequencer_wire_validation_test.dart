@@ -7,7 +7,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
 import 'package:skotiq_desktop/headless_api/sequence_wire_validation.dart';
 import 'package:shelf/shelf.dart';

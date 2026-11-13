@@ -18,8 +18,8 @@ import 'widgets/build_in_darkroom_button.dart';
 import 'widgets/darkroom_pass_banner.dart';
 import 'widgets/integration_settings_panel.dart';
 import 'widgets/master_library_panel.dart';
-import 'widgets/master_overlay_view.dart';
-import 'widgets/master_preview_view.dart';
+import '../../widgets/master_preview/master_overlay_view.dart';
+import '../../widgets/master_preview/master_preview_view.dart';
 import 'widgets/session_interruption_banner.dart';
 import 'widgets/sub_cull_rail.dart';
 

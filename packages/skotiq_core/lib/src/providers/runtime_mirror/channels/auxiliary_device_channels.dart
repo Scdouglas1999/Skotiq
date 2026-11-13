@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/equipment/equipment_models.dart';
-import '../../../services/device_service.dart';
 import '../../../backend/remote_host.dart';
 import '../../backend_provider.dart';
 import '../../equipment/device_capability_provider.dart';
 import '../../equipment/switch_state_provider.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
+import '../../device_service_providers.dart';
 
 /// The host's cover/calibrator readings, so a client's card shows the
 /// device as the host last read it instead of a reading fetched once when

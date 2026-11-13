@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/backend_protocol_colors.dart';
 import 'package:skotiq_app/screens/imaging/widgets/annotation_status_colors.dart';
-import 'package:skotiq_app/widgets/annotation_overlay/annotation_type_colors.dart';
+import 'package:skotiq_app/widgets/annotation_type_colors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

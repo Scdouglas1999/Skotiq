@@ -8,10 +8,7 @@ import 'package:http/http.dart' as http;
 import 'database_provider.dart';
 import '../database/daos/transient_detections_dao.dart';
 import '../database/database.dart';
-import '../services/logging_service.dart';
-import '../services/science/photometric_catalog_service.dart';
 import '../services/sky_atlas/sky_atlas_service.dart' show defaultAtlasRoot;
-import '../services/transients/difference_image_seam.dart';
 import '../services/transients/first_light_service.dart';
 import '../services/transients/transient_submission_service.dart';
 import '../backend/remote_host.dart';
@@ -21,6 +18,9 @@ import 'remote_snapshot_stream.dart';
 import 'sky_atlas_provider.dart'
     show isAtlasChangingEvent, remoteAtlasRefetchMinInterval;
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'logging_service_provider.dart';
+import 'science/photometric_catalog_service_provider.dart';
+import 'transients/difference_image_seam_provider.dart';
 
 /// Riverpod surface for Pillar B ("First Light") — difference-imaging transients.
 ///
