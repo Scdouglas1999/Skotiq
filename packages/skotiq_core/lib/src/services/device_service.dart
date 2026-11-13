@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/equipment_provider.dart';
 import '../errors/error_text.dart';
 import 'device_service/connect_attempts.dart';
-import '../providers/device_service_providers.dart';
 import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
@@ -122,7 +121,7 @@ class DeviceService {
 
   /// Where each of this service's own connects stands; consulted before a
   /// native connection event writes a slot.
-  late final ConnectAttempts _attempts = _ref.read(connectAttemptsProvider);
+  final ConnectAttempts _attempts;
   late final DeviceHeartbeatRouter _heartbeat;
   late final SwitchChannelService _switchChannels;
 
@@ -252,7 +251,10 @@ class DeviceService {
   /// never tears one down to clean up after its own failed request.
   bool get _hostOwnsDevices => _backend.remoteHost != null;
 
-  DeviceService(this._ref, this._backend) {
+  /// [attempts] is shared with whatever else writes device slots (see
+  /// `connectAttemptsProvider`).
+  DeviceService(this._ref, this._backend, {ConnectAttempts? attempts})
+    : _attempts = attempts ?? ConnectAttempts() {
     _temperaturePoller = CameraTemperaturePoller(ref: _ref, backend: _backend);
     _warmupController = CameraWarmupController(ref: _ref, backend: _backend);
     _phd2Launcher = Phd2Launcher(ref: _ref);

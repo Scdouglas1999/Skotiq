@@ -345,12 +345,14 @@ void main(List<String> args) {
     ..._rustDispatchSites(runtimeRust),
   ];
   final coreLayerSites = _coreLayerSites(runtimeDart);
+  final hostStoreSites = _hostStoreSites(runtimeDart);
 
   final counted = {
     _Rule.backendClass: backendSites,
     _Rule.srcImport: srcImportSites,
     _Rule.nodeDispatch: dispatchSites,
     _Rule.coreLayers: coreLayerSites,
+    _Rule.hostStore: hostStoreSites,
   };
   final current = <_Rule, Map<String, int>>{};
   for (final MapEntry(key: rule, value: sites) in counted.entries) {
@@ -482,6 +484,11 @@ enum _Rule {
     'Core layers below providers/ do not import the provider layer.',
     _coreLayersInstead,
   ),
+  hostStore(
+    'host-store',
+    'One owner picks which store serves host data.',
+    _hostStoreInstead,
+  ),
   coreBarrels(
     'core-barrels',
     'An import of skotiq_core names the layer it depends on.',
@@ -499,7 +506,13 @@ enum _Rule {
   final String summary;
   final String instead;
 
-  static const counted = [backendClass, srcImport, nodeDispatch, coreLayers];
+  static const counted = [
+    backendClass,
+    srcImport,
+    nodeDispatch,
+    coreLayers,
+    hostStore,
+  ];
 }
 
 class _Violation {
@@ -773,6 +786,69 @@ List<_Site> _backendClassSites(List<String> files) {
           '${_basename(path)}::${_dartEnclosing(lines, line)}',
           '$path:${line + 1}',
           '`${m.group(0)!.replaceAll(RegExp(r'\s+'), ' ')}`',
+        ),
+      );
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// host-store
+
+const _hostStoreInstead =
+    'Declare the data set with hostRoleProvider '
+    '(packages/skotiq_core/lib/src/providers/host_role.dart): an interface '
+    'in backend/roles/host_data/ with a local and a remote implementation, '
+    'which providers, services and widgets watch without asking which side '
+    'they got. A yes/no question that is not about data reads '
+    'isRemoteModeProvider. See .claude/skills/skotiq-dev/SKILL.md section 3.8.';
+
+/// Files that may read `remoteHost`: the backend, the owner of the choice,
+/// and the linked-client mirror, which is the part that talks to the host.
+bool _mayReadRemoteHost(String path) {
+  const core = 'packages/skotiq_core/lib/src/';
+  return path.startsWith('${core}backend/') ||
+      path == '${core}providers/host_role.dart' ||
+      path == '${core}providers/backend_provider.dart' ||
+      path == '${core}providers/host_link_provider.dart' ||
+      path == '${core}providers/remote_sync_handler.dart' ||
+      path == '${core}providers/remote_session_sync_provider.dart' ||
+      path.startsWith('${core}providers/remote_sync/') ||
+      path.startsWith('${core}providers/runtime_mirror/');
+}
+
+final _remoteHostRead = RegExp(r'\.remoteHost\b');
+
+/// The area a `remoteHost` read is counted under: a core layer, an app
+/// feature folder, or an app. Moving code inside an area changes no count.
+String _hostStoreArea(String path) {
+  final parts = path.split('/');
+  if (parts.first == 'apps') return parts.take(2).join('/');
+  final package = parts[1];
+  final inLib = parts.skip(3).toList();
+  if (package == 'skotiq_core' && inLib.length > 2 && inLib.first == 'src') {
+    return '$package/${inLib[1]}';
+  }
+  if (inLib.length > 2 && inLib.first == 'screens') {
+    return '$package/screens/${inLib[1]}';
+  }
+  return inLib.length > 1 ? '$package/${inLib.first}' : package;
+}
+
+List<_Site> _hostStoreSites(List<String> files) {
+  final out = <_Site>[];
+  for (final path in files) {
+    if (_mayReadRemoteHost(path)) continue;
+    final source = _readText(path);
+    if (!source.contains('.remoteHost')) continue;
+    final code = _blankDart(source);
+    for (final m in _remoteHostRead.allMatches(code)) {
+      out.add(
+        _Site(
+          _hostStoreArea(path),
+          '$path:${_lineOf(code, m.start) + 1}',
+          '`remoteHost` read outside the host-role owner',
         ),
       );
     }
@@ -1440,6 +1516,7 @@ class _Baseline {
     _Rule.srcImport: 'srcImport',
     _Rule.nodeDispatch: 'nodeDispatch',
     _Rule.coreLayers: 'coreLayers',
+    _Rule.hostStore: 'hostStore',
   };
 
   static _Baseline load(String path) {

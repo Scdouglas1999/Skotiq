@@ -150,9 +150,8 @@ class TargetConstraintService {
     final remote = _remote;
     if (remote != null) {
       // The host owns the constraints; poll it on a fixed tick with a
-      // change-guard (mirrors database_provider's _pollRemote). Host-side
-      // edits surface within the interval; our own mutations are picked up by
-      // the next poll.
+      // change-guard. Host-side edits surface within the interval; our own
+      // mutations are picked up by the next poll.
       yield* resilientDistinctPoll(
         fetch: remote.getTargetConstraints,
         unchanged: _constraintListEquals,

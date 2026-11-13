@@ -278,114 +278,115 @@ final class LocalImagingRecords implements ImagingRecords {
   );
 }
 
+/// What the host does with a frame Science has graded: scan it for
+/// transients against the sky atlas, fold it into the atlas ("Your Sky") and
+/// contribute it to any live co-imaging session that covers it.
+SolvedFrameFoldHook solvedFrameFoldHook(Ref ref, ImagesDao imagesDao) =>
+    (capturedImageId) async {
+  final logger = ref.read(loggingServiceProvider);
+  try {
+    // With Your Sky off nothing is folded and First Light, whose template
+    // is the atlas, has nothing to compare against: write nothing.
+    if (!await ref.read(skyAtlasServiceProvider).isEnabled()) return;
+    final image = await imagesDao.getImageById(capturedImageId);
+    if (image == null ||
+        !image.isAccepted ||
+        !image.isPlateSolved ||
+        image.frameType.toLowerCase() != 'light') {
+      return;
+    }
+    // A frame already folded had its First Light scan and co-imaging
+    // contribution with that fold, in this or an earlier session.
+    if (image.atlasFoldedAt != null) return;
+    final fits = await apiReadFitsFile(filePath: image.filePath);
+    final stored = await imagesDao.getStoredWcsDistortion(capturedImageId);
+    final sip = decodeSolvedSip(stored?.sip);
+    final distortion = SolvedWcsDistortion(
+      cd1_1: stored?.cd1_1,
+      cd1_2: stored?.cd1_2,
+      cd2_1: stored?.cd2_1,
+      cd2_2: stored?.cd2_2,
+      aOrder: sip?.aOrder ?? 0,
+      bOrder: sip?.bOrder ?? 0,
+      aCoeffs: sip?.aCoeffs ?? const [],
+      bCoeffs: sip?.bCoeffs ?? const [],
+      apOrder: sip?.apOrder ?? 0,
+      bpOrder: sip?.bpOrder ?? 0,
+      apCoeffs: sip?.apCoeffs ?? const [],
+      bpCoeffs: sip?.bpCoeffs ?? const [],
+    );
+
+    // Pillar B ("First Light"): the SAME solve-persist event that folds the
+    // light into the atlas also differences it against the comparison
+    // template and logs any transient. Gated on a light frame with a valid,
+    // invertible WCS; the scan itself no-ops (skips thin tiles) until a deep
+    // template exists, so an early-night frame over a sparse tile is cheap.
+    //
+    // ORDER IS LOAD-BEARING (Wave 1 self-subtraction fix): the scan MUST run
+    // BEFORE the atlas fold below. The diff template is read from the SAME
+    // per-tile `.skt` sidecars the fold writes into, so folding first would
+    // average this frame's own flux into the template it is differenced
+    // against (weight ~1/(N+1)) — every transient would self-suppress and
+    // faint SNR~5-6 sources would drop below the persist gate and vanish.
+    // Running the scan first means the template = history (all PRIOR frames
+    // only); the fold then deepens the template for the NEXT frame.
+    // A future refactor MUST NOT reorder fold above scan.
+    await _runFirstLightScan(
+      ref: ref,
+      logger: logger,
+      image: image,
+      imageWidth: fits.width,
+      imageHeight: fits.height,
+      distortion: distortion,
+    );
+
+    // Fold dedup: a re-solved frame fires this hook again with the same
+    // captured-image id, so [applyAtlasFoldDedup] folds only when the row
+    // is not already stamped, and stamps only after a fold that ran.
+    final foldSummary = await applyAtlasFoldDedup(
+      image: image,
+      imagesDao: imagesDao,
+      atlas: ref.read(skyAtlasServiceProvider),
+      imageWidth: fits.width,
+      imageHeight: fits.height,
+      distortion: distortion,
+    );
+
+    // Live co-imaging auto-contribute: a fold
+    // that ACTUALLY ran (non-null summary) means this rig's own-light delta
+    // is now in the atlas, so any live co-imaging session whose target this
+    // frame covers can fold the SAME sub into the shared-target tile and
+    // advance the combined accounting. Ordering is load-bearing: contributing
+    // only AFTER the atlas fold lands is what makes the additive-sum export
+    // non-empty, so the headline depth tracks real fused depth (no undercount
+    // race). A non-fold (re-solve / not foldable) skips — the sub was already
+    // contributed on its first fold.
+    if (foldSummary != null) {
+      await _driveCoImagingAutoContribute(
+        ref: ref,
+        logger: logger,
+        image: image,
+      );
+    }
+  } catch (e, st) {
+    logger.warning(
+      'Sky-atlas auto-fold for image $capturedImageId failed: $e\n$st',
+      source: 'SkyAtlasService',
+    );
+  }
+};
+
 /// The sessions and captured-image rows of whichever machine is the imaging
-/// host.
-///
-/// On the host a graded frame is published to the sky atlas ("Your Sky") and
-/// the First Light scan; see [LocalImagingRecords.notifyGradedFrame].
+/// host. On the host a graded frame goes on to [solvedFrameFoldHook].
 final imagingRecordsProvider = hostRoleProvider<ImagingRecords>(
+  here: (ref) {
+    final imagesDao = ref.watch(imagesDaoProvider);
+    return LocalImagingRecords(
+      sessionsDao: ref.watch(sessionsDaoProvider),
+      imagesDao: imagesDao,
+      thumbnails: ref.watch(thumbnailSidecarServiceProvider),
+      onSolvedFrameFold: solvedFrameFoldHook(ref, imagesDao),
+    );
+  },
   linked: (ref, host) => RemoteImagingRecords(host.imagingRecords),
-  here: _localImagingRecords,
 );
-
-ImagingRecords _localImagingRecords(Ref ref) {
-  final imagesDao = ref.watch(imagesDaoProvider);
-  return LocalImagingRecords(
-    sessionsDao: ref.watch(sessionsDaoProvider),
-    imagesDao: imagesDao,
-    thumbnails: ref.watch(thumbnailSidecarServiceProvider),
-    onSolvedFrameFold: (capturedImageId) async {
-      final logger = ref.read(loggingServiceProvider);
-      try {
-        // With Your Sky off nothing is folded and First Light, whose template
-        // is the atlas, has nothing to compare against: write nothing.
-        if (!await ref.read(skyAtlasServiceProvider).isEnabled()) return;
-        final image = await imagesDao.getImageById(capturedImageId);
-        if (image == null ||
-            !image.isAccepted ||
-            !image.isPlateSolved ||
-            image.frameType.toLowerCase() != 'light') {
-          return;
-        }
-        // A frame already folded had its First Light scan and co-imaging
-        // contribution with that fold, in this or an earlier session.
-        if (image.atlasFoldedAt != null) return;
-        final fits = await apiReadFitsFile(filePath: image.filePath);
-        final stored = await imagesDao.getStoredWcsDistortion(capturedImageId);
-        final sip = decodeSolvedSip(stored?.sip);
-        final distortion = SolvedWcsDistortion(
-          cd1_1: stored?.cd1_1,
-          cd1_2: stored?.cd1_2,
-          cd2_1: stored?.cd2_1,
-          cd2_2: stored?.cd2_2,
-          aOrder: sip?.aOrder ?? 0,
-          bOrder: sip?.bOrder ?? 0,
-          aCoeffs: sip?.aCoeffs ?? const [],
-          bCoeffs: sip?.bCoeffs ?? const [],
-          apOrder: sip?.apOrder ?? 0,
-          bpOrder: sip?.bpOrder ?? 0,
-          apCoeffs: sip?.apCoeffs ?? const [],
-          bpCoeffs: sip?.bpCoeffs ?? const [],
-        );
-
-        // Pillar B ("First Light"): the SAME solve-persist event that folds the
-        // light into the atlas also differences it against the comparison
-        // template and logs any transient. Gated on a light frame with a valid,
-        // invertible WCS; the scan itself no-ops (skips thin tiles) until a deep
-        // template exists, so an early-night frame over a sparse tile is cheap.
-        //
-        // ORDER IS LOAD-BEARING (Wave 1 self-subtraction fix): the scan MUST run
-        // BEFORE the atlas fold below. The diff template is read from the SAME
-        // per-tile `.skt` sidecars the fold writes into, so folding first would
-        // average this frame's own flux into the template it is differenced
-        // against (weight ~1/(N+1)) — every transient would self-suppress and
-        // faint SNR~5-6 sources would drop below the persist gate and vanish.
-        // Running the scan first means the template = history (all PRIOR frames
-        // only); the fold then deepens the template for the NEXT frame.
-        // A future refactor MUST NOT reorder fold above scan.
-        await _runFirstLightScan(
-          ref: ref,
-          logger: logger,
-          image: image,
-          imageWidth: fits.width,
-          imageHeight: fits.height,
-          distortion: distortion,
-        );
-
-        // Fold dedup: a re-solved frame fires this hook again with the same
-        // captured-image id, so [applyAtlasFoldDedup] folds only when the row
-        // is not already stamped, and stamps only after a fold that ran.
-        final foldSummary = await applyAtlasFoldDedup(
-          image: image,
-          imagesDao: imagesDao,
-          atlas: ref.read(skyAtlasServiceProvider),
-          imageWidth: fits.width,
-          imageHeight: fits.height,
-          distortion: distortion,
-        );
-
-        // Live co-imaging auto-contribute: a fold
-        // that ACTUALLY ran (non-null summary) means this rig's own-light delta
-        // is now in the atlas, so any live co-imaging session whose target this
-        // frame covers can fold the SAME sub into the shared-target tile and
-        // advance the combined accounting. Ordering is load-bearing: contributing
-        // only AFTER the atlas fold lands is what makes the additive-sum export
-        // non-empty, so the headline depth tracks real fused depth (no undercount
-        // race). A non-fold (re-solve / not foldable) skips — the sub was already
-        // contributed on its first fold.
-        if (foldSummary != null) {
-          await _driveCoImagingAutoContribute(
-            ref: ref,
-            logger: logger,
-            image: image,
-          );
-        }
-      } catch (e, st) {
-        logger.warning(
-          'Sky-atlas auto-fold for image $capturedImageId failed: $e\n$st',
-          source: 'SkyAtlasService',
-        );
-      }
-    },
-  );
-}

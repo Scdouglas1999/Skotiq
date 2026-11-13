@@ -47,7 +47,7 @@ void main() {
     registerFallbackValue(const Stream<SkotiqEvent>.empty());
   });
 
-  group('applyRemoteSyncEvent', () {
+  group('host and client sync', () {
     // A linked client's Disconnect all let go of the guide camera first; the
     // host's notice of that emptied the client's camera slot, so the client
     // never asked for the imaging camera and the host kept it connected.

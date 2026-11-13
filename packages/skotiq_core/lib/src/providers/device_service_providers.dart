@@ -17,7 +17,11 @@ final connectAttemptsProvider = Provider<ConnectAttempts>((ref) {
 
 final deviceServiceProvider = Provider<DeviceService>((ref) {
   final backend = ref.watch(backendProvider);
-  final service = DeviceService(ref, backend);
+  final service = DeviceService(
+    ref,
+    backend,
+    attempts: ref.watch(connectAttemptsProvider),
+  );
   ref.onDispose(() => service.dispose());
   return service;
 });

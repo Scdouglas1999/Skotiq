@@ -179,9 +179,6 @@ DeviceType? deviceTypeFromWireName(String raw) =>
     _typeByWireName[raw.toLowerCase()];
 
 /// The live state of [deviceType]'s slot.
-///
-/// [container] is a `Ref`, a `WidgetRef` or a `ProviderContainer`; see
-/// [readProvider].
 DeviceSlotState<Object?> readDeviceSlot(ProviderContainer container, DeviceType deviceType) =>
     container.read(deviceType.slot.state);
 

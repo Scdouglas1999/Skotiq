@@ -66,9 +66,7 @@ final darkLibraryStatsProvider = FutureProvider<DarkLibraryStats>((ref) async {
   return ref.read(darkLibraryDaoProvider).getStats();
 });
 
-/// Polls the host's dark library and emits only on change, mirroring the
-/// `_pollRemote` change-guard used by the canonical remote list providers in
-/// `database_provider.dart`.
+/// Polls the host's dark library and emits only on change.
 Stream<List<DarkLibraryEntry>> _pollRemoteDarkEntries(
   HostCalibrationFrames remote, {
   Duration interval = const Duration(seconds: 10),

@@ -13,13 +13,10 @@ class _FixedBackendNotifier extends BackendNotifier {
   }
 }
 
-/// Tests for the slave-side per-frame exposure-countdown mirror
-/// (`_applyExposureMirror`, reached via [applyRemoteSyncEvent] for
-/// imaging-category exposure events). A remote companion has no local capture
-/// loop, so these host events are the slave's ONLY source for the camera card's
-/// "Exposing" status and the remaining-time countdown. The mirror is gated on a
-/// non-null [NetworkBackend] so it never double-applies on the host (where
-/// ImagingService already owns this state).
+/// A linked client has no capture loop of its own, so its host's imaging
+/// events are its only source for the camera card's "Exposing" and the
+/// countdown ([applyHostEventOnClient]). The host follows the same events
+/// only for an exposure it did not start ([applyHostLocalSyncEvent]).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

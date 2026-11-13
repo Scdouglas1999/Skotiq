@@ -181,10 +181,8 @@ class _ContextualOffers extends ConsumerWidget {
 /// session's image list once per session id change. Drift de-dupes parallel
 /// watchers automatically.
 ///
-/// Routes through [imagingRecordsProvider], which already branches on
-/// `NetworkBackend` and polls the host's session image rows on a slave. Without
-/// that branch the slave reads its empty local SQLite (the master is the node
-/// actually capturing) and the contextual nudge tiles never appear.
+/// [imagingRecordsProvider] serves the imaging host's rows, so a linked
+/// client shows the nudges for the session its host is capturing.
 final _huddedImagesProvider =
     StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
   return ref

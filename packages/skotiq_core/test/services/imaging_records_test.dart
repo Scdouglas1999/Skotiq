@@ -197,7 +197,7 @@ void main() {
       expect(fake.requests.single.body, contains('isAccepted'));
     });
 
-    test('getAllSequenceRunsRemote follows every host page', () async {
+    test('the run history follows every host page', () async {
       fake.setResponseSequence(
         '/api/sequence-runs',
         responses: [
