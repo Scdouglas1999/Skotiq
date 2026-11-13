@@ -336,12 +336,17 @@ void main() {
     SkotiqBackend backend, {
     required FilterWheelState wheel,
     List<String> filterNames = const ['L', 'R'],
+    List<String>? profileFilters,
     bool cameraConnected = true,
   }) {
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
-        activeEquipmentProfileProvider.overrideWithValue(null),
+        activeEquipmentProfileProvider.overrideWithValue(
+          profileFilters == null
+              ? null
+              : EquipmentProfileModel(name: 'Rig', filterNames: profileFilters),
+        ),
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, backend),
         ),
@@ -373,7 +378,7 @@ void main() {
     int currentFilterIndex = 0,
   }) async {
     final notifier = container.read(flatWizardProvider.notifier);
-    await notifier.loadFiltersFromWheel();
+    await notifier.loadFilters();
     notifier.updateGlobalSettings(
       container
           .read(flatWizardProvider)
@@ -389,6 +394,47 @@ void main() {
     notifier.setCurrentFilterIndex(currentFilterIndex);
     return notifier;
   }
+
+  test('with no wheel connected the wizard lists the profile\'s filters',
+      () async {
+    final backend = _WorkflowBackend();
+    addTearDown(backend.dispose);
+    final container = makeContainer(
+      backend,
+      wheel: const FilterWheelState(),
+      profileFilters: const ['L', 'Ha'],
+    );
+
+    await primeWizard(container);
+
+    expect(
+      [
+        for (final f in container.read(flatWizardProvider).filterSettings)
+          f.filterName,
+      ],
+      ['L', 'Ha'],
+    );
+  });
+
+  test('a batch of several filters without a wheel is refused before any '
+      'frame', () async {
+    final backend = _WorkflowBackend();
+    addTearDown(backend.dispose);
+    final container = makeContainer(
+      backend,
+      wheel: const FilterWheelState(),
+      profileFilters: const ['L', 'Ha'],
+    );
+    final notifier = await primeWizard(container);
+    notifier.setMode(FlatWizardMode.batch);
+
+    await notifier.runCapture();
+
+    final state = container.read(flatWizardProvider);
+    expect(state.errorMessage, contains('Connect a filter wheel'));
+    expect(backend.saveCount, 0);
+    expect(state.isCapturing, isFalse);
+  });
 
   test('a filter-wheel move FAILURE stops the run — no flat through an unknown '
       'filter', () async {
@@ -583,7 +629,10 @@ void main() {
       // No wheel (disconnected) so the move path is a no-op; batch two filters.
       final container = makeContainer(
         backend,
-        wheel: const FilterWheelState(filterNames: ['L', 'R']),
+        wheel: const FilterWheelState(
+          connectionState: DeviceConnectionState.connected,
+          filterNames: ['L', 'R'],
+        ),
       );
       cameraNotifier =
           container.read(cameraStateProvider.notifier)
@@ -612,7 +661,10 @@ void main() {
     addTearDown(backend.dispose);
     final container = makeContainer(
       backend,
-      wheel: const FilterWheelState(filterNames: ['L']),
+      wheel: const FilterWheelState(
+        connectionState: DeviceConnectionState.connected,
+        filterNames: ['L'],
+      ),
       filterNames: const ['L'],
     );
     final notifier = await primeWizard(container);
@@ -638,7 +690,10 @@ void main() {
     addTearDown(backend.dispose);
     final container = makeContainer(
       backend,
-      wheel: const FilterWheelState(filterNames: ['L']),
+      wheel: const FilterWheelState(
+        connectionState: DeviceConnectionState.connected,
+        filterNames: ['L'],
+      ),
       filterNames: const ['L'],
     );
     final notifier = await primeWizard(container);
@@ -672,7 +727,10 @@ void main() {
       addTearDown(backend.dispose);
       final container = makeContainer(
         backend,
-        wheel: const FilterWheelState(filterNames: ['L', 'R']),
+        wheel: const FilterWheelState(
+          connectionState: DeviceConnectionState.connected,
+          filterNames: ['L', 'R'],
+        ),
       );
       final notifier = await primeWizard(container);
       notifier.setMode(FlatWizardMode.batch);
@@ -686,7 +744,7 @@ void main() {
       // A screen re-entry (postFrameCallback) fires this on every init. Mid-run it
       // must be a no-op — rebuilding the list would reset statuses/counts and
       // corrupt the truthful final summary.
-      await notifier.loadFiltersFromWheel();
+      await notifier.loadFilters();
 
       final after = container.read(flatWizardProvider).filterSettings;
       expect(after.length, before.length);
@@ -718,7 +776,10 @@ void main() {
       addTearDown(backend.dispose);
       final container = makeContainer(
         backend,
-        wheel: const FilterWheelState(filterNames: ['L']),
+        wheel: const FilterWheelState(
+          connectionState: DeviceConnectionState.connected,
+          filterNames: ['L'],
+        ),
         filterNames: const ['L'],
       );
       notifier = await primeWizard(container);
@@ -747,7 +808,10 @@ void main() {
     addTearDown(backend1.dispose);
     final container1 = makeContainer(
       backend1,
-      wheel: const FilterWheelState(filterNames: ['L']),
+      wheel: const FilterWheelState(
+        connectionState: DeviceConnectionState.connected,
+        filterNames: ['L'],
+      ),
       filterNames: const ['L'],
     );
     final notifier1 = container1.read(flatWizardProvider.notifier);
@@ -763,7 +827,10 @@ void main() {
     addTearDown(backend2.dispose);
     final container2 = makeContainer(
       backend2,
-      wheel: const FilterWheelState(filterNames: ['L']),
+      wheel: const FilterWheelState(
+        connectionState: DeviceConnectionState.connected,
+        filterNames: ['L'],
+      ),
       filterNames: const ['L'],
     );
     container2.read(flatWizardProvider.notifier); // fires the async hydrate

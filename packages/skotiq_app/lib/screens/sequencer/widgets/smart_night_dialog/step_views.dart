@@ -275,6 +275,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
 
   Widget _buildEquipmentStep(SkotiqColors colors) {
     final profile = ref.watch(activeEquipmentProfileProvider);
+    final filters = ref.watch(effectiveFiltersProvider);
     if (profile == null) {
       return _MissingProfileCard(colors: colors);
     }
@@ -330,9 +331,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 _ProfileRow(
                   icon: LucideIcons.layers,
                   label: 'Filters',
-                  value: profile.filterNames.isEmpty
-                      ? '<no filter wheel>'
-                      : profile.filterNames.join(', '),
+                  value: filters.isEmpty ? '<no filters>' : filters.join(', '),
                   colors: colors,
                 ),
               ],
@@ -598,7 +597,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
   }
 
   Widget _buildStrategyStep(SkotiqColors colors) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
+    final filters = ref.watch(effectiveFiltersProvider);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,7 +615,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             _StrategyTile(
               strategy: s,
               isSelected: _strategy == s,
-              filtersAvailable: _strategyFitsProfile(s, profile),
+              filtersAvailable: _strategyFits(s, filters),
               onSelected: () {
                 _update(() => _strategy = s);
                 _persistSettings();

@@ -42,7 +42,7 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
     _tabController.addListener(_onTabChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(flatWizardProvider.notifier).loadFiltersFromWheel();
+      ref.read(flatWizardProvider.notifier).loadFilters();
     });
   }
 

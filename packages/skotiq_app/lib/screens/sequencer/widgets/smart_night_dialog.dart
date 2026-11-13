@@ -528,6 +528,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
           darkLibraryService: ref.read(darkLibraryServiceProvider),
         ).missing(
           profile: activeProfile,
+          availableFilters: ref.read(effectiveFiltersProvider),
           strategy: _strategy,
           settings: effectiveSettings,
           exposureContext: exposureContext,
@@ -567,6 +568,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       if (!mounted) return false;
       final plan = _buildService().build(
         profile: activeProfile,
+        availableFilters: ref.read(effectiveFiltersProvider),
         latitudeDeg: location.latitude,
         longitudeDeg: location.longitude,
         context: context,

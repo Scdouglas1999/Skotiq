@@ -27,7 +27,7 @@ class _TerminalStateNotifier extends FlatWizardNotifier {
   final FlatWizardState _seed;
 
   @override
-  Future<void> loadFiltersFromWheel() async {}
+  Future<void> loadFilters() async {}
 }
 
 FlatWizardState _failedRun({

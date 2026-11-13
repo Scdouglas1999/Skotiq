@@ -150,7 +150,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     final exposure = mosaicWizardExposureSettingsForContext(
       ref.read(smartNightExposureContextProvider).valueOrNull,
     );
-    final filters = ref.read(profileFiltersProvider);
+    final filters = ref.read(effectiveFiltersProvider);
     if (filters.isEmpty) {
       _filterRows.add(_MosaicFilterRow(
         filterName: exposure.filterName ?? 'Light',

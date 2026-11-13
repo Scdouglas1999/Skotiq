@@ -33,8 +33,7 @@ class SmartExposureProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
-    final filterNames = profile?.filterNames ?? <String>[];
+    final filterNames = ref.watch(effectiveFiltersProvider);
     final canEdit = ref.watch(canEditSequenceProvider);
     final exposureContext =
         ref.watch(smartNightExposureContextProvider).valueOrNull;
@@ -608,21 +607,20 @@ class _PlanRow extends StatelessWidget {
 
   Widget _buildFilterDropdown(BuildContext context) {
     if (filterNames.isEmpty) {
-      // No profile filter wheel — fall back to a free-text input so the
-      // user can still author rows offline. They'll be invalid until a
-      // filter wheel is configured (SmartExposureFilterWheelMissingRule
-      // catches this).
+      // Nothing to pick: a typed name lets the user author rows offline.
+      // SmartExposureFilterWheelMissingRule reports them until there are
+      // filters.
       return NodeTextInput(
         colors: colors,
         value: plan.filterName,
-        hint: 'Filter name (no profile filters)',
+        hint: noFiltersToPickHint,
         onChanged: (v) => onChanged(plan.copyWith(filterName: v)),
       );
     }
 
     // Resolve current selection by name → index, or fall back to the
-    // first filter when the persisted name no longer matches the profile
-    // (e.g. profile was edited after the plan was created).
+    // first filter when the persisted name is no longer available
+    // (e.g. the profile was edited after the plan was created).
     final currentIndex = filterNames.indexOf(plan.filterName);
     final effectiveIndex = currentIndex >= 0 ? currentIndex : 0;
 
