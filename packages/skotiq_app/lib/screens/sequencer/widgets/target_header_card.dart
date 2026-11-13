@@ -5,7 +5,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import '../../framing/altitude_chart.dart';
+import '../../../widgets/altitude_chart.dart';
 import 'notes_panel.dart';
 import 'target_coordinates.dart';
 

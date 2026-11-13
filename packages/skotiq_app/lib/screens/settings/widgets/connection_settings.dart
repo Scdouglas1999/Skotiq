@@ -12,8 +12,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import '../../../tours/tour_target.dart';
-import '../../../widgets/work_locally.dart';
-import '../../equipment/dialogs/indi_server_dialog.dart';
+import '../../connection/work_locally.dart';
+import '../../../widgets/indi_server_dialog.dart';
 import 'connection_settings_alpaca_dialog.dart';
 import 'settings_scope_notice.dart';
 import 'settings_widgets.dart';

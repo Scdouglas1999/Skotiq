@@ -8,7 +8,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import '../../../utils/preview_transform.dart';
-import '../../../widgets/annotation_overlay.dart';
+import 'annotation_overlay.dart';
 import '../imaging_science_state.dart';
 import 'annotation_panel.dart';
 

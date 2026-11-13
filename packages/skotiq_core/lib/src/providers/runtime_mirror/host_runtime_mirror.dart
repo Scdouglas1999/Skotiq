@@ -6,12 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/ffi_backend.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
-import '../../services/logging_service.dart';
 import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
+import '../logging_service_provider.dart';
 
 const _logSource = 'HostRuntimeMirror';
 

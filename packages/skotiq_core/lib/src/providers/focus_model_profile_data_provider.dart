@@ -4,6 +4,7 @@ import '../services/focus_model_service.dart';
 import '../backend/remote_host.dart';
 import 'async_scope.dart';
 import 'backend_provider.dart';
+import 'focus_model_service_providers.dart';
 
 /// Persisted focus history for [profileId] from whichever process currently
 /// owns the imaging rig. Unlike reading [FocusModelService.getProfileData]

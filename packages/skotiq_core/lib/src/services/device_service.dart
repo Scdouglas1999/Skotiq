@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/equipment_provider.dart';
 import '../errors/error_text.dart';
 import 'device_service/connect_attempts.dart';
-import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
-import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart' show settingsDaoProvider;
 import '../providers/focuser_backlash_provider.dart'
     show
@@ -24,7 +22,6 @@ import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';
 import '../providers/device_connection_progress_provider.dart';
-import 'smart_notification_service.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/device_connect_exception.dart';
 import '../backend/skotiq_exception.dart' show ConnectionException;
@@ -48,12 +45,18 @@ import 'predictive_af_service.dart';
 import 'switch_channel_service.dart';
 import 'device_service_lifecycle.dart';
 import 'device_service/profile_device_resolution.dart';
-import 'profile_service.dart' show profileServiceProvider;
 import '../models/focuser_backlash_calibration.dart';
 import '../models/mount_site_reconciliation.dart';
 import '../providers/mount_site_provider.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
+import '../providers/error_service_provider.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/mount_home_watcher_provider.dart';
+import '../providers/mount_slew_watcher_providers.dart';
+import '../providers/predictive_af_service_providers.dart';
+import '../providers/profile_service_provider.dart';
+import '../providers/smart_notification_service_provider.dart';
 
 part 'device_service/event_handling.dart';
 part 'device_service/control_helpers.dart';
@@ -660,55 +663,3 @@ class DeviceService {
   Future<void> loadSequence(String json) => _loadSequence(json);
   Future<SequencerStatus> getSequencerStatus() => _getSequencerStatus();
 }
-
-final deviceServiceProvider = Provider<DeviceService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final service = DeviceService(ref, backend);
-  ref.onDispose(() => service.dispose());
-  return service;
-});
-
-final availableCamerasProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.camera);
-});
-
-final availableMountsProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.mount);
-});
-
-final availableFocusersProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.focuser);
-});
-
-final availableFilterWheelsProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref
-      .watch(deviceServiceProvider)
-      .discoverDevices(DeviceType.filterWheel);
-});
-
-final availableGuidersProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.guider);
-});
-
-final availableRotatorsProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.rotator);
-});
-
-final availableDomesProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.dome);
-});
-
-final availableWeatherProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.weather);
-});
-
-/// Provider for available safety monitors
-final availableSafetyMonitorsProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref
-      .watch(deviceServiceProvider)
-      .discoverDevices(DeviceType.safetyMonitor);
-});
-
-final availableSwitchesProvider = FutureProvider<List<DeviceInfo>>((ref) {
-  return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.switch_);
-});

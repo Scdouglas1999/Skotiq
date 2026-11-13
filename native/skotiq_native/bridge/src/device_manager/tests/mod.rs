@@ -142,6 +142,32 @@ impl skotiq_device::DeviceDriver for FakeIdentityDevice {
     }
 }
 
+#[async_trait::async_trait]
+impl skotiq_device::FilterWheelDriver for FakeIdentityDevice {
+    async fn move_to_position(&mut self, _position: i32) -> Result<(), skotiq_device::DriverError> {
+        Ok(())
+    }
+    async fn get_position(&self) -> Result<i32, skotiq_device::DriverError> {
+        Ok(0)
+    }
+    async fn is_moving(&self) -> Result<bool, skotiq_device::DriverError> {
+        Ok(false)
+    }
+    async fn get_filter_count(&self) -> i32 {
+        5
+    }
+    async fn get_filter_names(&self) -> Result<Vec<String>, skotiq_device::DriverError> {
+        Ok(Vec::new())
+    }
+    async fn set_filter_name(
+        &mut self,
+        _position: i32,
+        _name: String,
+    ) -> Result<(), skotiq_device::DriverError> {
+        Ok(())
+    }
+}
+
 fn build_identity_camera_info() -> DeviceInfo {
     DeviceInfo {
         id: "sim_camera_1".to_string(),

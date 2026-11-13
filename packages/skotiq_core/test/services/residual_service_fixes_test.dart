@@ -37,6 +37,7 @@ import 'package:skotiq_core/src/services/sequence_repository.dart';
 import 'package:skotiq_core/src/services/sky_brightness_tracker.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/providers/plate_solve_service_provider.dart' as plate_solve;
 
 class _MockSessionsDao extends Mock implements SessionsDao {}
 

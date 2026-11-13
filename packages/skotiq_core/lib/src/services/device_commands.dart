@@ -8,6 +8,7 @@ import '../providers/backend_provider.dart';
 import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/switch_state_provider.dart';
 import 'device_service.dart';
+import '../providers/device_service_providers.dart';
 
 /// One path for a device command that names its device, whoever sends it.
 ///
@@ -234,6 +235,3 @@ class DeviceCommands {
     return true;
   }
 }
-
-/// The shared device command path; see [DeviceCommands].
-final deviceCommandsProvider = Provider<DeviceCommands>(DeviceCommands.new);

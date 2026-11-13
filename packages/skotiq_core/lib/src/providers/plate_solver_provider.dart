@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../errors/error_text.dart';
 import '../models/plate_solver.dart';
-import '../services/logging_service.dart';
 import '../services/plate_solve_service.dart';
 import 'backend_provider.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
+import 'plate_solve_service_provider.dart';
 
 /// Detection snapshot for the Plate Solving settings page. Re-runs the
 /// filesystem probe + ASTAP catalog scan via `PlateSolveService.detect()`

@@ -578,3 +578,15 @@ mod sdk {
         assert_eq!(XSDK_DR_400, 400, "DR 400 constant mismatch");
     }
 }
+
+/// The lens halt answered `Ok` although the X SDK has no call that stops
+/// the lens: a caller was told a move had been stopped that ran on.
+#[cfg(target_os = "windows")]
+#[tokio::test]
+async fn a_lens_cannot_be_halted_and_says_so() {
+    use crate::vendor::fujifilm::FujifilmLens;
+    use skotiq_device::{DriverError, FocuserDriver};
+    let mut lens = FujifilmLens::new("FUJI-TEST-0001", "Test lens");
+    assert!(!lens.can_halt().await);
+    assert!(matches!(lens.halt().await, Err(DriverError::NotSupported)));
+}

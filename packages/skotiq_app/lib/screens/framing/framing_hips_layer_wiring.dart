@@ -51,7 +51,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'widgets/hips_attribution_badge.dart';
+import '../../widgets/hips/hips_attribution_badge.dart';
 
 // The survey `properties` document is resolved by the single shared
 // [framingHipsPropertiesProvider] in skotiq_core (the C7 provider surface,

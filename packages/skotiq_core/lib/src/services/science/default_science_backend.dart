@@ -25,6 +25,9 @@ import 'photometric_bands.dart';
 import 'photometric_catalog_service.dart';
 import 'science_backend.dart';
 import 'frame_camera_noise.dart';
+import '../../providers/logging_service_provider.dart';
+import '../../providers/plate_solve_service_provider.dart';
+import '../../providers/science/photometric_catalog_service_provider.dart';
 
 part 'default_science_backend/helpers.dart';
 part 'default_science_backend/cpu_measurements.dart';

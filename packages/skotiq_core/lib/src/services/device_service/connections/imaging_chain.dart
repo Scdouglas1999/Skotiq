@@ -5,11 +5,31 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     final notifier = _ref.read(cameraStateProvider.notifier);
     notifier.setConnected();
 
+    // A DSLR or mirrorless body keeps the ISO it is set to: the capture
+    // settings take it from the body (syncExposureFromProfileProvider), and a
+    // profile gain written over it would change the body behind the owner's
+    // back. A camera without an offset control is not sent one.
+    CameraCapabilities? capabilities;
+    try {
+      capabilities = await _backend.getCameraCapabilities(deviceId);
+    } catch (e) {
+      _safeLog(
+        (l) => l.warning(
+          'Camera capabilities unknown at connect; applying the profile gain '
+          'and offset: $e',
+          source: 'DeviceService',
+        ),
+        'camera-capabilities-on-connect',
+      );
+    }
+    final keepsOwnIso = capabilities?.isoSpeeds.isNotEmpty ?? false;
+    final takesOffset = capabilities?.canSetOffset ?? true;
+
     // Apply active profile's cooling target temperature if available
     // and auto-start cooling if coolOnConnect is enabled
     try {
       final activeProfile = _ref.read(activeEquipmentProfileProvider);
-      if (activeProfile?.defaultGain != null) {
+      if (activeProfile?.defaultGain != null && !keepsOwnIso) {
         try {
           await _backend.cameraSetGain(
             deviceId,
@@ -25,7 +45,7 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
           );
         }
       }
-      if (activeProfile?.defaultOffset != null) {
+      if (activeProfile?.defaultOffset != null && takesOffset) {
         try {
           await _backend.cameraSetOffset(
             deviceId,

@@ -12,7 +12,7 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/mount_command_service.dart';
-import '../screens/imaging/centering_dialog.dart';
+import 'centering_dialog.dart';
 import '../utils/authority_bound_dialog.dart';
 import '../utils/confirm_dialog.dart';
 import '../utils/snackbar_helper.dart';

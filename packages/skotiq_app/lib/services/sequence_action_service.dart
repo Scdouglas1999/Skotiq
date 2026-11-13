@@ -4,9 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
-import '../models/command_action_result.dart';
+import 'command_action_result.dart';
 
 final sequenceActionServiceProvider =
     Provider((ref) => SequenceActionService(ref));

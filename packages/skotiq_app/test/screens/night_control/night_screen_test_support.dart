@@ -47,7 +47,7 @@ import 'package:skotiq_app/screens/night_control/panel/panel_ops.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/screens/shell/widgets/side_navigation.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
-import 'package:skotiq_app/widgets/startup_splash_gate.dart';
+import 'package:skotiq_app/screens/shell/widgets/startup_splash_gate.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';

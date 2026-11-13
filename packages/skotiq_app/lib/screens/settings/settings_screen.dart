@@ -17,7 +17,7 @@ import 'widgets/settings_scope_notice.dart';
 import 'widgets/settings_widgets.dart';
 import '../../router/app_routes.dart';
 
-export 'settings_sections.dart';
+export '../../router/settings_sections.dart';
 
 part 'settings_screen_parts/_search_index.dart';
 part 'settings_screen_parts/_desktop_layout.dart';

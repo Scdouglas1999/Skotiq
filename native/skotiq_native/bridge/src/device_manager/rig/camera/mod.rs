@@ -1,9 +1,11 @@
 //! The camera behind its handle, once per protocol.
 //!
 //! An exposure is three calls from whoever runs it: `start_exposure`, a poll
-//! of `is_exposure_complete`, then [`download`]. Each implementation body is
-//! the protocol's own sequence of driver calls; a vendor camera and an ASCOM
-//! COM camera take their device lock ([`super::Exclusive`]) for it.
+//! of `is_exposure_complete`, then [`download`]. A vendor SDK camera, an
+//! Alpaca camera and an INDI camera are a `skotiq_device::CameraDriver`
+//! behind [`DriverCamera`]; an ASCOM COM camera and the simulator answer here
+//! themselves. A vendor camera and a COM camera are reached under their
+//! device lock.
 //!
 //! # Abort
 //!
@@ -24,24 +26,19 @@
 //! SDK's own rule, kept with its lock
 //! (`skotiq_native::vendor::sdk_loader::lock_scope`).
 
-mod alpaca;
 #[cfg(windows)]
 mod com;
-mod indi;
+mod driver;
 mod sim;
-mod vendor;
 
-pub(crate) use alpaca::AlpacaCameraHandle;
 #[cfg(windows)]
 pub(crate) use com::ComCamera;
-pub(crate) use indi::IndiCameraHandle;
+pub(crate) use driver::DriverCamera;
 pub(crate) use sim::SimCamera;
-pub(crate) use vendor::VendorCamera;
 
 use super::RigDriver;
 use crate::device::DriverType;
 use crate::device_capabilities::DeviceCapabilities;
-use crate::device_manager::identity::DeviceIdentity;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -103,12 +100,6 @@ pub(crate) trait Camera: RigDriver {
     ) -> Result<(), DeviceOpError>;
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError>;
-
-    /// What the connected camera says it is; `None` where the protocol gives
-    /// the driver nothing to say.
-    async fn identity(&self) -> Option<DeviceIdentity> {
-        None
-    }
 }
 
 /// Announces an abort to the downloads of one camera that are in flight.

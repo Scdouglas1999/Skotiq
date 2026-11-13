@@ -14,7 +14,6 @@ import '../models/plate_solver.dart';
 import '../models/site/learned_obstruction.dart';
 import '../models/site/location_settings.dart';
 import '../models/site/site_horizon_profile.dart';
-import '../services/plate_solve_service.dart';
 import '../models/settings/app_settings.dart' as models;
 import '../models/settings/app_settings.dart'
     show ObserverLocation, SafetyFailMode;
@@ -28,6 +27,7 @@ import '../models/focuser_backlash_calibration.dart'
     show FocuserBacklashCalibrationSettings;
 import '../database/daos/settings_dao.dart';
 import '../models/backend/backend_types.dart';
+import 'plate_solve_service_provider.dart';
 
 // Section parts: AppSettingsNotifier is one notifier split across `part` files
 // under `settings_sections/`, one per UI / domain section. `part` rather than

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/network_backend.dart';
@@ -9,9 +8,7 @@ import '../models/flat_wizard/flat_capture_config.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
 import '../models/sequence/sequence_models.dart';
 import '../models/imaging/imaging_models.dart';
-import '../providers/backend_provider.dart';
 import '../providers/flat_wizard_provider.dart';
-import '../providers/settings_provider.dart';
 import 'sky_brightness_tracker.dart';
 import 'flat_exposure_calculator.dart';
 import 'flat_exposure_follower.dart';
@@ -1159,25 +1156,3 @@ class FlatWizardService {
   /// Default maximum exposure for [quickCalibrate]. Was hardcoded 30.0s.
   final double quickMaxExposure;
 }
-
-/// Provider for FlatWizardService.
-///
-/// Re-watches `flatWizardProvider` so a
-/// settings change (min/max exposure, image download timeout, max iterations)
-/// rebuilds the service with the new values instead of being silently ignored.
-final flatWizardServiceProvider = Provider<FlatWizardService>((ref) {
-  final backend = ref.watch(backendProvider.select((b) => b));
-  final settings = ref.watch(
-    flatWizardProvider.select((s) => s.globalSettings),
-  );
-  final attempts = ref.watch(
-    appSettingsProvider.select(
-      (s) => s.valueOrNull?.flatCalibrationAttempts ?? 20,
-    ),
-  );
-  return FlatWizardService.fromSettings(
-    backend,
-    settings,
-    calibrationAttempts: attempts,
-  );
-});

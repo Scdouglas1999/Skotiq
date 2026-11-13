@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../backend/network_backend.dart';
@@ -9,7 +8,6 @@ import '../models/imaging/color_calibration_result.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/imaging/mosaic_stitch_result.dart';
 import '../models/imaging/star_photometry.dart';
-import '../providers/backend_provider.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
 
@@ -708,12 +706,3 @@ class SaveFitsMasterResult {
     );
   }
 }
-
-/// Provider for the production [PostSessionSeam]. Tests override this with a
-/// fake so the orchestration services run end-to-end without native code.
-///
-/// The active backend is passed so [PostSessionSeam.integrationProgress] can
-/// filter its event stream for the native `IntegrationProgress` events.
-final postSessionSeamProvider = Provider<PostSessionSeam>((ref) {
-  return BridgePostSessionSeam(ref.watch(backendProvider));
-});

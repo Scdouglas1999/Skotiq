@@ -1,6 +1,5 @@
 import 'dart:collection';
 import 'dart:developer' as developer;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../errors/error_text.dart';
 import '../providers/ui_notification_provider.dart';
 import 'logging_service.dart';
@@ -247,13 +246,3 @@ class ErrorService {
   }
 
 }
-
-final errorServiceProvider = Provider<ErrorService>((ref) {
-  final service = ErrorService();
-  final logging = ref.watch(loggingServiceProvider);
-  service.setLoggingService(logging);
-
-  final uiNotifier = ref.watch(uiNotificationProvider.notifier);
-  service.setUiNotificationNotifier(uiNotifier);
-  return service;
-});

@@ -6,11 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
-import '../services/logging_service.dart';
 import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
 import 'remote_sync_handler.dart';
 import '../models/backend/backend_types.dart';
+import 'logging_service_provider.dart';
 
 const _logSource = 'RemoteSessionSync';
 

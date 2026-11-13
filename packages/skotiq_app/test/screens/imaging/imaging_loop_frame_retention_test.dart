@@ -20,6 +20,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_app/services/manual_capture_controller.dart';
 
 class _LoopSpyImagingService extends ImagingService {
   _LoopSpyImagingService(super.ref);

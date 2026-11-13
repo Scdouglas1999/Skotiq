@@ -179,6 +179,9 @@ pub struct ZwoFilterWheel {
     pub(crate) name: String,
     pub(crate) filter_names: Vec<String>,
     pub(crate) settle_after_move_pending: AtomicBool,
+    /// `EFWGetSerialNumber` of the open wheel; `None` before connect and for
+    /// a unit that reports none.
+    pub(crate) serial_number: Option<String>,
 }
 
 impl ZwoFilterWheel {
@@ -191,6 +194,7 @@ impl ZwoFilterWheel {
             name: format!("ZWO EFW {}", filterwheel_id),
             filter_names: Vec::new(),
             settle_after_move_pending: AtomicBool::new(false),
+            serial_number: None,
         }
     }
 
@@ -215,7 +219,11 @@ impl ZwoFilterWheel {
             return Ok(position);
         }
 
-        match crate::quirks::get_position_delay_after_move_ms(&self.device_id) {
+        match crate::quirks::get_position_delay_after_move_ms(
+            &Vendor::Zwo,
+            DeviceKind::FilterWheel,
+            &self.name,
+        ) {
             Some(delay_ms) if delay_ms > 0 => {
                 tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
             }
@@ -249,6 +257,10 @@ impl DeviceDriver for ZwoFilterWheel {
 
     fn vendor(&self) -> Vendor {
         Vendor::Zwo
+    }
+
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
     }
 
     fn is_connected(&self) -> bool {
@@ -327,6 +339,7 @@ impl DeviceDriver for ZwoFilterWheel {
             } else {
                 None
             };
+        self.serial_number = connect_serial_number.clone();
 
         cleanup_guard.defuse();
 
@@ -478,7 +491,7 @@ impl FilterWheelDriver for ZwoFilterWheel {
         Ok(position == -1)
     }
 
-    fn get_filter_count(&self) -> i32 {
+    async fn get_filter_count(&self) -> i32 {
         self.slot_count
     }
 

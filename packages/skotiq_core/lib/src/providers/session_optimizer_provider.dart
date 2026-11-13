@@ -6,8 +6,6 @@ import 'package:skotiq_astro/skotiq_astro.dart' show TwilightTimes;
 import '../backend/skotiq_backend.dart';
 import '../database/daos/guide_rms_history_dao.dart';
 import '../models/planning/target_suggestion.dart';
-import '../services/scheduler/integration_goal_service.dart';
-import '../services/logging_service.dart';
 import '../services/science/science_camera_auto_config.dart';
 import '../services/smart_night/exposure_calculator.dart';
 import '../services/smart_night/hardware_specs_service.dart';
@@ -25,6 +23,8 @@ import 'settings_provider.dart';
 import 'target_suggestion_provider.dart';
 import '../database/daos/settings_dao.dart';
 import '../settings/store_settings.dart';
+import 'logging_service_provider.dart';
+import 'scheduler/integration_goal_service_provider.dart';
 
 /// Service provider for SessionOptimizerService.
 ///

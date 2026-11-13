@@ -13,7 +13,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../utils/exported_file_reveal.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Settings panel for viewing and managing observation logs.
 class ObservationLogSettings extends ConsumerStatefulWidget {

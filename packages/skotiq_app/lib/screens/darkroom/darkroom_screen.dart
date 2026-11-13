@@ -15,15 +15,14 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/darkroom_navigation.dart' show darkroomTabLocation;
-import 'darkroom_controller.dart';
-import 'darkroom_route.dart';
+import '../../router/darkroom_route.dart';
 import 'activity/activity_tab.dart';
 import 'calibration/calibration_tab.dart';
 import 'edit/edit_tab.dart';
 import 'targets/darkroom_status_chip.dart';
 import 'targets/targets_tab.dart';
 import '../../router/app_routes.dart';
-import '../analytics/analytics_route.dart';
+import '../../router/analytics_route.dart';
 
 part 'darkroom_screen_parts/_landing.dart';
 

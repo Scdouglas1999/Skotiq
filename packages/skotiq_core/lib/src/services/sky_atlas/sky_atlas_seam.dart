@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 /// Injectable seam over the `api_sky_atlas*` FFI surface.
@@ -99,9 +98,3 @@ class SkyAtlasSeamException implements Exception {
   @override
   String toString() => 'SkyAtlasSeamException: $message';
 }
-
-/// Production seam provider. Override in tests with a fake that records the
-/// dispatched maps and returns canned results.
-final skyAtlasSeamProvider = Provider<SkyAtlasSeam>((ref) {
-  return const BridgeSkyAtlasSeam();
-});

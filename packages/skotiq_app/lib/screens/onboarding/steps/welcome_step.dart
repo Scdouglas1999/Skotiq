@@ -4,8 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../link_rig/link_rig_actions.dart';
-import '../../link_rig/link_rig_dialog.dart';
+import '../../connection/link_rig_actions.dart';
+import '../../connection/link_rig_dialog.dart';
 
 /// Welcome step — the entry point of the wizard.
 ///

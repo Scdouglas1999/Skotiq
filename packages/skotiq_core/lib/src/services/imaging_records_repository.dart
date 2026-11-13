@@ -32,6 +32,7 @@ import '../services/wcs/gnomonic_projection.dart' show SolvedWcs;
 import '../services/wcs/wcs_sip_codec.dart';
 import '../backend/remote_host.dart';
 import '../backend/network_backend/host_data/remote_host_records.dart';
+import '../providers/logging_service_provider.dart';
 part 'imaging_records_repository/solved_frame_hooks.dart';
 part 'imaging_records_repository/wire_json.dart';
 part 'imaging_records_repository/remote_polling.dart';
@@ -655,4 +656,3 @@ final imagingRecordsRepositoryProvider = Provider<ImagingRecordsRepository>((
     },
   );
 });
-

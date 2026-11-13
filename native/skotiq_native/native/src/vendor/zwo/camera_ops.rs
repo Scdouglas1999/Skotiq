@@ -158,23 +158,25 @@ impl DeviceDriver for ZwoCamera {
             camera_name,
             self.serial_number.as_deref().unwrap_or("not reported")
         );
-        let quirk_lookup_id = format!("native:zwo:{}", camera_name);
         {
             let mut pending = self
                 .temperature_skip_first_pending
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            *pending = crate::quirks::should_skip_first_temperature_read(&quirk_lookup_id);
+            *pending = crate::quirks::should_skip_first_temperature_read(
+                &Vendor::Zwo,
+                DeviceKind::Camera,
+                &camera_name,
+            );
         }
 
         // Release the SDK lock before any post-connect settle so other threads
         // can resume.
         drop(sdk);
 
-        // Apply per-model DelayAfterConnect quirk (e.g. ASI533: 200ms). The
-        // quirks database is queried with a synthetic device_id that embeds the
-        // SDK-reported model name so per-model `ModelContains` matchers fire.
-        if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(&quirk_lookup_id) {
+        if let Some(delay_ms) =
+            crate::quirks::get_connect_delay_ms(&Vendor::Zwo, DeviceKind::Camera, &camera_name)
+        {
             tracing::debug!(
                 "Applying DelayAfterConnect quirk: sleeping {}ms after connecting to {}",
                 delay_ms,

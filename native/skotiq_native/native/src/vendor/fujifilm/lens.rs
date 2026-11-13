@@ -332,31 +332,28 @@ impl FocuserDriver for FujifilmLens {
         Ok(false)
     }
 
-    /// The SDK has no command that stops the lens; a move takes well under a
-    /// second, so the lens finishes it.
+    /// The X SDK has no call that stops the lens; a move takes well under a
+    /// second and the lens finishes it.
+    async fn can_halt(&self) -> bool {
+        false
+    }
+
     async fn halt(&mut self) -> Result<(), DriverError> {
-        if !self.is_connected() {
-            return Err(DriverError::NotConnected);
-        }
-        tracing::debug!(
-            "Fujifilm {}: the lens finishes its move (the SDK cannot stop it)",
-            self.id
-        );
-        Ok(())
+        Err(DriverError::NotSupported)
     }
 
     async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
         Ok(None)
     }
 
-    fn get_max_position(&self) -> i32 {
+    async fn get_max_position(&self) -> i32 {
         lock(&self.focus)
             .as_ref()
             .map_or(0, |focus| focus.travel().range())
     }
 
     /// Lens focus pulses have no known length in microns.
-    fn get_step_size(&self) -> f64 {
+    async fn get_step_size(&self) -> f64 {
         0.0
     }
 }

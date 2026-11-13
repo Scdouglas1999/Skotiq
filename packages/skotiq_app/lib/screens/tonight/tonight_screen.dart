@@ -11,10 +11,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/held_future.dart';
 import '../../utils/plan_tonight_sequencer_helper.dart';
-import '../planetarium/show_in_sky.dart';
+import '../../router/show_in_sky.dart';
 import 'one_tap_target_provider.dart';
 import 'one_tap_tonight_controller.dart';
-import '../settings/settings_sections.dart';
+import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
 
 /// The opinionated one-tap "image this target tonight" screen.

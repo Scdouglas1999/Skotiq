@@ -20,7 +20,7 @@ import '../panel_widgets.dart';
 import 'night_solve_tab.dart';
 import 'recent_solves_provider.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import '../../../settings/settings_sections.dart';
+import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 
 /// Where the solver settings live.

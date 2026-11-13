@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/suggestions/widgets/transient_alerts_panel.dart';
 import 'package:skotiq_app/screens/transients/widgets/transient_card.dart';
-import 'package:skotiq_app/widgets/transient_alert_badge.dart';
+import 'package:skotiq_app/screens/shell/widgets/transient_alert_badge.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';

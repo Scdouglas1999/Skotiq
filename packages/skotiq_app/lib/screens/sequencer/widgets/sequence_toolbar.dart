@@ -11,14 +11,14 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../models/command_action_result.dart';
+import '../../../services/command_action_result.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../settings/widgets/frame_watch_settings_section.dart';
-import '../../../utils/sequence_mutator_helper.dart';
+import '../sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
-import 'run_dashboard/run_dashboard_providers.dart';
+import '../../../services/run_dashboard_providers.dart';
 import 'flat_wizard_dialog.dart';
 import 'mosaic_wizard_dialog.dart';
 import 'quick_start_wizard_dialog.dart';

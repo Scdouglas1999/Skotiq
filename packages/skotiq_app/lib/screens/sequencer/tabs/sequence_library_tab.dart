@@ -12,7 +12,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../sequencer_screen.dart';
 import '../../../utils/authority_bound_dialog.dart';
-import '../../../utils/sequence_mutator_helper.dart';
+import '../sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';

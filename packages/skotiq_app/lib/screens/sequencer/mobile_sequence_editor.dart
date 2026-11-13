@@ -42,7 +42,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'widgets/node_palette.dart';
 import 'widgets/node_properties_panel.dart';
-import 'widgets/run_dashboard/recovery_banner.dart';
+import '../../widgets/run_status/recovery_banner.dart';
 
 /// Touch-friendly sequence authoring surface for the mobile companion app.
 ///

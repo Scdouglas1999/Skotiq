@@ -7,7 +7,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../run_status_presentation.dart';
+import '../../../widgets/run_status/run_status_presentation.dart';
 import '../sequencer_screen.dart';
 import 'sequence_library_tab.dart';
 import '../widgets/continue_run_button.dart';

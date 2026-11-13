@@ -17,11 +17,12 @@ import '../../models/sequence/terminal_run_result.dart';
 import '../../providers/settings_provider.dart';
 import '../logging_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'eon_deferral.dart';
-import 'eon_providers.dart';
+import '../../providers/end_of_night_calibration/eon_providers.dart';
 import 'eon_service.dart' show EonReport;
 import 'eon_settings.dart';
 import '../../backend/remote_host.dart';
+import '../../providers/end_of_night_calibration/eon_deferral_provider.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// Why the night's imaging ended.
 enum EonEndReason {
@@ -360,8 +361,3 @@ class EndOfNightCalibrationCoordinator {
     return true;
   }
 }
-
-final endOfNightCalibrationCoordinatorProvider =
-    Provider<EndOfNightCalibrationCoordinator>(
-      EndOfNightCalibrationCoordinator.new,
-    );

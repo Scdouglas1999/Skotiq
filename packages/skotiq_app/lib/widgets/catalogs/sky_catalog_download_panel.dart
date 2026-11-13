@@ -8,7 +8,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../screens/settings/settings_sections.dart';
+import '../../router/settings_sections.dart';
 
 /// The download button's label, with the disk cost in it.
 String skyCatalogDownloadLabel() =>

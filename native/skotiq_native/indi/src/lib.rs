@@ -115,6 +115,7 @@ macro_rules! indi_accessory {
 }
 
 mod camera;
+mod camera_driver;
 mod client;
 mod covercalibrator;
 pub mod discovery;
@@ -122,9 +123,12 @@ mod dome;
 mod error;
 mod filterwheel;
 mod focuser;
+mod frame;
 mod kind;
 mod mount;
+mod mount_driver;
 mod protocol;
+mod rig_drivers;
 mod rotator;
 mod safetymonitor;
 mod switch_device;
@@ -142,6 +146,7 @@ pub use error::{IndiError, IndiResult};
 pub use filterwheel::IndiFilterWheel;
 pub use focuser::IndiFocuser;
 pub use kind::IndiDeviceDescription;
+pub use frame::{decode_frame, IndiFrame};
 pub use mount::IndiMount;
 pub use protocol::{names, CcdFrameType, INDI_PROTOCOL_VERSION};
 pub use rotator::IndiRotator;

@@ -10,9 +10,11 @@ import 'database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../services/logging_service.dart';
 import '../services/stack_and_share_service.dart';
-import '../services/stack_share_export_service.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
+import 'logging_service_provider.dart';
+import 'stack_and_share_service_provider.dart';
+import 'stack_share_export_service_provider.dart';
 
 /// UI-facing state for the **Stack-and-Share Loop** orchestrator (component C7).
 ///

@@ -10,6 +10,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// The rig side of **peer delivery** — the surface a paired desktop pulls the
 /// night's artifacts through.

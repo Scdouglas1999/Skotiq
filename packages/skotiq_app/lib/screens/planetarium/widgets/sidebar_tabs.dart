@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/pill_tab.dart';
+import 'pill_tab.dart';
 
 // Re-export all tab widgets and shared widgets so existing imports still work
 export 'tonight_tab.dart';

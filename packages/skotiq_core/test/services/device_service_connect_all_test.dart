@@ -24,12 +24,12 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/services/device_exceptions.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 import 'package:skotiq_core/src/utils/device_id.dart';
 
 import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../services/logging_service.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
 
 /// Points this process's catalog downloads at the source chosen in Settings >
 /// Catalogs. Every role runs it: a host downloads for itself and its clients,

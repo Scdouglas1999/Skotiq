@@ -148,6 +148,20 @@ jobs:
       - name: Bridge Boundary Audit Self-Test
         run: melos run audit:bridge-boundary:self-test
 
+      # Dependency direction, layer barrels, shared folders importing no
+      # screen, and the node table as the only per-node-type dispatch.
+      - name: Architecture Rules Gate
+        run: melos run audit:architecture
+
+      - name: Architecture Rules Audit Self-Test
+        run: melos run audit:architecture:self-test
+
+      - name: Headless API Contract Gate
+        run: melos run audit:headless-api-contract
+
+      - name: Headless Route Policy Gate
+        run: melos run audit:headless-route-policy
+
   test-dart:
     name: Dart Tests
     runs-on: ubuntu-latest
@@ -172,6 +186,9 @@ jobs:
 
       - name: Run Dart tests
         run: melos run test
+
+      - name: Run pure Dart package tests
+        run: melos run test:dart
 
       - name: Verify v4.3.0 database migration to current schema
         working-directory: packages/skotiq_core

@@ -223,10 +223,20 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
     }
   }
 
+  /// Whether the camera at [deviceId] has a cooler Skotiq can drive; false
+  /// while its capabilities are unknown.
+  bool _cameraCanCool(String? deviceId) => gateCapability<CameraCapabilities>(
+        ref.watch(equipmentCameraCapabilitiesProvider(deviceId ?? '')),
+        (caps) => caps.canSetCooler,
+      );
+
   List<Widget> _buildDeviceActions(SkotiqColors colors) {
     switch (widget.type) {
       case DeviceType.camera:
         final state = ref.watch(cameraStateProvider);
+        // A camera without a cooler (a DSLR or mirrorless body, most guide
+        // cameras) gets no cooling buttons.
+        if (!_cameraCanCool(state.deviceId)) return const [];
         final coolTo = ref.watch(cameraCoolToTargetProvider);
         return [
           _ActionButton(
@@ -625,20 +635,32 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
     switch (widget.type) {
       case DeviceType.camera:
         final state = ref.watch(cameraStateProvider);
+        final canCool = _cameraCanCool(state.deviceId);
+        final canSetOffset = gateCapability<CameraCapabilities>(
+          ref.watch(equipmentCameraCapabilitiesProvider(state.deviceId ?? '')),
+          (caps) => caps.canSetOffset,
+          loadingDefault: true,
+        );
         return [
           ('Device id', state.deviceId ?? 'Unknown'),
-          ('Gain', state.gain?.toString() ?? kReadoutUnknown),
-          ('Offset', state.offset?.toString() ?? kReadoutUnknown),
-          ('Binning', state.binning ?? kReadoutUnknown),
           (
-            'Cooling',
-            switch (state.coolerOn) {
-              true => 'Active',
-              false => 'Off',
-              null => 'Not reported',
-            },
+            ref.watch(cameraSensitivityProvider).label,
+            state.gain?.toString() ?? kReadoutUnknown,
           ),
-          ('Target temp', formatCelsius(state.targetTemp)),
+          if (canSetOffset)
+            ('Offset', state.offset?.toString() ?? kReadoutUnknown),
+          ('Binning', state.binning ?? kReadoutUnknown),
+          if (canCool) ...[
+            (
+              'Cooling',
+              switch (state.coolerOn) {
+                true => 'Active',
+                false => 'Off',
+                null => 'Not reported',
+              },
+            ),
+            ('Target temp', formatCelsius(state.targetTemp)),
+          ],
         ];
 
       case DeviceType.mount:

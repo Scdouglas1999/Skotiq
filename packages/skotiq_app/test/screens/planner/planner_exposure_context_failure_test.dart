@@ -15,7 +15,7 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../scheduler/scheduler_test_doubles.dart';
+import 'scheduler_test_doubles.dart';
 
 class _StubAppSettingsNotifier extends AppSettingsNotifier {
   @override

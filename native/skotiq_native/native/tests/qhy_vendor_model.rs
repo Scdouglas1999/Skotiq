@@ -538,7 +538,7 @@ mod vendor_model {
         assert_eq!(wheels[0].slot_count, 7);
         let mut wheel = QhyFilterWheel::new(COLOR_ID.to_string());
         wheel.connect().await.expect("wheel connect");
-        assert_eq!(wheel.get_filter_count(), 7);
+        assert_eq!(wheel.get_filter_count().await, 7);
 
         tokio::time::sleep(Duration::from_millis(1600)).await;
         let frame = camera

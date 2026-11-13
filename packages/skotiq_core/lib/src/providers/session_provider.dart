@@ -13,8 +13,8 @@ import 'imaging_provider.dart' show exposureSettingsProvider;
 import '../services/imaging_records_repository.dart';
 import '../services/quick_start_service.dart' show quickStartServiceProvider;
 import '../services/session_service.dart';
-import '../services/logging_service.dart';
 import '../database/daos/sequence_checkpoints_dao.dart';
+import 'logging_service_provider.dart';
 
 class SessionState extends Equatable {
   final bool isActive;

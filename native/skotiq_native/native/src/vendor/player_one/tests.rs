@@ -231,3 +231,33 @@ pub(crate) fn a_roi_outside_the_binned_sensor_is_refused() {
         );
     }
 }
+
+/// POA_ERROR_INVALID_INDEX and POA_ERROR_INVALID_ID on an open camera or
+/// wheel were a generic device error, so a USB drop never started the
+/// reconnect; before the device is opened they still say the id is wrong.
+#[test]
+fn an_id_the_sdk_dropped_reads_as_disconnected_on_an_open_device() {
+    for code in [1, 2] {
+        assert!(matches!(
+            check_open_poa_error(code, "GetCameraState"),
+            Err(DriverError::Disconnected)
+        ));
+        assert!(matches!(
+            check_open_poa_pw_error(code, "get current filter position"),
+            Err(DriverError::Disconnected)
+        ));
+        assert!(matches!(
+            check_poa_error(code, "OpenCamera"),
+            Err(DriverError::InvalidDevice(_))
+        ));
+        assert!(matches!(
+            check_poa_pw_error(code, "open filter wheel"),
+            Err(DriverError::InvalidDevice(_))
+        ));
+    }
+    assert!(check_open_poa_error(0, "GetCameraState").is_ok());
+    assert!(matches!(
+        check_open_poa_error(3, "POASetConfig"),
+        Err(DriverError::InvalidParameter(_))
+    ));
+}

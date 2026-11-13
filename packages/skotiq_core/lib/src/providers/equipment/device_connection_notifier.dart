@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../services/device_service.dart';
 import '../../models/backend/backend_types.dart';
+import '../device_service_providers.dart';
 
 /// The connection surface of a device slot, as the device table
 /// (`equipment/device_slots.dart`) hands it out.

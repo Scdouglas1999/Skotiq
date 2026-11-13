@@ -234,6 +234,26 @@ pub(crate) fn check_poa_error(code: c_int, operation: &str) -> Result<(), Driver
     }
 }
 
+/// [`check_poa_error`] for a call on a camera that `connect` opened. The SDK
+/// drops a camera that leaves the bus from its list, and every later call on
+/// its ID answers POA_ERROR_INVALID_INDEX or POA_ERROR_INVALID_ID, so on an
+/// open camera those two mean it was lost.
+pub(crate) fn check_open_poa_error(code: c_int, operation: &str) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_poa_error(code, operation),
+    }
+}
+
+/// [`check_poa_pw_error`] for a call on a wheel that `connect` opened; see
+/// [`check_open_poa_error`].
+pub(crate) fn check_open_poa_pw_error(code: c_int, operation: &str) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_poa_pw_error(code, operation),
+    }
+}
+
 pub(crate) fn check_poa_pw_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     match code {
         0 => Ok(()),

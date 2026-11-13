@@ -371,12 +371,14 @@ impl DeviceDriver for TouptekCamera {
 
         self.core.capabilities = model_capabilities(self.model_flags);
 
-        let quirk_lookup_id = format!(
-            "native:touptek:{}:{}",
-            self.brand.to_lowercase(),
-            self.device_index
-        );
-        if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(&quirk_lookup_id) {
+        // The brand stands in front of the model: one SDK family, several
+        // makers, and a quirk can belong to one of them.
+        let branded_model = format!("{} {}", self.brand, device_info.name);
+        if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(
+            &Vendor::Touptek,
+            skotiq_device::DeviceKind::Camera,
+            &branded_model,
+        ) {
             tracing::debug!(
                 "Applying DelayAfterConnect quirk: sleeping {}ms before starting pull mode on {}",
                 delay_ms,

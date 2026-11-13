@@ -266,6 +266,12 @@ scripts:
     run: dart run melos exec --concurrency=1 --flutter -- flutter test --exclude-tags golden
     description: Run tests in all packages (golden pixel-diff tests excluded)
 
+  test:dart:
+    # `test` runs `flutter test` in Flutter packages only; pure Dart packages
+    # (skotiq_astro) run under `dart test`.
+    run: dart run melos exec --concurrency=1 --no-flutter --dir-exists=test -- dart test
+    description: Run tests in the pure Dart packages
+
   test:golden:
     # Opt-in: run ONLY the host-specific golden / perceptual pixel-diff tests.
     # Run this on the host the committed baselines were captured on, or after

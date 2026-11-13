@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/device_heartbeat_health_provider.dart';
 import 'logging_service.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Routes native heartbeat events to [deviceHeartbeatHealthProvider].
 ///

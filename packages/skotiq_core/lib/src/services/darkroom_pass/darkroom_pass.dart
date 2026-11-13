@@ -5,4 +5,3 @@ library;
 export 'pass_log.dart';
 export 'pass_recorder.dart';
 export 'pass_timeline.dart';
-export 'pass_providers.dart';

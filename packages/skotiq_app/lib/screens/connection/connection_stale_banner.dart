@@ -1,0 +1,210 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
+
+import 'link_rig_actions.dart';
+import '../../utils/snackbar_helper.dart';
+
+/// Set true when the WebSocket connection to a remote backend has been
+/// down briefly but is still within the reconnect grace window. The mobile app
+/// drives this; desktop/headless do not flip it.
+final connectionStaleProvider = StateProvider<bool>((_) => false);
+
+/// Inline banner shown across all screens while a remote client has lost its
+/// link to the imaging host or the host has stopped answering, or the mobile
+/// app is mid-reconnect.
+///
+/// During the 30-second grace window the operator gets a "Retry" button to
+/// force an immediate reconnect attempt instead of waiting for the
+/// exponential-backoff timer. The button is a no-op when the current backend is
+/// not a [NetworkBackend] (e.g. host-side desktop).
+class ConnectionStaleBanner extends ConsumerStatefulWidget {
+  const ConnectionStaleBanner({super.key});
+
+  @override
+  ConsumerState<ConnectionStaleBanner> createState() =>
+      _ConnectionStaleBannerState();
+}
+
+class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
+  bool _retrying = false;
+  int _retryGeneration = 0;
+  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _backendSubscription = ref.listenManual<SkotiqBackend>(
+      backendProvider,
+      (previous, next) {
+        if (!_retrying || previous == null || identical(previous, next)) return;
+        _retryGeneration++;
+        if (mounted) setState(() => _retrying = false);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _retryGeneration++;
+    _backendSubscription?.close();
+    super.dispose();
+  }
+
+  Future<void> _handleRetry() async {
+    if (_retrying) return;
+    final backend = ref.read(backendProvider);
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          'The remote session is no longer available. Reconnect from the '
+          'server screen.',
+        );
+      }
+      return;
+    }
+    final generation = ++_retryGeneration;
+    setState(() => _retrying = true);
+    try {
+      await linkedHost.link.reconnectNow();
+    } catch (e) {
+      if (mounted && _isCurrentRetry(generation, backend)) {
+        context.showErrorSnackBar('Reconnect failed: ${userFacingError(e)}');
+      }
+    } finally {
+      if (_isCurrentRetry(generation, backend)) {
+        setState(() => _retrying = false);
+      }
+    }
+  }
+
+  bool _isCurrentRetry(int generation, SkotiqBackend backend) =>
+      mounted &&
+      generation == _retryGeneration &&
+      identical(ref.read(backendProvider), backend);
+
+  @override
+  Widget build(BuildContext context) {
+    final lostHost = ref.watch(hostLinkLostProvider);
+    final unansweredSeconds =
+        ref.watch(hostUnansweredSecondsProvider).valueOrNull;
+    final stale = ref.watch(connectionStaleProvider) ||
+        lostHost != null ||
+        unansweredSeconds != null;
+    if (!stale) return const SizedBox.shrink();
+    final linkedHost = ref.watch(backendProvider).remoteHost;
+    final canRetry = linkedHost != null;
+
+    final colors = SkotiqColors.of(context);
+    final bg = colors.warning;
+    final fg = colors.background;
+
+    return Material(
+      color: bg,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: SkotiqSpinner(size: 14, color: fg),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                lostHost != null
+                    ? 'Lost connection to $lostHost, reconnecting… Device '
+                        'values and run state shown are the last known, not '
+                        'live.'
+                    : unansweredSeconds != null && linkedHost != null
+                        ? '${linkedHost.link.serverHost} has not answered for '
+                            '$unansweredSeconds s. Device values and run '
+                            'state shown are the last known, not live.'
+                        : 'Reconnecting to server… session controls may be '
+                            'stale.',
+                style: TextStyle(
+                  color: fg,
+                  fontSize: SkotiqTypography.fontSize12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _retrying || !canRetry ? null : _handleRetry,
+              child: Text(
+                _retrying
+                    ? 'Retrying…'
+                    : canRetry
+                        ? 'Retry'
+                        : 'Reconnect required',
+                style: TextStyle(
+                  color:
+                      _retrying || !canRetry ? fg.withValues(alpha: 0.5) : fg,
+                  fontSize: SkotiqTypography.fontSize12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            // A desktop linked to a rig that went away must not be stuck
+            // waiting for it: it can restart as this computer's own host.
+            if (lostHost != null &&
+                canSwitchRole(ref) &&
+                ref.watch(remoteLaunchTargetProvider) != null)
+              TextButton(
+                key: const ValueKey('staleBanner.useThisComputer'),
+                onPressed: () => useThisComputerInstead(
+                  context,
+                  ref,
+                  rigName: ref.read(remoteLaunchTargetProvider)?.name,
+                ),
+                child: Text(
+                  'Use this computer instead',
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: SkotiqTypography.fontSize12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Marks everything under it as last-known while the link to the imaging
+/// host is down or the host has stopped answering: dimmed, and announced as
+/// not live to assistive technology.
+/// The device and run values below it are the last ones heard from the host.
+class HostLinkStaleScope extends ConsumerWidget {
+  const HostLinkStaleScope({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lostHost = ref.watch(hostLinkLostProvider);
+    final String label;
+    if (lostHost != null) {
+      label = 'Last known values, no link to $lostHost';
+    } else {
+      final linkedHost = ref.watch(backendProvider).remoteHost;
+      final notAnswering =
+          ref.watch(hostUnansweredSecondsProvider).valueOrNull != null;
+      if (!notAnswering || linkedHost == null) return child;
+      label = 'Last known values, ${linkedHost.link.serverHost} is not answering';
+    }
+    return Semantics(
+      container: true,
+      label: label,
+      child: Opacity(opacity: 0.55, child: child),
+    );
+  }
+}

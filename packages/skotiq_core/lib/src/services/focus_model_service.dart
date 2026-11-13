@@ -5,20 +5,9 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 import '../utils/skotiq_data_directory.dart';
-
-final focusModelServiceProvider = Provider<FocusModelService>((ref) {
-  // Plumb user-configurable thresholds
-  // through so the autofocus settings panel can override the rejection /
-  // reliability / filter-offset gates without a recompile.
-  final config = ref.watch(focusModelConfigProvider);
-  final service = FocusModelService(config: config);
-  unawaited(service.initialize());
-  return service;
-});
 
 /// User-configurable thresholds that gate the focus regression model.
 ///
@@ -62,14 +51,6 @@ class FocusModelConfig {
     );
   }
 }
-
-/// Provider for the focus-model thresholds. Defaults reproduce the prior
-/// hardcoded behaviour exactly. Override this provider from the autofocus
-/// settings panel (or in tests) to change behaviour.
-///
-final focusModelConfigProvider = StateProvider<FocusModelConfig>(
-  (_) => const FocusModelConfig(),
-);
 
 /// A single temperature-compensation history sample collected after each
 /// successful autofocus run. Persisted across sessions to feed the linear

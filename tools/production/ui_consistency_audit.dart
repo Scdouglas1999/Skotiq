@@ -640,7 +640,7 @@ bool _isScopedOutFinding({required String path, required String ruleId}) {
   }
   if (ruleId == 'raw_button_style' &&
       path ==
-          'packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart') {
+          'packages/skotiq_app/lib/screens/discover/mosaic/mosaic_project_screen.dart') {
     // A muted breadcrumb, not an action: the theme's TextButton default paints
     // it as a primary one. The override keeps kMinInteractiveDimension.
     return true;

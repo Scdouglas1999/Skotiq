@@ -6,18 +6,17 @@
 //! driver call in flight. The ASCOM focuser, over Alpaca or COM, is
 //! [`super::ascom::AscomFocuser`].
 
-use super::{Exclusive, RigDriver};
+use super::{RigDriver, Slot};
 use crate::api::devices::simulation::get_sim_focuser;
 use crate::device_capabilities::FocuserCapabilities;
 use crate::device_manager::ops::{sim_faults, sim_gate};
+use crate::device_manager::identity::DeviceIdentity;
+use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
-use crate::timeout_ops::{focuser_move_with_timeout, with_timeout_str, Timeouts};
+use crate::timeout_ops::{focuser_move_with_timeout, with_timeout, Timeouts};
 use async_trait::async_trait;
 use skotiq_device::{DriverError, FocuserDriver};
-use skotiq_indi::names as indi;
-use skotiq_indi::IndiFocuser;
-use tracing::warn;
 
 #[async_trait]
 pub(crate) trait Focuser: RigDriver {
@@ -52,45 +51,89 @@ fn move_failed(protocol: &str, device: &str, position: i32, error: &SkotiqError)
     )
 }
 
-/// A vendor SDK focuser.
-pub(crate) struct VendorFocuser {
+type Driver = dyn FocuserDriver + Send + Sync;
+
+/// A focuser behind a [`FocuserDriver`]: a vendor SDK focuser or an INDI
+/// focuser.
+pub(crate) struct DriverFocuser {
     device_id: String,
-    driver: Exclusive<Box<dyn FocuserDriver + Send + Sync>>,
+    driver: Slot<Driver>,
+    /// "Native" or "INDI", in messages.
+    protocol: &'static str,
+    /// The protocol inside a sentence: "native", "INDI".
+    in_sentence: &'static str,
 }
 
-impl VendorFocuser {
-    pub(crate) fn new(device_id: &str, driver: Box<dyn FocuserDriver + Send + Sync>) -> Self {
+impl DriverFocuser {
+    /// A vendor SDK focuser: the driver keeps state between calls, so it is
+    /// reached one call at a time.
+    pub(crate) fn vendor(device_id: &str, driver: Box<Driver>) -> Self {
         Self {
             device_id: device_id.to_string(),
-            driver: Exclusive::new(driver),
+            driver: Slot::held(driver),
+            protocol: "Native",
+            in_sentence: "native",
         }
+    }
+
+    pub(crate) fn indi(
+        device_id: &str,
+        client: std::sync::Arc<tokio::sync::RwLock<skotiq_indi::IndiClient>>,
+        device_name: &str,
+    ) -> Self {
+        let device_name = device_name.to_string();
+        Self {
+            device_id: device_id.to_string(),
+            driver: Slot::per_call(move || {
+                Box::new(skotiq_indi::IndiFocuser::new(client.clone(), &device_name))
+                    as Box<Driver>
+            }),
+            protocol: "INDI",
+            in_sentence: "INDI",
+        }
+    }
+
+    fn gone(&self) -> DeviceOpError {
+        DeviceOpError::not_connected(
+            Some(self.device_id.clone()),
+            format!("{} focuser not connected", self.protocol),
+        )
     }
 }
 
 #[async_trait]
-impl RigDriver for VendorFocuser {
+impl RigDriver for DriverFocuser {
     async fn disconnect(&self) -> Result<(), DriverError> {
-        self.driver.write().await.disconnect().await
+        match self.driver.take().await {
+            Some(mut focuser) => focuser.disconnect().await,
+            None => Ok(()),
+        }
     }
 
     async fn heartbeat(&self) -> Result<bool, String> {
-        let focuser = self.driver.read().await;
-        if !focuser.is_connected() {
+        let Some(focuser) = self.driver.read().await else {
             return Ok(false);
-        }
+        };
         focuser
-            .get_position()
+            .heartbeat()
             .await
-            .map(|_| true)
-            .map_err(|e| format!("Native focuser liveness probe failed: {}", e))
+            .map_err(|e| format!("{} focuser liveness probe failed: {}", self.protocol, e))
+    }
+
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        let Slot::Held(_) = self.driver else {
+            return None;
+        };
+        let driver = self.driver.read().await?;
+        Some(DeviceManager::identity_from_device(&self.device_id, &*driver))
     }
 }
 
 #[async_trait]
-impl Focuser for VendorFocuser {
+impl Focuser for DriverFocuser {
     async fn move_to(&self, position: i32) -> Result<(), DeviceOpError> {
         let device_id = &self.device_id;
-        let mut focuser = self.driver.write().await;
+        let mut focuser = self.driver.write().await.ok_or_else(|| self.gone())?;
         focuser_move_with_timeout(
             async {
                 focuser
@@ -107,173 +150,21 @@ impl Focuser for VendorFocuser {
         .map_err(|e| {
             DeviceOpError::caused_by(
                 Some(device_id.clone()),
-                move_failed("native", device_id, position, &e),
+                move_failed(self.in_sentence, device_id, position, &e),
                 e,
             )
         })
     }
 
     async fn move_by(&self, steps: i32) -> Result<(), DeviceOpError> {
-        let mut focuser = self.driver.write().await;
-        with_timeout_str(
+        let mut focuser = self.driver.write().await.ok_or_else(|| self.gone())?;
+        with_timeout(
             async {
                 focuser
                     .move_relative(steps)
                     .await
-                    .map_err(|e| e.to_string())
-            },
-            Timeouts::focuser_move(),
-            &self.device_id,
-            "move_relative",
-        )
-        .await
-        .map_err(DeviceOpError::from)
-    }
-
-    async fn halt(&self) -> Result<(), DeviceOpError> {
-        self.driver
-            .write()
-            .await
-            .halt()
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
-    async fn position(&self) -> Result<i32, DeviceOpError> {
-        self.driver
-            .read()
-            .await
-            .get_position()
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
-    async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-        self.driver
-            .read()
-            .await
-            .is_moving()
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
-    async fn is_absolute(&self) -> Result<bool, DeviceOpError> {
-        Ok(true)
-    }
-
-    async fn temperature(&self) -> Result<Option<f64>, DeviceOpError> {
-        self.driver
-            .read()
-            .await
-            .get_temperature()
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
-    async fn travel(&self) -> Result<(i32, f64), DeviceOpError> {
-        let focuser = self.driver.read().await;
-        Ok((focuser.get_max_position(), focuser.get_step_size()))
-    }
-
-    /// A busy SDK reads as a focuser at rest; the status poll corrects it
-    /// within one tick.
-    async fn capabilities(&self, _device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
-        let position = self.driver.read().await.get_position().await.ok();
-        let temperature = self
-            .driver
-            .read()
-            .await
-            .get_temperature()
-            .await
-            .ok()
-            .flatten();
-        let is_moving = self.driver.read().await.is_moving().await.unwrap_or(false);
-        let (max_position, step_size) = {
-            let focuser = self.driver.read().await;
-            (focuser.get_max_position(), focuser.get_step_size())
-        };
-        Ok(FocuserCapabilities {
-            max_position,
-            step_size: Some(step_size),
-            absolute: true,
-            position,
-            temperature,
-            is_moving,
-            can_halt: true,
-            ..Default::default()
-        })
-    }
-}
-
-/// An INDI focuser on its server's shared connection.
-pub(crate) struct IndiFocuserHandle {
-    device_id: String,
-    focuser: IndiFocuser,
-    client: std::sync::Arc<tokio::sync::RwLock<skotiq_indi::IndiClient>>,
-}
-
-impl IndiFocuserHandle {
-    pub(crate) fn new(
-        device_id: &str,
-        client: std::sync::Arc<tokio::sync::RwLock<skotiq_indi::IndiClient>>,
-        device_name: &str,
-    ) -> Self {
-        Self {
-            device_id: device_id.to_string(),
-            focuser: IndiFocuser::new(client.clone(), device_name),
-            client,
-        }
-    }
-
-    fn device_name(&self) -> &str {
-        self.focuser.device_name()
-    }
-}
-
-#[async_trait]
-impl RigDriver for IndiFocuserHandle {
-    async fn disconnect(&self) -> Result<(), DriverError> {
-        Ok(self.focuser.disconnect().await?)
-    }
-
-    async fn heartbeat(&self) -> Result<bool, String> {
-        self.focuser.check().await.map_err(|e| e.to_string())
-    }
-}
-
-#[async_trait]
-impl Focuser for IndiFocuserHandle {
-    async fn move_to(&self, position: i32) -> Result<(), DeviceOpError> {
-        focuser_move_with_timeout(
-            async {
-                self.focuser
-                    .move_to(position)
-                    .await
                     .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
             },
-            &self.device_id,
-            position,
-            None,
-            1,
-        )
-        .await
-        .map_err(|e| {
-            DeviceOpError::caused_by(
-                Some(self.device_id.clone()),
-                move_failed("INDI", self.device_name(), position, &e),
-                e,
-            )
-        })
-    }
-
-    async fn move_by(&self, steps: i32) -> Result<(), DeviceOpError> {
-        with_timeout_str(
-            async {
-                self.focuser
-                    .move_relative(steps)
-                    .await
-                    .map_err(|e| e.to_string())
-            },
             Timeouts::focuser_move(),
             &self.device_id,
             "move_relative",
@@ -283,110 +174,59 @@ impl Focuser for IndiFocuserHandle {
     }
 
     async fn halt(&self) -> Result<(), DeviceOpError> {
-        self.focuser
-            .abort_motion()
-            .await
-            .map_err(DeviceOpError::from)
+        let mut focuser = self.driver.write().await.ok_or_else(|| self.gone())?;
+        focuser.halt().await.map_err(DeviceOpError::from)
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
-        self.focuser
-            .get_position()
-            .await
-            .map_err(DeviceOpError::from)
+        let focuser = self.driver.read().await.ok_or_else(|| self.gone())?;
+        focuser.get_position().await.map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-        Ok(self.focuser.is_moving().await)
+        let focuser = self.driver.read().await.ok_or_else(|| self.gone())?;
+        focuser.is_moving().await.map_err(DeviceOpError::from)
     }
 
     async fn is_absolute(&self) -> Result<bool, DeviceOpError> {
-        Ok(self
-            .client
-            .read()
-            .await
-            .get_property_state(self.device_name(), indi::ABS_FOCUS_POSITION)
-            .await
-            .is_some())
+        let focuser = self.driver.read().await.ok_or_else(|| self.gone())?;
+        Ok(focuser.is_absolute().await)
     }
 
-    /// A focuser that advertises a temperature sensor and fails the read has
-    /// a problem; one without the property has no sensor.
     async fn temperature(&self) -> Result<Option<f64>, DeviceOpError> {
-        match self.focuser.get_temperature().await {
-            Ok(temp) => Ok(Some(temp)),
-            Err(e) => {
-                let has_sensor = self
-                    .client
-                    .read()
-                    .await
-                    .has_property(self.device_name(), indi::FOCUS_TEMPERATURE)
-                    .await;
-                if has_sensor {
-                    return Err(DeviceOpError::from(format!(
-                        "INDI focuser {} advertises a temperature sensor but the read failed: {}",
-                        self.device_name(),
-                        e
-                    )));
-                }
-                Ok(None)
-            }
-        }
+        let focuser = self.driver.read().await.ok_or_else(|| self.gone())?;
+        focuser.get_temperature().await.map_err(DeviceOpError::from)
     }
 
-    /// A value the focuser does not publish is reported as 0.
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError> {
-        let client = self.client.read().await;
-        let max_position = match client
-            .get_number(self.device_name(), indi::FOCUS_MAX, indi::FOCUS_MAX_VALUE)
-            .await
-        {
-            // Why: INDI wire f64 -> i32 step count.
-            Some(v) => v as i32,
-            None => {
-                warn!(
-                    "Failed to read INDI focuser max position for {}: property not available. Reporting unknown max position.",
-                    self.device_id
-                );
-                0
-            }
-        };
-        let step_size = match client
-            .get_number(self.device_name(), indi::FOCUS_STEP, indi::FOCUS_STEP_VALUE)
-            .await
-        {
-            Some(s) => s,
-            None => {
-                warn!(
-                    "Failed to read INDI focuser step size for {}: property not available. Reporting unknown step size.",
-                    self.device_id
-                );
-                0.0
-            }
-        };
-        Ok((max_position, step_size))
+        let focuser = self.driver.read().await.ok_or_else(|| self.gone())?;
+        Ok((
+            focuser.get_max_position().await,
+            focuser.get_step_size().await,
+        ))
     }
 
-    async fn capabilities(&self, _device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
-        let properties = self
-            .client
-            .read()
-            .await
-            .get_properties(self.device_name())
-            .await;
-        let has = |name: &str| properties.iter().any(|p| p.name == name);
-        let max_position = self.focuser.get_max_step().await.unwrap_or(0);
+    /// A read the driver refuses reads as absent or at rest; the status poll
+    /// corrects it within one tick.
+    async fn capabilities(&self, device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
+        let focuser = self.driver.read().await.ok_or_else(|| {
+            SkotiqError::hardware_error(device_id, format!("{} focuser not connected", self.protocol))
+        })?;
+        let max_position = focuser.get_max_position().await;
+        let step_size = focuser.get_step_size().await;
+        let temp_comp = focuser.temp_comp().await;
         Ok(FocuserCapabilities {
             max_position,
             max_increment: max_position,
-            step_size: self.focuser.get_step_size().await,
-            absolute: has(indi::ABS_FOCUS_POSITION),
-            temp_comp_available: has(indi::FOCUS_TEMPERATURE_COMP) || has(indi::FOCUS_TEMP_COMP),
-            temp_comp: self.focuser.is_temp_comp_enabled().await.unwrap_or(false),
-            temperature: self.focuser.get_temperature().await.ok(),
-            is_moving: self.focuser.is_moving().await,
-            position: self.focuser.get_position().await.ok(),
-            can_halt: has(indi::FOCUS_ABORT_MOTION),
+            // 0.0 is a step size the driver does not know.
+            step_size: (step_size > 0.0).then_some(step_size),
+            absolute: focuser.is_absolute().await,
+            temp_comp_available: temp_comp.is_some(),
+            temp_comp: temp_comp.unwrap_or(false),
+            position: focuser.get_position().await.ok(),
+            temperature: focuser.get_temperature().await.ok().flatten(),
+            is_moving: focuser.is_moving().await.unwrap_or(false),
+            can_halt: focuser.can_halt().await,
             ..Default::default()
         })
     }
@@ -503,5 +343,85 @@ impl Focuser for SimFocuser {
             can_reverse: true,
             ..Default::default()
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skotiq_device::{DeviceDriver, Vendor};
+
+    /// A focuser with no stop command, as a camera lens driven through its
+    /// body is.
+    #[derive(Debug)]
+    struct Lens;
+
+    #[async_trait]
+    impl DeviceDriver for Lens {
+        fn id(&self) -> &str {
+            "native:test_lens:0"
+        }
+        fn name(&self) -> &str {
+            "Lens"
+        }
+        fn vendor(&self) -> Vendor {
+            Vendor::Fujifilm
+        }
+        fn is_connected(&self) -> bool {
+            true
+        }
+        async fn connect(&mut self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn disconnect(&mut self) -> Result<(), DriverError> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl FocuserDriver for Lens {
+        async fn move_to(&mut self, _position: i32) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn move_relative(&mut self, _steps: i32) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn get_position(&self) -> Result<i32, DriverError> {
+            Ok(100)
+        }
+        async fn is_moving(&self) -> Result<bool, DriverError> {
+            Ok(false)
+        }
+        async fn can_halt(&self) -> bool {
+            false
+        }
+        async fn halt(&mut self) -> Result<(), DriverError> {
+            Err(DriverError::NotSupported)
+        }
+        async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
+            Ok(None)
+        }
+        async fn get_max_position(&self) -> i32 {
+            1000
+        }
+        async fn get_step_size(&self) -> f64 {
+            0.0
+        }
+    }
+
+    /// Every vendor focuser was offered a Halt, and the lens answered it
+    /// with success although nothing stops a lens.
+    #[tokio::test]
+    async fn a_focuser_that_cannot_halt_offers_no_halt_and_refuses_one() {
+        let focuser = DriverFocuser::vendor("native:test_lens:0", Box::new(Lens));
+        let capabilities = focuser
+            .capabilities("native:test_lens:0")
+            .await
+            .expect("capabilities");
+        assert!(!capabilities.can_halt);
+        assert!(matches!(
+            focuser.halt().await,
+            Err(DeviceOpError::Unsupported { .. })
+        ));
     }
 }

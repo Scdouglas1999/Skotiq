@@ -15,13 +15,14 @@ import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../providers/profile_activation_writethrough.dart';
-import 'logging_service.dart';
 import '../providers/settings_provider.dart';
 import '../utils/json_validation.dart';
 import 'device_service.dart';
 import 'optical_train_limits.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
+import '../providers/device_service_providers.dart';
+import '../providers/logging_service_provider.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';
@@ -496,7 +497,3 @@ class ProfileService {
     return true;
   }
 }
-
-final profileServiceProvider = Provider<ProfileService>((ref) {
-  return ProfileService(ref);
-});

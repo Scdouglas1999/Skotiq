@@ -12,7 +12,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 
-import '../../../models/command_action_result.dart';
+import '../../../services/command_action_result.dart';
 import '../../../services/manual_capture_controller.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../services/sequence_action_service.dart';

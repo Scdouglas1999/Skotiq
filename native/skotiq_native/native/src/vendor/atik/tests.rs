@@ -960,8 +960,8 @@ fn a_cooler_without_set_point_control_is_not_offered_as_settable() {
     assert_eq!(camera.status(&sdk).unwrap().cooler_power, Some(20.0));
 }
 
-#[test]
-fn filter_wheels_are_listed_in_their_own_index_space() {
+#[tokio::test]
+async fn filter_wheels_are_listed_in_their_own_index_space() {
     let _fake = install(Fake {
         devices: Vec::new(),
         efws: vec![(2, Some("EFW-A")), (1, Some("EFW-B"))],
@@ -982,7 +982,7 @@ fn filter_wheels_are_listed_in_their_own_index_space() {
     };
     wheel.open(&sdk).expect("the wheel connects");
     assert_eq!(wheel.device_index, 1);
-    assert_eq!(wheel.get_filter_count(), 7);
+    assert_eq!(wheel.get_filter_count().await, 7);
     with(|f| f.efw_position = 4);
     assert_eq!(wheel.read_position(&sdk).unwrap(), (4, false));
 }

@@ -7,7 +7,6 @@
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::DeviceManager;
-use skotiq_indi::names as indi;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -39,30 +38,31 @@ fn handle(
     client: Arc<RwLock<skotiq_indi::IndiClient>>,
     device_name: &str,
 ) -> Option<DeviceHandle> {
-    use crate::device_manager::rig::camera::IndiCameraHandle;
-    use crate::device_manager::rig::filter_wheel::IndiWheel;
-    use crate::device_manager::rig::focuser::IndiFocuserHandle;
-    use crate::device_manager::rig::mount::IndiMountHandle;
+    use crate::device_manager::rig::camera::DriverCamera;
+    use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
+    use crate::device_manager::rig::focuser::DriverFocuser;
+    use crate::device_manager::rig::mount::DriverMount;
     use skotiq_indi::*;
     Some(match info.device_type {
-        DeviceType::Camera => DeviceHandle::Camera(Arc::new(IndiCameraHandle::new(
+        DeviceType::Camera => DeviceHandle::Camera(Arc::new(DriverCamera::indi(
             &info.id,
             client,
             device_name,
         ))),
-        DeviceType::Mount => DeviceHandle::Mount(Arc::new(IndiMountHandle::new(
+        DeviceType::Mount => DeviceHandle::Mount(Arc::new(DriverMount::indi(
             &info.id,
             client,
             device_name,
         ))),
-        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(IndiFocuserHandle::new(
+        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(DriverFocuser::indi(
             &info.id,
             client,
             device_name,
         ))),
-        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(IndiWheel::new(
+        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(DriverFilterWheel::indi(
             &info.id,
-            IndiFilterWheel::new(client, device_name),
+            client,
+            device_name,
         ))),
         DeviceType::Dome => DeviceHandle::Dome(Arc::new(IndiDome::new(client, device_name))),
         DeviceType::Rotator => {
@@ -96,62 +96,6 @@ impl DeviceManager {
             } => Ok((host, port, device_name)),
             _ => Err(format!("Invalid INDI device ID format: {}", device_id)),
         }
-    }
-
-    pub(crate) async fn indi_mount_tracking_rate(
-        client: &skotiq_indi::IndiClient,
-        device_name: &str,
-    ) -> (TrackingRate, bool) {
-        let Some(prop) = client
-            .get_property(device_name, indi::TELESCOPE_TRACK_RATE)
-            .await
-        else {
-            return (TrackingRate::Sidereal, false);
-        };
-
-        let can_set_tracking_rate = prop.perm != skotiq_indi::IndiPermission::ReadOnly;
-        for element in prop.elements {
-            // Why: `IndiClient::get_switch` returns
-            // `Option<bool>` — `None` means "INDI client has not yet received
-            // a definition for this device.property.element pair" (the
-            // background reader publishes asynchronously). We are looping
-            // every element of TELESCOPE_TRACK_RATE looking for the one
-            // currently set to ON; a not-yet-streamed element is by
-            // definition not-currently-active, so `unwrap_or(false)` correctly
-            // tells the loop to skip ahead and check the next candidate.
-            // If NO element ever resolves to On the function falls through to
-            // the post-loop default of (Sidereal, false), matching the INDI
-            // convention that an absent state implies the default sidereal
-            // rate.
-            if !client
-                .get_switch(device_name, indi::TELESCOPE_TRACK_RATE, &element)
-                .await
-                .unwrap_or(false)
-            {
-                continue;
-            }
-
-            let upper = element.to_ascii_uppercase();
-            let rate = if upper.contains("SIDEREAL") {
-                Some(TrackingRate::Sidereal)
-            } else if upper.contains("LUNAR") {
-                Some(TrackingRate::Lunar)
-            } else if upper.contains("SOLAR") {
-                Some(TrackingRate::Solar)
-            } else if upper.contains("KING") {
-                Some(TrackingRate::King)
-            } else if upper.contains("CUSTOM") {
-                Some(TrackingRate::Custom)
-            } else {
-                None
-            };
-
-            if let Some(rate) = rate {
-                return (rate, can_set_tracking_rate);
-            }
-        }
-
-        (TrackingRate::Sidereal, can_set_tracking_rate)
     }
 
     pub(crate) async fn connect_indi(&self, info: &DeviceInfo) -> Result<(), String> {
@@ -208,7 +152,8 @@ impl DeviceManager {
     }
 
     /// The shared connection to the INDI server at `host:port`, opened on
-    /// first use. Every device on one server goes through one connection.
+    /// first use and again when it was lost. Every device on one server goes
+    /// through one connection.
     pub(crate) async fn indi_server(
         &self,
         host: &str,
@@ -217,6 +162,15 @@ impl DeviceManager {
         let server_key = format!("{host}:{port}");
         let mut clients = self.indi_clients.write().await;
         if let Some(client) = clients.get(&server_key) {
+            // A client whose server went away tries to get it back a few
+            // times and then stops. It is connected again here, in place,
+            // so the devices that still hold it are reached again too.
+            let mut pooled = client.write().await;
+            if !pooled.is_connected().await {
+                pooled.disconnect().await?;
+                pooled.connect().await?;
+            }
+            drop(pooled);
             return Ok(client.clone());
         }
         let mut client = skotiq_indi::IndiClient::new(host, Some(port));

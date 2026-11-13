@@ -70,7 +70,7 @@ use skotiq_device::{ImageData, SubFrame};
 /// Real gain/offset values are never negative, so a negative marker is
 /// unambiguous, and [`camera_setting_or_unknown`] converts it back to `None` at
 /// the one boundary that feeds FITS metadata.
-pub(crate) const UNKNOWN_CAMERA_SETTING: i32 = -1;
+pub(crate) use skotiq_device::UNKNOWN_CAMERA_SETTING;
 
 /// `None` when a camera setting was recorded as unreadable, else `Some(value)`.
 pub(crate) fn camera_setting_or_unknown(value: i32) -> Option<i32> {
@@ -98,19 +98,6 @@ pub(crate) fn frame_setting(
     camera_setting_or_unknown(reported).or(commanded)
 }
 
-/// Parse the integer value out of a fixed-format 80-byte FITS header card.
-///
-/// FITS mandates `KEYWORD = value / comment` with the value right-justified in
-/// bytes 10..30, so splitting on `=` and taking everything before any `/` is
-/// sufficient — no full FITS parser needed for NAXIS1/NAXIS2. Returns `None`
-/// for a malformed card so the caller can fall back rather than trust a guess.
-pub(crate) fn parse_fits_card_u32(card: &[u8]) -> Option<u32> {
-    let text = std::str::from_utf8(card).ok()?;
-    let after_eq = text.split_once('=')?.1;
-    let value = after_eq.split('/').next()?.trim();
-    value.parse::<u32>().ok()
-}
-
 // The simulated sky and the plate scale it hangs off now live in
 // `crate::sim_capture`, next to the renderer, so the Imaging screen's manual
 // capture and this sequencer download cannot drift apart. Imported here only
@@ -125,50 +112,7 @@ pub(crate) mod exposure;
 pub(crate) mod settings;
 pub(crate) mod status;
 #[cfg(test)]
-mod fits_card_tests {
-    use super::parse_fits_card_u32;
-
-    /// These two cards are the verbatim 80-byte headers from a BLOB captured off
-    /// a live `indi_simulator_ccd` at 2x2 binning, where CCD_INFO advertised the
-    /// unbinned 1280x1024 while the frame was really 640x512. Reading NAXIS is
-    /// what keeps those two facts from being confused.
-    #[test]
-    fn parses_naxis_cards_from_a_real_indi_blob() {
-        let naxis1 =
-            b"NAXIS1  =                  640 / length of data axis 1                          ";
-        let naxis2 =
-            b"NAXIS2  =                  512 / length of data axis 2                          ";
-        assert_eq!(parse_fits_card_u32(naxis1), Some(640));
-        assert_eq!(parse_fits_card_u32(naxis2), Some(512));
-    }
-
-    #[test]
-    fn rejects_cards_it_cannot_trust() {
-        // No '=', a non-numeric value, and a float value all fall back to None
-        // so the caller keeps its own dimensions instead of using a bad parse.
-        assert_eq!(parse_fits_card_u32(b"COMMENT no equals sign here"), None);
-        assert_eq!(
-            parse_fits_card_u32(b"NAXIS1  =                    T / bad"),
-            None
-        );
-        assert_eq!(
-            parse_fits_card_u32(b"NAXIS1  =                 6.40 / float"),
-            None
-        );
-        assert_eq!(
-            parse_fits_card_u32(b"NAXIS1  =                   -1 / negative"),
-            None
-        );
-    }
-
-    #[test]
-    fn parses_a_card_with_no_comment() {
-        assert_eq!(
-            parse_fits_card_u32(b"NAXIS1  =                 4144"),
-            Some(4144)
-        );
-    }
-
+mod camera_setting_tests {
     /// A gain of 0 is a LEGITIMATE setting (unity gain on many cameras), so the
     /// unknown marker must be distinguishable from it — that conflation is what
     /// let a failed read outrank the operator's configured gain.

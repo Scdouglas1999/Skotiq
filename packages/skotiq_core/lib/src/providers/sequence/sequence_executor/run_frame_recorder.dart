@@ -12,8 +12,6 @@ import '../../../models/imaging/imaging_models.dart';
 import '../../../services/capture_preview_loader.dart';
 import '../../../services/frame_quality_score.dart';
 import '../../../services/logging_service.dart';
-import '../../../services/science/science_processing_service.dart'
-    show scienceProcessingServiceProvider;
 import '../../dark_library_provider.dart' show darkLibraryServiceProvider;
 import '../../database_provider.dart' show imagesDaoProvider;
 import '../../equipment_provider.dart';
@@ -29,6 +27,8 @@ import 'frame_attribution.dart';
 import 'run_frame_science.dart';
 import 'run_stats_ledger.dart';
 import 'run_target_binding.dart';
+import '../../capture_preview_loader_provider.dart';
+import '../../science/science_processing_service_provider.dart';
 
 /// Everything a run records about a frame it captured: the run-stats frame
 /// counters, the `captured_images` row, the imaging-session counters, the

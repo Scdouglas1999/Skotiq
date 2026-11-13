@@ -267,8 +267,8 @@ async fn focuser_rows<F: FocuserDriver>(out: &mut String, make: impl Fn() -> F) 
     row!(out, "is_moving", show(make().is_moving().await));
     row!(out, "halt", show(make().halt().await));
     row!(out, "get_temperature", show(make().get_temperature().await));
-    row!(out, "get_max_position", make().get_max_position());
-    row!(out, "get_step_size", make().get_step_size());
+    row!(out, "get_max_position", make().get_max_position().await);
+    row!(out, "get_step_size", make().get_step_size().await);
 }
 
 async fn wheel_rows<W: FilterWheelDriver>(out: &mut String, make: impl Fn() -> W) {
@@ -297,7 +297,7 @@ async fn wheel_rows<W: FilterWheelDriver>(out: &mut String, make: impl Fn() -> W
     );
     row!(out, "get_position", show(make().get_position().await));
     row!(out, "is_moving", show(make().is_moving().await));
-    row!(out, "get_filter_count", make().get_filter_count());
+    row!(out, "get_filter_count", make().get_filter_count().await);
     row!(
         out,
         "get_filter_names",

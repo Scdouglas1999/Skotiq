@@ -15,7 +15,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:path/path.dart' as p;
 import '../../../utils/exported_file_reveal.dart';
-import '../../../widgets/annotation_overlay.dart';
+import 'annotation_overlay.dart';
 import '../../settings/catalog_settings_screen.dart';
 import '../imaging_science_state.dart';
 import 'annotation_filters.dart';

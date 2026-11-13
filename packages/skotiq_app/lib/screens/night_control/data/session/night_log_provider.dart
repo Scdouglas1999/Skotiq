@@ -25,7 +25,7 @@ import 'package:skotiq_core/providers.dart'
     show cameraStateProvider, eventHistoryProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, mountStateProvider, rotatorStateProvider;
 import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
+import '../../../../services/run_dashboard_providers.dart'
     show
         RunDashboardEvent,
         RunDashboardEventSeverity,

@@ -7,12 +7,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../services/logging_service.dart';
 import '../../services/remote_sequence_editor_sync_lifecycle.dart';
 import '../../services/sequence_file_service.dart';
 import '../../services/sequence_repository.dart';
 import '../backend_provider.dart';
 import '../sequence_provider.dart';
+import '../logging_service_provider.dart';
+import '../sequence_file_service_provider.dart';
+import '../sequence_repository_provider.dart';
 
 const _logSource = 'RemoteSequenceEditorSync';
 

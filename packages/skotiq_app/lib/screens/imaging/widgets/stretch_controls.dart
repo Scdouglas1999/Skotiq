@@ -7,7 +7,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Provides descriptions for each stretch method, used in tooltips.
 const Map<AutoStretchMethod, String> _methodDescriptions = {

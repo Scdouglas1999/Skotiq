@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/services.dart';
 
 import 'validation.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// The host's shared device command path ([DeviceCommands]): a command for
 /// the device in the host's slot goes through `DeviceService`, exactly as the

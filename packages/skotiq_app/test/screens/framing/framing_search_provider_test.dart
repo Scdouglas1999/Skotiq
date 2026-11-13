@@ -7,6 +7,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import 'package:skotiq_core/providers.dart';
 
 const _m42 = DeepSkyObject(
   id: 'M42',

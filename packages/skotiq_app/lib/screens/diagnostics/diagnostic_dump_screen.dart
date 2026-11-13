@@ -14,7 +14,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
-import '../settings/settings_sections.dart';
+import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
 
 /// Directory the desktop save dialog should open in.

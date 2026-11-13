@@ -18,6 +18,7 @@ import 'package:skotiq_core/src/providers/sequence/sequence_executor/run_frame_s
 
 import '../../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/sequence/run_frame_assessment.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {

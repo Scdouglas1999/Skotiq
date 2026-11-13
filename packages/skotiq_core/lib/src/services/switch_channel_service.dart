@@ -10,6 +10,8 @@ import 'device_exceptions.dart';
 import 'error_service.dart';
 import 'logging_service.dart';
 import '../backend/remote_host.dart';
+import '../providers/error_service_provider.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Type alias for the switch-bridge `apiSwitchGetMax` shim used by
 /// [SwitchChannelService.refreshChannels]. Tests override the static

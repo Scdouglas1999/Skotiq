@@ -4,7 +4,8 @@
 //! `255.255.255.255`). IPv6 discovery uses link-local all-nodes multicast (`ff02::1`)
 //! scoped per interface, per the ASCOM Alpaca discovery protocol.
 
-use crate::{AlpacaDevice, AlpacaDeviceType, AlpacaError, ApiVersion, ALPACA_DISCOVERY_PORT};
+use crate::{AlpacaDevice, AlpacaError, ApiVersion, ALPACA_DISCOVERY_PORT};
+use skotiq_device::ascom::AscomDeviceType;
 use if_addrs::{get_if_addrs, IfAddr};
 use serde::Deserialize;
 use socket2::{Domain, Protocol, Socket, Type};
@@ -358,22 +359,10 @@ pub async fn get_configured_devices_with_timeout(
         .value
         .into_iter()
         .filter_map(|d| {
-            let device_type = match d.device_type.to_lowercase().as_str() {
-                "camera" => Some(AlpacaDeviceType::Camera),
-                "telescope" => Some(AlpacaDeviceType::Telescope),
-                "focuser" => Some(AlpacaDeviceType::Focuser),
-                "filterwheel" => Some(AlpacaDeviceType::FilterWheel),
-                "dome" => Some(AlpacaDeviceType::Dome),
-                "rotator" => Some(AlpacaDeviceType::Rotator),
-                "safetymonitor" => Some(AlpacaDeviceType::SafetyMonitor),
-                "observingconditions" => Some(AlpacaDeviceType::ObservingConditions),
-                "switch" => Some(AlpacaDeviceType::Switch),
-                "covercalibrator" => Some(AlpacaDeviceType::CoverCalibrator),
-                _ => {
-                    debug!("Unknown device type: {}", d.device_type);
-                    None
-                }
-            }?;
+            let Some(device_type) = AscomDeviceType::from_name(&d.device_type) else {
+                debug!("Unknown device type: {}", d.device_type);
+                return None;
+            };
 
             Some(AlpacaDevice {
                 device_type,

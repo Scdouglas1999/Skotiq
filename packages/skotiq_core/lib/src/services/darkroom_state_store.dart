@@ -1,9 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart';
-import '../providers/database_provider.dart';
 
 /// Durable Darkroom state that must outlive the process: the master builds
 /// and the night-end runs. One JSON document per key, in the profile's own
@@ -35,7 +33,3 @@ class DarkroomStateStore {
     );
   }
 }
-
-final darkroomStateStoreProvider = Provider<DarkroomStateStore>(
-  (ref) => DarkroomStateStore(ref.watch(databaseProvider)),
-);

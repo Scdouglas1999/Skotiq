@@ -12,7 +12,8 @@ fn main() {
 
 #[cfg(windows)]
 fn main() {
-    use skotiq_ascom::{discover_devices, AscomCamera, AscomDeviceType};
+    use skotiq_ascom::{discover_devices, AscomCamera};
+    use skotiq_device::ascom::AscomDeviceType;
 
     skotiq_ascom::init_com().expect("Failed to init COM");
 

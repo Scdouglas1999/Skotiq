@@ -7,9 +7,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../../widgets/command_palette/command_palette.dart';
-import '../../../widgets/remote_connection_indicator.dart';
-import '../../../widgets/transient_alert_badge.dart';
+import '../command_palette/command_palette.dart';
+import '../../connection/remote_connection_indicator.dart';
+import 'transient_alert_badge.dart';
 import '../../../tours/tour_target.dart';
 import '../shell_chrome.dart';
 import 'shell_clock.dart';

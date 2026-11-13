@@ -268,10 +268,14 @@ impl CameraDriver for GPhoto2Camera {
         let names: Vec<String> = files.iter().map(|f| cstr_from_array(&f.name)).collect();
         let read = raw_file_index(&names);
         // A file that could not be read stays on the camera; one left in its
-        // memory goes before the next exposure.
+        // memory goes before the next exposure. Files on the memory card are
+        // the owner's copy and stay there, as the INDI driver leaves them
+        // (gphoto_driver.cpp:1008-1022).
         let bytes = self.download_file(&sdk, &files[read])?;
-        for file in &files {
-            self.delete_file(&sdk, file);
+        if self.facts.captures_to_ram() {
+            for file in &files {
+                self.delete_file(&sdk, file);
+            }
         }
         if matches!(made, MadeExposure::Timed(_)) && self.facts.needs_session_reset_after_capture()
         {

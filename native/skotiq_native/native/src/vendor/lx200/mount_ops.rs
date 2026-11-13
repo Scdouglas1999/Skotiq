@@ -692,29 +692,29 @@ impl MountDriver for Lx200Mount {
         Ok(*self.tracking_rate.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
-    fn can_slew(&self) -> bool {
+    async fn can_slew(&self) -> bool {
         true
     }
 
-    fn can_sync(&self) -> bool {
+    async fn can_sync(&self) -> bool {
         true
     }
 
-    fn can_pulse_guide(&self) -> bool {
+    async fn can_pulse_guide(&self) -> bool {
         true
     }
 
-    fn can_set_tracking_rate(&self) -> bool {
+    async fn can_set_tracking_rate(&self) -> bool {
         true
     }
 
-    fn can_find_home(&self) -> bool {
+    async fn can_find_home(&self) -> Result<bool, DriverError> {
         // Only OnStep has a home command (`:hC#`); see `find_home`.
-        self.mount_type.is_onstep()
+        Ok(self.mount_type.is_onstep())
     }
 
-    fn can_set_park(&self) -> bool {
+    async fn can_set_park(&self) -> Result<bool, DriverError> {
         // Only OnStep can store a park position (`:hQ#`); see `set_park`.
-        self.mount_type.is_onstep()
+        Ok(self.mount_type.is_onstep())
     }
 }

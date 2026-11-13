@@ -9,7 +9,6 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../utils/confirm_dialog.dart';
@@ -23,7 +22,7 @@ import '../../night_control/panel/camera/camera_panel_vm.dart'
     show NightCoolerState, nightCoolerState;
 import 'panel_widgets.dart';
 import '../../../router/app_routes.dart';
-import '../../analytics/analytics_route.dart';
+import '../../../router/analytics_route.dart';
 
 final parkMountOnEndProvider = StateProvider<bool>((ref) => false);
 

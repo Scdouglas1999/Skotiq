@@ -9,7 +9,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as be;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';

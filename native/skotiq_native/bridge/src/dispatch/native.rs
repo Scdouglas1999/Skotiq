@@ -7,10 +7,10 @@
 
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
-use crate::device_manager::rig::camera::VendorCamera;
-use crate::device_manager::rig::filter_wheel::VendorFilterWheel;
-use crate::device_manager::rig::focuser::VendorFocuser;
-use crate::device_manager::rig::mount::VendorMount;
+use crate::device_manager::rig::camera::DriverCamera;
+use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
+use crate::device_manager::rig::focuser::DriverFocuser;
+use crate::device_manager::rig::mount::DriverMount;
 use crate::device_manager::DeviceManager;
 #[allow(unused_imports)] // Trait methods on `dyn Native*` handles require these in scope.
 use skotiq_device::{CameraDriver, DeviceDriver, LongExposureNoiseReduction, MountDriver};
@@ -81,7 +81,7 @@ impl DeviceManager {
                 );
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Camera(Arc::new(VendorCamera::new(&info.id, camera))),
+                    DeviceHandle::Camera(Arc::new(DriverCamera::vendor(&info.id, camera))),
                 );
                 tracing::info!("Connected to native camera: {}", info.name);
             }
@@ -89,7 +89,7 @@ impl DeviceManager {
                 focuser.connect().await.map_err(|e| e.to_string())?;
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Focuser(Arc::new(VendorFocuser::new(&info.id, focuser))),
+                    DeviceHandle::Focuser(Arc::new(DriverFocuser::vendor(&info.id, focuser))),
                 );
                 tracing::info!("Connected to native focuser: {}", info.name);
             }
@@ -103,7 +103,7 @@ impl DeviceManager {
                 filterwheel.connect().await.map_err(|e| e.to_string())?;
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::FilterWheel(Arc::new(VendorFilterWheel::new(
+                    DeviceHandle::FilterWheel(Arc::new(DriverFilterWheel::vendor(
                         &info.id,
                         filterwheel,
                     ))),
@@ -126,7 +126,7 @@ impl DeviceManager {
                 mount.connect().await.map_err(|e| e.to_string())?;
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Mount(Arc::new(VendorMount::new(&info.id, mount))),
+                    DeviceHandle::Mount(Arc::new(DriverMount::vendor(&info.id, mount))),
                 );
                 tracing::info!("Connected to native mount: {}", info.name);
             }

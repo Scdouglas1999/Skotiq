@@ -66,6 +66,47 @@ impl std::fmt::Display for PierSide {
     }
 }
 
+/// One optional reading of a mount: `Err(NotSupported)` when the mount has
+/// no such reading, any other error when the read failed.
+pub type Reading<T> = Result<T, crate::DriverError>;
+
+/// What a mount reports in one status read.
+#[derive(Debug)]
+pub struct MountReadings {
+    /// Hours, in the mount's own frame.
+    pub right_ascension: f64,
+    /// Degrees, in the mount's own frame.
+    pub declination: f64,
+    pub tracking: bool,
+    pub slewing: bool,
+    /// `None` for a mount with no park state.
+    pub parked: Option<bool>,
+    pub at_home: Reading<bool>,
+    /// `Ok(Unknown)` reads as a mount that does not report its pier side.
+    pub side_of_pier: Reading<PierSide>,
+    /// Degrees above the horizon.
+    pub altitude: Reading<f64>,
+    /// Degrees, north through east.
+    pub azimuth: Reading<f64>,
+    /// Local apparent sidereal time in hours.
+    pub sidereal_time: Reading<f64>,
+    pub tracking_rate: Reading<TrackingRate>,
+    pub can_park: bool,
+    pub can_slew: bool,
+    pub can_sync: bool,
+    pub can_pulse_guide: bool,
+    pub can_set_tracking_rate: bool,
+}
+
+/// Which of site and clock a mount lets a driver read and write.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MountSiteAbilities {
+    pub can_read_site: bool,
+    pub can_write_site: bool,
+    pub can_read_time: bool,
+    pub can_write_time: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GuideDirection {
     North,

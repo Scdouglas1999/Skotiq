@@ -10,7 +10,8 @@ import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/sequence_provider.dart';
 import 'sequence_file_service.dart';
-import 'sequence_repository.dart';
+import '../providers/sequence_file_service_provider.dart';
+import '../providers/sequence_repository_provider.dart';
 
 /// Settings key holding the plan open in the editor: its document, the saved
 /// plan it belongs to, and whether it has unsaved changes.
@@ -33,44 +34,6 @@ const Duration kOpenPlanDebounce = Duration(seconds: 1);
 /// editor that is still empty at launch would otherwise erase the plan it is
 /// about to get back.
 final openPlanRestoreDecidedProvider = StateProvider<bool>((ref) => false);
-
-/// Keeps the plan open in the editor in the settings store, saved or not, so
-/// a restart (an update, a crash, a reboot of the rig) brings the same plan
-/// back. On a host only: a linked client shows the host's plan and follows it
-/// again when it reconnects.
-final openPlanLifecycleProvider = Provider<void>((ref) {
-  if (ref.watch(backendProvider).remoteHost != null) return;
-  String? written;
-  Future<void> persist() async {
-    if (!ref.read(openPlanRestoreDecidedProvider)) return;
-    // A plan the scheduler or a mosaic put in the editor is theirs to bring
-    // back; the operator's own plan is what is kept.
-    if (ref.read(activePlanOwnerProvider) != ActivePlanOwner.manual) return;
-    final document = openPlanJson(ref.read) ?? '';
-    if (document == written) return;
-    final dao = ref.read(settingsDaoProvider);
-    written ??= await dao.getSetting(kOpenPlanKey) ?? '';
-    if (document == written) return;
-    await dao.setSetting(kOpenPlanKey, document);
-    written = document;
-  }
-
-  void persistQuietly() => unawaited(persist().catchError((Object _) {}));
-
-  Timer? debounce;
-  ref.listen<Sequence?>(currentSequenceProvider, (_, _) {
-    debounce?.cancel();
-    debounce = Timer(kOpenPlanDebounce, persistQuietly);
-  });
-  ref.listen<bool>(openPlanRestoreDecidedProvider, (_, decided) {
-    if (decided) persistQuietly();
-  });
-  final timer = Timer.periodic(kOpenPlanInterval, (_) => persistQuietly());
-  ref.onDispose(() {
-    timer.cancel();
-    debounce?.cancel();
-  });
-});
 
 /// The document of an open plan: what `/api/sequencer/editor-sequence`, the
 /// open-plan channel and the kept plan all carry. [owner] is left out of the

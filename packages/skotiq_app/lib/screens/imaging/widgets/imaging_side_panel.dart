@@ -4,7 +4,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/filter_wheel_selector.dart';
+import 'filter_wheel_selector.dart';
 import '../../../tours/tour_target.dart';
 import '../tabs/mount_tab.dart';
 import 'annotation_panel.dart';

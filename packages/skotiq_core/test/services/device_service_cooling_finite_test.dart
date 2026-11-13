@@ -13,7 +13,7 @@ import 'package:skotiq_core/src/backend/disconnected_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

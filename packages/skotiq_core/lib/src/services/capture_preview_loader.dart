@@ -164,15 +164,6 @@ class CapturePreviewPublisher {
   }
 }
 
-final capturePreviewPublisherProvider = Provider<CapturePreviewPublisher>((
-  ref,
-) {
-  ref.watch(backendProvider);
-  final publisher = CapturePreviewPublisher();
-  ref.onDispose(publisher.cancelPending);
-  return publisher;
-});
-
 CapturedImageData capturedImageDataFromResult({
   required CapturedImageResult capturedImage,
   required ExposureSettings settings,

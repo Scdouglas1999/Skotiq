@@ -12,8 +12,8 @@
 library;
 
 import '../../router/app_routes.dart';
-import '../../screens/analytics/analytics_route.dart';
-import '../../screens/settings/settings_sections.dart';
+import '../../router/analytics_route.dart';
+import '../../router/settings_sections.dart';
 
 /// Optional navigation hint for an explainer's action button. A detail sheet
 /// uses [route] with GoRouter's `context.push` and labels the button [label].

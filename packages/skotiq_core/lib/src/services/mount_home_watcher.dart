@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/backend/backend_types.dart';
 
@@ -194,11 +193,3 @@ typedef MountHomeWatcherFactory =
       required Future<MountStatus> Function() readStatus,
       bool Function()? isCancelled,
     });
-
-/// The watcher factory the device service homes with. Overridden in tests to
-/// shrink the motion window and poll cadence; production keeps the defaults.
-final mountHomeWatcherFactoryProvider = Provider<MountHomeWatcherFactory>(
-  (ref) =>
-      ({required readStatus, isCancelled}) =>
-          MountHomeWatcher(readStatus: readStatus, isCancelled: isCancelled),
-);

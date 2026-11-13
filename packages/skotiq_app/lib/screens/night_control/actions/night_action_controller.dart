@@ -18,7 +18,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
+import '../../../services/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
 import '../data/plan/night_flip_provider.dart';
 import '../night_control_contracts.dart';

@@ -41,9 +41,9 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/add_target_header_helper.dart';
+import '../add_target_header_helper.dart';
 import '../../../utils/count_label.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import 'sequence_tree.dart' show revealSequenceRow, treeNodeKeyRegistryProvider;
 import 'target_coordinates.dart';
 import 'target_header_card.dart';

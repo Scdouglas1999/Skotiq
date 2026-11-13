@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io' show SocketException;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
@@ -142,8 +141,3 @@ class SesameNameResolver {
       .replaceAll('&apos;', "'")
       .replaceAll('&amp;', '&');
 }
-
-/// The exact online name resolver. Overridden in tests with a fake client.
-final sesameNameResolverProvider = Provider<SesameNameResolver>(
-  (ref) => SesameNameResolver(),
-);

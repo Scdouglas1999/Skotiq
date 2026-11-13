@@ -13,7 +13,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../services/smart_night_plan_launcher.dart';
+import '../smart_night_plan_launcher.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../widgets/camera_sensor_specs_dialog.dart';
 import '../../../utils/snackbar_helper.dart';

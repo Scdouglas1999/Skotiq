@@ -2,12 +2,10 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart' as db;
 import '../models/imaging/integration_curve.dart';
 import '../models/scheduler/integration_goal.dart';
-import '../providers/database_provider.dart';
 import 'scheduler/integration_goal_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
@@ -707,11 +705,3 @@ class _SmartMasterRow {
     required this.improvementCurveJson,
   });
 }
-
-/// Riverpod provider for [SmartProjectService].
-final smartProjectServiceProvider = Provider<SmartProjectService>((ref) {
-  return SmartProjectService(
-    database: ref.watch(databaseProvider),
-    goals: ref.watch(integrationGoalServiceProvider),
-  );
-});

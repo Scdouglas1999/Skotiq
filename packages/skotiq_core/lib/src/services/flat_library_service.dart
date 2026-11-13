@@ -1,9 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/flat_library_dao.dart';
-import '../providers/database_provider.dart';
 import '../models/imaging/integrated_master.dart';
 import 'calibration/fits_header_reader.dart';
 import 'post_session_seam.dart';
@@ -219,10 +217,3 @@ class FlatMasterBuild {
   final int libraryId;
   final BuildMasterFlatResult result;
 }
-
-final flatLibraryServiceProvider = Provider<FlatLibraryService>((ref) {
-  return FlatLibraryService(
-    dao: ref.watch(flatLibraryDaoProvider),
-    seam: ref.watch(postSessionSeamProvider),
-  );
-});

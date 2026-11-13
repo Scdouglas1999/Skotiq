@@ -10,12 +10,10 @@ import 'database_provider.dart';
 import '../database/database.dart';
 import '../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
 import '../models/backend/host_mutation_event.dart';
-import '../services/logging_service.dart';
 import '../services/notification_service.dart'
-    show NotificationEvent, notificationServiceProvider;
+    show NotificationEvent;
 import '../services/sky_atlas/sky_atlas_models.dart';
 import '../services/sky_atlas/sky_atlas_service.dart';
-import '../services/sky_atlas/sky_atlas_seam.dart';
 import '../settings/store_settings.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
@@ -23,6 +21,9 @@ import 'remote_snapshot_stream.dart';
 import 'science_provider.dart' show scienceSettingsProvider;
 import '../database/daos/settings_dao.dart';
 import '../models/backend/backend_types.dart';
+import 'logging_service_provider.dart';
+import 'notification_service_provider.dart';
+import 'sky_atlas/sky_atlas_seam_provider.dart';
 
 /// Riverpod surface for Pillar A ("Your Sky") — the personal sky atlas.
 ///

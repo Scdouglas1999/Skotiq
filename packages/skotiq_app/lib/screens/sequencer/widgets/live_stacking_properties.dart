@@ -5,8 +5,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/sequence/variable_picker.dart';
-import '../../accessible_dropdown.dart';
+import 'variable_picker.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 class LiveStackingProperties extends ConsumerStatefulWidget {
   final SkotiqColors colors;

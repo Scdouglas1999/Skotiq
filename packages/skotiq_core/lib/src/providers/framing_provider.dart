@@ -18,7 +18,6 @@ import '../models/framing_models.dart';
 import '../models/framing_plate_scale.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/target/target_models.dart';
-import '../services/mosaic_project_service.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
 import '../services/target_library_service.dart';
 import '../utils/coordinate_parser.dart';
@@ -30,6 +29,8 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'framing_image_cache_provider.dart';
 import 'profiles_provider.dart';
+import 'mosaic_project_service_provider.dart';
+import 'target_library_service_provider.dart';
 
 part 'framing_provider/models.dart';
 part 'framing_provider/support.dart';

@@ -477,6 +477,34 @@ fn an_exposure_uses_a_timed_speed_only_when_it_lasts_as_long() {
 }
 
 #[test]
+fn a_timed_speed_over_30_s_is_made_as_bulb_when_the_body_can() {
+    // libgphoto2 2.5.34's Fujifilm list (config.c fuji_new_shutterspeed).
+    let fuji = speeds(
+        "shutterspeed",
+        &[
+            "bulb", "60m", "4m", "2m", "60s", "30s", "1s", "1/2", "1/250",
+        ],
+    );
+    assert_eq!(
+        plan_exposure("Fuji Fujifilm X-T5", &fuji, true, 240.0).unwrap(),
+        ExposurePlan::Bulb
+    );
+    assert_eq!(
+        plan_exposure("Fuji Fujifilm X-T5", &fuji, true, 60.0).unwrap(),
+        ExposurePlan::Bulb
+    );
+    match plan_exposure("Fuji Fujifilm X-T5", &fuji, true, 30.0).unwrap() {
+        ExposurePlan::Timed(speed) => assert_eq!(speed.choice, "30s"),
+        other => panic!("{other:?}"),
+    }
+    // Without bulb the listed speed is the only way to make the frame.
+    match plan_exposure("Fuji Fujifilm X-T5", &fuji, false, 240.0).unwrap() {
+        ExposurePlan::Timed(speed) => assert_eq!(speed.choice, "4m"),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
 fn a_body_without_bulb_takes_the_nearest_speed_and_refuses_longer_exposures() {
     let nikon = speeds("shutterspeed2", NIKON_SPEEDS2);
     match plan_exposure("Nikon Z6", &nikon, false, 20.0).unwrap() {

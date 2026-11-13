@@ -10,6 +10,7 @@ import '../../models/science/science_models.dart';
 import '../../providers/database_provider.dart';
 import '../../services/logging_service.dart';
 import 'photometric_bands.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// Service for computing and applying photometric transformation coefficients.
 ///
@@ -422,8 +423,3 @@ class PhotometricTransformService {
     );
   }
 }
-
-final photometricTransformServiceProvider =
-    Provider<PhotometricTransformService>((ref) {
-      return PhotometricTransformService(ref);
-    });

@@ -7,10 +7,9 @@ import '../backend/skotiq_backend.dart';
 import '../errors/error_text.dart';
 import '../models/plate_solver.dart' as ps_model;
 import '../providers/async_scope.dart';
-import '../providers/backend_provider.dart';
 import '../providers/profiles_provider.dart' show opticalConfigProvider;
 import '../providers/settings_provider.dart';
-import 'logging_service.dart';
+import '../providers/logging_service_provider.dart';
 
 final _kEmptyCoeffs = Float64List(0);
 
@@ -472,13 +471,6 @@ class PlateSolveService {
     );
   }
 }
-
-final plateSolveServiceProvider = Provider<PlateSolveService>((ref) {
-  ref.watch(backendProvider);
-  final service = PlateSolveService(ref);
-  ref.onDispose(service.retire);
-  return service;
-});
 
 /// Whether two results describe the same solve outcome.
 ///

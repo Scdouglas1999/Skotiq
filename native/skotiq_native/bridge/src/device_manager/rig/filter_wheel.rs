@@ -2,16 +2,16 @@
 //! The ASCOM filter wheel, over Alpaca or COM, is
 //! [`super::ascom::AscomFilterWheel`].
 
-use super::{closed, Exclusive, RigDriver};
+use super::{closed, RigDriver, Slot};
 use crate::api::devices::simulation::get_sim_filterwheel;
 use crate::device_capabilities::FilterWheelCapabilities;
 use crate::device_manager::ops::{sim_faults, sim_gate};
+use crate::device_manager::identity::DeviceIdentity;
+use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{DriverError, FilterWheelDriver};
-use skotiq_indi::names as indi;
-use skotiq_indi::IndiFilterWheel;
 use std::time::Duration;
 
 #[async_trait]
@@ -42,62 +42,106 @@ pub(crate) trait FilterWheel: RigDriver {
     async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError>;
 }
 
-/// A vendor SDK filter wheel.
-pub(crate) struct VendorFilterWheel {
+type Driver = dyn FilterWheelDriver + Send + Sync;
+
+/// A filter wheel behind a [`FilterWheelDriver`]: a vendor SDK wheel or an
+/// INDI wheel.
+pub(crate) struct DriverFilterWheel {
     device_id: String,
-    driver: Exclusive<Box<dyn FilterWheelDriver + Send + Sync>>,
+    driver: Slot<Driver>,
+    /// "Native" or "INDI", in messages.
+    protocol: &'static str,
+    /// The protocol inside a sentence: "native", "INDI".
+    in_sentence: &'static str,
+    /// What is said when the driver cannot store filter names.
+    no_names: Option<&'static str>,
 }
 
-impl VendorFilterWheel {
-    pub(crate) fn new(device_id: &str, driver: Box<dyn FilterWheelDriver + Send + Sync>) -> Self {
+impl DriverFilterWheel {
+    /// A vendor SDK wheel: the driver keeps state between calls, so it is
+    /// reached one call at a time.
+    pub(crate) fn vendor(device_id: &str, driver: Box<Driver>) -> Self {
         Self {
             device_id: device_id.to_string(),
-            driver: Exclusive::new(driver),
+            driver: Slot::held(driver),
+            protocol: "Native",
+            in_sentence: "native",
+            no_names: None,
+        }
+    }
+
+    pub(crate) fn indi(
+        device_id: &str,
+        client: std::sync::Arc<tokio::sync::RwLock<skotiq_indi::IndiClient>>,
+        device_name: &str,
+    ) -> Self {
+        let device_name = device_name.to_string();
+        Self {
+            device_id: device_id.to_string(),
+            driver: Slot::per_call(move || {
+                Box::new(skotiq_indi::IndiFilterWheel::new(client.clone(), &device_name))
+                    as Box<Driver>
+            }),
+            protocol: "INDI",
+            in_sentence: "INDI",
+            no_names: Some("INDI filter name setting is unavailable in this manager path"),
         }
     }
 
     fn not_connected(&self) -> DeviceOpError {
         DeviceOpError::not_connected(
             Some(self.device_id.clone()),
-            "Native filter wheel not connected",
+            format!("{} filter wheel not connected", self.protocol),
         )
     }
 }
 
 #[async_trait]
-impl RigDriver for VendorFilterWheel {
+impl RigDriver for DriverFilterWheel {
     async fn disconnect(&self) -> Result<(), DriverError> {
-        self.driver.write().await.disconnect().await
+        match self.driver.take().await {
+            Some(mut wheel) => wheel.disconnect().await,
+            None => Ok(()),
+        }
     }
 
     async fn heartbeat(&self) -> Result<bool, String> {
-        let wheel = self.driver.read().await;
-        if !wheel.is_connected() {
+        let Some(wheel) = self.driver.read().await else {
             return Ok(false);
-        }
-        wheel
-            .get_position()
-            .await
-            .map(|_| true)
-            .map_err(|e| format!("Native filter wheel liveness probe failed: {}", e))
+        };
+        wheel.heartbeat().await.map_err(|e| {
+            format!(
+                "{} filter wheel liveness probe failed: {}",
+                self.protocol, e
+            )
+        })
+    }
+
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        let Slot::Held(_) = self.driver else {
+            return None;
+        };
+        let driver = self.driver.read().await?;
+        Some(DeviceManager::identity_from_device(&self.device_id, &*driver))
     }
 }
 
 #[async_trait]
-impl FilterWheel for VendorFilterWheel {
+impl FilterWheel for DriverFilterWheel {
     async fn move_to_slot(&self, slot: i32) -> Result<(), DeviceOpError> {
         let device_id = &self.device_id;
         self.driver
             .write()
             .await
+            .ok_or_else(|| self.not_connected())?
             .move_to_position(slot)
             .await
             .map_err(|e| {
                 DeviceOpError::caused_by(
                     Some(device_id.clone()),
                     format!(
-                        "Failed to move native filter wheel {} to slot {}: {}",
-                        device_id, slot, e
+                        "Failed to move {} filter wheel {} to slot {}: {}",
+                        self.in_sentence, device_id, slot, e
                     ),
                     e,
                 )
@@ -107,206 +151,108 @@ impl FilterWheel for VendorFilterWheel {
         // starts, and a ZWO EFW can return SDK success for a command that
         // never changes the encoder position. The move has succeeded only
         // once the wheel reads back the requested slot.
-        super::ascom::wait_for_slot("Native", device_id, slot, Duration::from_secs(60), || async {
-            self.driver
-                .read()
-                .await
-                .get_position()
-                .await
-                .map_err(|error| {
+        super::ascom::wait_for_slot(
+            self.protocol,
+            device_id,
+            slot,
+            Duration::from_secs(60),
+            || async {
+                let wheel = self
+                    .driver
+                    .read()
+                    .await
+                    .ok_or_else(|| self.not_connected())?;
+                wheel.get_position().await.map_err(|error| {
                     if closed(&error) {
                         self.not_connected()
                     } else {
                         DeviceOpError::from(error)
                     }
                 })
-        })
+            },
+        )
         .await
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
-        self.driver
-            .read()
-            .await
-            .get_position()
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
-    async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-        self.driver
-            .read()
-            .await
-            .is_moving()
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
-    async fn config(&self) -> Result<(i32, Vec<String>), DeviceOpError> {
-        let wheel = self.driver.read().await;
-        let count = wheel.get_filter_count();
-        let names = wheel
-            .get_filter_names()
-            .await
-            .map_err(DeviceOpError::from)?;
-        Ok((count, names))
-    }
-
-    async fn set_names(&self, names: Vec<String>) -> Result<(), DeviceOpError> {
-        let mut wheel = self.driver.write().await;
-        for (slot, name) in names.iter().enumerate() {
-            // Why: a wheel has at most 16 slots; usize -> i32 is exact.
-            wheel
-                .set_filter_name(slot as i32, name.clone())
-                .await
-                .map_err(DeviceOpError::from)?;
-        }
-        Ok(())
-    }
-
-    async fn capabilities(&self, _device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
-        // Vendor SDKs that keep no filter labels (the ZWO EFW) refuse the read
-        // on first connect; the app then labels the slots by number.
-        let filter_names = self
+        let wheel = self
             .driver
             .read()
             .await
-            .get_filter_names()
-            .await
-            .unwrap_or_default();
-        let current_position = self.driver.read().await.get_position().await.ok();
-        // A busy SDK reads as a wheel at rest; the status poll corrects it.
-        let is_moving = self.driver.read().await.is_moving().await.unwrap_or(false);
-        let position_count = self.driver.read().await.get_filter_count();
-        Ok(FilterWheelCapabilities {
-            position_count,
-            current_position,
-            filter_names,
-            is_moving,
-            // `FilterWheelDriver` requires `set_filter_name`: every vendor
-            // wheel can be renamed (a ZWO EFW keeps the names it is given).
-            can_set_filter_names: true,
-            ..Default::default()
-        })
-    }
-}
-
-/// An INDI filter wheel on its server's shared connection.
-pub(crate) struct IndiWheel {
-    device_id: String,
-    wheel: IndiFilterWheel,
-}
-
-impl IndiWheel {
-    pub(crate) fn new(device_id: &str, wheel: IndiFilterWheel) -> Self {
-        Self {
-            device_id: device_id.to_string(),
-            wheel,
-        }
-    }
-}
-
-#[async_trait]
-impl RigDriver for IndiWheel {
-    async fn disconnect(&self) -> Result<(), DriverError> {
-        Ok(self.wheel.disconnect().await?)
-    }
-
-    async fn heartbeat(&self) -> Result<bool, String> {
-        self.wheel.check().await.map_err(|e| e.to_string())
-    }
-}
-
-#[async_trait]
-impl FilterWheel for IndiWheel {
-    async fn move_to_slot(&self, slot: i32) -> Result<(), DeviceOpError> {
-        self.wheel.move_to_position(slot).await.map_err(|e| {
-            DeviceOpError::caused_by(
-                Some(self.device_id.clone()),
-                format!(
-                    "Failed to set INDI filter wheel {} to slot {}: {}",
-                    self.wheel.device_name(),
-                    slot,
-                    e
-                ),
-                e,
-            )
-        })
-    }
-
-    async fn position(&self) -> Result<i32, DeviceOpError> {
-        self.wheel.get_position().await.map_err(DeviceOpError::from)
+            .ok_or_else(|| self.not_connected())?;
+        wheel.get_position().await.map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-        Ok(self.wheel.is_moving().await)
+        let wheel = self
+            .driver
+            .read()
+            .await
+            .ok_or_else(|| self.not_connected())?;
+        wheel.is_moving().await.map_err(DeviceOpError::from)
     }
 
     /// A failed read is reported as one. An empty list instead would make the
     /// callers answer "filter not found in the wheel" for what is a
     /// connection problem.
     async fn config(&self) -> Result<(i32, Vec<String>), DeviceOpError> {
-        let names = self.wheel.get_names().await.map_err(|e| {
+        let wheel = self
+            .driver
+            .read()
+            .await
+            .ok_or_else(|| self.not_connected())?;
+        let names = wheel.get_filter_names().await.map_err(|e| {
             DeviceOpError::caused_by(
                 Some(self.device_id.clone()),
                 format!(
-                    "Failed to read INDI filter names for {}: {}",
-                    self.wheel.device_name(),
-                    e
+                    "Failed to read {} filter names for {}: {}",
+                    self.in_sentence, self.device_id, e
                 ),
                 e,
             )
         })?;
-        let count = names.len() as i32;
-        Ok((count, names))
+        Ok((wheel.get_filter_count().await, names))
     }
 
-    async fn set_names(&self, _names: Vec<String>) -> Result<(), DeviceOpError> {
-        let msg = "INDI filter name setting is unavailable in this manager path";
-        tracing::warn!("filter_wheel_set_filter_names: {}", msg);
-        Err(DeviceOpError::unsupported(msg))
-    }
-
-    /// The slot count is the FILTER_SLOT range when the driver publishes
-    /// one, otherwise the number of names.
-    async fn capabilities(&self, _device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
-        use skotiq_indi::IndiPermission;
-        let device_name = self.wheel.device_name();
-        let filter_names = self.wheel.get_names().await.unwrap_or_default();
-        let (slot_limits, name_property_writable) = {
-            let client = self.wheel.client().read().await;
-            let limits = client
-                .get_number_limits(device_name, indi::FILTER_SLOT, indi::FILTER_SLOT_VALUE)
-                .await;
-            let writable = client
-                .get_properties(device_name)
+    async fn set_names(&self, names: Vec<String>) -> Result<(), DeviceOpError> {
+        let mut wheel = self
+            .driver
+            .write()
+            .await
+            .ok_or_else(|| self.not_connected())?;
+        for (slot, name) in names.iter().enumerate() {
+            // Why: a wheel has at most 16 slots; usize -> i32 is exact.
+            wheel
+                .set_filter_name(slot as i32, name.clone())
                 .await
-                .iter()
-                .find(|p| p.name == indi::FILTER_NAME)
-                .is_some_and(|p| {
-                    matches!(
-                        p.perm,
-                        IndiPermission::WriteOnly | IndiPermission::ReadWrite
-                    )
-                });
-            (limits, writable)
-        };
-        let position_count = slot_limits
-            .and_then(|limits| match (limits.min, limits.max) {
-                // A whole number of slots, so the cast is exact.
-                (Some(min), Some(max)) if max >= min => Some((max - min + 1.0).round() as i32),
-                _ => None,
-            })
-            .or_else(|| i32::try_from(filter_names.len()).ok())
-            .unwrap_or(0);
+                .map_err(|e| match (&e, self.no_names) {
+                    (DriverError::NotSupported, Some(sentence)) => {
+                        tracing::warn!("filter_wheel_set_filter_names: {}", sentence);
+                        DeviceOpError::unsupported(sentence)
+                    }
+                    _ => DeviceOpError::from(e),
+                })?;
+        }
+        Ok(())
+    }
+
+    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
+        let wheel = self.driver.read().await.ok_or_else(|| {
+            SkotiqError::hardware_error(
+                device_id,
+                format!("{} filter wheel not connected", self.protocol),
+            )
+        })?;
         Ok(FilterWheelCapabilities {
-            position_count,
-            current_position: self.wheel.get_position().await.ok(),
-            filter_names,
-            focus_offsets: Vec::new(),
-            is_moving: self.wheel.is_moving().await,
-            can_set_filter_names: name_property_writable,
-            can_set_focus_offsets: false,
+            position_count: wheel.get_filter_count().await,
+            current_position: wheel.get_position().await.ok(),
+            // A wheel that keeps no labels (the ZWO EFW) refuses the read
+            // on first connect; the app then labels the slots by number.
+            filter_names: wheel.get_filter_names().await.unwrap_or_default(),
+            // A busy SDK reads as a wheel at rest; the status poll corrects it.
+            is_moving: wheel.is_moving().await.unwrap_or(false),
+            can_set_filter_names: wheel.can_set_filter_names().await,
+            ..Default::default()
         })
     }
 }
@@ -459,7 +405,7 @@ mod tests {
             Ok(false)
         }
 
-        fn get_filter_count(&self) -> i32 {
+        async fn get_filter_count(&self) -> i32 {
             7
         }
 
@@ -478,7 +424,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_vendor_wheel_is_read_and_closed_while_a_move_waits_for_arrival() {
-        let wheel = Arc::new(VendorFilterWheel::new(
+        let wheel = Arc::new(DriverFilterWheel::vendor(
             "native:test:0",
             Box::new(StuckWheel { connected: true }),
         ));

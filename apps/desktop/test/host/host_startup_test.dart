@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless/headless_auth_config.dart';
 import 'package:skotiq_desktop/host/host_startup.dart';
 import 'package:skotiq_desktop/host/host_steps.dart';

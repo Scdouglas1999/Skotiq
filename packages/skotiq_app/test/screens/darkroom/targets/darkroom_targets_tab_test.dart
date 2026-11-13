@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_app/screens/darkroom/darkroom_route.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
 import 'package:skotiq_app/screens/darkroom/targets/calibration_panel.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_providers.dart';

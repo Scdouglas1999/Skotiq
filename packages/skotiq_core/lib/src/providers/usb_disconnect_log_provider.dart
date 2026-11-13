@@ -24,9 +24,9 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/backend/event_types.dart' as core_events;
-import '../services/logging_service.dart';
 import '../services/usb_disconnect_log.dart';
 import 'backend_provider.dart';
+import 'logging_service_provider.dart';
 
 /// Singleton log per provider container.
 ///

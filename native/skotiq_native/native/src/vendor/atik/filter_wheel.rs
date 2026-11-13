@@ -190,7 +190,7 @@ impl FilterWheelDriver for AtikFilterWheel {
         self.read_position(&sdk).map(|(_, moving)| moving)
     }
 
-    fn get_filter_count(&self) -> i32 {
+    async fn get_filter_count(&self) -> i32 {
         self.filter_count
     }
 

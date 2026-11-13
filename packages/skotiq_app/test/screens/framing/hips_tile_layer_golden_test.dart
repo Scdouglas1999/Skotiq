@@ -37,7 +37,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/framing/painters/hips_tile_layer_painter.dart';
+import 'package:skotiq_app/widgets/hips/hips_tile_layer_painter.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 

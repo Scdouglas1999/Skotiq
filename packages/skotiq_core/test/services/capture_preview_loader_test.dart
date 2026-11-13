@@ -12,6 +12,7 @@ import 'package:skotiq_core/src/services/imaging_service.dart';
 
 import '../mocks/mock_backend.dart';
 import '../services/imaging_service_test.dart' show makeCapturedImageResult;
+import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
 
 class TestBackendNotifier extends BackendNotifier {
   TestBackendNotifier(super.ref, SkotiqBackend backend) {

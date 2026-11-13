@@ -9,7 +9,6 @@ import '../services/coimaging/coimaging_session_service.dart';
 import '../services/constellation/constellation_models.dart';
 import '../services/constellation/hub_credentials.dart';
 import '../services/constellation/constellation_service.dart';
-import '../services/logging_service.dart';
 import '../services/mosaic/collaborative_mosaic_service.dart';
 import '../services/mosaic/mosaic_upload_consent.dart';
 import '../services/mosaic_project_service.dart';
@@ -18,6 +17,8 @@ import 'settings_provider.dart' show appSettingsProvider;
 import 'sky_atlas_provider.dart';
 import '../utils/skotiq_data_directory.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'logging_service_provider.dart';
+import 'mosaic_project_service_provider.dart';
 
 /// Riverpod surface for the Constellation community hub client.
 ///

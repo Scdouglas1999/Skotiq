@@ -14,7 +14,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../services/file_download_service.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import 'calibration_panel.dart';
 
 String calibrationTypeLabel(CalibrationMasterType type) => switch (type) {

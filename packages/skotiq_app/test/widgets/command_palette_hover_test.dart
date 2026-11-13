@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/widgets/command_palette/command_palette.dart';
+import 'package:skotiq_app/screens/shell/command_palette/command_palette.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/harness.dart';

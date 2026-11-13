@@ -19,12 +19,11 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
-import '../darkroom_controller.dart' show DarkroomScope;
-import '../darkroom_route.dart' show DarkroomRouteScope;
 import 'channel_combine.dart';
 import 'darkroom_editor.dart';
 import '../darkroom_previews.dart';
 import 'darkroom_image_library.dart';
+import '../../../router/darkroom_route.dart';
 
 /// Width at and above which the image list sits beside an open editor.
 const double kDarkroomEditListBreakpoint = 1100;

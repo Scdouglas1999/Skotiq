@@ -17,6 +17,7 @@ import 'equipment/camera_state_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
 import 'imaging_provider.dart';
 import 'polar_alignment_provider.dart';
+import 'capture_preview_loader_provider.dart';
 
 /// The frame a feeder fetch shows, and what it is.
 class UtilityFrameRequest {

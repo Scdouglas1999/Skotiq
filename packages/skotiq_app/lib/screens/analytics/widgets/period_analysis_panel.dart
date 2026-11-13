@@ -11,7 +11,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
-import 'adaptive_chart_container.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 
 part 'period_analysis_panel/result_widgets.dart';
 part 'period_analysis_panel/period_charts.dart';

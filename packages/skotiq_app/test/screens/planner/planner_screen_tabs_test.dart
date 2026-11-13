@@ -18,7 +18,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_routes.dart';
-import 'package:skotiq_app/screens/planner/planner_route.dart';
 
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
@@ -32,7 +31,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../scheduler/scheduler_test_doubles.dart';
+import 'scheduler_test_doubles.dart';
 
 /// Stub AppSettingsNotifier with a real lat/lon so the planner's location
 /// guard short-circuits without hitting the DB (the new forecast tab uses the

@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/focus_panel.dart';
-import 'package:skotiq_app/widgets/focus_model_curve_card.dart';
+import 'package:skotiq_app/screens/imaging/widgets/focus_model_curve_card.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';

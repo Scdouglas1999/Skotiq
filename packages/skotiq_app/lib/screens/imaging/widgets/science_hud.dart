@@ -15,7 +15,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../analytics/widgets/science_status_banner.dart';
 import '../imaging_science_state.dart';
 import '../../../router/app_routes.dart';
-import '../../analytics/analytics_route.dart';
+import '../../../router/analytics_route.dart';
 
 part 'science_hud_parts/_offers_and_chips.dart';
 

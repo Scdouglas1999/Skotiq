@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/equipment_health_panel.dart';
 import 'package:skotiq_app/screens/equipment/widgets/equipment_readiness_panel.dart';
-import 'package:skotiq_app/widgets/readiness/readiness_panel.dart';
+import 'package:skotiq_app/screens/equipment/widgets/readiness_panel.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

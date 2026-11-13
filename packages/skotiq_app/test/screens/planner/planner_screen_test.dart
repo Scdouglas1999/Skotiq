@@ -6,12 +6,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:skotiq_app/screens/framing/altitude_chart.dart';
+import 'package:skotiq_app/widgets/altitude_chart.dart';
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_app/screens/suggestions/widgets/transient_alerts_panel.dart';
 import 'package:skotiq_core/backend.dart';
@@ -23,7 +22,7 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../scheduler/scheduler_test_doubles.dart';
+import 'scheduler_test_doubles.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
 
