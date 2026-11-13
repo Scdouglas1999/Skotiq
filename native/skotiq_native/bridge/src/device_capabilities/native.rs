@@ -1,4 +1,5 @@
-use super::*;
+use crate::device_capabilities::types::DeviceCapabilities;
+use crate::error::SkotiqError;
 
 /// Get capabilities for a native SDK camera or mount
 ///
@@ -17,7 +18,7 @@ use super::*;
 pub(crate) async fn get_native_capabilities(
     device_id: &str,
 ) -> Result<DeviceCapabilities, SkotiqError> {
-    let mgr = crate::api::get_device_manager();
+    let mgr = crate::device_manager::get_device_manager();
 
     // Look up the device in the device registry to determine its type
     let device_type = {

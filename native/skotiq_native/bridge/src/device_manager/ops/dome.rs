@@ -1,9 +1,9 @@
 //! Dome operations.
 
-use crate::device::*;
+use crate::device::{DeviceType, DomeStatus, ShutterState};
 use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use skotiq_device::ascom::ShutterStatus;
 
 use crate::device_manager::ops::state_events::property;

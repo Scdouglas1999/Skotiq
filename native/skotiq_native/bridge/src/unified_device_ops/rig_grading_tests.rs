@@ -79,7 +79,7 @@ fn load(path: &Path) -> ImageData {
 
 /// The metrics `instructions::expose` builds before grading a light.
 async fn metrics(path: &Path) -> FrameMetrics {
-    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
     let image = load(path);
     let measured = ops.measure_light_frame(&image).await.expect("measurement");
     FrameMetrics {

@@ -1,16 +1,19 @@
 use super::*;
-use crate::api::get_device_manager;
 use crate::device::{DeviceInfo, DeviceType, DriverType};
-use crate::device_manager::DeviceManager;
+use crate::device_manager::{get_device_manager, DeviceManager};
+use crate::event::imaging::ImagingEvent;
+use crate::unified_device_ops::exposure_wait::{
+    exposure_abort_generation, wait_for_camera_exposure_complete,
+};
+use crate::unified_device_ops::rich_header::build_rich_header;
 use skotiq_device::{
     CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver, DriverError,
     ExposureParams, ImageData, ImageMetadata, ReadoutMode, SensorInfo, SubFrame, Vendor,
     VendorFeatures,
 };
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use skotiq_sequencer::{CameraOps, ConnectionOps, MountOps};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct InstantCompleteCamera {
@@ -247,7 +250,7 @@ async fn exposure_polling_short_circuits_when_complete() {
         )),
     );
 
-    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
     let device_id_for_exposure = device_id.clone();
     let timed_result = tokio::time::timeout(std::time::Duration::from_millis(100), async move {
         ops.camera_start_exposure(skotiq_sequencer::ExposureRequest::new(
@@ -310,7 +313,7 @@ async fn a_camera_without_gain_control_writes_no_gain_or_offset_card() {
             }),
         );
 
-        let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+        let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
         let image = ops
             .camera_start_exposure(
                 skotiq_sequencer::ExposureRequest::new(&device_id, 0.5)
@@ -380,10 +383,10 @@ async fn an_exposure_given_up_mid_frame_announces_that_it_ended() {
         &device_id.clone(),
         Box::new(InstantCompleteCamera::never_completing(device_id.clone())),
     );
-    let mut events = crate::api::get_state().event_bus.subscribe();
+    let mut events = crate::state::get_state().event_bus.subscribe();
 
     // A stopped run drops its exposure future while the camera is exposing.
-    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
     let given_up = tokio::time::timeout(
         std::time::Duration::from_millis(300),
         ops.camera_start_exposure(skotiq_sequencer::ExposureRequest::new(&device_id, 30.0)),
@@ -394,7 +397,8 @@ async fn an_exposure_given_up_mid_frame_announces_that_it_ended() {
 
     let mut ended = false;
     while let Ok(event) = events.try_recv() {
-        if let crate::event::EventPayload::Imaging(ImagingEvent::ExposureCancelled) = event.payload
+        if let crate::event::bus::EventPayload::Imaging(ImagingEvent::ExposureCancelled) =
+            event.payload
         {
             ended = true;
         }
@@ -410,7 +414,7 @@ async fn exposure_polling_times_out_when_driver_never_completes() {
         300.0,
         std::time::Duration::from_millis(20),
         exposure_abort_generation("native:test_hung_camera").await,
-        crate::api::get_state(),
+        crate::state::get_state(),
         || {
             let poll_count = Arc::clone(&poll_count);
             async move {
@@ -442,7 +446,7 @@ async fn exposure_polling_times_out_when_driver_never_completes() {
 /// delegate to the `DeviceManager` rather than inheriting the defaults.
 #[tokio::test]
 async fn reconnect_overrides_are_wired_not_trait_default() {
-    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
 
     // Unknown device: the override consults the DeviceManager and reports
     // Ok(false). The trait default would instead return Err("not
@@ -498,7 +502,7 @@ async fn slew_targets_are_compared_in_the_frame_each_mount_reports() {
         .await;
     mgr.register_device(mount(sim_id, DriverType::Simulator), false)
         .await;
-    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
 
     // NGC 7380, the target of the 2026-09-14 failure.
     let (ra, dec) = (22.7892, 58.1324);
@@ -506,9 +510,7 @@ async fn slew_targets_are_compared_in_the_frame_each_mount_reports() {
     // The simulator's frame is process-wide; pin each one under the
     // simulator lock, as the frame tests do.
     let (sim_of_date, sim_j2000) = {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let of_date = {
             let _frame = crate::device_manager::epoch::SimFrameGuard::pin(
                 crate::device_manager::epoch::SimMountFrame::OfDate,

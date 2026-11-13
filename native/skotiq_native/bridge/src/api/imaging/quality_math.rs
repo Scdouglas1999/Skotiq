@@ -1,7 +1,8 @@
 //! Percentile/MAD statistics and the tiled quality-map computation used by the
 //! FITS linear-read and quality-map API entry points.
 
-use super::*;
+use super::{QualityFrameMetricsApi, QualityMapsResultApi, QualityTileMetricApi};
+use crate::error::SkotiqError;
 
 pub(crate) fn percentile_sorted(sorted_values: &[f64], p: f64) -> f64 {
     if sorted_values.is_empty() {

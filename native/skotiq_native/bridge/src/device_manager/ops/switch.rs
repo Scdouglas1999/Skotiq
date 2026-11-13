@@ -6,11 +6,11 @@
 //! `switch_can_write` could only ever answer `true` and the UI's read-only
 //! rendering would ship unexercised.
 
-use crate::device::*;
+use crate::device::DeviceType;
 use crate::device_manager::accessory::switch_value_on_step;
 use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 
 use crate::device_manager::ops::state_events::property;
 
@@ -196,15 +196,16 @@ impl DeviceManager {
 /// cannot pass against zero discoverable devices.
 #[cfg(test)]
 mod simulator_tests {
-    use crate::api::devices::simulation::{reset_sim_switch, sim_singleton_test_lock};
-    use crate::api::discovery::api_discover_devices;
-    use crate::api::get_device_manager;
     use crate::device::{DeviceType, DriverType};
+    use crate::device_manager::get_device_manager;
     use crate::device_manager::DeviceManager;
+    use crate::discovery::discover_devices;
+    use crate::simulator::sim_singleton_test_lock;
+    use crate::simulator::switch::reset_sim_switch;
     use std::sync::Arc;
     use std::time::Duration;
 
-    /// Channel indices of the simulated powerbox, mirroring `simulation.rs`.
+    /// Channel indices of the simulated powerbox, mirroring `simulator::switch`.
     const QUAD_OUTPUT: i32 = 0;
     const DEW_HEATER_A: i32 = 3;
     const INPUT_VOLTAGE: i32 = 5;
@@ -212,7 +213,7 @@ mod simulator_tests {
 
     async fn connect_simulated_switch() -> (String, Arc<DeviceManager>) {
         reset_sim_switch().await;
-        let devices = api_discover_devices(DeviceType::Switch)
+        let devices = discover_devices(DeviceType::Switch)
             .await
             .expect("switch discovery should succeed");
         let info = devices

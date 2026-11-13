@@ -1,4 +1,25 @@
-use super::*;
+use crate::builtin_guider::calibration::{matched_displacements, StarDisplacement};
+use crate::builtin_guider::config::{
+    GuiderConfig, Vec2, GUIDE_EDGE_MARGIN_PX, GUIDE_MAX_MATCH_DISTANCE_PX,
+    GUIDE_MAX_REFERENCE_ECCENTRICITY, GUIDE_MAX_TRACKED_STARS, GUIDE_MIN_REFERENCE_SNR,
+    GUIDE_MIN_STARS_FOR_CLIP, GUIDE_MIN_STAR_SEPARATION_PX, GUIDE_OUTLIER_SIGMA,
+    GUIDE_SATURATION_PEAK_ADU, MAD_TO_SIGMA,
+};
+use crate::builtin_guider::dither::abandon_dither;
+use crate::builtin_guider::loop_runner::resolve_devices;
+use crate::builtin_guider::state::{
+    BuiltinGuiderState, DecDirection, GuideCalibration, GuideFrame, GuideReferenceStar,
+    GuideSnapshot, SettleSpec, RMS_HISTORY_LEN,
+};
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
+use crate::event::equipment::EventSeverity;
+use crate::event::guiding::GuidingEvent;
+use crate::state::get_state;
+use skotiq_imaging::{DetectedStar, ImageData};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 
 /// Median of a slice (sorted copy). Empty slice -> 0.0.
 pub(crate) fn median(values: &[f64]) -> f64 {

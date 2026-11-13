@@ -12,11 +12,35 @@
 //! filter, so each master scales its subs to a reference sub of its own filter,
 //! itself registered onto the grid.
 
-use super::*;
+use super::{
+    emit_integration_progress, FRACTION_DONE, FRACTION_INTEGRATE, FRACTION_INTEGRATE_DONE,
+    FRACTION_WRITE,
+};
+use crate::api::post_session::args::{CalibrationArgs, IntegrationSettingsArgs};
+use crate::api::post_session::calibration_report::{build_calibration_report, CalibrationReport};
+use crate::api::post_session::cancel::{check_stage, RUNS};
+use crate::api::post_session::helpers::{
+    aligned_quality, build_normalization_config, build_registration_config, build_weight_formula,
+    ensure_parent_dir, extract_channel, image_to_f64, load_optional_flat, reject_label,
+    write_channel, write_preview_png, FlatMaster,
+};
+use crate::api::post_session::master_cards::{attach_wcs, copy_optics_cards, fits_header_of};
+use crate::api::post_session::masters::MasterSettingsArgs;
+use crate::run_cancel::CancelToken;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
 use skotiq_imaging::drizzle::{drizzle_frame_rows, DrizzleConfig, DrizzleFrame, DrizzleKernel};
-use skotiq_imaging::integration::integrate_frames_with_spatial_weights;
-use skotiq_imaging::normalization::NormalizationCoeffs;
+use skotiq_imaging::frame_weighting::{accumulation_weights, FrameQualityConfig, WeightFormula};
+use skotiq_imaging::integration::{
+    integrate_frames_with_spatial_weights, Combine, IntegrationConfig, IntegrationFrame, Reject,
+};
+use skotiq_imaging::normalization::{
+    apply_normalization, estimate_normalization, CoverageMask, NormalizationCoeffs,
+};
+use skotiq_imaging::registration::{min_registration_stars, Interpolator, TransformModel};
+use skotiq_imaging::{read_image, write_fits, FitsHeader, ImageData, PixelType};
+use std::path::Path;
 
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -729,8 +753,8 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         }
     }
 
-    let cancel = RunCancelToken::register(&args.run_id)?;
-    cancel.check("calibrating", None, None)?;
+    let cancel = RUNS.register(&args.run_id)?;
+    check_stage(&cancel, "calibrating", None, None)?;
     let mut cache = MasterCache::default();
 
     if args.validate_flats {
@@ -811,7 +835,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     let mut chosen = None;
     let mut first_refusal: Option<String> = None;
     for reference in candidates {
-        cancel.check("reference", None, None)?;
+        check_stage(&cancel, "reference", None, None)?;
         let refusal = (|| -> Result<_, String> {
             let masters = cache.masters(&reference.calibration)?;
             let light = calibrated_light(&reference.path, None, &reference.calibration, &masters)
@@ -979,7 +1003,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
             dark_scale: None,
         };
         for light in &group.lights {
-            cancel.check("registering", Some(done), Some(total as u32))?;
+            check_stage(&cancel, "registering", Some(done), Some(total as u32))?;
             emit_integration_progress(
                 "registering",
                 FRACTION_INTEGRATE * done as f32 / total as f32,
@@ -1158,7 +1182,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 let band_rows =
                     (budget / 4 / (ow as usize * (chan + 1) * 16)).clamp(1, oh as usize);
                 for y0 in (0..oh as usize).step_by(band_rows) {
-                    cancel.check("drizzling", Some(done), Some(total as u32))?;
+                    check_stage(&cancel, "drizzling", Some(done), Some(total as u32))?;
                     let band = drizzle_frame_rows(
                         &frame,
                         gw,
@@ -1197,7 +1221,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         summary.skipped = skipped.len() - skipped_before;
         groups.push(summary);
     }
-    cancel.check("integrating", Some(done), Some(total as u32))?;
+    check_stage(&cancel, "integrating", Some(done), Some(total as u32))?;
 
     if accepted.is_empty() {
         let outcome = NoSubsIntegrated {
@@ -1413,7 +1437,7 @@ fn integrate_spool(
     weights: &[f64],
     reject: Reject,
     budget: usize,
-    cancel: &RunCancelToken,
+    cancel: &CancelToken,
     progress: (u32, usize),
 ) -> Result<Integrated, String> {
     let (width, height, channels) = spool.geometry();
@@ -1440,7 +1464,12 @@ fn integrate_spool(
     let mut y0 = 0;
     while y0 < height {
         let band = rows.min(height - y0);
-        cancel.check("integrating", Some(progress.0), Some(progress.1 as u32))?;
+        check_stage(
+            cancel,
+            "integrating",
+            Some(progress.0),
+            Some(progress.1 as u32),
+        )?;
         emit_integration_progress(
             "integrating",
             FRACTION_INTEGRATE

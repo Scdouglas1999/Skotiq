@@ -2,7 +2,7 @@
 
 use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 
 impl DeviceManager {
     /// Whether the safety monitor says it is safe to observe.

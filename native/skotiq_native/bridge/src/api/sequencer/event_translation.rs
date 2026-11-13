@@ -1,4 +1,4 @@
-use super::*;
+use crate::event::sequencer::SequencerEvent;
 
 /// dispatch a structured `ProgressDetail` to a typed `SequencerEvent`
 /// variant. Returns `None` when the variant has no first-class typed bridge
@@ -17,7 +17,7 @@ pub(crate) fn typed_sequencer_event_from_progress_detail(
     use skotiq_sequencer::ProgressDetail as PD;
     // Import the bridge-side `SchedulerScoreEntry` so the FRB-public mapping
     // doesn't reach back into the sequencer crate's internal summary type.
-    use crate::event::SchedulerScoreEntry;
+    use crate::event::sequencer::SchedulerScoreEntry;
     match detail {
         PD::FrameAccepted {
             frame,

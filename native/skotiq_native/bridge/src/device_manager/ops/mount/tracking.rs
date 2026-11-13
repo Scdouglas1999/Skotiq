@@ -1,5 +1,6 @@
-use super::*;
-use crate::event::EquipmentEvent;
+use crate::device_manager::DeviceManager;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 
 impl DeviceManager {
     pub async fn mount_set_tracking(
@@ -21,10 +22,11 @@ impl DeviceManager {
             }
             drop(devices);
             // The state change every UI shows (see `state_events`).
+            let device_id = device_id.to_string();
             self.publish_state_event(if enabled {
-                EquipmentEvent::MountTrackingStarted
+                EquipmentEvent::MountTrackingStarted { device_id }
             } else {
-                EquipmentEvent::MountTrackingStopped
+                EquipmentEvent::MountTrackingStopped { device_id }
             });
         }
 

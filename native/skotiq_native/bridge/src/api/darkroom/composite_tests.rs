@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData};
 
-use super::{api_darkroom_registry, api_darkroom_render_export, api_darkroom_render_preview};
+use crate::api::darkroom::entrypoints::{
+    api_darkroom_registry, api_darkroom_render_export, api_darkroom_render_preview,
+};
 
 const W: u32 = 512;
 const H: u32 = 384;

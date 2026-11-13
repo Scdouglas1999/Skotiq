@@ -7,11 +7,13 @@
 
 use super::{no_preview, Camera, ExposureAborts};
 use crate::device::DriverType;
-use crate::device_capabilities::{CameraCapabilities, DeviceCapabilities};
+use crate::device_capabilities::alpaca::alpaca_camera_capabilities;
+use crate::device_capabilities::indi::indi_capabilities;
+use crate::device_capabilities::types::{CameraCapabilities, DeviceCapabilities};
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{RigDriver, Slot};
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{
@@ -58,6 +60,18 @@ pub(crate) struct DriverCamera {
     /// The driver's way to give up a frame read in flight, when it has one.
     give_up: Option<Arc<dyn ExposureAbort>>,
     protocol: &'static Protocol,
+    description: Description,
+}
+
+/// Where a description of the camera comes from: the driver's own answers,
+/// or the protocol's capability read through the client the driver uses.
+enum Description {
+    Driver,
+    Alpaca(skotiq_alpaca::AlpacaCameraDriver),
+    Indi {
+        client: Arc<RwLock<skotiq_indi::IndiClient>>,
+        device_name: String,
+    },
 }
 
 impl DriverCamera {
@@ -70,10 +84,12 @@ impl DriverCamera {
             driver: Arc::new(Slot::held(driver)),
             aborts: ExposureAborts::new(),
             protocol: &VENDOR,
+            description: Description::Driver,
         }
     }
 
     pub(crate) fn alpaca(device_id: &str, camera: skotiq_alpaca::AlpacaCameraDriver) -> Self {
+        let description = Description::Alpaca(camera.clone());
         Self {
             device_id: device_id.to_string(),
             give_up: None,
@@ -82,6 +98,7 @@ impl DriverCamera {
             })),
             aborts: ExposureAborts::new(),
             protocol: &ALPACA,
+            description,
         }
     }
 
@@ -91,15 +108,19 @@ impl DriverCamera {
         device_name: &str,
     ) -> Self {
         let device_name = device_name.to_string();
+        let description = Description::Indi {
+            client: client.clone(),
+            device_name: device_name.clone(),
+        };
         Self {
             device_id: device_id.to_string(),
             give_up: None,
             driver: Arc::new(Slot::per_call(move || {
-                Box::new(skotiq_indi::IndiCamera::new(client.clone(), &device_name))
-                    as Box<Driver>
+                Box::new(skotiq_indi::IndiCamera::new(client.clone(), &device_name)) as Box<Driver>
             })),
             aborts: ExposureAborts::new(),
             protocol: &INDI,
+            description,
         }
     }
 
@@ -132,12 +153,10 @@ impl RigDriver for DriverCamera {
         let Some(camera) = self.driver.read().await else {
             return Ok(false);
         };
-        camera.heartbeat().await.map_err(|e| {
-            format!(
-                "{} camera liveness probe failed: {}",
-                self.protocol.name, e
-            )
-        })
+        camera
+            .heartbeat()
+            .await
+            .map_err(|e| format!("{} camera liveness probe failed: {}", self.protocol.name, e))
     }
 
     async fn identity(&self) -> Option<DeviceIdentity> {
@@ -145,7 +164,10 @@ impl RigDriver for DriverCamera {
             return None;
         }
         let camera = self.driver.read().await?;
-        Some(DeviceManager::identity_from_camera(&self.device_id, &*camera))
+        Some(DeviceManager::identity_from_camera(
+            &self.device_id,
+            &*camera,
+        ))
     }
 }
 
@@ -364,14 +386,17 @@ impl Camera for DriverCamera {
     /// A snapshot: a read the driver refuses mid-transition leaves its field
     /// absent, and the equipment view re-reads on its timer.
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        match self.protocol.driver_type {
-            DriverType::Alpaca => {
-                return crate::device_capabilities::get_alpaca_capabilities(device_id).await
+        match &self.description {
+            Description::Alpaca(driver) => {
+                return Ok(DeviceCapabilities::Camera(
+                    alpaca_camera_capabilities(driver.camera()).await,
+                ))
             }
-            DriverType::Indi => {
-                return crate::device_capabilities::get_indi_capabilities(device_id).await
-            }
-            _ => {}
+            Description::Indi {
+                client,
+                device_name,
+            } => return indi_capabilities(client, device_name, device_id).await,
+            Description::Driver => {}
         }
         let camera = self.driver.read().await.ok_or_else(|| {
             SkotiqError::hardware_error(
