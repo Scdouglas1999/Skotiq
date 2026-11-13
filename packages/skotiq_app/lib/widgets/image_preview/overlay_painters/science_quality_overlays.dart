@@ -1,4 +1,4 @@
-part of '../../../../widgets/image_preview/overlay_painters.dart';
+part of '../overlay_painters.dart';
 
 // The science overlays encode a measurement in COLOUR, so their ramp endpoints
 // are chart series in every sense that matters: painted raw they put a green

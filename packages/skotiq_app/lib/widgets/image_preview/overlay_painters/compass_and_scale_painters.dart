@@ -1,4 +1,4 @@
-part of '../../../../widgets/image_preview/overlay_painters.dart';
+part of '../overlay_painters.dart';
 
 /// Bottom space the canvas's corner HUD panels occupy, so the painters
 /// anchored to the same corners stay off them.
