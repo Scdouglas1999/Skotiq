@@ -21783,8 +21783,6 @@ const double SIM_GUIDE_PIXEL_UM = 3.75;
 
 const double SIM_GUIDE_FOCAL_LENGTH_MM = 240.0;
 
-const int SENSOR_TYPE_RGGB = 2;
-
 const int QUEUE_CAPACITY = 8;
 
 const int DEFAULT_EVENT_BUFFER_SIZE = 4096;
