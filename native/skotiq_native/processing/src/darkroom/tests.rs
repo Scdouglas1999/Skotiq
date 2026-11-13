@@ -1871,3 +1871,46 @@ fn a_failed_step_is_reported_in_fields_beside_its_sentence() {
         "cancelled"
     );
 }
+
+/// The same through a real render: a color step over a one-channel master is
+/// refused by the operation, and the preview's error is the failed-step
+/// payload naming that step.
+#[test]
+fn a_render_that_fails_at_a_step_returns_the_failed_step_payload() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let master = write_master(dir.path(), "mono.fits", 64, 64, 1);
+    let recipe = recipe_json(
+        "r-fail",
+        "master:mono",
+        json!([
+            crop_step(0, 0, 32, 32, true),
+            {"opId": "color_calibrate", "opVersion": 1, "params": {}, "enabled": true},
+        ]),
+    );
+
+    let error = match darkroom_render_preview(
+        recipe,
+        json!({"masterPath": master.to_string_lossy()}).to_string(),
+    ) {
+        Ok(_) => panic!("a color step cannot run on a one-channel master"),
+        Err(error) => error,
+    };
+
+    let payload = parse(&error);
+    assert_eq!(payload["kind"], "step_failed", "{error}");
+    assert_eq!(payload["index"], 1);
+    assert_eq!(payload["opId"], "color_calibrate");
+    assert_eq!(payload["opVersion"], 1);
+    let message = payload["message"].as_str().expect("the sentence");
+    assert!(
+        message.starts_with("step 2 failed: color_calibrate@1: "),
+        "{message}"
+    );
+    assert_eq!(
+        format!(
+            "step 2 failed: color_calibrate@1: {}",
+            payload["reason"].as_str().expect("the reason")
+        ),
+        message
+    );
+}
