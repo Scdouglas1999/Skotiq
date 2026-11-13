@@ -13,75 +13,15 @@ extension _ImagingScreenActions on _ImagingScreenState {
 
   Future<void> _takeSnapshot() async {
     if (_isSingleCapture || _isLooping || _isStoppingCapture) return;
-
-    _update(() {
-      _isSnapshotting = true;
-      _singleCapturePreviewReady = false;
-      _isStoppingSnapshot = false;
-    });
-
-    final settings = ref.read(exposureSettingsProvider);
-    final imagingService = ref.read(imagingServiceProvider);
-    _manualCaptureService = imagingService;
-    final sessionNotifier = ref.read(sessionStateProvider.notifier);
-
-    sessionNotifier.setCapturing(true);
-
-    // Pixels arrive before FITS persistence and optional calibration finish.
-    // Keep the action disabled through that pipeline, but change its label to
-    // "Saving…" so the visible preview is not mistaken for a finished frame.
-    //
-    // We baseline against the `capturedAt` of whatever was on screen
-    // when the snapshot started so an idle, never-changing image (or a
-    // stale frame from a previous session) doesn't immediately trip
-    // the reset.
-    final baselineCapturedAt = ref.read(currentImageProvider)?.capturedAt;
-    var previewSeen = false;
-    final previewSubscription = ref.listenManual<CapturedImageData?>(
-      currentImageProvider,
-      (previous, next) {
-        if (previewSeen) return;
-        if (next == null) return;
-        if (next.capturedAt == baselineCapturedAt) return;
-        previewSeen = true;
-        if (!mounted) return;
-        _update(() => _singleCapturePreviewReady = true);
-      },
-      // We don't care about the initial value, only future writes.
-      fireImmediately: false,
-    );
-
+    final controller = ref.read(manualCaptureControllerProvider.notifier);
+    _startedCapture = controller;
     try {
-      final result = await imagingService.captureImage(
-        settings: settings,
-        targetName: ref.read(sessionStateProvider).targetName,
-      );
-
-      if (result != null) {
-        ref.read(currentImageProvider.notifier).state = result;
-        ref.read(lastImageStatsProvider.notifier).state = result.stats;
-        sessionNotifier.recordExposureComplete(
-          exposureTime: settings.exposureTime,
-          hfr: result.stats.hfr,
-        );
-        _feedToLiveStacker(result);
-      }
+      await controller.snapshot();
     } catch (e) {
       if (!mounted) return;
       context.showErrorSnackBar('Capture failed: ${userFacingError(e)}');
     } finally {
-      previewSubscription.close();
-      if (mounted) {
-        _update(() {
-          _isSnapshotting = false;
-          _singleCapturePreviewReady = false;
-          _isStoppingSnapshot = false;
-        });
-      }
-      if (identical(_manualCaptureService, imagingService)) {
-        _manualCaptureService = null;
-      }
-      if (sessionNotifier.mounted) sessionNotifier.setCapturing(false);
+      if (identical(_startedCapture, controller)) _startedCapture = null;
     }
   }
 
@@ -95,56 +35,26 @@ extension _ImagingScreenActions on _ImagingScreenState {
       return;
     }
     if (_isSingleCapture || _isStoppingCapture) return;
-    _startedLoop = controller;
+    _startedCapture = controller;
     try {
       await controller.loop(onError: (error) {
         if (!mounted) return;
         context.showErrorSnackBar('Capture stopped: ${userFacingError(error)}');
       });
     } finally {
-      if (identical(_startedLoop, controller)) _startedLoop = null;
+      if (identical(_startedCapture, controller)) _startedCapture = null;
     }
   }
 
   void _abortCapture() {
-    // Abort targets the shared imaging service, NOT this screen's own capture
-    // flags. The toolbar decides to SHOW this button from the global
-    // `exposureProgressProvider` (imaging_preview_toolbar's `showAbort`), so
-    // gating the action on `_isSingleCapture || _isLooping` left it offered and
-    // dead for every exposure this screen did not itself start — first light,
-    // centering, a sequencer run — while the countdown ran on.
-    if (_isLooping) {
+    // The toolbar shows this button from the global
+    // `exposureProgressProvider`, so it also aborts an exposure no manual
+    // control started: first light, centering, a sequencer run.
+    if (_isLooping || ref.read(manualCaptureControllerProvider).isSnapshot) {
       ref.read(manualCaptureControllerProvider.notifier).stop();
       return;
     }
     ref.read(imagingServiceProvider).cancelExposure();
-    // The "stopping" latch is cleared in the snapshot's `finally`, which only
-    // runs for a capture this screen owns. Latching it for a foreign exposure
-    // would hide the abort button for the rest of the session.
-    if (_isSnapshotting) {
-      _update(() => _isStoppingSnapshot = true);
-    }
-  }
-
-  /// Feed a newly captured frame to the live stacker if stacking is active.
-  ///
-  /// Uses the saved file path when available (preferred, avoids sending raw
-  /// pixel data over FFI twice). Silently skips when stacking is not running.
-  void _feedToLiveStacker(CapturedImageData image) {
-    final isActive = ref.read(liveStackingIsActiveProvider);
-    if (!isActive) return;
-
-    // Remote mode: the appliance auto-feeds every frame it saves into its own
-    // stacker (server-side, on the ImageSaved event). Feeding again from here
-    // would either double-count the frame or hand the host a tablet-local path
-    // it cannot read — so leave feeding to the host.
-    if (ref.read(isRemoteModeProvider)) return;
-
-    final filePath = image.filePath;
-    if (filePath != null && filePath.isNotEmpty) {
-      // Fire-and-forget: the notifier logs warnings on rejection
-      ref.read(liveStackingProvider.notifier).addFrameFromFile(filePath);
-    }
   }
 
   // Zoom/pan controls — delegate to imagingViewerStateProvider so window
