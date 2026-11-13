@@ -4,7 +4,7 @@ class _AutofocusProgressPanel extends ConsumerStatefulWidget {
   final SkotiqColors colors;
   final double progressPercent;
 
-  /// The sweep point the step last reported; null between points.
+  /// The sweep point the step last measured; null before the first.
   final AutofocusInstructionProgressDetail? sweepPoint;
 
   const _AutofocusProgressPanel({
@@ -23,7 +23,6 @@ class _AutofocusProgressPanelState
   int _currentStarIndex = 0;
   bool _isRefreshing = false;
   List<StarCrop>? _refreshedCrops;
-  AutofocusInstructionProgressDetail? _lastPoint;
 
   @override
   Widget build(BuildContext context) {
@@ -31,9 +30,7 @@ class _AutofocusProgressPanelState
     // which the autofocus overlay keeps for the run in flight.
     final sweep = ref.watch(autofocusOverlayProvider);
     final focusRange = sweep.isRunning ? sweep.focusRange : null;
-    // Between points the step reports where the focuser is going; the panel
-    // keeps the last measured point until the next one.
-    final point = _lastPoint = widget.sweepPoint ?? _lastPoint;
+    final point = widget.sweepPoint;
     final hfr = point?.currentHfr;
     final stars = point?.starCount;
 

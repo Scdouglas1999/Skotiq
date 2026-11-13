@@ -9,6 +9,9 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
 /// kind is kept as [UnknownInstructionProgressDetail]. The field names are
 /// pinned against the native side by
 /// `test/fixtures/progress_detail_kinds.json`, which both sides' tests read.
+/// The kind of a step's free text, which has no fields of its own.
+const String kGenericProgressDetailKind = 'Generic';
+
 sealed class InstructionProgressDetail extends Equatable {
   const InstructionProgressDetail();
 
