@@ -215,6 +215,7 @@ class CalibrationLibraryHandlers implements RouteSource {
       opticalTrainId: optionalString(body, 'opticalTrainId'),
       sensorWidth: optionalInt(body, 'sensorWidth', min: 1),
       sensorHeight: optionalInt(body, 'sensorHeight', min: 1),
+      readoutMode: optionalString(body, 'readoutMode'),
     );
 
     final matchSet = await _service.match(context);
