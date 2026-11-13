@@ -1,4 +1,5 @@
 import 'linked_host.dart';
+import '../backend/remote_host.dart';
 import 'host_role.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -52,9 +53,10 @@ Setting<String?> _activeProjectSettingFor(String? identity) {
 final activeProjectIdProvider =
     StateNotifierProvider<ActiveProjectNotifier, int?>((ref) {
       final notifier = ActiveProjectNotifier(ref);
-      ref.listen(linkedHostIdentityProvider, (_, next) {
-        notifier._switchHost(next);
-      });
+      ref.listenAcrossHosts(
+        (host) => host?.link.identity,
+        notifier._switchHost,
+      );
       // Kick off the async hydrate immediately. Until it resolves the state is
       // `null` (no active project), which is the correct cold-start default.
       unawaited(notifier._load());
@@ -64,9 +66,7 @@ final activeProjectIdProvider =
 /// State notifier owning the active-project selection and its persistence.
 class ActiveProjectNotifier extends StateNotifier<int?> {
   ActiveProjectNotifier(this._ref) : super(null) {
-    _setting = _activeProjectSettingFor(
-      _ref.read(linkedHostIdentityProvider),
-    );
+    _setting = _activeProjectSettingFor(_ref.read(linkedHostIdentityProvider));
   }
 
   final Ref _ref;

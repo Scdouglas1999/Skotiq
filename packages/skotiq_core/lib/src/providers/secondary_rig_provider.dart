@@ -14,7 +14,6 @@
 /// non-goals list.
 library;
 
-import 'linked_host.dart';
 import 'host_role.dart';
 import 'dart:async';
 
@@ -171,9 +170,10 @@ final secondaryRigConfigProvider =
       ref,
     ) {
       final notifier = SecondaryRigConfigNotifier();
-      ref.listen(linkedHostIdentityProvider, (previous, next) {
-        if (next != previous) notifier.reset();
-      });
+      ref.listenAcrossHosts(
+        (host) => host?.link.identity,
+        (_) => notifier.reset(),
+      );
       return notifier;
     });
 
@@ -459,8 +459,9 @@ final class _BridgeSecondaryRig implements _SecondaryRigDrive {
   Future<void> stop() => bridge_api.apiSecondaryRigStop();
 
   @override
-  Future<SecondaryRigStatus> status() async =>
-      SecondaryRigStatus.fromBridge(await bridge_api.apiSecondaryRigGetStatus());
+  Future<SecondaryRigStatus> status() async => SecondaryRigStatus.fromBridge(
+    await bridge_api.apiSecondaryRigGetStatus(),
+  );
 }
 
 final class _HostSecondaryRigDrive implements _SecondaryRigDrive {
@@ -474,33 +475,32 @@ final class _HostSecondaryRigDrive implements _SecondaryRigDrive {
     SecondaryRigStartContext context,
     String saveBasePath,
   ) async {
-      await _host.secondaryRigStart({
-        'cameraId': config.cameraId,
-        'exposureSecs': config.exposureSecs,
-        if (config.gain != null) 'gain': config.gain,
-        if (config.offset != null) 'offset': config.offset,
-        'binX': config.binX,
-        'binY': config.binY,
-        if (config.frameCount != null) 'frameCount': config.frameCount,
-        if (config.filterName != null) 'filterName': config.filterName,
-        if (config.targetTempC != null) 'targetTempC': config.targetTempC,
-        'rigLabel': config.rigLabel,
-        'ditherMaxWaitSecs': config.ditherMaxWaitSecs,
-        'inFlightPolicy': config.ditherPolicy.wire,
-        'saveBasePath': saveBasePath,
-        if (context.targetName != null) 'targetName': context.targetName,
-        if (context.targetRaHours != null)
-          'targetRaHours': context.targetRaHours,
-        if (context.targetDecDegrees != null)
-          'targetDecDegrees': context.targetDecDegrees,
-        if (context.observerName != null) 'observerName': context.observerName,
-        if (context.siteLatitudeDeg != null)
-          'siteLatitudeDeg': context.siteLatitudeDeg,
-        if (context.siteLongitudeDeg != null)
-          'siteLongitudeDeg': context.siteLongitudeDeg,
-        if (context.siteElevationM != null)
-          'siteElevationM': context.siteElevationM,
-      });
+    await _host.secondaryRigStart({
+      'cameraId': config.cameraId,
+      'exposureSecs': config.exposureSecs,
+      if (config.gain != null) 'gain': config.gain,
+      if (config.offset != null) 'offset': config.offset,
+      'binX': config.binX,
+      'binY': config.binY,
+      if (config.frameCount != null) 'frameCount': config.frameCount,
+      if (config.filterName != null) 'filterName': config.filterName,
+      if (config.targetTempC != null) 'targetTempC': config.targetTempC,
+      'rigLabel': config.rigLabel,
+      'ditherMaxWaitSecs': config.ditherMaxWaitSecs,
+      'inFlightPolicy': config.ditherPolicy.wire,
+      'saveBasePath': saveBasePath,
+      if (context.targetName != null) 'targetName': context.targetName,
+      if (context.targetRaHours != null) 'targetRaHours': context.targetRaHours,
+      if (context.targetDecDegrees != null)
+        'targetDecDegrees': context.targetDecDegrees,
+      if (context.observerName != null) 'observerName': context.observerName,
+      if (context.siteLatitudeDeg != null)
+        'siteLatitudeDeg': context.siteLatitudeDeg,
+      if (context.siteLongitudeDeg != null)
+        'siteLongitudeDeg': context.siteLongitudeDeg,
+      if (context.siteElevationM != null)
+        'siteElevationM': context.siteElevationM,
+    });
   }
 
   @override
@@ -511,16 +511,18 @@ final class _HostSecondaryRigDrive implements _SecondaryRigDrive {
       SecondaryRigStatus.fromJson(await _host.secondaryRigGetStatus());
 }
 
+_SecondaryRigDrive _secondaryRigDriveOn(RemoteHost? host) => host == null
+    ? const _BridgeSecondaryRig()
+    : _HostSecondaryRigDrive(host.secondaryRig);
+
 final _secondaryRigDriveProvider = hostRoleProvider<_SecondaryRigDrive>(
-  here: (_) => const _BridgeSecondaryRig(),
-  linked: (_, host) => _HostSecondaryRigDrive(host.secondaryRig),
+  here: (_) => _secondaryRigDriveOn(null),
+  linked: (_, host) => _secondaryRigDriveOn(host),
 );
 
 final secondaryRigControllerProvider = Provider<SecondaryRigController>((ref) {
   final controller = SecondaryRigController(ref);
-  ref.listen(_secondaryRigDriveProvider, (_, next) {
-    controller._switchDrive(next);
-  });
+  ref.listenAcrossHosts(_secondaryRigDriveOn, controller._switchDrive);
   return controller;
 });
 
