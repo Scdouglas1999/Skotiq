@@ -5,6 +5,7 @@
 
 import 'api/connection.dart';
 import 'api/darkroom/entrypoints.dart';
+import 'api/defect_map.dart';
 import 'api/depthlock.dart';
 import 'api/devices/camera.dart';
 import 'api/devices/cover_calibrator.dart';
@@ -27,6 +28,7 @@ import 'api/heartbeat.dart';
 import 'api/hotplug.dart';
 import 'api/imaging.dart';
 import 'api/init.dart';
+import 'api/live_stacking.dart';
 import 'api/mosaic.dart';
 import 'api/mount_guard.dart';
 import 'api/phd2.dart';
@@ -117,7 +119,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 722662679;
+  int get rustContentHash => 1423759513;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -186,13 +188,13 @@ abstract class RustLibApi extends BaseApi {
     required String filePath,
   });
 
-  Uint16List crateApiImagingApiCalibrateImageData({
+  Future<Uint16List> crateApiImagingApiCalibrateImageData({
     required int width,
     required int height,
     required List<int> lightData,
-    Uint16List? darkData,
-    Uint16List? flatData,
-    Uint16List? biasData,
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
   });
 
   Future<void> crateApiImagingApiCalibrateImageFile({
@@ -351,29 +353,35 @@ abstract class RustLibApi extends BaseApi {
     required String argsJson,
   });
 
-  Future<void> crateApiImagingApiDefectMapApply({
-    required String cameraId,
-    required bool applyDuringCapture,
-  });
-
-  Future<ApiDefectMapStatus> crateApiImagingApiDefectMapBuild({
+  Future<ApiDefectMapStatus> crateApiDefectMapApiDefectMapBuild({
     required String cameraId,
     required List<String> darkFramePaths,
     required double sensorTemperatureCelsius,
   });
 
-  Future<void> crateApiImagingApiDefectMapClear({
+  Future<void> crateApiDefectMapApiDefectMapClear({
     required String cameraId,
     required int width,
     required int height,
     required double sensorTemperatureCelsius,
   });
 
-  Future<ApiDefectMapStatus?> crateApiImagingApiDefectMapGetStatus({
+  Future<ApiDefectMapStatus?> crateApiDefectMapApiDefectMapGetStatus({
     required String cameraId,
     required int width,
     required int height,
     required double sensorTemperatureCelsius,
+  });
+
+  Future<void> crateApiDefectMapApiDefectMapSetCorrection({
+    required String cameraId,
+    required int width,
+    required int height,
+    required double sensorTemperatureCelsius,
+    required bool enabled,
+    required String method,
+    required int kernelDiameter,
+    required bool saveOriginal,
   });
 
   void crateApiStorageApiDeleteProfile({required String profileId});
@@ -718,8 +726,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiPhd2ApiLaunchPhd2();
 
-  Future<ApiLiveStackingConfig> crateApiImagingApiLiveStackingConfigDefault();
-
   Future<void> crateApiStorageApiLoadProfile({required String profileId});
 
   Future<String> crateApiPostSessionEntrypointsApiMasterAccumulate({
@@ -959,17 +965,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSecondaryRigApiSecondaryRigStop();
 
-  Future<void> crateApiImagingApiSequencerApplyDefectMap({
-    required String cameraId,
-    required int width,
-    required int height,
-    required double sensorTemperatureCelsius,
-    required bool enabled,
-    required String method,
-    required int kernelDiameter,
-    required bool saveOriginal,
-  });
-
   Future<void> crateApiSequencerRuntimeConfigApiSequencerApplyRunConfig({
     required String configJson,
   });
@@ -1128,43 +1123,44 @@ abstract class RustLibApi extends BaseApi {
     required String argsJson,
   });
 
-  Future<ApiLiveStackingResult> crateApiImagingApiStackingAddFrame({
+  Future<ApiLiveStackingResult> crateApiLiveStackingApiStackingAddFrame({
     required String imagePath,
   });
 
-  Future<ApiLiveStackingResult> crateApiImagingApiStackingAddFrameFromData({
+  Future<ApiLiveStackingResult>
+  crateApiLiveStackingApiStackingAddFrameFromData({
     required int width,
     required int height,
     required List<int> data,
   });
 
-  int crateApiImagingApiStackingFrameCount();
+  int crateApiLiveStackingApiStackingFrameCount();
 
-  Future<ApiLiveStackingResult> crateApiImagingApiStackingGetResult();
+  Future<ApiLiveStackingResult> crateApiLiveStackingApiStackingGetResult();
 
-  Future<ApiLiveStackingStats> crateApiImagingApiStackingGetStats();
+  Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingGetStats();
 
-  bool crateApiImagingApiStackingIsActive();
+  bool crateApiLiveStackingApiStackingIsActive();
 
-  Future<void> crateApiImagingApiStackingReset();
+  Future<void> crateApiLiveStackingApiStackingReset();
 
-  Future<ApiLiveStackingMaster> crateApiImagingApiStackingSaveMasterFits({
+  Future<ApiLiveStackingMaster> crateApiLiveStackingApiStackingSaveMasterFits({
     required String filePath,
   });
 
-  Future<ApiLiveStackingStats> crateApiImagingApiStackingStart({
+  Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingStart({
     required String referenceImagePath,
     required ApiLiveStackingConfig config,
   });
 
-  Future<ApiLiveStackingStats> crateApiImagingApiStackingStartFromData({
+  Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingStartFromData({
     required int width,
     required int height,
     required List<int> data,
     required ApiLiveStackingConfig config,
   });
 
-  Future<void> crateApiImagingApiStackingStop();
+  Future<void> crateApiLiveStackingApiStackingStop();
 
   Future<void> crateApiPolarAlignmentEntrypointsApiStartAllSkyPolarAlignment({
     required double exposureTime,
@@ -1733,24 +1729,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Uint16List crateApiImagingApiCalibrateImageData({
+  Future<Uint16List> crateApiImagingApiCalibrateImageData({
     required int width,
     required int height,
     required List<int> lightData,
-    Uint16List? darkData,
-    Uint16List? flatData,
-    Uint16List? biasData,
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           var arg0 = cst_encode_u_32(width);
           var arg1 = cst_encode_u_32(height);
           var arg2 = cst_encode_list_prim_u_16_loose(lightData);
-          var arg3 = cst_encode_opt_list_prim_u_16_strict(darkData);
-          var arg4 = cst_encode_opt_list_prim_u_16_strict(flatData);
-          var arg5 = cst_encode_opt_list_prim_u_16_strict(biasData);
+          var arg3 = cst_encode_opt_String(darkPath);
+          var arg4 = cst_encode_opt_String(flatPath);
+          var arg5 = cst_encode_opt_String(biasPath);
           return wire.wire__crate__api__imaging__api_calibrate_image_data(
+            port_,
             arg0,
             arg1,
             arg2,
@@ -1764,7 +1761,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiImagingApiCalibrateImageDataConstMeta,
-        argValues: [width, height, lightData, darkData, flatData, biasData],
+        argValues: [width, height, lightData, darkPath, flatPath, biasPath],
         apiImpl: this,
       ),
     );
@@ -1777,9 +1774,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "width",
           "height",
           "lightData",
-          "darkData",
-          "flatData",
-          "biasData",
+          "darkPath",
+          "flatPath",
+          "biasPath",
         ],
       );
 
@@ -2905,40 +2902,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiImagingApiDefectMapApply({
-    required String cameraId,
-    required bool applyDuringCapture,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(cameraId);
-          var arg1 = cst_encode_bool(applyDuringCapture);
-          return wire.wire__crate__api__imaging__api_defect_map_apply(
-            port_,
-            arg0,
-            arg1,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingApiDefectMapApplyConstMeta,
-        argValues: [cameraId, applyDuringCapture],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiDefectMapApplyConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_defect_map_apply",
-        argNames: ["cameraId", "applyDuringCapture"],
-      );
-
-  @override
-  Future<ApiDefectMapStatus> crateApiImagingApiDefectMapBuild({
+  Future<ApiDefectMapStatus> crateApiDefectMapApiDefectMapBuild({
     required String cameraId,
     required List<String> darkFramePaths,
     required double sensorTemperatureCelsius,
@@ -2949,7 +2913,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(cameraId);
           var arg1 = cst_encode_list_String(darkFramePaths);
           var arg2 = cst_encode_f_64(sensorTemperatureCelsius);
-          return wire.wire__crate__api__imaging__api_defect_map_build(
+          return wire.wire__crate__api__defect_map__api_defect_map_build(
             port_,
             arg0,
             arg1,
@@ -2960,21 +2924,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_api_defect_map_status,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiDefectMapBuildConstMeta,
+        constMeta: kCrateApiDefectMapApiDefectMapBuildConstMeta,
         argValues: [cameraId, darkFramePaths, sensorTemperatureCelsius],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiDefectMapBuildConstMeta =>
+  TaskConstMeta get kCrateApiDefectMapApiDefectMapBuildConstMeta =>
       const TaskConstMeta(
         debugName: "api_defect_map_build",
         argNames: ["cameraId", "darkFramePaths", "sensorTemperatureCelsius"],
       );
 
   @override
-  Future<void> crateApiImagingApiDefectMapClear({
+  Future<void> crateApiDefectMapApiDefectMapClear({
     required String cameraId,
     required int width,
     required int height,
@@ -2987,7 +2951,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_u_32(width);
           var arg2 = cst_encode_u_32(height);
           var arg3 = cst_encode_f_64(sensorTemperatureCelsius);
-          return wire.wire__crate__api__imaging__api_defect_map_clear(
+          return wire.wire__crate__api__defect_map__api_defect_map_clear(
             port_,
             arg0,
             arg1,
@@ -2999,21 +2963,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiDefectMapClearConstMeta,
+        constMeta: kCrateApiDefectMapApiDefectMapClearConstMeta,
         argValues: [cameraId, width, height, sensorTemperatureCelsius],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiDefectMapClearConstMeta =>
+  TaskConstMeta get kCrateApiDefectMapApiDefectMapClearConstMeta =>
       const TaskConstMeta(
         debugName: "api_defect_map_clear",
         argNames: ["cameraId", "width", "height", "sensorTemperatureCelsius"],
       );
 
   @override
-  Future<ApiDefectMapStatus?> crateApiImagingApiDefectMapGetStatus({
+  Future<ApiDefectMapStatus?> crateApiDefectMapApiDefectMapGetStatus({
     required String cameraId,
     required int width,
     required int height,
@@ -3026,7 +2990,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_u_32(width);
           var arg2 = cst_encode_u_32(height);
           var arg3 = cst_encode_f_64(sensorTemperatureCelsius);
-          return wire.wire__crate__api__imaging__api_defect_map_get_status(
+          return wire.wire__crate__api__defect_map__api_defect_map_get_status(
             port_,
             arg0,
             arg1,
@@ -3038,17 +3002,87 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_opt_box_autoadd_api_defect_map_status,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiDefectMapGetStatusConstMeta,
+        constMeta: kCrateApiDefectMapApiDefectMapGetStatusConstMeta,
         argValues: [cameraId, width, height, sensorTemperatureCelsius],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiDefectMapGetStatusConstMeta =>
+  TaskConstMeta get kCrateApiDefectMapApiDefectMapGetStatusConstMeta =>
       const TaskConstMeta(
         debugName: "api_defect_map_get_status",
         argNames: ["cameraId", "width", "height", "sensorTemperatureCelsius"],
+      );
+
+  @override
+  Future<void> crateApiDefectMapApiDefectMapSetCorrection({
+    required String cameraId,
+    required int width,
+    required int height,
+    required double sensorTemperatureCelsius,
+    required bool enabled,
+    required String method,
+    required int kernelDiameter,
+    required bool saveOriginal,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(cameraId);
+          var arg1 = cst_encode_u_32(width);
+          var arg2 = cst_encode_u_32(height);
+          var arg3 = cst_encode_f_64(sensorTemperatureCelsius);
+          var arg4 = cst_encode_bool(enabled);
+          var arg5 = cst_encode_String(method);
+          var arg6 = cst_encode_u_8(kernelDiameter);
+          var arg7 = cst_encode_bool(saveOriginal);
+          return wire
+              .wire__crate__api__defect_map__api_defect_map_set_correction(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6,
+                arg7,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiDefectMapApiDefectMapSetCorrectionConstMeta,
+        argValues: [
+          cameraId,
+          width,
+          height,
+          sensorTemperatureCelsius,
+          enabled,
+          method,
+          kernelDiameter,
+          saveOriginal,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDefectMapApiDefectMapSetCorrectionConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_defect_map_set_correction",
+        argNames: [
+          "cameraId",
+          "width",
+          "height",
+          "sensorTemperatureCelsius",
+          "enabled",
+          "method",
+          "kernelDiameter",
+          "saveOriginal",
+        ],
       );
 
   @override
@@ -5830,33 +5864,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_launch_phd2", argNames: []);
 
   @override
-  Future<ApiLiveStackingConfig> crateApiImagingApiLiveStackingConfigDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__imaging__api_live_stacking_config_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_api_live_stacking_config,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiImagingApiLiveStackingConfigDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiLiveStackingConfigDefaultConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_live_stacking_config_default",
-        argNames: [],
-      );
-
-  @override
   Future<void> crateApiStorageApiLoadProfile({required String profileId}) {
     return handler.executeNormal(
       NormalTask(
@@ -7643,75 +7650,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_secondary_rig_stop", argNames: []);
 
   @override
-  Future<void> crateApiImagingApiSequencerApplyDefectMap({
-    required String cameraId,
-    required int width,
-    required int height,
-    required double sensorTemperatureCelsius,
-    required bool enabled,
-    required String method,
-    required int kernelDiameter,
-    required bool saveOriginal,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(cameraId);
-          var arg1 = cst_encode_u_32(width);
-          var arg2 = cst_encode_u_32(height);
-          var arg3 = cst_encode_f_64(sensorTemperatureCelsius);
-          var arg4 = cst_encode_bool(enabled);
-          var arg5 = cst_encode_String(method);
-          var arg6 = cst_encode_u_8(kernelDiameter);
-          var arg7 = cst_encode_bool(saveOriginal);
-          return wire.wire__crate__api__imaging__api_sequencer_apply_defect_map(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5,
-            arg6,
-            arg7,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingApiSequencerApplyDefectMapConstMeta,
-        argValues: [
-          cameraId,
-          width,
-          height,
-          sensorTemperatureCelsius,
-          enabled,
-          method,
-          kernelDiameter,
-          saveOriginal,
-        ],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiSequencerApplyDefectMapConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_sequencer_apply_defect_map",
-        argNames: [
-          "cameraId",
-          "width",
-          "height",
-          "sensorTemperatureCelsius",
-          "enabled",
-          "method",
-          "kernelDiameter",
-          "saveOriginal",
-        ],
-      );
-
-  @override
   Future<void> crateApiSequencerRuntimeConfigApiSequencerApplyRunConfig({
     required String configJson,
   }) {
@@ -9116,14 +9054,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<ApiLiveStackingResult> crateApiImagingApiStackingAddFrame({
+  Future<ApiLiveStackingResult> crateApiLiveStackingApiStackingAddFrame({
     required String imagePath,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(imagePath);
-          return wire.wire__crate__api__imaging__api_stacking_add_frame(
+          return wire.wire__crate__api__live_stacking__api_stacking_add_frame(
             port_,
             arg0,
           );
@@ -9132,21 +9070,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_api_live_stacking_result,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingAddFrameConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingAddFrameConstMeta,
         argValues: [imagePath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingAddFrameConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingAddFrameConstMeta =>
       const TaskConstMeta(
         debugName: "api_stacking_add_frame",
         argNames: ["imagePath"],
       );
 
   @override
-  Future<ApiLiveStackingResult> crateApiImagingApiStackingAddFrameFromData({
+  Future<ApiLiveStackingResult>
+  crateApiLiveStackingApiStackingAddFrameFromData({
     required int width,
     required int height,
     required List<int> data,
@@ -9158,7 +9097,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_u_32(height);
           var arg2 = cst_encode_list_prim_u_16_loose(data);
           return wire
-              .wire__crate__api__imaging__api_stacking_add_frame_from_data(
+              .wire__crate__api__live_stacking__api_stacking_add_frame_from_data(
                 port_,
                 arg0,
                 arg1,
@@ -9169,156 +9108,164 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_api_live_stacking_result,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingAddFrameFromDataConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingAddFrameFromDataConstMeta,
         argValues: [width, height, data],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingAddFrameFromDataConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingAddFrameFromDataConstMeta =>
       const TaskConstMeta(
         debugName: "api_stacking_add_frame_from_data",
         argNames: ["width", "height", "data"],
       );
 
   @override
-  int crateApiImagingApiStackingFrameCount() {
+  int crateApiLiveStackingApiStackingFrameCount() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
-          return wire.wire__crate__api__imaging__api_stacking_frame_count();
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_frame_count();
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_u_32,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiImagingApiStackingFrameCountConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingFrameCountConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingFrameCountConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingFrameCountConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_frame_count", argNames: []);
 
   @override
-  Future<ApiLiveStackingResult> crateApiImagingApiStackingGetResult() {
+  Future<ApiLiveStackingResult> crateApiLiveStackingApiStackingGetResult() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__imaging__api_stacking_get_result(port_);
+          return wire.wire__crate__api__live_stacking__api_stacking_get_result(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_api_live_stacking_result,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingGetResultConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingGetResultConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingGetResultConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingGetResultConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_get_result", argNames: []);
 
   @override
-  Future<ApiLiveStackingStats> crateApiImagingApiStackingGetStats() {
+  Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingGetStats() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__imaging__api_stacking_get_stats(port_);
+          return wire.wire__crate__api__live_stacking__api_stacking_get_stats(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_api_live_stacking_stats,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingGetStatsConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingGetStatsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingGetStatsConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingGetStatsConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_get_stats", argNames: []);
 
   @override
-  bool crateApiImagingApiStackingIsActive() {
+  bool crateApiLiveStackingApiStackingIsActive() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
-          return wire.wire__crate__api__imaging__api_stacking_is_active();
+          return wire.wire__crate__api__live_stacking__api_stacking_is_active();
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiImagingApiStackingIsActiveConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingIsActiveConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingIsActiveConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingIsActiveConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_is_active", argNames: []);
 
   @override
-  Future<void> crateApiImagingApiStackingReset() {
+  Future<void> crateApiLiveStackingApiStackingReset() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__imaging__api_stacking_reset(port_);
+          return wire.wire__crate__api__live_stacking__api_stacking_reset(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingResetConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingResetConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingResetConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingResetConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_reset", argNames: []);
 
   @override
-  Future<ApiLiveStackingMaster> crateApiImagingApiStackingSaveMasterFits({
+  Future<ApiLiveStackingMaster> crateApiLiveStackingApiStackingSaveMasterFits({
     required String filePath,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(filePath);
-          return wire.wire__crate__api__imaging__api_stacking_save_master_fits(
-            port_,
-            arg0,
-          );
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_save_master_fits(
+                port_,
+                arg0,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_api_live_stacking_master,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingSaveMasterFitsConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingSaveMasterFitsConstMeta,
         argValues: [filePath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingSaveMasterFitsConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingSaveMasterFitsConstMeta =>
       const TaskConstMeta(
         debugName: "api_stacking_save_master_fits",
         argNames: ["filePath"],
       );
 
   @override
-  Future<ApiLiveStackingStats> crateApiImagingApiStackingStart({
+  Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingStart({
     required String referenceImagePath,
     required ApiLiveStackingConfig config,
   }) {
@@ -9327,7 +9274,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(referenceImagePath);
           var arg1 = cst_encode_box_autoadd_api_live_stacking_config(config);
-          return wire.wire__crate__api__imaging__api_stacking_start(
+          return wire.wire__crate__api__live_stacking__api_stacking_start(
             port_,
             arg0,
             arg1,
@@ -9337,21 +9284,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_api_live_stacking_stats,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingStartConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingStartConstMeta,
         argValues: [referenceImagePath, config],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingStartConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingStartConstMeta =>
       const TaskConstMeta(
         debugName: "api_stacking_start",
         argNames: ["referenceImagePath", "config"],
       );
 
   @override
-  Future<ApiLiveStackingStats> crateApiImagingApiStackingStartFromData({
+  Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingStartFromData({
     required int width,
     required int height,
     required List<int> data,
@@ -9364,50 +9311,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_u_32(height);
           var arg2 = cst_encode_list_prim_u_16_loose(data);
           var arg3 = cst_encode_box_autoadd_api_live_stacking_config(config);
-          return wire.wire__crate__api__imaging__api_stacking_start_from_data(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-          );
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_start_from_data(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_api_live_stacking_stats,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingStartFromDataConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingStartFromDataConstMeta,
         argValues: [width, height, data, config],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingStartFromDataConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingStartFromDataConstMeta =>
       const TaskConstMeta(
         debugName: "api_stacking_start_from_data",
         argNames: ["width", "height", "data", "config"],
       );
 
   @override
-  Future<void> crateApiImagingApiStackingStop() {
+  Future<void> crateApiLiveStackingApiStackingStop() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__imaging__api_stacking_stop(port_);
+          return wire.wire__crate__api__live_stacking__api_stacking_stop(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiStackingStopConstMeta,
+        constMeta: kCrateApiLiveStackingApiStackingStopConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiStackingStopConstMeta =>
+  TaskConstMeta get kCrateApiLiveStackingApiStackingStopConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_stop", argNames: []);
 
   @override
@@ -13014,12 +12962,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String>? dco_decode_opt_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_list_String(raw);
-  }
-
-  @protected
-  Uint16List? dco_decode_opt_list_prim_u_16_strict(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null ? null : dco_decode_list_prim_u_16_strict(raw);
   }
 
   @protected
@@ -17842,19 +17784,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_list_String(deserializer));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
-  Uint16List? sse_decode_opt_list_prim_u_16_strict(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_list_prim_u_16_strict(deserializer));
     } else {
       return null;
     }
@@ -22706,19 +22635,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_list_String(self, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_opt_list_prim_u_16_strict(
-    Uint16List? self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_list_prim_u_16_strict(self, serializer);
     }
   }
 
