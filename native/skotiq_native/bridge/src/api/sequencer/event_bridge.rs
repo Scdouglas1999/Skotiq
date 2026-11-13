@@ -158,7 +158,8 @@ pub(crate) async fn run_decision_event_loop(
             details_json,
             node_id: decision.node_id,
             sequence_run_id: decision.sequence_run_id,
-            notice: decision.notice.clone().map(Into::into),
+            notice: decision.notice.map(Into::into),
+            stop: decision.stop.map(Into::into),
         };
         state.publish_event(create_event_auto_id(
             EventSeverity::Info,
@@ -446,6 +447,11 @@ pub(crate) async fn run_sequencer_event_loop(
                 ExecutorEvent::Error { message } => Some(run_error_event(
                     SequencerErrorKind::StepFailed,
                     message.clone(),
+                    None,
+                )),
+                ExecutorEvent::Cancelled => Some(run_error_event(
+                    SequencerErrorKind::Cancelled,
+                    "Sequence cancelled".to_string(),
                     None,
                 )),
                 ExecutorEvent::Warning { message } => Some(run_error_event(

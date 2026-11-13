@@ -20,6 +20,9 @@ pub enum SequencerErrorKind {
     /// An operation started by hand (an autofocus, a polar alignment)
     /// reported it. No run is involved.
     Standalone,
+    /// The run was cancelled and `Stopped` follows. The message is a fixed
+    /// notice; who stopped the run is on the stop decision rows.
+    Cancelled,
 }
 
 impl SequencerErrorKind {
@@ -27,7 +30,9 @@ impl SequencerErrorKind {
     pub(crate) fn run_severity(self) -> EventSeverity {
         match self {
             Self::Advisory | Self::StepProblem => EventSeverity::Warning,
-            Self::RunHeld | Self::StepFailed | Self::Standalone => EventSeverity::Error,
+            Self::RunHeld | Self::StepFailed | Self::Standalone | Self::Cancelled => {
+                EventSeverity::Error
+            }
         }
     }
 }
@@ -68,6 +73,49 @@ impl From<skotiq_sequencer::RunNotice> for SequencerNotice {
             skotiq_sequencer::RunNotice::ProblemNoticed { source, problem } => {
                 Self::ProblemNoticed { source, problem }
             }
+        }
+    }
+}
+
+/// What a stop decision row says about how a run ended. Mirrors
+/// `skotiq_sequencer::RunStop`.
+#[frb]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SequencerStop {
+    /// The run's cancellation. Every way a run is stopped writes this row, so
+    /// it says only that the run ended, not who ended it.
+    Cancelled,
+    /// A person pressed Stop.
+    Operator,
+    /// The autopilot stopped the run on an unattended re-plan.
+    Autopilot,
+    /// A part of the system stopped the run.
+    System {
+        /// The caller the stop was given ("rollback", "disk-watchdog").
+        origin: String,
+    },
+    /// A trigger parked the mount and ended the run.
+    Trigger {
+        trigger_id: String,
+        trigger_name: String,
+    },
+}
+
+impl From<skotiq_sequencer::RunStop> for SequencerStop {
+    fn from(stop: skotiq_sequencer::RunStop) -> Self {
+        use skotiq_sequencer::RunStop;
+        match stop {
+            RunStop::Cancelled => Self::Cancelled,
+            RunStop::Operator => Self::Operator,
+            RunStop::Autopilot => Self::Autopilot,
+            RunStop::System { origin } => Self::System { origin },
+            RunStop::Trigger {
+                trigger_id,
+                trigger_name,
+            } => Self::Trigger {
+                trigger_id,
+                trigger_name,
+            },
         }
     }
 }
@@ -629,6 +677,9 @@ pub enum SequencerEvent {
         /// Set on the row of a happening the operator is told about once.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         notice: Option<SequencerNotice>,
+        /// Set on the rows that record a run's stop.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stop: Option<SequencerStop>,
     },
 }
 

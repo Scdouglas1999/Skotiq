@@ -309,6 +309,9 @@ pub enum ExecutorEvent {
     Error {
         message: String,
     },
+    /// The run was cancelled. Every way a run is stopped ends with this; the
+    /// stop decision rows say who stopped it.
+    Cancelled,
     /// A non-fatal advisory: something the operator should know about a run
     /// that is otherwise proceeding normally.
     ///

@@ -130,6 +130,28 @@ pub enum RunNotice {
     },
 }
 
+/// What a stop decision row says about how a run ended.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RunStop {
+    /// The run's cancellation. Every way a run is stopped writes this row, so
+    /// it says only that the run ended, not who ended it.
+    Cancelled,
+    /// A person pressed Stop.
+    Operator,
+    /// The autopilot stopped the run on an unattended re-plan.
+    Autopilot,
+    /// A part of the system stopped the run.
+    System {
+        /// The caller the stop was given ("rollback", "disk-watchdog").
+        origin: String,
+    },
+    /// A trigger parked the mount and ended the run.
+    Trigger {
+        trigger_id: String,
+        trigger_name: String,
+    },
+}
+
 /// A single decision recorded during sequence execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecisionEvent {
@@ -156,6 +178,9 @@ pub struct DecisionEvent {
     /// Set on the row of a happening the operator is told about once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notice: Option<RunNotice>,
+    /// Set on the rows that record a run's stop.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<RunStop>,
 }
 
 impl DecisionEvent {
@@ -170,12 +195,19 @@ impl DecisionEvent {
             node_id: None,
             sequence_run_id: None,
             notice: None,
+            stop: None,
         }
     }
 
     /// Mark the row as the one the operator is told about (builder-style).
     pub fn with_notice(mut self, notice: RunNotice) -> Self {
         self.notice = Some(notice);
+        self
+    }
+
+    /// Mark the row as the record of a run's stop (builder-style).
+    pub fn with_stop(mut self, stop: RunStop) -> Self {
+        self.stop = Some(stop);
         self
     }
 

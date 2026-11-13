@@ -202,6 +202,29 @@ void main() {
     );
   });
 
+  test('every stop a row records reaches a client as that stop', () {
+    for (final stop in const [
+      SequencerStop.cancelled(),
+      SequencerStop.operator_(),
+      SequencerStop.autopilot(),
+      SequencerStop.system(origin: 'disk-watchdog'),
+      SequencerStop.trigger(triggerId: 'weather', triggerName: 'Weather'),
+    ]) {
+      final row = EventPayload.sequencer(
+        SequencerEvent.decisionLogged(
+          timestampIso: '2026-11-13T03:00:00Z',
+          category: 'system_event',
+          // Words that name no stop: the stop travels as itself.
+          summary: 'Reworded',
+          detailsJson: '{}',
+          stop: stop,
+        ),
+      );
+      final (type, data) = encodeEventPayload(row);
+      expect(_decode(EventCategory.sequencer, type, _overTheWire(data)), row);
+    }
+  });
+
   group('a host from before a field existed', () {
     SequencerEvent sequencer(
       String type,
@@ -261,6 +284,103 @@ void main() {
               }, severity: EventSeverity.warning)
               as SequencerEvent_Error;
       expect(warning.notice, const SequencerNotice.autofocusContinued());
+    });
+
+    test('sends a cancellation as a failing step with a fixed notice', () {
+      for (final data in [
+        {'message': 'Sequence cancelled'},
+        {'message': 'Sequence cancelled', 'kind': 'step_failed'},
+      ]) {
+        expect(
+          (sequencer('Error', data, severity: EventSeverity.error)
+                  as SequencerEvent_Error)
+              .kind,
+          SequencerErrorKind.cancelled,
+        );
+      }
+      // A fault that only contains the word stays a fault.
+      expect(
+        (sequencer('Error', {
+                  'message': 'Sequence cancelled by the dome roof interlock',
+                }, severity: EventSeverity.error)
+                as SequencerEvent_Error)
+            .kind,
+        SequencerErrorKind.stepFailed,
+      );
+    });
+
+    test('says who stopped a run only in its stop rows\' words', () {
+      SequencerStop? stopOf(Map<String, Object?> row) =>
+          (sequencer('DecisionLogged', {'details_json': '{}', ...row})
+                  as SequencerEvent_DecisionLogged)
+              .stop;
+
+      expect(
+        stopOf({
+          'category': 'manual_intervention',
+          'summary': 'Operator: stop requested',
+        }),
+        const SequencerStop.operator_(),
+      );
+      expect(
+        stopOf({'category': 'system_event', 'summary': 'Autopilot: stop'}),
+        const SequencerStop.autopilot(),
+      );
+      expect(
+        stopOf({
+          'category': 'system_event',
+          'summary': 'System: stop',
+          'details_json': '{"origin":"rollback","action":"stop"}',
+        }),
+        const SequencerStop.system(origin: 'rollback'),
+      );
+      expect(
+        stopOf({
+          'category': 'trigger_fired',
+          'summary': 'Dawn Approaching fired: park and end the run',
+          'details_json':
+              '{"trigger_id":"dawn_approaching","trigger_name":"Dawn '
+              'Approaching","action":"ParkAndAbort"}',
+        }),
+        const SequencerStop.trigger(
+          triggerId: 'dawn_approaching',
+          triggerName: 'Dawn Approaching',
+        ),
+      );
+      expect(
+        stopOf({
+          'category': 'system_event',
+          'summary': 'Sequence cancelled',
+          'details_json': '{"phase":"cancelled"}',
+        }),
+        const SequencerStop.cancelled(),
+      );
+      // A pause, a dither trigger, an end without parking: no stop.
+      expect(
+        stopOf({
+          'category': 'manual_intervention',
+          'summary': 'Operator: pause',
+        }),
+        isNull,
+      );
+      expect(
+        stopOf({
+          'category': 'trigger_fired',
+          'summary': 'Dither fired: dither',
+          'details_json':
+              '{"trigger_id":"d","trigger_name":"D","action":"Dither"}',
+        }),
+        isNull,
+      );
+      expect(
+        stopOf({
+          'category': 'trigger_fired',
+          'summary': 'Dawn fired: end the run',
+          'details_json':
+              '{"trigger_id":"d","trigger_name":"D","action":"Abort"}',
+        }),
+        isNull,
+      );
     });
 
     test('names a notice without its fields: the row holds them', () {

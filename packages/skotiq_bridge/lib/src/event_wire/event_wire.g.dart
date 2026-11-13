@@ -1773,6 +1773,7 @@ String encodeSequencerErrorKind(SequencerErrorKind value) => switch (value) {
   SequencerErrorKind.runHeld => 'run_held',
   SequencerErrorKind.stepFailed => 'step_failed',
   SequencerErrorKind.standalone => 'standalone',
+  SequencerErrorKind.cancelled => 'cancelled',
 };
 
 SequencerErrorKind? decodeSequencerErrorKind(Object? raw) => switch (raw) {
@@ -1781,6 +1782,7 @@ SequencerErrorKind? decodeSequencerErrorKind(Object? raw) => switch (raw) {
   'run_held' => SequencerErrorKind.runHeld,
   'step_failed' => SequencerErrorKind.stepFailed,
   'standalone' => SequencerErrorKind.standalone,
+  'cancelled' => SequencerErrorKind.cancelled,
   _ => null,
 };
 

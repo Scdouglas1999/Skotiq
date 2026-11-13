@@ -6,6 +6,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
 import 'package:skotiq_core/src/models/notification/notification_categories.dart';
+import 'package:skotiq_core/src/models/sequence/run_stop_classification.dart';
 import 'package:skotiq_core/src/services/notification/event_classifier.dart';
 
 SkotiqEvent _sequencer(String eventType) => SkotiqEvent(
@@ -54,19 +55,37 @@ void main() {
     );
   });
 
-  // The Stop the operator presses does NOT reach this classifier as `Stopped`.
-  // The native executor emits `Error { message: "Sequence cancelled" }` first,
-  // which otherwise renders a red "Sequence failed / Sequence aborted at …"
-  // toast in the same second as a Session Report titled "Stopped (resumable)".
-  test(
-    'the cancellation notice arriving as an Error classifies as stopped',
-    () {
-      final classified = NotificationEventClassifier.classify(
-        _sequencerWithData('Error', const {'message': 'Sequence cancelled'}),
-      );
-      expect(classified?.category, NotificationCategory.sequenceStopped);
-    },
-  );
+  // A stop reaches this classifier first as the run's cancellation `Error`,
+  // before `Stopped`. Read as a failing step it raised a red "Sequence failed"
+  // toast for a run the operator stopped on purpose.
+  test('a cancellation arriving as an Error classifies as stopped', () {
+    final classified = NotificationEventClassifier.classify(
+      _sequencerWithData('Error', const {
+        'message': 'Sequence cancelled',
+        'kind': 'cancelled',
+      }),
+    );
+    expect(classified?.category, NotificationCategory.sequenceStopped);
+  });
+
+  test('so does an older host\'s cancellation, which had no kind', () {
+    final classified = NotificationEventClassifier.classify(
+      _sequencerWithData('Error', const {'message': 'Sequence cancelled'}),
+    );
+    expect(classified?.category, NotificationCategory.sequenceStopped);
+  });
+
+  test('a stop row names its author without reading its words', () {
+    final decision = NotificationEventClassifier.stopDecisionOf(
+      _sequencerWithData('DecisionLogged', const {
+        'category': 'system_event',
+        'summary': 'Reworded',
+        'details_json': '{}',
+        'stop': {'by': 'autopilot'},
+      }),
+    );
+    expect(decision?.author, SequenceStopAuthor.autopilot);
+  });
 
   test('a fault whose text contains "cancelled" is not read as a stop', () {
     expect(

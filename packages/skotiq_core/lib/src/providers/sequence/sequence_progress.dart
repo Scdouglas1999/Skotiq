@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../backend/bridge_events.dart' show SequencerErrorKind;
 import '../../models/backend/event_types.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
@@ -120,12 +121,8 @@ SequenceStopDecision? runEventStopEvidence(SequencerRunEvent event) {
       );
     // A decision row missing its category or summary names nobody, rather
     // than falling through as a blank category.
-    case DecisionLogged(:final category?, :final summary?):
-      return sequenceStopDecision(
-        category: category,
-        summary: summary,
-        detailsJson: event.detailsJson,
-      );
+    case DecisionLogged(:final stop):
+      return sequenceStopDecisionOf(stop);
     default:
       return null;
   }
@@ -269,9 +266,9 @@ void foldRunEvent(
 
     case SequencerError():
       final message = event.message ?? 'Unknown error';
-      // Every cancellation path emits the same notice, so it is a stop whose
-      // cause comes from the authorship rows, never an error.
-      if (isSequenceCancelledNotice(message)) {
+      // A cancellation is a stop whose cause comes from the authorship rows,
+      // never an error.
+      if (event.kind == SequencerErrorKind.cancelled) {
         final stopped = sequenceStoppedMessage(run.record.stopEvidence);
         developer.log(
           '[$kStopClassificationLogTag] run event fold: cancellation notice '

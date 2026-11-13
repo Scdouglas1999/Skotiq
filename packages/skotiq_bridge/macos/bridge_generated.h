@@ -1392,6 +1392,25 @@ typedef struct wire_cst_SequencerEvent_PluginNodeProgress {
   struct wire_cst_list_prim_u_8_strict *detail_json;
 } wire_cst_SequencerEvent_PluginNodeProgress;
 
+typedef struct wire_cst_SequencerStop_System {
+  struct wire_cst_list_prim_u_8_strict *origin;
+} wire_cst_SequencerStop_System;
+
+typedef struct wire_cst_SequencerStop_Trigger {
+  struct wire_cst_list_prim_u_8_strict *trigger_id;
+  struct wire_cst_list_prim_u_8_strict *trigger_name;
+} wire_cst_SequencerStop_Trigger;
+
+typedef union SequencerStopKind {
+  struct wire_cst_SequencerStop_System System;
+  struct wire_cst_SequencerStop_Trigger Trigger;
+} SequencerStopKind;
+
+typedef struct wire_cst_sequencer_stop {
+  int32_t tag;
+  union SequencerStopKind kind;
+} wire_cst_sequencer_stop;
+
 typedef struct wire_cst_SequencerEvent_DecisionLogged {
   struct wire_cst_list_prim_u_8_strict *timestamp_iso;
   struct wire_cst_list_prim_u_8_strict *category;
@@ -1400,6 +1419,7 @@ typedef struct wire_cst_SequencerEvent_DecisionLogged {
   struct wire_cst_list_prim_u_8_strict *node_id;
   int64_t *sequence_run_id;
   struct wire_cst_sequencer_notice *notice;
+  struct wire_cst_sequencer_stop *stop;
 } wire_cst_SequencerEvent_DecisionLogged;
 
 typedef union SequencerEventKind {
@@ -3576,6 +3596,8 @@ struct wire_cst_sequencer_event *frbgen_skotiq_bridge_cst_new_box_autoadd_sequen
 
 struct wire_cst_sequencer_notice *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(void);
 
+struct wire_cst_sequencer_stop *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_stop(void);
+
 int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status(int32_t value);
 
 struct wire_cst_star_detection_config_api *frbgen_skotiq_bridge_cst_new_box_autoadd_star_detection_config_api(void);
@@ -3703,6 +3725,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_secondary_rig_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_stop);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_star_detection_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_stretch_params_api);

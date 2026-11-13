@@ -193,6 +193,10 @@ enum SequencerErrorKind {
   /// An operation started by hand (an autofocus, a polar alignment)
   /// reported it. No run is involved.
   standalone,
+
+  /// The run was cancelled and `Stopped` follows. The message is a fixed
+  /// notice; who stopped the run is on the stop decision rows.
+  cancelled,
 }
 
 @freezed
@@ -765,6 +769,9 @@ sealed class SequencerEvent with _$SequencerEvent {
 
     /// Set on the row of a happening the operator is told about once.
     SequencerNotice? notice,
+
+    /// Set on the rows that record a run's stop.
+    SequencerStop? stop,
   }) = SequencerEvent_DecisionLogged;
 }
 
@@ -787,4 +794,31 @@ sealed class SequencerNotice with _$SequencerNotice {
     /// What it found.
     required String problem,
   }) = SequencerNotice_ProblemNoticed;
+}
+
+@freezed
+sealed class SequencerStop with _$SequencerStop {
+  const SequencerStop._();
+
+  /// The run's cancellation. Every way a run is stopped writes this row, so
+  /// it says only that the run ended, not who ended it.
+  const factory SequencerStop.cancelled() = SequencerStop_Cancelled;
+
+  /// A person pressed Stop.
+  const factory SequencerStop.operator_() = SequencerStop_Operator;
+
+  /// The autopilot stopped the run on an unattended re-plan.
+  const factory SequencerStop.autopilot() = SequencerStop_Autopilot;
+
+  /// A part of the system stopped the run.
+  const factory SequencerStop.system({
+    /// The caller the stop was given ("rollback", "disk-watchdog").
+    required String origin,
+  }) = SequencerStop_System;
+
+  /// A trigger parked the mount and ended the run.
+  const factory SequencerStop.trigger({
+    required String triggerId,
+    required String triggerName,
+  }) = SequencerStop_Trigger;
 }

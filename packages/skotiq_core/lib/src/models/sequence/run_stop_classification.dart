@@ -1,45 +1,27 @@
-/// The ONE place that decides whether a sequencer `Error` event is really the
-/// operator's Stop.
+/// How a stopped run is told: that it stopped, and who stopped it.
 ///
-/// The native executor ends a cancelled run by emitting
-/// `ExecutorEvent::Error { message: "Sequence cancelled" }`
-/// (`native/skotiq_native/sequencer/src/executor/start.rs`, the
-/// `NodeStatus::Cancelled` arm) *before* the `Stopped` state change. Every Dart
-/// consumer that keys off the payload type therefore saw a run the operator had
-/// deliberately ended as a fault, and each one said so in its own words:
-///
-///   * the notification classifier routed it to `sequenceFailed`
-///     ("Sequence failed / Sequence aborted at …"),
-///   * the run-dashboard bridge escalated it as a critical event
-///     ("Critical · Sequencer", the red Dashboard banner, the RECENT EVENTS row),
-///   * the executor's own event handler painted the target rollup
-///     "Error: Sequence cancelled" and pushed the run into `recovering`.
-///
-/// Five surfaces, five producers, one wire event. They agree now because they
-/// all ask this function.
-///
-/// ## Why the match is EXACT
-///
-/// A substring test on "cancelled" swallows real faults whose text happens to
-/// contain the word — "Temperature compensation cancelled"
-/// (`native/.../temperature_compensation.rs`), "Cancelled: Target"
-/// (`executor/preflight.rs`), "focuser move was canceled by the driver",
-/// "slew canceled by the mount (limit switch)" — leaving the operator with NO
-/// error report at all. Those messages are the pinned counter-inputs of
-/// `test/models/sequence/run_stop_classification_test.dart`.
-///
-/// The notice is a fixed string the executor writes verbatim, so recognising it
-/// exactly (trimmed, case-insensitive, both spellings) is both sufficient and
-/// the only safe rule: anything else is a real fault and must survive.
+/// Every way a run is stopped ends it the same way: a sequencer `Error` of
+/// kind `cancelled`, a cancellation decision row, then `Stopped`. None of
+/// those says who stopped it. Only the stop decision rows do, through their
+/// typed `stop` ([sequenceStopDecisionOf]), and a parking trigger's
+/// `TriggerFired` ([sequenceStopTriggerDecision]). Every surface that names a
+/// stop's author reads it here, so the feed, the run header and the phone say
+/// the same thing about the same stop.
 library;
 
-import 'dart:convert';
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        SequencerStop,
+        SequencerStop_Autopilot,
+        SequencerStop_Cancelled,
+        SequencerStop_Operator,
+        SequencerStop_System,
+        SequencerStop_Trigger;
 
-/// The verbatim notice the native executor emits for a cancelled run.
+/// The notice the native executor sends with a cancelled run's `Error`.
 const String kSequenceCancelledNotice = 'Sequence cancelled';
 
-/// The copy every surface uses instead of an error when [isSequenceCancelledNotice]
-/// recognises the notice.
+/// What a run the operator stopped shows instead of an error.
 const String kSequenceStoppedByRequestMessage = 'Stopped by request';
 
 /// Feed message for a stop the AUTOPILOT commanded (scheduler re-plan,
@@ -56,9 +38,12 @@ const String kSequenceStoppedMessage = 'Stopped';
 /// log says WHICH producer acted.
 const String kStopClassificationLogTag = 'stop-classification';
 
-/// True when [message] is the run-cancelled NOTICE rather than a fault.
+/// True when [message] is the cancellation notice, as a run's stored error
+/// text can carry it, rather than a fault.
 ///
-/// Exact match by design — see the library doc comment.
+/// The match is exact: real faults contain the word too ("Temperature
+/// compensation cancelled", "slew canceled by the mount (limit switch)") and
+/// must stay errors.
 bool isSequenceCancelledNotice(String message) {
   final normalized = message.trim().toLowerCase();
   return normalized == 'sequence cancelled' ||
@@ -75,57 +60,10 @@ bool isUnexplainedRunFailure(String message) {
       normalized == 'unknown error';
 }
 
-// Who ended the run.
-//
-// Every cancellation path publishes the same cancel-notice pair, so the notice
-// says only THAT a run ended. The one thing on the wire that says WHO is the
-// decision row `SequencerExecutor::stop_with_origin` writes
-// (`native/skotiq_native/sequencer/src/executor/lifecycle.rs`):
-//
-//   manual_intervention / "Operator: stop …"                    -> a human
-//   system_event        / "Autopilot: stop"                     -> the scheduler
-//   system_event        / "System: stop" + details.origin        -> a subsystem
-//                          (`rollback`, `disk-watchdog`, …)
-//   trigger_fired       / details.action "ParkAndAbort"          -> the trigger
-//                          monitor, which is a subsystem too
-//
-// The vocabulary is read HERE, once, so the surfaces that consume it (the Run
-// Dashboard's stop row on bridge-typed events, the notification router on
-// core-typed events) can never disagree about whose stop it was.
-
-/// Decision-row category for the executor's manual-intervention rows.
-const String kManualInterventionDecisionCategory = 'manual_intervention';
-
-/// Decision-row category for the executor's system-event rows.
-const String kSystemEventDecisionCategory = 'system_event';
-
-/// Decision-row category for the trigger monitor's fired-trigger rows.
-const String kTriggerFiredDecisionCategory = 'trigger_fired';
-
-/// The one fired-trigger action that ENDS the run, spelled as the trigger
-/// monitor puts it on the wire (`format!("{:?}", action)` in
-/// `native/skotiq_native/sequencer/src/executor/start/trigger_monitor.rs`).
-///
-/// Every other action leaves the run going — `Pause`, `NextTarget`, `Dither`,
-/// `Recenter`, `Continue` — so a fire carrying one of those is NOT evidence of
-/// who ended a cancellation that arrives later: reading it as the cause would
-/// blame the dither trigger for the operator's Stop ten minutes on. The
-/// autofocus- and flip-failure aborts do end a run, but their fired-trigger row
-/// still names the action that was ATTEMPTED (`Autofocus`, `MeridianFlip(..)`),
-/// so the wire does not say they ended it and this stays silent rather than
-/// guessing.
+/// The one fired-trigger action that ends the run with the mount parked,
+/// spelled as the trigger monitor names it on `TriggerFired`. Every other
+/// action leaves the run going, or ends it without saying it parked.
 const String kParkAndAbortTriggerAction = 'ParkAndAbort';
-
-/// Summary PREFIX of the operator's stop decision. A prefix, not an equality:
-/// both `Operator: stop` and `Operator: stop requested` occur on the wire.
-const String kOperatorStopSummaryPrefix = 'Operator: stop';
-
-/// Summary of the autopilot's stop decision.
-const String kAutopilotStopSummary = 'Autopilot: stop';
-
-/// Summary of a stop no one commanded but the system itself; the caller is in
-/// `details.origin`.
-const String kSystemStopSummary = 'System: stop';
 
 /// WHO ended the run, as the executor's decision rows name them.
 enum SequenceStopAuthor {
@@ -167,55 +105,39 @@ class SequenceStopDecision {
   });
 }
 
-/// Read a `DecisionLogged` row as stop authorship, or `null` when the row is
-/// not one of the executor's stop decisions (the cancel-notice lifecycle
-/// decision every cancellation path emits included — it names no author).
-SequenceStopDecision? sequenceStopDecision({
-  required String category,
-  required String summary,
-  String? detailsJson,
-}) {
-  if (category == kManualInterventionDecisionCategory &&
-      summary.startsWith(kOperatorStopSummaryPrefix)) {
-    return const SequenceStopDecision(SequenceStopAuthor.operatorPress);
-  }
-  if (category == kTriggerFiredDecisionCategory) {
-    final details = _decodeDetails(detailsJson);
-    return sequenceStopTriggerDecision(
-      triggerId: details['trigger_id'] as String?,
-      triggerName: details['trigger_name'] as String?,
-      action: details['action'] as String?,
-    );
-  }
-  if (category != kSystemEventDecisionCategory) return null;
-  if (summary == kAutopilotStopSummary) {
-    return const SequenceStopDecision(SequenceStopAuthor.autopilot);
-  }
-  if (summary == kSystemStopSummary) {
-    return SequenceStopDecision(
-      SequenceStopAuthor.system,
-      origin: _stopOrigin(detailsJson),
-    );
-  }
-  return null;
-}
+/// The stop authorship a stop decision row records, or null when it names
+/// nobody: no stop, or the cancellation row every stop writes.
+SequenceStopDecision? sequenceStopDecisionOf(SequencerStop? stop) =>
+    switch (stop) {
+      null || SequencerStop_Cancelled() => null,
+      SequencerStop_Operator() => const SequenceStopDecision(
+        SequenceStopAuthor.operatorPress,
+      ),
+      SequencerStop_Autopilot() => const SequenceStopDecision(
+        SequenceStopAuthor.autopilot,
+      ),
+      SequencerStop_System(:final origin) => SequenceStopDecision(
+        SequenceStopAuthor.system,
+        origin: _nonEmpty(origin),
+      ),
+      SequencerStop_Trigger(:final triggerId, :final triggerName) =>
+        _triggerStop(triggerId, triggerName),
+    };
 
-/// Read a fired-trigger row as stop authorship, or null when this fire did not
-/// end the run (see [kParkAndAbortTriggerAction]) or names no trigger.
-///
-/// The trigger monitor is a subsystem, so the authorship is
-/// [SequenceStopAuthor.system] with the trigger as its origin — the same shape
-/// the `System: stop` rows already use, which is why every surface that reads
-/// the vocabulary gets the trigger's name for free.
-///
-/// A row carrying neither an id nor a name names nobody: it is a fired-trigger
-/// row this build cannot read, not a stop to attribute to something.
+/// Read a `TriggerFired` event as stop authorship, or null when this fire did
+/// not end the run with the mount parked or names no trigger.
 SequenceStopDecision? sequenceStopTriggerDecision({
   required String? triggerId,
   required String? triggerName,
   required String? action,
 }) {
   if (action?.trim() != kParkAndAbortTriggerAction) return null;
+  return _triggerStop(triggerId, triggerName);
+}
+
+/// A trigger is a subsystem, so its stop is a system stop with the trigger as
+/// its origin. A trigger with neither an id nor a name names nobody.
+SequenceStopDecision? _triggerStop(String? triggerId, String? triggerName) {
   final id = _nonEmpty(triggerId);
   final name = _nonEmpty(triggerName);
   // The operator knows the trigger by its display name; the id is the fallback
@@ -235,26 +157,6 @@ String? _nonEmpty(String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
   return trimmed;
-}
-
-String? _stopOrigin(String? detailsJson) {
-  final origin = _decodeDetails(detailsJson)['origin'];
-  if (origin is String && origin.isNotEmpty) return origin;
-  return null;
-}
-
-/// The decision row's `details` payload, or an empty map when there is none to
-/// read. A payload we cannot parse names nothing, and the stop stays
-/// cause-neutral — the honest direction.
-Map<String, dynamic> _decodeDetails(String? detailsJson) {
-  if (detailsJson == null || detailsJson.isEmpty) return const {};
-  try {
-    final decoded = jsonDecode(detailsJson);
-    if (decoded is Map<String, dynamic>) return decoded;
-  } on FormatException {
-    // Fall through: an unreadable payload names nothing.
-  }
-  return const {};
 }
 
 /// The clause naming who ended the run — `by request`, `by autopilot`,

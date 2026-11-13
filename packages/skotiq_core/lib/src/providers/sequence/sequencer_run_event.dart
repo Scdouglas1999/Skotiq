@@ -21,8 +21,15 @@
 /// wire format is unchanged.
 library;
 
+import '../../backend/bridge_event_codec.dart';
 import '../../backend/bridge_events.dart'
-    show FlipOutcome, SequencerErrorKind, decodeFlipOutcome;
+    show
+        EventPayload_Sequencer,
+        FlipOutcome,
+        SequencerErrorKind,
+        SequencerEvent_DecisionLogged,
+        SequencerStop,
+        decodeFlipOutcome;
 import '../../backend/frame_capture_metadata.dart';
 import '../../backend/sequencer_error_kind.dart';
 import '../../errors/error_text.dart';
@@ -686,6 +693,7 @@ final class DecisionLogged extends SequencerRunEvent {
     this.detailsJson,
     this.nodeId,
     this.sequenceRunId,
+    this.stop,
   });
 
   final String? timestampIso;
@@ -694,6 +702,9 @@ final class DecisionLogged extends SequencerRunEvent {
   final String? detailsJson;
   final String? nodeId;
   final int? sequenceRunId;
+
+  /// Set on the rows that record a run's stop.
+  final SequencerStop? stop;
 }
 
 /// A sequencer event no consumer here reads (scheduler decisions, photometry,
@@ -988,6 +999,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         detailsJson: d.string('details_json'),
         nodeId: d.string('node_id'),
         sequenceRunId: d.integer('sequence_run_id'),
+        stop: _decisionStopOf(event),
       );
 
     default:
@@ -1087,3 +1099,11 @@ extension type const _Fields(Map<String, dynamic> data) {
     return v is bool ? v : null;
   }
 }
+
+SequencerStop? _decisionStopOf(SkotiqEvent event) => switch (typedEventFromWire(
+  event,
+)?.payload) {
+  EventPayload_Sequencer(field0: SequencerEvent_DecisionLogged(:final stop)) =>
+    stop,
+  _ => null,
+};

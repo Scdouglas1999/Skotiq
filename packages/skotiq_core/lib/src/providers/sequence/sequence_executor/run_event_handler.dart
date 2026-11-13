@@ -351,9 +351,9 @@ class RunEventHandler {
       progressNotifier.updateProgress(message: message);
       return;
     }
-    // Every cancellation path emits the same notice, so it is a stop whose
-    // cause comes from the run's authorship rows, not an error.
-    if (isSequenceCancelledNotice(message)) {
+    // A cancellation is a stop whose cause comes from the run's authorship
+    // rows, not an error.
+    if (event.kind == SequencerErrorKind.cancelled) {
       final stopped = sequenceStoppedMessage(
         _ref.read(sequenceStopEvidenceProvider),
       );

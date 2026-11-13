@@ -114,11 +114,7 @@ class NotificationEventClassifier {
     if (payload is! typed.EventPayload_Sequencer) return null;
     final decision = payload.field0;
     if (decision is! typed.SequencerEvent_DecisionLogged) return null;
-    return sequenceStopDecision(
-      category: decision.category,
-      summary: decision.summary,
-      detailsJson: decision.detailsJson,
-    );
+    return sequenceStopDecisionOf(decision.stop);
   }
 
   /// Classify [event]. Returns `null` for events that do not map to a
@@ -202,11 +198,8 @@ class NotificationEventClassifier {
           _stopContext(sequenceRunId),
         );
       case typed.SequencerEvent_Error(:final message, :final kind):
-        // A cancelled run reaches Dart as a sequencer Error carrying the
-        // notice "Sequence cancelled" (the `Stopped` lifecycle event arrives
-        // separately). Only the exact notice is reclassified; see
-        // [isSequenceCancelledNotice] for why the match is not a substring.
-        if (isSequenceCancelledNotice(message)) {
+        // A stopped run's cancellation; `Stopped` follows separately.
+        if (kind == typed.SequencerErrorKind.cancelled) {
           Log.debug(
             '[$kStopClassificationLogTag] event_classifier: sequencer Error '
             'carrying the cancellation notice -> sequenceStopped',
@@ -281,10 +274,7 @@ class NotificationEventClassifier {
           return (NotificationCategory.meridianFlipPerformed, _none);
         }
         return null;
-      case typed.SequencerEvent_TriggerFired(
-        :final action,
-        :final triggerName,
-      ):
+      case typed.SequencerEvent_TriggerFired(:final action, :final triggerName):
         // A trigger whose action is to carry on (a filter change in a rotating
         // Smart Exposure fires one every frame) changed nothing; notifying it
         // buried the real alerts on a linked client.
@@ -362,8 +352,10 @@ class NotificationEventClassifier {
   static (NotificationCategory, Map<String, String>)? _classifyGuiding(
     typed.GuidingEvent event,
   ) => switch (event) {
-    typed.GuidingEvent_LostStar() ||
-    typed.GuidingEvent_Disconnected() => (NotificationCategory.guidingLost, _none),
+    typed.GuidingEvent_LostStar() || typed.GuidingEvent_Disconnected() => (
+      NotificationCategory.guidingLost,
+      _none,
+    ),
     typed.GuidingEvent_Connected() ||
     typed.GuidingEvent_GuidingStarted() ||
     typed.GuidingEvent_GuidingStopped() ||
@@ -412,10 +404,10 @@ class NotificationEventClassifier {
   ) {
     final (deviceType, deviceId) = switch (event) {
       typed.EquipmentEvent_Disconnected(:final deviceType, :final deviceId) ||
-      typed.EquipmentEvent_Error(:final deviceType, :final deviceId) => (
-        deviceType,
-        deviceId,
-      ),
+      typed.EquipmentEvent_Error(
+        :final deviceType,
+        :final deviceId,
+      ) => (deviceType, deviceId),
       _ => (null, null),
     };
     if (deviceType == null || deviceId == null) return null;

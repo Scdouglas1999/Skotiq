@@ -356,6 +356,7 @@ String _eventTitle(core.SkotiqEvent event) {
       case SequencerErrorKind.advisory:
       case SequencerErrorKind.stepProblem:
       case SequencerErrorKind.stepFailed:
+      case SequencerErrorKind.cancelled:
         break;
     }
   }
