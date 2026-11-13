@@ -78,9 +78,7 @@ pub(crate) fn autofocus_detail(progress: &AutofocusProgress, total_steps: u32) -
             step,
             total_steps,
             current_hfr: progress.hfr(),
-            star_count: progress
-                .sweep()
-                .map(|sweep| u32::try_from(sweep.star_count).unwrap_or(u32::MAX)),
+            star_count: progress.sweep().map(|sweep| sweep.star_count),
         },
         None => ProgressDetail::Generic(progress.to_string()),
     }
