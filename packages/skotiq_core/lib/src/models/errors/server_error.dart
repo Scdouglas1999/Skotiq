@@ -42,6 +42,14 @@ class ServerError implements Exception {
     );
   }
 
+  /// The host does not know this client's token: the client has to pair
+  /// again.
+  bool get isTokenRejected => code == ApiErrorBody.invalidToken;
+
+  /// The host knows this client's token, and its access level does not
+  /// cover the request. The token still works for what it covers.
+  bool get isScopeRefusal => code == ApiErrorBody.insufficientScope;
+
   /// True if the underlying status code indicates a client-side problem
   /// (auth, validation, rate limit, etc.). Used by the mobile SnackBar
   /// helper to choose an amber tint over the harsher red.

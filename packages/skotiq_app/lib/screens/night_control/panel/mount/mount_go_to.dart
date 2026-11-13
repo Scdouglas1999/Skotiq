@@ -292,7 +292,12 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
               busy: _busy == 'slew',
               disabledReason: slewReason,
               onPressed: slewReason == null
-                  ? () => _run('slew', () => _slew(coordinates!))
+                  ? () => _run(
+                        'slew',
+                        () => ref
+                            .read(mountCommandServiceProvider)
+                            .slewTo(coordinates!.ra, coordinates.dec),
+                      )
                   : null,
             ),
             NightPanelButtonSpec(
@@ -328,52 +333,22 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     }
   }
 
-  /// Guiding stops before any slew: a slew under guiding drags the guide
-  /// star off and reads as a lost star. It is not restarted, because no run
-  /// is waiting on it.
-  Future<CommandActionResult?> _stopGuidingFirst(
-    SkotiqLocalizations l10n,
-  ) async {
-    if (!ref.read(guiderStateProvider).isGuiding) return null;
-    try {
-      await ref.read(phd2ControllerProvider).stopGuiding();
-      return null;
-    } catch (e) {
-      return CommandActionResult.failure(
-        l10n.text('nightScopeErrStopGuiding', params: {'error': userFacingError(e)}),
-      );
-    }
-  }
-
-  Future<CommandActionResult> _slew(({double ra, double dec}) to) async {
-    final refused = await _stopGuidingFirst(context.l10n);
-    if (refused != null) return refused;
-    return ref.read(mountCommandServiceProvider).slewTo(to.ra, to.dec);
-  }
-
   /// Slew and center on coordinates that are not the run's target, with the
-  /// same solver and centering settings the action controller uses.
+  /// centering every manual Slew & center uses.
   Future<CommandActionResult> _center(({double ra, double dec}) to) async {
     final l10n = context.l10n;
-    final refused = await _stopGuidingFirst(l10n);
+    final refused =
+        await ref.read(mountCommandServiceProvider).stopGuidingForMove();
     if (refused != null) return refused;
-    final settings = await ref.read(appSettingsProvider.future);
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final exposure = profile?.defaultCenteringExposure;
+    final centering = ManualCentering.of(
+      await ref.read(appSettingsProvider.future),
+      ref.read(activeEquipmentProfileProvider),
+    );
     final result = await ref.read(centeringServiceProvider).centerOnTarget(
           targetRa: to.ra,
           targetDec: to.dec,
-          solverConfig: PlateSolverConfig(
-            timeoutSeconds: settings.plateSolveTimeout,
-            searchRadius: settings.plateSolveSearchRadius,
-          ),
-          config: CenteringConfig(
-            exposureTime: exposure != null && exposure > 0 ? exposure : 5.0,
-            binning: profile?.defaultBinX ?? 2,
-            gain: profile?.defaultGain,
-            offset: profile?.defaultOffset,
-            syncMount: settings.centeringSyncMount,
-          ),
+          solverConfig: centering.solver,
+          config: centering.config,
           onStatusUpdate: (status) =>
               ref.read(centeringStatusProvider.notifier).state = status,
         );

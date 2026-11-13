@@ -92,12 +92,13 @@ class _CaptureConfigSummary extends ConsumerWidget {
     const String driverDefault = 'driver default';
     final sensitivity = config.sensitivity;
     final rows = <(String, String)>[
-      (
-        sensitivity.label,
-        config.canSetGain
-            ? (config.gain?.toString() ?? driverDefault)
-            : kReadoutUnknown,
-      ),
+      if (sensitivity.hasGain)
+        (
+          sensitivity.label,
+          config.canSetGain
+              ? (config.gain?.toString() ?? driverDefault)
+              : kReadoutUnknown,
+        ),
       if (sensitivity.hasOffset)
         (
           'Offset',
@@ -130,10 +131,7 @@ class _CaptureConfigSummary extends ConsumerWidget {
         KeyValueList(rows: rows),
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
-          sensitivity.hasOffset
-              ? 'Every filter uses these unless its own gain or offset is set '
-                  'above.'
-              : 'Every filter uses these unless its own ISO is set above.',
+          _cameraDefaultsNote(sensitivity),
           style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
         ),
         if (mismatches.isNotEmpty) ...[

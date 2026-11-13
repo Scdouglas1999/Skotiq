@@ -240,25 +240,20 @@ void main() {
       expect(find.textContaining('Enter a solve exposure'), findsOneWidget);
     });
 
-    testWidgets('a malformed persisted profile default is still validated',
+    testWidgets(
+        'a profile without a usable centering exposure offers the default',
         (tester) async {
-      // The field is populated from the profile's persisted default, but a
-      // bad persisted value (here 0.0) must NOT be trusted on Start — it is
-      // revalidated like any typed entry.
-      final recorder = await pumpDialog(
+      // A persisted 0.0 is no exposure: the field offers the one every manual
+      // centering uses for such a profile, not a value Start would refuse.
+      await pumpDialog(
         tester,
         profile: const EquipmentProfileModel(
           name: 'Test',
           defaultCenteringExposure: 0.0,
         ),
       );
-      expect(fieldText(tester), '0.0',
-          reason: 'populated from profile default');
-
-      await tapStart(tester);
-
-      expectDidNoWork(tester, recorder);
-      expect(find.textContaining('between 0.01 and 600 s'), findsOneWidget);
+      expect(fieldText(tester),
+          ManualCentering.defaultExposureSeconds.toString());
     });
   });
 

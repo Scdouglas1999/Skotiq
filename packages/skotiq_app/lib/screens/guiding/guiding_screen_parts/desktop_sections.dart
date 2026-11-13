@@ -349,10 +349,6 @@ mixin _GuidingDesktopSections
   }
 
   Widget _buildControls(bool isConnected, Phd2State phd2State) {
-    final settingsAsync = ref.watch(appSettingsProvider);
-    final canPersistGuidingSettings = settingsAsync.hasValue &&
-        !settingsAsync.isLoading &&
-        !settingsAsync.hasError;
     final controller = ref.read(phd2ControllerProvider);
 
     return GuideControlsPanel(
@@ -366,21 +362,8 @@ mixin _GuidingDesktopSections
       onLoop: () => ref.read(phd2ControllerProvider).loop(),
       onFindStar: _autoSelectStar,
       onDeselectStar: _deselectStar,
-      ditherAmount: _ditherAmount,
-      ditherRaOnly: _ditherRaOnly,
-      onDitherAmountChanged:
-          canPersistGuidingSettings ? _setDitherAmount : null,
-      onDitherRaOnlyChanged:
-          canPersistGuidingSettings ? _setDitherRaOnly : null,
       onDither: () => ref.read(phd2ControllerProvider).dither(),
-      settlePixels: _settlePixels,
-      settleTime: _settleTime,
-      settleTimeout: _settleTimeout,
-      onSettlePixelsChanged:
-          canPersistGuidingSettings ? _setSettlePixels : null,
-      onSettleTimeChanged: canPersistGuidingSettings ? _setSettleTime : null,
-      onSettleTimeoutChanged:
-          canPersistGuidingSettings ? _setSettleTimeout : null,
+      settleSettings: const GuideSettleSettings(),
     );
   }
 

@@ -9,6 +9,7 @@ import 'narrative_view.dart';
 import 'session_review_controller.dart';
 import 'workbench_view.dart';
 import 'widgets/build_in_darkroom_button.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Session Review / Morning Report.
 ///
@@ -98,11 +99,7 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
       _lastShownError = state.error;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        SkotiqToastHelper.show(
-          context: context,
-          message: state.error!,
-          severity: SkotiqAlertSeverity.error,
-        );
+        context.showErrorSnackBar(state.error!);
       });
     }
 

@@ -1674,16 +1674,16 @@ void main() {
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 40));
     }
-    expect(find.byType(SkotiqToast), findsOneWidget);
+    expect(find.byType(SnackBar), findsOneWidget);
     final first = handle.container.read(darkroomControllerProvider(scope));
     expect(first.reorderRefusalAttempt, 1);
 
-    // Let the toast expire. The inline alert stays up — the reason is still
-    // readable — which is exactly why the silence was easy to miss.
-    for (var i = 0; i < 12; i++) {
+    // Let the snackbar expire. The inline alert stays up — the reason is
+    // still readable — which is exactly why the silence was easy to miss.
+    for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 600));
     }
-    expect(find.byType(SkotiqToast), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
     expect(find.textContaining('That move was refused', findRichText: true),
         findsOneWidget);
 
@@ -1697,7 +1697,7 @@ void main() {
     final second = handle.container.read(darkroomControllerProvider(scope));
     expect(second.reorderRefusal, first.reorderRefusal);
     expect(second.reorderRefusalAttempt, 2);
-    expect(find.byType(SkotiqToast), findsOneWidget);
+    expect(find.byType(SnackBar), findsOneWidget);
 
     // And the inline alert still clears on the next successful edit.
     darkroom.validateOk = true;

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/src/models/backend/remote_update_models.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   test('display endpoint retains destination while stripping secrets', () {

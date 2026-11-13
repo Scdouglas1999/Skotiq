@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show RemotePairingClient;
 
+import '../models/errors/server_error.dart';
 import 'backend_provider.dart';
 import 'profiles_provider.dart' show equipmentProfilesProvider;
 import 'settings_provider.dart' show appSettingsProvider;
@@ -112,12 +113,12 @@ RemoteLaunchFailure classifyRemoteLaunchFailure(
   required bool tokenRejected,
 }) {
   if (tokenRejected) return RemoteLaunchFailure.tokenRejected;
-  final text = error?.toString().toLowerCase() ?? '';
-  if (text.contains('invalid authentication token') ||
-      text.contains('http 401') ||
-      text.contains('http 403')) {
+  if (error is ServerError &&
+      (error.isTokenRejected ||
+          error.httpStatus == HttpStatus.unauthorized)) {
     return RemoteLaunchFailure.tokenRejected;
   }
+  final text = error?.toString().toLowerCase() ?? '';
   if (error is SocketException ||
       error is TimeoutException ||
       error is HttpException ||

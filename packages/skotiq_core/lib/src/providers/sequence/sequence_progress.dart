@@ -164,10 +164,10 @@ void applySequencerEventToSequenceProviders(
 /// Fold one sequencer event onto the run record: progress, per-step status and
 /// tally, stop authorship, and the lifecycle when no local executor owns it.
 ///
-/// Called once per event: by `RunEventHandler` for a run the executor is
-/// attached to ([executorDecidesLifecycle]), by
-/// [applySequencerEventToSequenceProviders] for any other event on a host, and
-/// by the remote-sync mirror on a linked client.
+/// Called once per event on a host: by `RunEventHandler` for a run the executor
+/// is attached to ([executorDecidesLifecycle]), and by
+/// [applySequencerEventToSequenceProviders] for any other event. A linked
+/// client takes the host's record from its runtime channels instead.
 ///
 /// A local executor is the authority on the lifecycle of a run it is attached
 /// to or still finalizing (it opened the `sequence_runs` row, so the record

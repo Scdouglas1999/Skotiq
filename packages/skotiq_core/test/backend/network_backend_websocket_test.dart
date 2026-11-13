@@ -905,7 +905,8 @@ void main() {
               jsonEncode(
                 bodyByPath[path] ??
                     const {
-                      'error': 'Access denied',
+                      'error': 'invalid_token',
+                      'code': 'invalid_token',
                       'message': 'Invalid authentication token',
                     },
               ),
@@ -952,9 +953,9 @@ void main() {
           backend.getSessionStatus(),
           throwsA(
             isA<ServerError>().having(
-              (e) => e.code,
-              'code',
-              'invalid_auth_token',
+              (e) => e.isTokenRejected,
+              'isTokenRejected',
+              isTrue,
             ),
           ),
         );
