@@ -68,7 +68,7 @@ async fn a_focuser_connects_from_a_saved_profile_before_any_scan() {
     // Runs first (libtest orders tests by name): nothing has called EAFGetNum yet.
     let mut focuser = ZwoFocuser::new(0);
     focuser.connect().await.expect("connect");
-    assert_eq!(focuser.get_max_position(), 60_000);
+    assert_eq!(focuser.get_max_position().await, 60_000);
     focuser.disconnect().await.unwrap();
 }
 
@@ -77,7 +77,7 @@ async fn a_focuser_connects_from_a_saved_profile_before_any_scan() {
 async fn a_wheel_connects_while_it_is_still_counting_its_slots() {
     let mut wheel = ZwoFilterWheel::new(0);
     wheel.connect().await.expect("connect");
-    assert_eq!(wheel.get_filter_count(), 7);
+    assert_eq!(wheel.get_filter_count().await, 7);
     wheel.disconnect().await.unwrap();
 }
 

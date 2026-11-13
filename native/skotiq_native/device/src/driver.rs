@@ -472,6 +472,26 @@ pub trait MountDriver: DeviceDriver {
 /// Native focuser device interface
 #[async_trait]
 pub trait FocuserDriver: DeviceDriver {
+    /// Whether the focuser still answers. `Ok(false)`: it says it is not
+    /// connected. `Err`: the probe failed.
+    async fn heartbeat(&self) -> Result<bool, DriverError> {
+        if !self.is_connected() {
+            return Ok(false);
+        }
+        self.get_position().await.map(|_| true)
+    }
+
+    /// Whether the focuser takes absolute positions.
+    async fn is_absolute(&self) -> bool {
+        true
+    }
+
+    /// Whether the focuser's own temperature compensation is switched on;
+    /// `None` for a focuser without one.
+    async fn temp_comp(&self) -> Option<bool> {
+        None
+    }
+
     /// Move to absolute position
     async fn move_to(&mut self, position: i32) -> Result<(), DriverError>;
 
@@ -485,7 +505,7 @@ pub trait FocuserDriver: DeviceDriver {
     /// Whether [`FocuserDriver::halt`] can stop a move under way. `false`
     /// for a focuser with no stop command, whose `halt` answers
     /// `NotSupported`.
-    fn can_halt(&self) -> bool {
+    async fn can_halt(&self) -> bool {
         true
     }
 
@@ -493,14 +513,28 @@ pub trait FocuserDriver: DeviceDriver {
 
     async fn get_temperature(&self) -> Result<Option<f64>, DriverError>;
 
-    fn get_max_position(&self) -> i32;
+    async fn get_max_position(&self) -> i32;
 
-    fn get_step_size(&self) -> f64;
+    async fn get_step_size(&self) -> f64;
 }
 
 /// Native filter wheel device interface
 #[async_trait]
 pub trait FilterWheelDriver: DeviceDriver {
+    /// Whether the wheel still answers. `Ok(false)`: it says it is not
+    /// connected. `Err`: the probe failed.
+    async fn heartbeat(&self) -> Result<bool, DriverError> {
+        if !self.is_connected() {
+            return Ok(false);
+        }
+        self.get_position().await.map(|_| true)
+    }
+
+    /// Whether [`FilterWheelDriver::set_filter_name`] can store a name.
+    async fn can_set_filter_names(&self) -> bool {
+        true
+    }
+
     /// Move to filter position (0-indexed)
     async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError>;
 
@@ -508,7 +542,7 @@ pub trait FilterWheelDriver: DeviceDriver {
 
     async fn is_moving(&self) -> Result<bool, DriverError>;
 
-    fn get_filter_count(&self) -> i32;
+    async fn get_filter_count(&self) -> i32;
 
     async fn get_filter_names(&self) -> Result<Vec<String>, DriverError>;
 

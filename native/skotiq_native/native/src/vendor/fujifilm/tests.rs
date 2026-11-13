@@ -587,6 +587,6 @@ async fn a_lens_cannot_be_halted_and_says_so() {
     use crate::vendor::fujifilm::FujifilmLens;
     use skotiq_device::{DriverError, FocuserDriver};
     let mut lens = FujifilmLens::new("FUJI-TEST-0001", "Test lens");
-    assert!(!lens.can_halt());
+    assert!(!lens.can_halt().await);
     assert!(matches!(lens.halt().await, Err(DriverError::NotSupported)));
 }

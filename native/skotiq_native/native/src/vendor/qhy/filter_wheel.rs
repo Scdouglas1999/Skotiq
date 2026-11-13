@@ -248,7 +248,7 @@ impl DeviceDriver for QhyFilterWheel {
 
 #[async_trait]
 impl FilterWheelDriver for QhyFilterWheel {
-    fn get_filter_count(&self) -> i32 {
+    async fn get_filter_count(&self) -> i32 {
         self.slot_count
     }
 

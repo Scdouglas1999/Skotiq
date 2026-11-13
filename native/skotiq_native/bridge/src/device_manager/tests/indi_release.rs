@@ -1,6 +1,6 @@
 use super::*;
 use crate::device_manager::handle::DeviceHandle;
-use crate::device_manager::rig::focuser::IndiFocuserHandle;
+use crate::device_manager::rig::focuser::DriverFocuser;
 use crate::event::{EquipmentEvent, EventPayload};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
@@ -112,7 +112,7 @@ async fn an_indi_focuser_whose_driver_never_confirms_is_still_disconnected() {
     manager.register_device(info, false).await;
     manager.handles.insert(
         &id,
-        DeviceHandle::Focuser(Arc::new(IndiFocuserHandle::new(&id, client, FOCUSER))),
+        DeviceHandle::Focuser(Arc::new(DriverFocuser::indi(&id, client, FOCUSER))),
     );
     let mut rx = manager.app_state.event_bus.subscribe();
 
@@ -145,7 +145,7 @@ async fn an_indi_focuser_heartbeat_goes_through_its_handle() {
     let id = format!("indi:127.0.0.1:{port}:{FOCUSER}");
     manager.handles.insert(
         &id,
-        DeviceHandle::Focuser(Arc::new(IndiFocuserHandle::new(&id, client, FOCUSER))),
+        DeviceHandle::Focuser(Arc::new(DriverFocuser::indi(&id, client, FOCUSER))),
     );
 
     let healthy = manager

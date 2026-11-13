@@ -39,8 +39,8 @@ fn handle(
     device_name: &str,
 ) -> Option<DeviceHandle> {
     use crate::device_manager::rig::camera::IndiCameraHandle;
-    use crate::device_manager::rig::filter_wheel::IndiWheel;
-    use crate::device_manager::rig::focuser::IndiFocuserHandle;
+    use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
+    use crate::device_manager::rig::focuser::DriverFocuser;
     use crate::device_manager::rig::mount::DriverMount;
     use skotiq_indi::*;
     Some(match info.device_type {
@@ -54,14 +54,15 @@ fn handle(
             client,
             device_name,
         ))),
-        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(IndiFocuserHandle::new(
+        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(DriverFocuser::indi(
             &info.id,
             client,
             device_name,
         ))),
-        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(IndiWheel::new(
+        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(DriverFilterWheel::indi(
             &info.id,
-            IndiFilterWheel::new(client, device_name),
+            client,
+            device_name,
         ))),
         DeviceType::Dome => DeviceHandle::Dome(Arc::new(IndiDome::new(client, device_name))),
         DeviceType::Rotator => {

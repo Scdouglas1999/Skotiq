@@ -252,7 +252,7 @@ impl FilterWheelDriver for PlayerOneFilterWheel {
         Ok(state == PW_STATE_MOVING)
     }
 
-    fn get_filter_count(&self) -> i32 {
+    async fn get_filter_count(&self) -> i32 {
         self.filter_count
     }
 

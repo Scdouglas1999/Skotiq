@@ -126,6 +126,7 @@ mod kind;
 mod mount;
 mod mount_driver;
 mod protocol;
+mod rig_drivers;
 mod rotator;
 mod safetymonitor;
 mod switch_device;
