@@ -41,6 +41,7 @@ extension _ImagingServicePersistence on ImagingService {
 
   Future<int?> _saveToDatabase({
     required SkotiqBackend backend,
+    required bool fileOnHost,
     required String filePath,
     required CapturedImageResult capturedImage,
     required ExposureSettings exposureSettings,
@@ -82,7 +83,7 @@ extension _ImagingServicePersistence on ImagingService {
     int? fileSize;
     // A companion's frame is written on the imaging host, at a host path this
     // machine cannot open.
-    if (backend.remoteHost == null) {
+    if (!fileOnHost) {
       try {
         fileSize = await File(filePath).length();
       } catch (e) {

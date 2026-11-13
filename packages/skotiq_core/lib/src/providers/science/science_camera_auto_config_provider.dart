@@ -12,7 +12,11 @@ final scienceCameraAutoConfigProvider = Provider<ScienceCameraAutoConfig>((
   ref,
 ) {
   final backend = ref.watch(backendProvider);
-  final service = ScienceCameraAutoConfig(ref, backend);
+  final service = ScienceCameraAutoConfig(
+    ref,
+    backend,
+    cameraIsHere: !ref.watch(isRemoteModeProvider),
+  );
   ref.onDispose(service.retire);
   ref.listen<(DeviceConnectionState, String?, String?, int?)>(
     cameraStateProvider.select(

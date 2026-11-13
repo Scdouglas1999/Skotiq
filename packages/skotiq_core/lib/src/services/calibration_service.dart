@@ -18,7 +18,7 @@ import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import '../utils/host_paths.dart';
 import '../providers/database_provider.dart';
-import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_calibration_tools.dart';
 import '../database/daos/settings_dao.dart';
 import '../providers/logging_service_provider.dart';
 
@@ -176,10 +176,15 @@ class CalibrationService {
   final AsyncScope<SkotiqBackend> _host;
   final LoggingService _logger;
 
-  CalibrationService(Ref ref)
+  /// The linked host's calibration, or null where the imaging host is this
+  /// process and the frames are calibrated here.
+  final HostCalibrationTools? _hostTools;
+
+  CalibrationService(Ref ref, {HostCalibrationTools? hostTools})
     : _ref = ref,
       _host = ref.providerBackendScope(),
-      _logger = ref.read(loggingServiceProvider);
+      _logger = ref.read(loggingServiceProvider),
+      _hostTools = hostTools;
 
   DarkLibraryService get _darkLibrary => _ref.read(darkLibraryServiceProvider);
 
@@ -207,7 +212,7 @@ class CalibrationService {
     _logger.info('Calibrating: $lightPath', source: 'CalibrationService');
 
     final backend = _host.value;
-    final host = backend.remoteHost?.calibrationTools;
+    final host = _hostTools;
     final isRemote = host != null;
 
     // Determine dark frame path. A manual override always wins; the library

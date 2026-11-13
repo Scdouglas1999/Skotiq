@@ -5,7 +5,10 @@ import '../services/calibration_service.dart';
 
 final calibrationServiceProvider = Provider<CalibrationService>((ref) {
   ref.watch(backendProvider);
-  return CalibrationService(ref);
+  return CalibrationService(
+    ref,
+    hostTools: ref.watch(linkedHostCalibrationToolsProvider),
+  );
 });
 
 /// Provider for calibration settings, loaded from app settings.

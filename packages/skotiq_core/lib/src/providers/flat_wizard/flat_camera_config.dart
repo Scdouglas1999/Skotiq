@@ -62,6 +62,7 @@ class FlatCameraConfigNotifier extends StateNotifier<FlatCaptureConfig> {
     final config = await FlatWizardService.resolveCaptureConfig(
       backend: backend,
       deviceId: camera.deviceId!,
+      cameraOnHost: ref.read(isRemoteModeProvider),
       profileDefaultGain: profile?.defaultGain,
       profileDefaultOffset: profile?.defaultOffset,
       profileBinX: profile?.defaultBinX,

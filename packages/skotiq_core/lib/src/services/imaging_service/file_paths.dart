@@ -44,7 +44,7 @@ extension _ImagingServiceFilePaths on ImagingService {
       timestamp: timestamp,
     );
 
-    final hostRecords = _ref.read(linkedHostImagingRecordsProvider);
+    final hostRecords = _hostRecords;
     if (hostRecords != null) {
       // The host writes the keeper and creates its folder, so the path is
       // built in the host's style and only the host can say what is taken.

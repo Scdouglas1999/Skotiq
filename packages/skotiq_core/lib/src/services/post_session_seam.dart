@@ -2,13 +2,12 @@ import 'dart:convert';
 
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/color_calibration_result.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/imaging/mosaic_stitch_result.dart';
 import '../models/imaging/star_photometry.dart';
-import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_post_session.dart';
 import '../models/backend/backend_types.dart';
 
 /// Injectable seam over the four post-session batch-processing FFI functions
@@ -142,16 +141,15 @@ class BridgePostSessionSeam implements PostSessionSeam {
   /// simply yields an empty progress stream.
   final SkotiqBackend? _backend;
 
-  const BridgePostSessionSeam([this._backend]);
+  /// The linked host's pipeline, or null where the subs are this machine's.
+  /// When set every host-side compute op routes over `/api/post-session/*`:
+  /// the host's Rust pipeline does the work on its own file paths, where the
+  /// local FFI bridge would look for the subs on this client's filesystem.
+  final HostPostSession? _remote;
 
-  /// The active [NetworkBackend] when this seam runs on a remote client (a
-  /// tablet talking to a headless appliance), else null. When non-null every
-  /// host-side compute op routes over `/api/post-session/*` — the host's Rust
-  /// pipeline does the work on its own file paths — rather than the local FFI
-  /// bridge (whose result would be computed against the *client's* filesystem,
-  /// where the subs do not exist). This is the post-session twin of
-  /// `LiveStackingService._remote`.
-  HostPostSession? get _remote => _backend?.remoteHost?.postSession;
+  const BridgePostSessionSeam({SkotiqBackend? backend, HostPostSession? host})
+    : _backend = backend,
+      _remote = host;
 
   @override
   Future<IntegrateSessionResult> integrateSession(

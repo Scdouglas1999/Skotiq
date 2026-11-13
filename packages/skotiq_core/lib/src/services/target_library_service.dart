@@ -6,17 +6,21 @@ import '../database/database.dart' as db;
 import '../providers/async_scope.dart';
 import '../providers/database_provider.dart';
 import 'catalog_target_resolver.dart';
-import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_imaging_records.dart';
 import '../providers/logging_service_provider.dart';
 
 /// Host-aware targets-library CRUD for planetarium and transient flows.
 class TargetLibraryService {
-  TargetLibraryService(Ref ref)
+  /// [hostRecords] is the linked host's library, or null where the library
+  /// is this process's database.
+  TargetLibraryService(Ref ref, {HostImagingRecords? hostRecords})
     : _ref = ref,
-      _host = ref.providerBackendScope();
+      _host = ref.providerBackendScope(),
+      _hostRecords = hostRecords;
 
   final Ref _ref;
   final AsyncScope<SkotiqBackend> _host;
+  final HostImagingRecords? _hostRecords;
 
   void _ensureSameHost() =>
       _host.ensureCurrent('the target library was being updated');
@@ -39,7 +43,7 @@ class TargetLibraryService {
     int priority = 5,
   }) async {
     _ensureSameHost();
-    final host = _host.value.remoteHost?.imagingRecords;
+    final host = _hostRecords;
     if (host != null) {
       final id = await host.createTarget({
         'name': name,
@@ -152,7 +156,7 @@ class TargetLibraryService {
   }
 
   Future<List<db.DbTarget>> _loadTargets() async {
-    final host = _host.value.remoteHost?.imagingRecords;
+    final host = _hostRecords;
     if (host != null) {
       final rows = await host.getAllTargets();
       // Drop rows the host sent without a usable sky coordinate rather than

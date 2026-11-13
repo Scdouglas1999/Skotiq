@@ -22,7 +22,6 @@ import 'dark_library_service.dart';
 import 'live_stacking_service.dart';
 import 'logging_service.dart';
 import 'stack_light_selector.dart';
-import '../backend/remote_host.dart';
 import '../providers/calibration_service_providers.dart';
 import '../providers/live_stacking_service_provider.dart';
 import '../providers/logging_service_provider.dart';
@@ -155,11 +154,6 @@ class StackAndShareService {
     void Function(StackAndShareProgress)? onProgress,
   }) async {
     _ensureSameHost();
-    if (_host.value.remoteHost != null) {
-      throw StateError(
-        'Stack & Share runs on the imaging host, not a remote controller.',
-      );
-    }
     if (_processRunOwner != null) {
       throw const LiveStackBusyException(
         'Another Stack-and-Share run is already preparing or stacking',

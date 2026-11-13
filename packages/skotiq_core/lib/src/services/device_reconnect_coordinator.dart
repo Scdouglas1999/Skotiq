@@ -10,7 +10,6 @@ import '../providers/profiles_provider.dart';
 import '../providers/sequence_provider.dart';
 import '../providers/ui_notification_provider.dart';
 import 'notification_service.dart';
-import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/logging_service_provider.dart';
 import '../providers/notification_service_provider.dart';
@@ -33,6 +32,7 @@ class DeviceReconnectCoordinator {
   DeviceReconnectCoordinator({
     required Ref ref,
     required SkotiqBackend backend,
+    required bool hostOwnsRecovery,
     required Future<void> Function() resumeSequence,
     required Future<void> Function() pauseSequence,
     required void Function(String deviceId, {int attempt, int maxAttempts})
@@ -44,6 +44,7 @@ class DeviceReconnectCoordinator {
   }) : assert(retryDelays == null || retryDelays.isNotEmpty),
        _ref = ref,
        _backend = backend,
+       _hostOwnsRecovery = hostOwnsRecovery,
        _resumeSequence = resumeSequence,
        _pauseSequence = pauseSequence,
        _surfaceReconnecting = surfaceReconnecting,
@@ -68,7 +69,7 @@ class DeviceReconnectCoordinator {
   /// On a companion the device events are the imaging host's, relayed. The
   /// host already reconnects, checkpoints and pauses for its own devices, so
   /// the companion must never send its own reconnect, checkpoint or pause.
-  bool get _hostOwnsRecovery => _backend.remoteHost != null;
+  final bool _hostOwnsRecovery;
   final Future<void> Function() _resumeSequence;
   final Future<void> Function() _pauseSequence;
 

@@ -456,6 +456,7 @@ void main() {
         final cfg = await FlatWizardService.resolveCaptureConfig(
           backend: b,
           deviceId: cam,
+          cameraOnHost: true,
           currentGain: 90,
         );
         // Range + gain came from the host, not from any phone-side inference.
