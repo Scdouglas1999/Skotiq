@@ -388,7 +388,7 @@ extension _DeviceServiceEventHandling on DeviceService {
   bool _isSlotMount(Map<String, dynamic> data) {
     final id = data['device_id'];
     if (id is! String || id.isEmpty) return true;
-    return readDeviceSlot(_ref, DeviceType.mount).deviceId == id;
+    return readDeviceSlot(_ref.container, DeviceType.mount).deviceId == id;
   }
 
   bool _isGuideCameraEvent(String? deviceType, String? deviceId) {
