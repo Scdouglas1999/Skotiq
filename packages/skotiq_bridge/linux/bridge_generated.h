@@ -289,6 +289,7 @@ typedef struct wire_cst_secondary_rig_config_api {
   struct wire_cst_list_prim_u_8_strict *telescope_name;
   double *telescope_focal_length_mm;
   double *telescope_aperture_mm;
+  struct wire_cst_list_prim_u_8_strict *save_to;
   double dither_max_wait_secs;
   struct wire_cst_list_prim_u_8_strict *in_flight_policy;
   struct wire_cst_list_prim_u_8_strict *save_base_path;

@@ -532,12 +532,23 @@ extension FlatWizardRun on FlatWizardNotifier {
           // Save the frame. A save failure IS a capture failure: the frame is
           // surfaced as failed and NOT counted.
           final captureTime = DateTime.now();
-          final filename =
-              '${_sanitizeComponent('Flat_${filterSetting.filterName}_'
-              '${_fmtStamp(captureTime)}_$frameNum')}.fits';
-          final requestedPath = paths.join(filterSavePath, filename);
           final String filePath;
           try {
+            final requestedPath = await ref
+                .read(imagingServiceProvider)
+                .keeperFilePath(
+                  folder: filterSavePath,
+                  exposureSettings: ExposureSettings(
+                    exposureTime: frameExposure,
+                    gain: historyGain,
+                    offset: config.offset ?? cameraState.offset ?? 0,
+                    binningX: config.binX,
+                    binningY: config.binY,
+                    frameType: FrameType.flat,
+                    filter: filterSetting.filterName,
+                  ),
+                  targetName: FrameType.flat.imageType,
+                );
             filePath = await backend.saveFitsFromLastCapture(
               deviceId: cameraId,
               filePath: requestedPath,

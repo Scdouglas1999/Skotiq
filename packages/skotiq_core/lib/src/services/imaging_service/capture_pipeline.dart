@@ -64,6 +64,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
       _frameNumber =
           frameNumber ??
           await _nextKeeperFrameNumber(
+            basePath: _ref
+                .read(appSettingsProvider)
+                .valueOrNull
+                ?.imageOutputPath,
             exposureSettings: settings,
             targetName: targetName,
           );
@@ -425,7 +429,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
               appSettings != null &&
               appSettings.imageOutputPath.isNotEmpty) {
             savedFilePath = await _generateImageFilePath(
-              appSettings: appSettings,
+              basePath: appSettings.imageOutputPath,
               exposureSettings: settings,
               targetName: targetName,
               frameNumber: captureFrameNumber,

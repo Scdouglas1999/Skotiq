@@ -94,6 +94,9 @@ extension _SequencerSecondaryRig on SequencerHandlers {
         expected: 'complete_if_short or abort_immediately',
       );
     }
+    final gain = optionalInt(decoded, 'gain');
+    final offset = optionalInt(decoded, 'offset');
+    final rigLabel = (decoded['rigLabel'] as String?) ?? 'Secondary';
     final commandId = commandCorrelator?.beginCommand(
       operation: 'sequencer.secondaryRig.start',
     );
@@ -101,17 +104,26 @@ extension _SequencerSecondaryRig on SequencerHandlers {
       config: bridge_api.SecondaryRigConfigApi(
         cameraId: cameraId,
         exposureSecs: exposure,
-        gain: optionalInt(decoded, 'gain'),
-        offset: optionalInt(decoded, 'offset'),
+        gain: gain,
+        offset: offset,
         binX: binX,
         binY: binY,
         frameCount: frameCount,
         filterName: decoded['filterName'] as String?,
         targetTempC: optionalDouble(decoded, 'targetTempC'),
-        rigLabel: (decoded['rigLabel'] as String?) ?? 'Secondary',
+        rigLabel: rigLabel,
         ditherMaxWaitSecs: ditherMaxWait,
         inFlightPolicy: inFlightPolicy,
         saveBasePath: saveBasePath,
+        saveTo: ImagingService.secondaryRigSaveTemplate(
+          container.read(namingPatternProvider).pattern,
+          rigLabel: rigLabel,
+          gain: gain,
+          offset: offset,
+          binX: binX,
+          binY: binY,
+          sentAt: container.read(clockProvider).nowUtc(),
+        ),
         targetName: decoded['targetName'] as String?,
         targetRaHours: optionalDouble(decoded, 'targetRaHours'),
         targetDecDegrees: optionalDouble(decoded, 'targetDecDegrees'),

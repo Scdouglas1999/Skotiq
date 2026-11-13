@@ -61,9 +61,3 @@ String _sanitizeComponent(String raw) {
   s = s.replaceAll(RegExp(r'^[.\s]+'), '').replaceAll(RegExp(r'[.\s]+$'), '');
   return s.isEmpty ? 'unnamed' : s;
 }
-
-String _two(int v) => v.toString().padLeft(2, '0');
-
-String _fmtStamp(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}${_two(d.month)}${_two(d.day)}'
-    '_${_two(d.hour)}${_two(d.minute)}${_two(d.second)}';

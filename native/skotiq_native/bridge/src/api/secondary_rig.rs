@@ -59,6 +59,10 @@ pub struct SecondaryRigConfigApi {
     pub telescope_name: Option<String>,
     pub telescope_focal_length_mm: Option<f64>,
     pub telescope_aperture_mm: Option<f64>,
+    /// How the frames are named under the rig's folder, as a capture step's
+    /// `save_to` (the app's naming pattern). `None` names them as a step
+    /// without one does.
+    pub save_to: Option<String>,
     /// Max seconds the primary waits for the secondary to clear before
     /// dithering anyway (bounded so a stuck secondary never stalls the primary).
     pub dither_max_wait_secs: f64,
@@ -218,6 +222,7 @@ pub async fn api_secondary_rig_start(config: SecondaryRigConfigApi) -> Result<()
         telescope_name: config.telescope_name.clone(),
         telescope_focal_length_mm: config.telescope_focal_length_mm,
         telescope_aperture_mm: config.telescope_aperture_mm,
+        save_to: config.save_to.clone(),
     };
 
     let meta = SecondaryFrameMeta {

@@ -13403,8 +13403,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SecondaryRigConfigApi dco_decode_secondary_rig_config_api(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 25)
-      throw Exception('unexpected arr length: expect 25 but see ${arr.length}');
+    if (arr.length != 26)
+      throw Exception('unexpected arr length: expect 26 but see ${arr.length}');
     return SecondaryRigConfigApi(
       cameraId: dco_decode_String(arr[0]),
       exposureSecs: dco_decode_f_64(arr[1]),
@@ -13421,16 +13421,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       telescopeName: dco_decode_opt_String(arr[12]),
       telescopeFocalLengthMm: dco_decode_opt_box_autoadd_f_64(arr[13]),
       telescopeApertureMm: dco_decode_opt_box_autoadd_f_64(arr[14]),
-      ditherMaxWaitSecs: dco_decode_f_64(arr[15]),
-      inFlightPolicy: dco_decode_String(arr[16]),
-      saveBasePath: dco_decode_opt_String(arr[17]),
-      targetName: dco_decode_opt_String(arr[18]),
-      targetRaHours: dco_decode_opt_box_autoadd_f_64(arr[19]),
-      targetDecDegrees: dco_decode_opt_box_autoadd_f_64(arr[20]),
-      observerName: dco_decode_opt_String(arr[21]),
-      siteLatitudeDeg: dco_decode_opt_box_autoadd_f_64(arr[22]),
-      siteLongitudeDeg: dco_decode_opt_box_autoadd_f_64(arr[23]),
-      siteElevationM: dco_decode_opt_box_autoadd_f_64(arr[24]),
+      saveTo: dco_decode_opt_String(arr[15]),
+      ditherMaxWaitSecs: dco_decode_f_64(arr[16]),
+      inFlightPolicy: dco_decode_String(arr[17]),
+      saveBasePath: dco_decode_opt_String(arr[18]),
+      targetName: dco_decode_opt_String(arr[19]),
+      targetRaHours: dco_decode_opt_box_autoadd_f_64(arr[20]),
+      targetDecDegrees: dco_decode_opt_box_autoadd_f_64(arr[21]),
+      observerName: dco_decode_opt_String(arr[22]),
+      siteLatitudeDeg: dco_decode_opt_box_autoadd_f_64(arr[23]),
+      siteLongitudeDeg: dco_decode_opt_box_autoadd_f_64(arr[24]),
+      siteElevationM: dco_decode_opt_box_autoadd_f_64(arr[25]),
     );
   }
 
@@ -18265,6 +18266,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_telescopeApertureMm = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_saveTo = sse_decode_opt_String(deserializer);
     var var_ditherMaxWaitSecs = sse_decode_f_64(deserializer);
     var var_inFlightPolicy = sse_decode_String(deserializer);
     var var_saveBasePath = sse_decode_opt_String(deserializer);
@@ -18291,6 +18293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       telescopeName: var_telescopeName,
       telescopeFocalLengthMm: var_telescopeFocalLengthMm,
       telescopeApertureMm: var_telescopeApertureMm,
+      saveTo: var_saveTo,
       ditherMaxWaitSecs: var_ditherMaxWaitSecs,
       inFlightPolicy: var_inFlightPolicy,
       saveBasePath: var_saveBasePath,
@@ -22931,6 +22934,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.telescopeName, serializer);
     sse_encode_opt_box_autoadd_f_64(self.telescopeFocalLengthMm, serializer);
     sse_encode_opt_box_autoadd_f_64(self.telescopeApertureMm, serializer);
+    sse_encode_opt_String(self.saveTo, serializer);
     sse_encode_f_64(self.ditherMaxWaitSecs, serializer);
     sse_encode_String(self.inFlightPolicy, serializer);
     sse_encode_opt_String(self.saveBasePath, serializer);

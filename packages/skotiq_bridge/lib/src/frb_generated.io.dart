@@ -5834,6 +5834,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.telescope_aperture_mm = cst_encode_opt_box_autoadd_f_64(
       apiObj.telescopeApertureMm,
     );
+    wireObj.save_to = cst_encode_opt_String(apiObj.saveTo);
     wireObj.dither_max_wait_secs = cst_encode_f_64(apiObj.ditherMaxWaitSecs);
     wireObj.in_flight_policy = cst_encode_String(apiObj.inFlightPolicy);
     wireObj.save_base_path = cst_encode_opt_String(apiObj.saveBasePath);
@@ -17652,6 +17653,8 @@ final class wire_cst_secondary_rig_config_api extends ffi.Struct {
   external ffi.Pointer<ffi.Double> telescope_focal_length_mm;
 
   external ffi.Pointer<ffi.Double> telescope_aperture_mm;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> save_to;
 
   @ffi.Double()
   external double dither_max_wait_secs;

@@ -21,8 +21,11 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../backend/skotiq_backend.dart';
 import '../backend/remote_host.dart';
+import '../services/imaging_service.dart';
 import 'backend_provider.dart';
+import 'clock_provider.dart';
 import 'equipment/camera_state_provider.dart';
+import 'imaging_provider.dart' show namingPatternProvider;
 import 'settings_provider.dart';
 
 /// In-flight-exposure policy when the primary announces a dither.
@@ -310,6 +313,15 @@ class SecondaryRigController {
         ditherMaxWaitSecs: config.ditherMaxWaitSecs,
         inFlightPolicy: config.ditherPolicy.wire,
         saveBasePath: saveBasePath,
+        saveTo: ImagingService.secondaryRigSaveTemplate(
+          _ref.read(namingPatternProvider).pattern,
+          rigLabel: config.rigLabel,
+          gain: config.gain,
+          offset: config.offset,
+          binX: config.binX,
+          binY: config.binY,
+          sentAt: _ref.read(clockProvider).nowUtc(),
+        ),
         targetName: context.targetName,
         targetRaHours: context.targetRaHours,
         targetDecDegrees: context.targetDecDegrees,

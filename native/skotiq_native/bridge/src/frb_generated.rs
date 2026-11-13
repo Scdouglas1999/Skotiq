@@ -11260,6 +11260,7 @@ impl SseDecode for crate::api::secondary_rig::SecondaryRigConfigApi {
         let mut var_telescopeName = <Option<String>>::sse_decode(deserializer);
         let mut var_telescopeFocalLengthMm = <Option<f64>>::sse_decode(deserializer);
         let mut var_telescopeApertureMm = <Option<f64>>::sse_decode(deserializer);
+        let mut var_saveTo = <Option<String>>::sse_decode(deserializer);
         let mut var_ditherMaxWaitSecs = <f64>::sse_decode(deserializer);
         let mut var_inFlightPolicy = <String>::sse_decode(deserializer);
         let mut var_saveBasePath = <Option<String>>::sse_decode(deserializer);
@@ -11286,6 +11287,7 @@ impl SseDecode for crate::api::secondary_rig::SecondaryRigConfigApi {
             telescope_name: var_telescopeName,
             telescope_focal_length_mm: var_telescopeFocalLengthMm,
             telescope_aperture_mm: var_telescopeApertureMm,
+            save_to: var_saveTo,
             dither_max_wait_secs: var_ditherMaxWaitSecs,
             in_flight_policy: var_inFlightPolicy,
             save_base_path: var_saveBasePath,
@@ -15700,6 +15702,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::secondary_rig::SecondaryRigCo
             self.telescope_name.into_into_dart().into_dart(),
             self.telescope_focal_length_mm.into_into_dart().into_dart(),
             self.telescope_aperture_mm.into_into_dart().into_dart(),
+            self.save_to.into_into_dart().into_dart(),
             self.dither_max_wait_secs.into_into_dart().into_dart(),
             self.in_flight_policy.into_into_dart().into_dart(),
             self.save_base_path.into_into_dart().into_dart(),
@@ -19823,6 +19826,7 @@ impl SseEncode for crate::api::secondary_rig::SecondaryRigConfigApi {
         <Option<String>>::sse_encode(self.telescope_name, serializer);
         <Option<f64>>::sse_encode(self.telescope_focal_length_mm, serializer);
         <Option<f64>>::sse_encode(self.telescope_aperture_mm, serializer);
+        <Option<String>>::sse_encode(self.save_to, serializer);
         <f64>::sse_encode(self.dither_max_wait_secs, serializer);
         <String>::sse_encode(self.in_flight_policy, serializer);
         <Option<String>>::sse_encode(self.save_base_path, serializer);
@@ -23725,6 +23729,7 @@ mod io {
                 telescope_name: self.telescope_name.cst_decode(),
                 telescope_focal_length_mm: self.telescope_focal_length_mm.cst_decode(),
                 telescope_aperture_mm: self.telescope_aperture_mm.cst_decode(),
+                save_to: self.save_to.cst_decode(),
                 dither_max_wait_secs: self.dither_max_wait_secs.cst_decode(),
                 in_flight_policy: self.in_flight_policy.cst_decode(),
                 save_base_path: self.save_base_path.cst_decode(),
@@ -26270,6 +26275,7 @@ mod io {
                 telescope_name: core::ptr::null_mut(),
                 telescope_focal_length_mm: core::ptr::null_mut(),
                 telescope_aperture_mm: core::ptr::null_mut(),
+                save_to: core::ptr::null_mut(),
                 dither_max_wait_secs: Default::default(),
                 in_flight_policy: core::ptr::null_mut(),
                 save_base_path: core::ptr::null_mut(),
@@ -31991,6 +31997,7 @@ mod io {
         telescope_name: *mut wire_cst_list_prim_u_8_strict,
         telescope_focal_length_mm: *mut f64,
         telescope_aperture_mm: *mut f64,
+        save_to: *mut wire_cst_list_prim_u_8_strict,
         dither_max_wait_secs: f64,
         in_flight_policy: *mut wire_cst_list_prim_u_8_strict,
         save_base_path: *mut wire_cst_list_prim_u_8_strict,

@@ -349,6 +349,34 @@ void main() {
     );
   });
 
+  test('a frame kept in a screen\'s own folder is named by the Settings '
+      'pattern and never takes a name on disk', () async {
+    final container = await buildContainer();
+    final service = container.read(imagingServiceProvider);
+    final flats = p.join(outputDir.path, 'Flats', 'L');
+    const flat = ExposureSettings(
+      exposureTime: 1.5,
+      gain: 100,
+      offset: 10,
+      frameType: FrameType.flat,
+      filter: 'L',
+    );
+    final first = await service.keeperFilePath(
+      folder: flats,
+      exposureSettings: flat,
+      targetName: 'Flat',
+    );
+    expect(first, p.join(flats, 'Flat_L_2026-01-15_0001.fits'));
+    File(first).writeAsBytesSync(const <int>[0]);
+
+    final second = await service.keeperFilePath(
+      folder: flats,
+      exposureSettings: flat,
+      targetName: 'Flat',
+    );
+    expect(second, p.join(flats, 'Flat_L_2026-01-15_0002.fits'));
+  });
+
   test('numbering restarts when the folder is empty again', () async {
     final first = await buildContainer();
     await first.read(imagingServiceProvider).captureImage(settings: _settings);

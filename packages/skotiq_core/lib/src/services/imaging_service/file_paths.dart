@@ -21,13 +21,12 @@ extension _ImagingServiceFilePaths on ImagingService {
   /// frame is grouped under the UTC date 03:00 the next morning — i.e. the
   /// folder name matches the timestamp embedded in the file.
   Future<String> _generateImageFilePath({
-    required AppSettingsState appSettings,
+    required String basePath,
     required ExposureSettings exposureSettings,
     String? targetName,
     required int frameNumber,
     required DateTime timestamp,
   }) async {
-    final basePath = appSettings.imageOutputPath;
     if (basePath.isEmpty) {
       throw const ValidationException(
         message: 'Image output path not configured',
@@ -143,15 +142,12 @@ extension _ImagingServiceFilePaths on ImagingService {
   /// time, where the operator gets the real message, and a folder that cannot
   /// be probed simply falls back to the in-memory counter.
   Future<int> _nextKeeperFrameNumber({
+    required String? basePath,
     required ExposureSettings exposureSettings,
     String? targetName,
   }) async {
     final fallback = _frameNumber + 1;
     try {
-      final basePath = _ref
-          .read(appSettingsProvider)
-          .valueOrNull
-          ?.imageOutputPath;
       if (basePath == null || basePath.isEmpty) return fallback;
 
       final backend = _ref.read(backendProvider);
