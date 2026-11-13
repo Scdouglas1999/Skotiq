@@ -9,6 +9,7 @@ import '../services/optical_train_limits.dart';
 import '../utils/json_validation.dart';
 import 'backend/device_types.dart' show DeviceType;
 import 'equipment_profile.dart' as remote_profile;
+import 'equipment_profile_remote_mapping.dart';
 
 final _log = Logger('ProfilesProvider');
 
@@ -195,7 +196,31 @@ class EquipmentProfileModel {
       (guideCameraId ?? '').isNotEmpty ||
       DeviceType.values.any((type) => (deviceIdFor(type) ?? '').isNotEmpty);
 
-  factory EquipmentProfileModel.fromDatabase(DbEquipmentProfile db) {
+  factory EquipmentProfileModel.fromDatabase(DbEquipmentProfile db) =>
+      EquipmentProfileModel._fromRow(
+        db,
+        id: db.id,
+        createdAt: db.createdAt,
+        updatedAt: db.updatedAt,
+      );
+
+  /// The host's REST `/api/profiles` payload, read as the row it describes so
+  /// a linked client and the host derive every field by one rule.
+  factory EquipmentProfileModel.fromRemoteProfile(
+    remote_profile.EquipmentProfile profile,
+  ) => EquipmentProfileModel._fromRow(
+    remoteProfileToDbRow(profile),
+    id: int.tryParse(profile.id),
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  );
+
+  factory EquipmentProfileModel._fromRow(
+    DbEquipmentProfile db, {
+    required int? id,
+    required DateTime? createdAt,
+    required DateTime? updatedAt,
+  }) {
     List<String> filters = [];
     Map<String, int> offsets = {};
     final rawTelescopeFocalLength = db.telescopeFocalLength;
@@ -242,7 +267,7 @@ class EquipmentProfileModel {
     }
 
     return EquipmentProfileModel(
-      id: db.id,
+      id: id,
       name: db.name,
       description: db.description,
       isActive: db.isActive,
@@ -288,101 +313,8 @@ class EquipmentProfileModel {
       profileColor: db.profileColor,
       sortOrder: db.sortOrder,
       isDefault: db.isDefault,
-      createdAt: db.createdAt,
-      updatedAt: db.updatedAt,
-    );
-  }
-
-  /// Create from the host's REST `/api/profiles` payload when running as a
-  /// remote companion (NetworkBackend).
-  factory EquipmentProfileModel.fromRemoteProfile(
-    remote_profile.EquipmentProfile profile,
-  ) {
-    List<String> filters = [];
-    Map<String, int> offsets = {};
-
-    if (profile.filterNames != null && profile.filterNames!.isNotEmpty) {
-      try {
-        filters = decodeStringListJson(
-          profile.filterNames,
-          context: 'remote profile "${profile.name}" filterNames',
-        );
-      } catch (e) {
-        _log.warning(
-          'Failed to parse remote filterNames for "${profile.name}": $e',
-        );
-      }
-    }
-
-    if (profile.filterFocusOffsets != null &&
-        profile.filterFocusOffsets!.isNotEmpty) {
-      try {
-        offsets = decodeStringIntMapJson(
-          profile.filterFocusOffsets,
-          context: 'remote profile "${profile.name}" filterFocusOffsets',
-        );
-      } catch (e) {
-        _log.warning(
-          'Failed to parse remote filterFocusOffsets for "${profile.name}": $e',
-        );
-      }
-    }
-
-    final remoteId = int.tryParse(profile.id);
-
-    return EquipmentProfileModel(
-      id: remoteId,
-      name: profile.name,
-      description: profile.description,
-      isActive: profile.isActive,
-      cameraId: profile.cameraId,
-      mountId: profile.mountId,
-      focuserId: profile.focuserId,
-      filterWheelId: profile.filterWheelId,
-      guiderId: profile.guiderId,
-      guideCameraId: profile.guideCameraId,
-      guideFocalLength: profile.guideFocalLength,
-      rotatorId: profile.rotatorId,
-      domeId: profile.domeId,
-      weatherId: profile.weatherId,
-      safetyMonitorId: profile.safetyMonitorId,
-      switchId: profile.switchId,
-      coverCalibratorId: profile.coverCalibratorId,
-      cameraName: profile.cameraName,
-      mountName: profile.mountName,
-      focuserName: profile.focuserName,
-      filterWheelName: profile.filterWheelName,
-      guiderName: profile.guiderName,
-      guideCameraName: profile.guideCameraName,
-      rotatorName: profile.rotatorName,
-      safetyMonitorName: profile.safetyMonitorName,
-      switchName: profile.switchName,
-      telescopeName: profile.telescopeName,
-      telescopeFocalLength: profile.telescopeFocalLength > 0
-          ? profile.telescopeFocalLength
-          : null,
-      telescopeAperture: profile.telescopeAperture > 0
-          ? profile.telescopeAperture
-          : null,
-      focalLength: profile.focalLength,
-      aperture: profile.aperture,
-      focalRatio: profile.focalRatio,
-      defaultGain: profile.defaultGain,
-      defaultOffset: profile.defaultOffset,
-      defaultBinX: profile.defaultBinX,
-      defaultBinY: profile.defaultBinY,
-      defaultCoolingTemp: profile.defaultCoolingTemp,
-      coolOnConnect: profile.coolOnConnect,
-      defaultCenteringExposure: profile.defaultCenteringExposure,
-      filterNames: filters,
-      filterFocusOffsets: offsets,
-      meridianFlipOverrides: profile.meridianFlipOverrides,
-      profileIcon: profile.profileIcon,
-      profileColor: profile.profileColor,
-      sortOrder: profile.sortOrder,
-      isDefault: profile.isDefault,
-      createdAt: profile.createdAt,
-      updatedAt: profile.updatedAt,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
 

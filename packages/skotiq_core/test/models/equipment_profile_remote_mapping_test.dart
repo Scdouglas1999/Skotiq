@@ -1,7 +1,9 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/models/equipment_profile_remote_mapping.dart';
 
 /// The canonical equipment-profile converter is lossless for every field the
@@ -160,5 +162,48 @@ void main() {
         expect(merged.isActive, isTrue, reason: 'active preserved');
       },
     );
+  });
+
+  group('one read rule for the host and a linked client', () {
+    // A profile that states its optics on the telescope only.
+    final row = _sampleRow().copyWith(
+      focalLength: 0,
+      aperture: 0,
+      telescopeFocalLength: const Value(800),
+      telescopeAperture: const Value(100),
+    );
+
+    test('the client derives the same optics from the wire as the host does '
+        'from the row', () {
+      final onHost = EquipmentProfileModel.fromDatabase(row);
+      final onClient = EquipmentProfileModel.fromRemoteProfile(
+        dbProfileToRemote(row),
+      );
+
+      expect(onHost.focalLength, 800);
+      expect(onClient.focalLength, onHost.focalLength);
+      expect(onClient.aperture, onHost.aperture);
+    });
+
+    test('every wire field reads the same on both sides', () {
+      final onHost = EquipmentProfileModel.fromDatabase(row);
+      final onClient = EquipmentProfileModel.fromRemoteProfile(
+        dbProfileToRemote(row),
+      );
+      expect(
+        onClient.toRemoteProfile().toJson(),
+        onHost.toRemoteProfile().toJson(),
+      );
+    });
+
+    test('a wire profile with no id is a new profile', () {
+      final model = EquipmentProfileModel.fromRemoteProfile(
+        remote_profile.EquipmentProfile.fromJson({
+          ...dbProfileToRemote(row).toJson(),
+          'id': '',
+        }),
+      );
+      expect(model.id, isNull);
+    });
   });
 }
