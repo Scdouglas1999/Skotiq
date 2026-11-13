@@ -95,3 +95,52 @@ fn a_calibrated_copy_named_as_camera_raw_is_refused() {
     assert!(err.to_string().contains("camera raw"), "{err}");
     assert!(!out.exists());
 }
+
+/// A real library path is longer than one FITS card holds; the calibrated
+/// frame is still written and names every master in full.
+#[test]
+fn calibrated_save_names_long_master_paths_in_full() {
+    let library = std::env::temp_dir()
+        .join("sk_calibrate_carry_over_test")
+        .join("Calibration Library")
+        .join("ZWO ASI2600MM Pro")
+        .join("gain 100 offset 50 at -10 C")
+        .join("2026-11-13 masters built from the full set of 40 subframes");
+    std::fs::create_dir_all(&library).unwrap();
+    let light = scratch("long_paths_light.fits");
+    let out = scratch("long_paths_calibrated.fits");
+    let dark = library.join("master_dark_300s_gain100_offset50_-10C.fits");
+    let flat = library.join("master_flat_Ha_gain100_offset50.fits");
+    let bias = library.join("master_bias_gain100_offset50_-10C.fits");
+    let image = ImageData::from_u16(4, 4, 1, &[1000; 16]);
+    write_fits(&light, &image, &FitsHeader::new()).unwrap();
+    for master in [&dark, &flat, &bias] {
+        assert!(master.to_string_lossy().len() > 150, "{}", master.display());
+        let level = if master == &flat { 30000 } else { 100 };
+        write_fits(
+            master,
+            &ImageData::from_u16(4, 4, 1, &[level; 16]),
+            &FitsHeader::new(),
+        )
+        .unwrap();
+    }
+    let name = |p: &PathBuf| Some(p.to_string_lossy().into_owned());
+
+    api_calibrate_image_file(
+        light.to_string_lossy().into_owned(),
+        name(&dark),
+        name(&flat),
+        name(&bias),
+        out.to_string_lossy().into_owned(),
+    )
+    .expect("long master paths never fail the calibrated save");
+
+    let (_, out_header) = read_frame(&out).unwrap();
+    assert_eq!(
+        out_header.get_string("CALSTAT"),
+        Some("calibrated by Skotiq")
+    );
+    assert_eq!(out_header.get_string("DARKFILE"), name(&dark).as_deref());
+    assert_eq!(out_header.get_string("FLATFILE"), name(&flat).as_deref());
+    assert_eq!(out_header.get_string("BIASFILE"), name(&bias).as_deref());
+}

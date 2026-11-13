@@ -169,6 +169,11 @@ pub(crate) fn header_from_image(image: &XisfImageHeader) -> FitsHeader {
     );
     for keyword in &image.fits_keywords {
         let name = keyword.name.trim().to_ascii_uppercase();
+        // A tool that copied a FITS HIERARCH card may keep the convention's
+        // keyword in the name; the FITS writer adds it again where needed.
+        let name = name
+            .strip_prefix("HIERARCH ")
+            .map_or(name.clone(), |rest| rest.trim().to_string());
         match name.as_str() {
             "COMMENT" => header.add_comment(&keyword.comment),
             "HISTORY" => header.add_history(&keyword.comment),

@@ -26,7 +26,8 @@ class FitsHeaderReader {
   static const int maxBlocks = 36;
 
   /// Read the primary-HDU header cards of [path] into a keyword → raw value
-  /// map (values still carry FITS quoting; use the typed helpers below).
+  /// map (values still carry FITS quoting; use the typed helpers below). A
+  /// string continued on CONTINUE cards is one value.
   ///
   /// Throws [FormatException] when the file is not a FITS file (no `SIMPLE`
   /// first card) or the header has no `END` card within [maxBlocks] blocks;
@@ -43,6 +44,8 @@ class FitsHeaderReader {
       await raf.setPosition(0);
       final headers = <String, String>{};
       var sawSimple = false;
+      // The keyword whose string value ended in `&` on the card just read.
+      String? openLongString;
       for (var block = 0; block < maxBlocks; block++) {
         final bytes = await raf.read(blockSize);
         if (bytes.length < blockSize) {
@@ -64,12 +67,33 @@ class FitsHeaderReader {
             sawSimple = true;
           }
           if (keyword == 'END') return headers;
+          final continued = openLongString;
+          openLongString = null;
+          if (keyword == 'CONTINUE') {
+            if (continued != null) {
+              final joined = _continueString(
+                headers[continued]!,
+                _rawValue(card),
+              );
+              if (joined != null) {
+                headers[continued] = joined;
+                if (_quotedBody(joined)!.endsWith('&')) {
+                  openLongString = continued;
+                }
+              }
+            }
+            continue;
+          }
           if (keyword.isEmpty || keyword == 'COMMENT' || keyword == 'HISTORY') {
             continue;
           }
           // Value cards have "= " in columns 9-10 per the FITS standard.
           if (card.length < 10 || card[8] != '=') continue;
-          headers[keyword] = _rawValue(card);
+          final value = _rawValue(card);
+          headers[keyword] = value;
+          if (_quotedBody(value)?.endsWith('&') ?? false) {
+            openLongString = keyword;
+          }
         }
       }
       throw FormatException(
@@ -181,6 +205,25 @@ class FitsHeaderReader {
       if (value != null) return value;
     }
     return null;
+  }
+
+  /// The text between a quoted value's quotes, trailing blanks dropped; null
+  /// for a value that is not a quoted string.
+  static String? _quotedBody(String raw) {
+    if (raw.length < 2 || !raw.startsWith("'") || !raw.endsWith("'")) {
+      return null;
+    }
+    return raw.substring(1, raw.length - 1).trimRight();
+  }
+
+  /// A string value continued by one CONTINUE card (FITS 4.0 section
+  /// 4.2.1.2): the `&` ending [head] is replaced by [piece]'s text. Null when
+  /// [piece] is not a quoted string, which ends the value as it stands.
+  static String? _continueString(String head, String piece) {
+    final headText = _quotedBody(head)!;
+    final pieceText = _quotedBody(piece);
+    if (pieceText == null) return null;
+    return "'${headText.substring(0, headText.length - 1)}$pieceText'";
   }
 
   /// Strip the inline comment and return the raw value text of a card.
