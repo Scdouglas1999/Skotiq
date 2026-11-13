@@ -1156,14 +1156,25 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     bool mustExist = false,
     bool mustBeWritable = false,
   }) async {
-    return _post(
-      FileSystemApi.validateDirectory,
-      body: {
-        'path': path,
-        'mustExist': mustExist,
-        'mustBeWritable': mustBeWritable,
-      },
-    );
+    try {
+      return await _post(
+        FileSystemApi.validateDirectory,
+        body: {
+          'path': path,
+          'mustExist': mustExist,
+          'mustBeWritable': mustBeWritable,
+        },
+      );
+    } on ServerError catch (refusal) {
+      // A folder outside the host's folders is an answer about the folder.
+      if (refusal.code != 'path_not_allowed') rethrow;
+      return {
+        'valid': false,
+        'exists': false,
+        'writable': false,
+        'error': refusal.message,
+      };
+    }
   }
 
   int _sessionScienceRowInt(

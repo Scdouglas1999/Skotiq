@@ -50,8 +50,7 @@ void main() {
       expect(verdict, isA<FolderRefused>());
     });
 
-    test('a relative path is refused with an example of a full one',
-        () async {
+    test('a relative path is refused with an example of a full one', () async {
       final verdict = await folders.check('Astro/Lights');
       expect(
         (verdict as FolderNotFullPath).reason,
@@ -101,6 +100,22 @@ void main() {
     test('a folder the host cannot write is refused', () async {
       answer({'valid': false, 'exists': true, 'writable': false});
       expect(await folders.check('/mnt/ro'), isA<FolderRefused>());
+    });
+
+    test(
+        'a folder outside the host\'s folders is refused with the host\'s '
+        'reason', () async {
+      answer({
+        'valid': false,
+        'exists': false,
+        'writable': false,
+        'error': 'Not a folder this host lets clients use.',
+      });
+      expect(
+        await folders.check('/etc/captures'),
+        isA<FolderRefused>().having((v) => v.reason, 'reason',
+            'Not a folder this host lets clients use.'),
+      );
     });
 
     test('a host that does not answer leaves the folder unchecked', () async {

@@ -112,6 +112,29 @@ void main() {
       expect(fake.requestsFor('/api/devices'), hasLength(1));
     });
 
+    test('a folder outside the host\'s folders is the host\'s refusal, with '
+        'its reason', () async {
+      fake.setResponse(
+        '/api/files/validate',
+        method: 'POST',
+        status: 403,
+        body:
+            '{"error":"path_not_allowed","message":"Not a folder this host '
+            'lets clients use.","valid":false,"exists":false,'
+            '"writable":false}',
+      );
+      backend = _buildBackend(fake);
+
+      final answer = await backend.validateRemoteDirectory(
+        '/etc/captures',
+        mustExist: true,
+        mustBeWritable: true,
+      );
+
+      expect(answer['valid'], isFalse);
+      expect(answer['error'], 'Not a folder this host lets clients use.');
+    });
+
     test('refreshes auth token once after 401 and retries discovery', () async {
       fake.setResponseSequence(
         '/api/devices',
