@@ -30,8 +30,11 @@ Lower layers change less. A package uses only the packages below it.
 | `apps/desktop`, `apps/mobile` | entry points, headless API server, host start-up | everything |
 
 Rust: `skotiq_device` (shared vocabulary and driver traits) is the bottom; `alpaca`, `ascom`, `indi`
-use only it; `native` (vendor SDKs) and `sequencer` use `device` and `imaging`; `bridge` wires them
-together and is the FFI surface. Only `skotiq_core` imports `skotiq_bridge` (reviewed exceptions in
+use only it; `native` (vendor SDKs) and `sequencer` use `device` and `imaging`; `processing` (the
+pipelines over frames on disk: post-session, Darkroom, finishing, mosaic, sky atlas) uses `imaging`
+and `platesolve` and never a device; `bridge` wires them together and is the FFI surface. A function
+in `bridge/src/api` converts its arguments and calls the crate that owns the work. Only
+`skotiq_core` imports `skotiq_bridge` (reviewed exceptions in
 `tools/production/bridge_boundary_whitelist.json`). The full tables are `_dartPackages` and
 `_rustCrates` in `tools/production/architecture_rules_audit.dart`.
 
