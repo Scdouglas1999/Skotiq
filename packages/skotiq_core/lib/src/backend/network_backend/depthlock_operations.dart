@@ -11,8 +11,7 @@ part of '../network_backend.dart';
 /// something else" are different facts and only one of them is safe to show.
 ///
 /// Stale revisions come back as a 409 and validation refusals as a 400, both
-/// carrying the native reason; `_parseErrorResponse` turns them into the
-/// typed error the caller surfaces verbatim.
+/// carrying the native reason, which the caller shows as it is.
 mixin _NetworkBackendDepthLockOperations on _NetworkBackendTransport {
   /// The value at [key], or a [ValidationException] naming what was missing.
   Map<String, dynamic> _depthLockObject(

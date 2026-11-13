@@ -96,13 +96,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
         return null;
       }
       rethrow;
-    } on dart_error.SkotiqError catch (error) {
-      // Compatibility with hosts that predate the structured error envelope.
-      final message = error.message.toLowerCase();
-      if (message.contains('fits_not_found') || message.contains('http 404')) {
-        return null;
-      }
-      rethrow;
     }
   }
 

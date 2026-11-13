@@ -393,24 +393,9 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
         query: {'deviceId': deviceId},
       );
     } on ServerError catch (e) {
-      // Error parsing: prefer the machine-readable `code` over
-      // the substring-match on `message`. The server emits
-      // `live_view_unavailable` when the driver doesn't support live
-      // view, and the underlying 503 is surfaced via httpStatus.
       if (e.code == 'live_view_unavailable' ||
           e.code == 'not_supported' ||
           e.httpStatus == 503) {
-        throw dart_error.SkotiqError(
-          category: dart_error.BackendErrorCategory.validation,
-          message: e.message,
-        );
-      }
-      rethrow;
-    } on dart_error.SkotiqError catch (e) {
-      final msg = e.message.toLowerCase();
-      if (msg.contains('503') ||
-          msg.contains('live_view_unavailable') ||
-          msg.contains('not supported')) {
         throw dart_error.SkotiqError(
           category: dart_error.BackendErrorCategory.validation,
           message: e.message,
@@ -449,16 +434,8 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
         metaHeaderBase64: metaHeader,
       );
     } on ServerError catch (e) {
-      // Error parsing: treat 404 or the explicit `no_image`
-      // envelope code as "no image cached yet" and return null instead
-      // of bubbling an exception. Anything else is a real failure.
+      // No image cached yet.
       if (e.httpStatus == 404 || e.code == 'no_image') {
-        return null;
-      }
-      rethrow;
-    } on dart_error.SkotiqError catch (e) {
-      final msg = e.message.toLowerCase();
-      if (msg.contains('404') || msg.contains('no_image')) {
         return null;
       }
       rethrow;
@@ -576,22 +553,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
         developer.log(
           'cameraGetRecommendedSettings not implemented on remote '
           '(${e.code}, HTTP ${e.httpStatus}); returning empty recommendation',
-          name: 'NetworkBackend',
-          level: 900, // WARNING
-        );
-        return const CameraRecommendedSettings(notes: '');
-      }
-      rethrow;
-    } on dart_error.SkotiqError catch (e) {
-      // `_parseErrorResponse` falls back to a `SkotiqError` with
-      // `BackendErrorCategory.connection` for HTTP 404 when the body
-      // isn't a recognized error envelope. Treat that specific shape as
-      // "route missing" too — any other category propagates.
-      if (e.category == dart_error.BackendErrorCategory.connection &&
-          e.message.contains('HTTP 404')) {
-        developer.log(
-          'cameraGetRecommendedSettings route 404 on remote '
-          '(${e.message}); returning empty recommendation',
           name: 'NetworkBackend',
           level: 900, // WARNING
         );

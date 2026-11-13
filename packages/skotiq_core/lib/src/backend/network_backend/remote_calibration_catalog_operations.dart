@@ -281,23 +281,9 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
         (response['dark'] as Map).cast<String, dynamic>(),
       );
     } on ServerError catch (e) {
-      // Error parsing: handler returns 404 + the structured
-      // envelope {code: 'no_matching_dark'} when no dark satisfies the
-      // requested parameters. Treating it as the legitimate "no match"
-      // outcome (null) instead of an exception.
+      // No dark satisfies the requested parameters.
       if (e.code == 'no_matching_dark' ||
           (e.httpStatus == 404 && e.code.contains('no_matching'))) {
-        return null;
-      }
-      rethrow;
-    } on dart_error.SkotiqError catch (e) {
-      // The handler returns 404 with `error: no_matching_dark` when no
-      // dark matches the requested capture parameters. `_parseErrorResponse`
-      // collapses the 404 into the `connection` category and stuffs the
-      // server-side `error` field into the message, so we sniff for the
-      // sentinel string to map the legitimate non-error outcome to null.
-      if (e.category == dart_error.BackendErrorCategory.connection &&
-          e.message.contains('no_matching_dark')) {
         return null;
       }
       rethrow;

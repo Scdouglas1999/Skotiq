@@ -5,7 +5,7 @@
 // headless desktop. Before a later refactor rewrites it, we need a guard that:
 //
 //   * GETs go to the documented endpoints (`/api/devices`)
-//   * HTTP failure codes are surfaced as `SkotiqError`, never silently
+//   * HTTP failure codes are surfaced as `ServerError`, never silently
 // dropped or returned as empty lists (no silent fallbacks here)
 //   * Malformed JSON propagates as an exception
 //   * The pairing token is sent in the `Authorization: Bearer ...` header
@@ -24,6 +24,7 @@ import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/backend/image_result.dart';
 import 'package:skotiq_core/src/models/errors/skotiq_error.dart';
+import 'package:skotiq_core/src/models/errors/server_error.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart';
 import 'package:skotiq_core/src/models/plate_solver.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
@@ -85,7 +86,7 @@ void main() {
       },
     );
 
-    test('a 401 response is surfaced as a structured SkotiqError, '
+    test('a 401 response is surfaced with the host\'s code and message, '
         'not silently swallowed', () async {
       // 401 is non-transient, so we expect exactly one request and an
       // immediate failure.
@@ -102,11 +103,10 @@ void main() {
       await expectLater(
         backend.discoverDevices(DeviceType.camera),
         throwsA(
-          isA<SkotiqError>().having(
-            (e) => e.message,
-            'message',
-            contains('missing pairing token'),
-          ),
+          isA<ServerError>()
+              .having((e) => e.code, 'code', 'unauthorized')
+              .having((e) => e.message, 'message', 'missing pairing token')
+              .having((e) => e.httpStatus, 'httpStatus', 401),
         ),
       );
       expect(fake.requestsFor('/api/devices'), hasLength(1));
@@ -158,13 +158,8 @@ void main() {
       );
     });
 
-    test('a 500 response is retried as a transient failure and surfaces '
-        'as a recoverable SkotiqError', () async {
-      // Use a plain (non-JSON) body so `_parseErrorResponse` exercises the
-      // HTTP-status-based fallback path; that path marks 5xx as recoverable
-      // (`_isTransientStatusCode`), which is the behaviour we want to lock
-      // in. A structured legacy `{error, message}` body would short-circuit
-      // to `SkotiqError.fromString`, which is HTTP-status-blind.
+    test('a 500 response that is not the host\'s own error body is retried '
+        'and surfaces with its status', () async {
       fake.setResponse(
         '/api/devices',
         method: 'GET',
@@ -173,17 +168,15 @@ void main() {
       );
       backend = _buildBackend(fake);
 
-      try {
-        await backend.discoverDevices(DeviceType.camera);
-        fail('Expected discoverDevices to throw on persistent 500');
-      } on SkotiqError catch (err) {
-        expect(
-          err.isRecoverable,
-          isTrue,
-          reason: '5xx must surface as transient/recoverable',
-        );
-        expect(err.message, contains('500'));
-      }
+      await expectLater(
+        backend.discoverDevices(DeviceType.camera),
+        throwsA(
+          isA<ServerError>()
+              .having((e) => e.code, 'code', 'internal_error')
+              .having((e) => e.message, 'message', contains('500'))
+              .having((e) => e.httpStatus, 'httpStatus', 500),
+        ),
+      );
 
       // The retry policy fires 3 attempts for transient failures.
       expect(fake.requestsFor('/api/devices'), hasLength(3));
