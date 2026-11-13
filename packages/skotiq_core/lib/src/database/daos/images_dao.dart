@@ -95,7 +95,7 @@ class ProducingNodeThumbnail {
 class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   ImagesDao(super.db);
 
-  Future<List<CapturedImage>> getAllImages() {
+  Future<List<DbCapturedImage>> getAllImages() {
     return (select(
       capturedImages,
     )..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])).get();
@@ -105,7 +105,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   ///
   /// More efficient for displaying large image libraries.
   /// Use this instead of getAllImages() when dealing with hundreds or thousands of images.
-  Future<List<CapturedImage>> getAllImagesPaginated({
+  Future<List<DbCapturedImage>> getAllImagesPaginated({
     required int limit,
     required int offset,
   }) {
@@ -172,7 +172,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
         .toSet();
   }
 
-  Stream<List<CapturedImage>> watchAllImages() {
+  Stream<List<DbCapturedImage>> watchAllImages() {
     return (select(
       capturedImages,
     )..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])).watch();
@@ -185,7 +185,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     return selectExpressions([any]).watchSingle().map((row) => row.read(any)!);
   }
 
-  Future<List<CapturedImage>> getImagesForSession(int sessionId) {
+  Future<List<DbCapturedImage>> getImagesForSession(int sessionId) {
     return (select(capturedImages)
           ..where((i) => i.sessionId.equals(sessionId))
           ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)]))
@@ -196,7 +196,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   ///
   /// This is more efficient for large image sets as it only loads
   /// the requested page instead of all images.
-  Future<List<CapturedImage>> getImagesForSessionPaginated({
+  Future<List<DbCapturedImage>> getImagesForSessionPaginated({
     required int sessionId,
     required int limit,
     required int offset,
@@ -208,7 +208,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
         .get();
   }
 
-  Stream<List<CapturedImage>> watchImagesForSession(int sessionId) {
+  Stream<List<DbCapturedImage>> watchImagesForSession(int sessionId) {
     return (select(capturedImages)
           ..where((i) => i.sessionId.equals(sessionId))
           ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)]))
@@ -217,7 +217,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
 
   /// Watch the images captured in `[start, end)`, oldest first: one
   /// observing night, whatever runs and sessions it held.
-  Stream<List<CapturedImage>> watchImagesCapturedBetween(
+  Stream<List<DbCapturedImage>> watchImagesCapturedBetween(
     DateTime start,
     DateTime end,
   ) {
@@ -225,14 +225,14 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   }
 
   /// The images captured in `[start, end)`, oldest first.
-  Future<List<CapturedImage>> getImagesCapturedBetween(
+  Future<List<DbCapturedImage>> getImagesCapturedBetween(
     DateTime start,
     DateTime end,
   ) {
     return _capturedBetween(start, end).get();
   }
 
-  SimpleSelectStatement<$CapturedImagesTable, CapturedImage> _capturedBetween(
+  SimpleSelectStatement<$CapturedImagesTable, DbCapturedImage> _capturedBetween(
     DateTime start,
     DateTime end,
   ) {
@@ -245,20 +245,20 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
       ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)]);
   }
 
-  Future<List<CapturedImage>> getImagesForTarget(int targetId) {
+  Future<List<DbCapturedImage>> getImagesForTarget(int targetId) {
     return (select(capturedImages)
           ..where((i) => i.targetId.equals(targetId))
           ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)]))
         .get();
   }
 
-  Future<CapturedImage?> getImageById(int id) {
+  Future<DbCapturedImage?> getImageById(int id) {
     return (select(
       capturedImages,
     )..where((i) => i.id.equals(id))).getSingleOrNull();
   }
 
-  Future<CapturedImage?> getImageByFilePath(String filePath) {
+  Future<DbCapturedImage?> getImageByFilePath(String filePath) {
     return (select(
       capturedImages,
     )..where((i) => i.filePath.equals(filePath))).getSingleOrNull();
@@ -278,7 +278,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
 
   /// The session's newest frames, newest first. With [atOrBefore], only
   /// frames captured at or before that time.
-  Future<List<CapturedImage>> getRecentImagesForSession(
+  Future<List<DbCapturedImage>> getRecentImagesForSession(
     int sessionId, {
     int limit = 5,
     DateTime? atOrBefore,
@@ -299,7 +299,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     return into(capturedImages).insert(image);
   }
 
-  Future<bool> updateImage(CapturedImage image) {
+  Future<bool> updateImage(DbCapturedImage image) {
     return update(capturedImages).replace(image);
   }
 
@@ -400,7 +400,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     );
   }
 
-  Future<List<CapturedImage>> getImagesByFrameType(String frameType) {
+  Future<List<DbCapturedImage>> getImagesByFrameType(String frameType) {
     return (select(capturedImages)
           ..where((i) => i.frameType.equals(frameType))
           ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)]))
@@ -409,7 +409,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
 
   /// Watch recent standalone (sessionless) images — captures taken outside
   /// any sequence session.  Limited to the most recent [limit] images.
-  Stream<List<CapturedImage>> watchStandaloneImages({int limit = 100}) {
+  Stream<List<DbCapturedImage>> watchStandaloneImages({int limit = 100}) {
     return (select(capturedImages)
           ..where((i) => i.sessionId.isNull())
           ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])
@@ -417,7 +417,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
         .watch();
   }
 
-  Future<List<CapturedImage>> getImagesByFilter(String filter) {
+  Future<List<DbCapturedImage>> getImagesByFilter(String filter) {
     return (select(capturedImages)
           ..where((i) => i.filter.equals(filter))
           ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)]))
@@ -487,7 +487,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   /// The newest row recorded for [filePath], or null. A path can be recorded
   /// more than once (a frame re-registered after a restart), and the newest
   /// row is the one a run's later facts belong to.
-  Future<CapturedImage?> getLatestImageByFilePath(String filePath) {
+  Future<DbCapturedImage?> getLatestImageByFilePath(String filePath) {
     return (select(capturedImages)
           ..where((i) => i.filePath.equals(filePath))
           ..orderBy([(i) => OrderingTerm.desc(i.id)])
@@ -1005,7 +1005,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
 
   /// Every frame one sequence run produced, oldest first: the session-replay
   /// scrubber's timeline. `producing_run_id` is `sequence_runs.id` as text.
-  Future<List<CapturedImage>> getImagesByProducingRun({
+  Future<List<DbCapturedImage>> getImagesByProducingRun({
     required String producingRunId,
     int limit = 1000,
     int offset = 0,

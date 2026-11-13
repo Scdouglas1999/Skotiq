@@ -5,7 +5,8 @@
 // a site in another time zone twice.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../data/plan/night_plan_inputs.dart';

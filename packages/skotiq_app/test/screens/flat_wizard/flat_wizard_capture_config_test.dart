@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/flat_wizard/flat_wizard_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 

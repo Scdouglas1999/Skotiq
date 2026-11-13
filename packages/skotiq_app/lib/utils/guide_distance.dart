@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 // Guide distances: an RMS, a peak, one step's error.
 //

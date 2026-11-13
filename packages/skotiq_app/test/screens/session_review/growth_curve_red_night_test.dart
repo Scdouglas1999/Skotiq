@@ -9,7 +9,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart'
-    show BestNight, GrowthPoint;
+    show ReviewBestNight, GrowthPoint;
 import 'package:skotiq_app/screens/session_review/widgets/growth_curve_panel.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -43,7 +43,7 @@ Widget _panel(ThemeData theme) => MaterialApp(
         body: SingleChildScrollView(
           child: GrowthCurvePanel(
             points: _points(),
-            best: BestNight(
+            best: ReviewBestNight(
               date: DateTime.utc(2026, 7, 12),
               meanWeight: 1.4,
               frameCount: 30,

@@ -1,6 +1,6 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' show FrameFiles;
+import 'package:skotiq_core/models.dart' show FrameFiles;
 
 /// File choosers DepthLock needs, behind provider seams so a widget test can
 /// answer them without a platform dialog (the pattern

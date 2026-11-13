@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A titled panel of the Activity tab: surface tone, hairline border, the

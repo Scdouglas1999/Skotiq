@@ -12,7 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_toolbar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/trigger_configuration_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';

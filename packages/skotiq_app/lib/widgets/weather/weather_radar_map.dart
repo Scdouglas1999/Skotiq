@@ -8,7 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../red_night_filter.dart';

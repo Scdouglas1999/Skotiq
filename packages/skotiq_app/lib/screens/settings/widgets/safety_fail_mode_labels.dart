@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// One naming for [SafetyFailMode] shared by every settings page that shows it.
 ///

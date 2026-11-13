@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/services.dart';
 
 Future<void> _waitUntil(bool Function() condition) async {
   final deadline = DateTime.now().add(const Duration(seconds: 1));

@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
-import '../backend/skotiq_backend.dart' show MountStatus;
+import '../models/backend/backend_types.dart';
 
 /// Where a slew stands at one status read.
 class MountSlewProgress {

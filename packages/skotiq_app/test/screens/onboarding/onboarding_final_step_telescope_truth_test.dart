@@ -9,9 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/next_steps_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 Future<ProviderContainer> _pumpFinalStep(WidgetTester tester) async {

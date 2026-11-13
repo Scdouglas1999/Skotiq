@@ -10,7 +10,7 @@
 // The buffer is in-memory only — a server restart issues a new
 // `serverInstanceId` so clients know their cached `seq` is stale.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Fixed-capacity FIFO ring buffer of stamped [SkotiqEvent]s.
 ///

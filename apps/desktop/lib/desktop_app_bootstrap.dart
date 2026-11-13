@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 // Why still imported: UpdatePushDiscovery (LAN update-push responder) lives in
 // skotiq_remote_protocol/discovery.dart. The package carries no server of

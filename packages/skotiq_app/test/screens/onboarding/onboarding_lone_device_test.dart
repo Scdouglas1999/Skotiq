@@ -10,7 +10,8 @@ import 'package:skotiq_app/screens/onboarding/steps/camera_defaults_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/guider_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/mount_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/optical_train_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';

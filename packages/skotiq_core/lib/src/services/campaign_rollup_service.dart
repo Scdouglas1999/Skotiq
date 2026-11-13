@@ -35,9 +35,9 @@ class CampaignRollupService {
   /// `SessionReportService.buildReport`.
   Future<CampaignRollup> buildForTarget(
     int targetId, {
-    Iterable<Target>? targetCatalog,
+    Iterable<DbTarget>? targetCatalog,
   }) async {
-    Target? target;
+    DbTarget? target;
     if (targetCatalog != null) {
       for (final candidate in targetCatalog) {
         if (candidate.id == targetId) {
@@ -59,7 +59,7 @@ class CampaignRollupService {
   /// still appear with empty per-filter / per-session lists so the panel
   /// can render "no captures yet" tiles.
   Future<Map<int, CampaignRollup>> buildForAllTargets({
-    Iterable<Target>? targetCatalog,
+    Iterable<DbTarget>? targetCatalog,
   }) async {
     final targets =
         targetCatalog?.toList(growable: false) ??
@@ -71,7 +71,7 @@ class CampaignRollupService {
     return out;
   }
 
-  Future<CampaignRollup> _build(Target target) async {
+  Future<CampaignRollup> _build(DbTarget target) async {
     final imagesForTarget = await _records.getImagesForTarget(target.id);
     final namingSessions = await _records.getSessionsForTarget(target.id);
     final sessionIds = targetSessionIds(

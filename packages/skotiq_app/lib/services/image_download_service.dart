@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
 
 import 'file_download_service.dart';
 

@@ -21,6 +21,7 @@ import '../utils/device_id.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'ui_notification_provider.dart';
+import '../models/backend/backend_types.dart';
 
 part 'guiding_provider/stats_and_graph.dart';
 part 'guiding_provider/controller.dart';

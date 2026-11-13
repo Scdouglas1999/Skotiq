@@ -57,7 +57,7 @@ class NightSub {
   /// re-implement the grading rules: it feeds the same
   /// [FrameQualityAssessmentService] the Workbench uses so a night cannot be
   /// "clean" on one tab and all-POOR on the next.
-  CapturedImage asGradableFrame() => CapturedImage(
+  DbCapturedImage asGradableFrame() => DbCapturedImage(
     id: id,
     filePath: '',
     fileName: '',

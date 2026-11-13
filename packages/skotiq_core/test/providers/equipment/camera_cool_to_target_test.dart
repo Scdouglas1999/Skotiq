@@ -3,7 +3,8 @@
 // cooling goal: the user's choice this session, else the profile's setpoint.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   ProviderContainer containerWith({double? profileTarget}) {

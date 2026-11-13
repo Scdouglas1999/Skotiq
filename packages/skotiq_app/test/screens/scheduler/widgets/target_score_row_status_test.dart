@@ -11,7 +11,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/scheduler/widgets/target_score_row.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 TargetScore _rejected(String reason) => TargetScore(

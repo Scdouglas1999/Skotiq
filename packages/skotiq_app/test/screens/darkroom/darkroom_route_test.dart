@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/screens/shell/shell_navigation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

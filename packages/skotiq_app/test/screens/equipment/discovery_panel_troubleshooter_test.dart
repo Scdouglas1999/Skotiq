@@ -26,7 +26,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/discovery_panel.dart';
 import 'package:skotiq_app/widgets/troubleshooter/connection_troubleshooter_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_backend.dart';

@@ -6,7 +6,9 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:path/path.dart' as p;
 
 class _RecordingSeam implements SkyAtlasSeam {

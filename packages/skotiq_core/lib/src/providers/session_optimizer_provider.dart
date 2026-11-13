@@ -23,6 +23,8 @@ import 'profiles_provider.dart';
 import 'session_report_provider.dart';
 import 'settings_provider.dart';
 import 'target_suggestion_provider.dart';
+import '../database/daos/settings_dao.dart';
+import '../settings/store_settings.dart';
 
 /// Service provider for SessionOptimizerService.
 ///

@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Identity for one arrow of the jog pad. The arrows carry an explicit key
 /// rather than relying on their glyph or letter, which other controls share.

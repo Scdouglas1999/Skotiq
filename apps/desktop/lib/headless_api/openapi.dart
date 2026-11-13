@@ -1,7 +1,7 @@
 /// OpenAPI 3.0 spec generation for the headless route table.
 library;
 
-import 'package:skotiq_core/skotiq_core.dart' show DeviceType;
+import 'package:skotiq_core/models.dart' show DeviceType;
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show SkotiqServerCompatibility;
 import 'package:skotiq_remote_protocol/wire.dart';

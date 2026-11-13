@@ -40,6 +40,7 @@ import 'eta_smoothing.dart';
 import 'live_stacking_feed.dart';
 import 'run_frame_recorder.dart';
 import 'run_stats_ledger.dart';
+import '../../../models/backend/backend_types.dart';
 
 /// Receives a terminal event's verdict; the executor's finalization claim.
 typedef RunTerminalSink =

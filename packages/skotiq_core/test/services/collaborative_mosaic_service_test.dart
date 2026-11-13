@@ -20,7 +20,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A minimal FITS primary header carrying a WCS solution so the service's
 /// `_fitsHeaderHasWcs` probe (and stitchProject's gate) accept the panel.

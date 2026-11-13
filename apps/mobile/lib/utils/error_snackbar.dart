@@ -21,7 +21,7 @@
 // helper has no way to recover from a tear-down race.
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Show a SnackBar describing an API error.

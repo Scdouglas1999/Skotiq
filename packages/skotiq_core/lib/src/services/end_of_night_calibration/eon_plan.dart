@@ -1,4 +1,4 @@
-import '../../database/database.dart' show CapturedImage;
+import '../../database/database.dart' show DbCapturedImage;
 import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../models/sequence/sequence_models.dart';
 
@@ -128,7 +128,7 @@ String _formatNumber(double value) {
 /// The set-point a light was taken at: the camera's set-point when the night
 /// was cooled to one, otherwise the light's sensor reading rounded to a whole
 /// degree (a cooled sensor holds its set-point to well under a degree).
-double? _setPointFor(CapturedImage light, double? cameraSetPointC) {
+double? _setPointFor(DbCapturedImage light, double? cameraSetPointC) {
   final sensor = light.sensorTemp;
   if (cameraSetPointC != null &&
       (sensor == null || (sensor - cameraSetPointC).abs() <= 1.5)) {
@@ -143,7 +143,7 @@ double? _setPointFor(CapturedImage light, double? cameraSetPointC) {
 /// used; one bias group per gain, offset, binning and set-point. Exposures are
 /// compared to the millisecond.
 EonFrameNeeds planFrameNeeds(
-  Iterable<CapturedImage> lights, {
+  Iterable<DbCapturedImage> lights, {
   double? cameraSetPointC,
 }) {
   final darkCounts = <(int, int?, int?, int, int, double?), int>{};

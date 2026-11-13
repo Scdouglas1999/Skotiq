@@ -84,7 +84,7 @@ bool _thumbnailListsEqual(
 ProducingNodeThumbnail _producingThumbnailFromApiJson(
   Map<String, dynamic> json,
 ) {
-  final image = db.CapturedImage.fromJson(json);
+  final image = db.DbCapturedImage.fromJson(json);
   return ProducingNodeThumbnail(
     id: image.id,
     filePath: image.filePath,

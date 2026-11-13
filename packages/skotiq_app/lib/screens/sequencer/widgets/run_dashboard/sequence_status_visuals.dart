@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';

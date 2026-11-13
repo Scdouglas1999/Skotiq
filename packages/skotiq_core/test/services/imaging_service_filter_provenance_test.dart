@@ -23,6 +23,7 @@ import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);

@@ -22,7 +22,8 @@
 import 'dart:async';
 
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 
 /// A mocktail-based [SkotiqBackend] stand-in for widget tests.
 ///

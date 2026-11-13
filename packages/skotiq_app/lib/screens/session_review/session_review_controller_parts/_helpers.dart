@@ -330,7 +330,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
   /// The reviewed master's multi-night growth series + best night, projected
   /// from the core [SmartProjectService] into the UI hour-based types. Both fail
   /// soft (empty / null) so a single-night master simply has no growth panel.
-  Future<(List<GrowthPoint>, BestNight?)> _loadGrowthAndBestNight(
+  Future<(List<GrowthPoint>, ReviewBestNight?)> _loadGrowthAndBestNight(
     int masterId,
   ) async {
     try {
@@ -339,7 +339,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       final coreBest = await smart.bestNight(masterId);
       return (
         corePoints.map(GrowthPoint.fromCore).toList(growable: false),
-        coreBest != null ? BestNight.fromCore(coreBest) : null,
+        coreBest != null ? ReviewBestNight.fromCore(coreBest) : null,
       );
     } catch (e) {
       _logSoftFailure('reading the project growth', e);

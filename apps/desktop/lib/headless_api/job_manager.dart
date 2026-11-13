@@ -24,7 +24,8 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Lifecycle states for a [Job]. Transitions:
 ///   queued  -> running -> succeeded | failed | cancelled

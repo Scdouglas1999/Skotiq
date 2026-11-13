@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/services/science/narrator/narrator_context.dart';
-import 'package:skotiq_core/src/services/science/narrator/narrator_detectors.dart';
 import 'package:skotiq_core/src/services/science/narrator/detectors/first_light_detectors.dart';
 
 final _t0 = DateTime.utc(2026, 6, 20, 22, 0, 0);

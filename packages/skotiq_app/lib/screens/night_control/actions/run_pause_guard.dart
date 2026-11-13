@@ -10,7 +10,10 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../models/command_action_result.dart';
 import '../data/session/camera_exposure_provider.dart';

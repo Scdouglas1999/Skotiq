@@ -11,9 +11,11 @@ import 'package:skotiq_app/screens/night_control/data/session/session_format.dar
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/utils/guide_distance.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    hide EquipmentStatus;
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import 'session_test_support.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';

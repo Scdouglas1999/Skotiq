@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Safe the rig as the desktop app shuts down, when this app owns the rig.
 ///

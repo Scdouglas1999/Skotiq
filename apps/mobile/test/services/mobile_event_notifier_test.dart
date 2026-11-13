@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_mobile/services/mobile_event_notifier.dart';
 import 'package:skotiq_mobile/services/mobile_preferences.dart';
 import 'package:skotiq_mobile/services/notification_service.dart';

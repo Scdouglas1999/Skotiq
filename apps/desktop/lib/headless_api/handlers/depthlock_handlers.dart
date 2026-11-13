@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // bridge-boundary: depthlock_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';

@@ -18,6 +18,7 @@ import 'package:skotiq_core/src/providers/readiness_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 // Test doubles
 //

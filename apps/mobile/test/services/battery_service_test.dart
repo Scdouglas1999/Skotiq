@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_mobile/services/battery_service.dart';
 import 'package:skotiq_mobile/services/poll_rate_service.dart';
 

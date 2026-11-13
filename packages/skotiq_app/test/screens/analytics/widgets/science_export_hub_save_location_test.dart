@@ -8,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_export_hub.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 TestFlutterView get _view =>

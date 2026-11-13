@@ -19,7 +19,11 @@ import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 // Prefixed: this package and skotiq_core both export a TargetScore.
 import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';

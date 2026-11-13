@@ -12,7 +12,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';

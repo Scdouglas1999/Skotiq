@@ -5,14 +5,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
-import '../database/database.dart'
-    hide
-        Target,
-        Sequence,
-        SequenceNode,
-        CapturedImage,
-        EquipmentProfile,
-        DarkroomState;
+import '../database/database.dart';
 import '../models/autofocus_progress.dart';
 import '../models/backend/host_runtime_update.dart';
 import '../models/defect_map.dart';
@@ -110,6 +103,7 @@ import 'skotiq_exception.dart'
 import 'package:skotiq_remote_protocol/wire_models.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/notes/journal_note.dart';
+import '../models/backend/backend_types.dart';
 
 // The rows the host writes and this client reads.
 export 'package:skotiq_remote_protocol/wire_models.dart';

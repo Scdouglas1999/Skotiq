@@ -31,15 +31,15 @@ final class RemoteHostRecords
       _poll.watch(fetch, listEquals, interval: _recordsPollInterval);
 
   @override
-  Stream<List<db.Target>> watchAllTargets() => _watch(_fetchTargets);
+  Stream<List<db.DbTarget>> watchAllTargets() => _watch(_fetchTargets);
 
   @override
-  Stream<List<db.Target>> watchFavoriteTargets() => watchAllTargets().map(
+  Stream<List<db.DbTarget>> watchFavoriteTargets() => watchAllTargets().map(
     (targets) => targets.where((target) => target.isFavorite).toList(),
   );
 
   @override
-  Stream<List<db.Sequence>> watchAllSequences() => _watch(() async {
+  Stream<List<db.DbSequence>> watchAllSequences() => _watch(() async {
     final rows = await _host.getSequenceList();
     return rows.map(_sequenceFromJson).toList()
       ..sort((a, b) => a.name.compareTo(b.name));
@@ -61,14 +61,14 @@ final class RemoteHostRecords
       _watch(() => _fetchRuns(sequenceId: sequenceId));
 
   @override
-  Stream<List<db.EquipmentProfile>> watchAllProfiles() => _watch(() async {
+  Stream<List<db.DbEquipmentProfile>> watchAllProfiles() => _watch(() async {
     final profiles = await _host.getProfiles();
     return profiles.map(remoteProfileToDbRow).toList()
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   });
 
   @override
-  Stream<db.EquipmentProfile?> watchActiveProfile() => _poll.watch(
+  Stream<db.DbEquipmentProfile?> watchActiveProfile() => _poll.watch(
     () async {
       final active = await _host.getActiveProfile();
       return active == null ? null : remoteProfileToDbRow(active);
@@ -77,7 +77,7 @@ final class RemoteHostRecords
     interval: _recordsPollInterval,
   );
 
-  Future<List<db.Target>> _fetchTargets() async {
+  Future<List<db.DbTarget>> _fetchTargets() async {
     final targets = await _host.getAllTargets();
     return targets.map(_targetFromJson).toList()
       ..sort((a, b) => a.name.compareTo(b.name));
@@ -95,11 +95,11 @@ final class RemoteHostRecords
 }
 
 /// Polls the host's captured-image rows, newest capture first.
-Stream<List<db.CapturedImage>> pollHostImageRows(HostImagingRecords host) =>
+Stream<List<db.DbCapturedImage>> pollHostImageRows(HostImagingRecords host) =>
     HostPoll('captured images').watch(
       () async {
         final images = await host.getAllImageRows();
-        return images.map(db.CapturedImage.fromJson).toList()
+        return images.map(db.DbCapturedImage.fromJson).toList()
           ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
       },
       listEquals,
@@ -148,8 +148,8 @@ db.SequenceRun _runFromRemote(RemoteSequenceRun run) {
   );
 }
 
-db.Sequence _sequenceFromJson(Map<String, dynamic> json) {
-  return db.Sequence(
+db.DbSequence _sequenceFromJson(Map<String, dynamic> json) {
+  return db.DbSequence(
     id: json['id'] as int,
     name: json['name'] as String? ?? 'Untitled sequence',
     description: json['description'] as String?,
@@ -163,8 +163,8 @@ db.Sequence _sequenceFromJson(Map<String, dynamic> json) {
   );
 }
 
-db.Target _targetFromJson(Map<String, dynamic> json) {
-  return db.Target(
+db.DbTarget _targetFromJson(Map<String, dynamic> json) {
+  return db.DbTarget(
     id: json['id'] as int,
     name: json['name'] as String? ?? 'Untitled target',
     catalogId: json['catalogId'] as String?,

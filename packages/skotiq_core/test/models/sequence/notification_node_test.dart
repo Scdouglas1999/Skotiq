@@ -7,7 +7,7 @@
 //     sequence editor's dirty-check fires when only this changes).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   test('NotificationNode default explicitTransports is null', () {

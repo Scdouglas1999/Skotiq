@@ -3,7 +3,7 @@
 // Pure formatting — no ambient state — so the cards stay declarative and the
 // combined-progress numbers read consistently against the rest of the atlas UI.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Fraction of a collaborative mosaic that is finished (panels uploaded / total),
 /// clamped to 0..1. Drives the combined-progress bar; 0 when the grid is unknown.

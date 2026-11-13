@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

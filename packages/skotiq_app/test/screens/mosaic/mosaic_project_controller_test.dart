@@ -13,7 +13,9 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/mosaic/mosaic_project_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A [MosaicProjectService] spy: it never calls the real integration / stitch
 /// path, only records the calls and (for integrate) links a canned per-panel

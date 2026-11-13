@@ -5,7 +5,7 @@
 // is the tree's whole response to that moment.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Two targets, each holding one loop of two exposures:
 ///

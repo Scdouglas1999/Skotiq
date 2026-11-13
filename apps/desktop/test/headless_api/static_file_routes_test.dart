@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/static_file_handlers.dart';
 import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:shelf/shelf.dart';

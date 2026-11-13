@@ -25,7 +25,11 @@ import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
 import 'package:skotiq_app/screens/planner/widgets/scheduler_tab_content.dart';
 import 'package:skotiq_app/screens/planner/widgets/progress_tab_content.dart';
 import 'package:skotiq_app/screens/planner/widgets/week_forecast_strip.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../scheduler/scheduler_test_doubles.dart';

@@ -18,8 +18,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:skotiq_app/screens/planner/widgets/scheduler_tab_content.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as ndb;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
@@ -105,7 +107,7 @@ List<Override> _commonOverrides({
     ),
     schedulerAutoReevalProvider.overrideWith((ref) {}),
     allDbTargetsProvider.overrideWith(
-      (ref) => const Stream<List<ndb.Target>>.empty(),
+      (ref) => const Stream<List<ndb.DbTarget>>.empty(),
     ),
     integrationGoalsStreamProvider.overrideWith(
       (ref) => const Stream<List<IntegrationGoal>>.empty(),

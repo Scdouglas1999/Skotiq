@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/services/hardware_presets/hardware_presets_service.dart';
 
 /// End-to-end provider test for the hardware-presets library.

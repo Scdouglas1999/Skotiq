@@ -7,7 +7,9 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/panel/guide/night_guide_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 
 import '../scope_panel_test_support.dart';
 

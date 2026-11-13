@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/notification_service.dart';
 
 import 'notification/recording_router.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

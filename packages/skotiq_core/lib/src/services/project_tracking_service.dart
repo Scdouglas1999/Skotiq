@@ -20,7 +20,7 @@ class FilterIntegration {
 /// Filters are matched case-insensitively, as the scheduler matches goals, and
 /// each group is named by its most common spelling (ties alphabetical), so
 /// 'L' and 'l' are one row.
-List<FilterIntegration> acceptedLightsByFilter(Iterable<db.CapturedImage> frames) {
+List<FilterIntegration> acceptedLightsByFilter(Iterable<db.DbCapturedImage> frames) {
   final buckets = <String, _FilterBucket>{};
   for (final frame in frames) {
     if (!_isAcceptedLight(frame)) continue;
@@ -109,7 +109,7 @@ String _goalFilterKey(String goalFilter) =>
 /// rarely names a target; the frames are what tie a night to a target.
 Set<int> targetSessionIds(
   int targetId, {
-  required Iterable<db.CapturedImage> frames,
+  required Iterable<db.DbCapturedImage> frames,
   required Iterable<db.ImagingSession> sessions,
 }) => {
   for (final frame in frames)
@@ -189,12 +189,12 @@ class TargetGoal {
   bool get isComplete => isSet && doneSecs >= goalSecs;
 }
 
-bool _isAcceptedLight(db.CapturedImage frame) =>
+bool _isAcceptedLight(db.DbCapturedImage frame) =>
     frame.frameType.toLowerCase() == 'light' && frame.isAccepted;
 
 /// Multi-night progress of one target, from its frames and its goals.
 class ProjectProgress {
-  final db.Target target;
+  final db.DbTarget target;
 
   /// Sessions that imaged the target ([targetSessionIds]).
   final int sessionCount;
@@ -241,12 +241,12 @@ class ProjectTrackingService {
   const ProjectTrackingService();
 
   List<ProjectProgress> summarize({
-    required List<db.Target> targets,
+    required List<db.DbTarget> targets,
     required List<db.ImagingSession> sessions,
-    required List<db.CapturedImage> frames,
+    required List<db.DbCapturedImage> frames,
     required List<IntegrationGoal> goals,
   }) {
-    final framesByTarget = <int, List<db.CapturedImage>>{};
+    final framesByTarget = <int, List<db.DbCapturedImage>>{};
     for (final frame in frames) {
       final targetId = frame.targetId;
       if (targetId == null) continue;

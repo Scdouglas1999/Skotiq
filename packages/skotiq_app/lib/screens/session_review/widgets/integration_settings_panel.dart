@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Editor for [IntegrationSettings]: smart-default presets front-and-centre with

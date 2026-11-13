@@ -4,20 +4,8 @@ import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// FramingPlateScale is the C1 single-source-of-truth astrometric scale shared by
-// the framing painters and the gesture hit-tester. It lives in skotiq_core's
-// models layer and is not surfaced through the public barrel, matching the
-// app->core src-model convention used by the framing painters themselves.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
-// FramingSkyProjection is the shared sky<->screen mapping the gesture handlers
-// invert to turn a box-drag pixel position back into the aim's RA/Dec — the
-// exact inverse of the transform stack the overlays are drawn through, so the
-// dragged point lands on the sky point under the cursor. Same src-model import
-// convention as the plate scale above.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_hips_projection.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../tours/tour_target.dart';
 import '../painters/framing_background_painters.dart';

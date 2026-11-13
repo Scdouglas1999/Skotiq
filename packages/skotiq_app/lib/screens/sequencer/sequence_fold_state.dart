@@ -11,7 +11,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 import 'sequence_fold_model.dart';
 import 'widgets/sequence_tree_shortcuts.dart';

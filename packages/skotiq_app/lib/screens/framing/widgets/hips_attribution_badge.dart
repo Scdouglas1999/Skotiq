@@ -27,7 +27,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 // It is exported from skotiq_core's public barrel, but the framing widgets
 // import the core src models directly (matching the painters' convention), so
 // it is imported via the barrel here where it is public.
-import 'package:skotiq_core/skotiq_core.dart' show HipsProperties;
+import 'package:skotiq_core/models.dart' show HipsProperties;
 import 'package:url_launcher/url_launcher.dart';
 
 /// A quiet on-canvas pill crediting the HiPS survey whose imagery is currently

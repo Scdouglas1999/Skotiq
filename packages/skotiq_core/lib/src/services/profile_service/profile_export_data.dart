@@ -280,7 +280,7 @@ class ProfileExportData {
     this.profileColor,
   });
 
-  factory ProfileExportData.fromDatabase(EquipmentProfile profile) {
+  factory ProfileExportData.fromDatabase(DbEquipmentProfile profile) {
     List<String>? filterNames;
     Map<String, int>? filterOffsets;
 

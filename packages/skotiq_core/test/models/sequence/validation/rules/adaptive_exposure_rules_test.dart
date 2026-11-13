@@ -1,7 +1,7 @@
 // Sky-brightness adaptive exposure validation tests.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/src/models/sequence/validation/rules/adaptive_exposure_rules.dart';
 
 Sequence _sequenceWith(ExposureNode node) {

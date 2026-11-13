@@ -19,8 +19,7 @@ mixin _$CloudMotion {
  double get speedKmh;/// Direction clouds are moving TOWARD (0-360, 0=N, 90=E, 180=S, 270=W)
  double get directionDegrees;/// Time until clouds reach user location (null if moving away)
  Duration? get etaToLocation;/// Current distance of nearest significant clouds in kilometers
- double get distanceKm;/// When this analysis was performed
- DateTime get calculatedAt;
+ double get distanceKm; DateTime get calculatedAt;
 /// Create a copy of CloudMotion
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -229,7 +228,6 @@ class _CloudMotion implements CloudMotion {
 @override final  Duration? etaToLocation;
 /// Current distance of nearest significant clouds in kilometers
 @override final  double distanceKm;
-/// When this analysis was performed
 @override final  DateTime calculatedAt;
 
 /// Create a copy of CloudMotion

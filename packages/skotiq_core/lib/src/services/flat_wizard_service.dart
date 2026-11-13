@@ -16,6 +16,7 @@ import 'sky_brightness_tracker.dart';
 import 'flat_exposure_calculator.dart';
 import 'flat_exposure_follower.dart';
 import '../backend/remote_host.dart';
+import '../models/backend/backend_types.dart';
 part 'flat_wizard_service/flat_wizard_models.dart';
 part 'flat_wizard_service/exposure_events.dart';
 part 'flat_wizard_service/exposure_event_keys.dart';

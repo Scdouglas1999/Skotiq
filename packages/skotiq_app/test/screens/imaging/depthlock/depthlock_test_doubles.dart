@@ -1,4 +1,5 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 
 /// A scripted [DepthLockBackend] for the DepthLock widget tests.
 ///

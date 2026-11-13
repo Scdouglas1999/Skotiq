@@ -4,7 +4,8 @@ import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
 import 'package:skotiq_app/screens/equipment/widgets/discovery_panel.dart';
 import 'package:skotiq_app/screens/equipment/widgets/equipment_health_panel.dart';
 import 'package:skotiq_app/screens/equipment/widgets/profile_sidebar.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 

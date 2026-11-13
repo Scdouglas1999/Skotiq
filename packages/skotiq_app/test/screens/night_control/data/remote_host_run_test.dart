@@ -14,8 +14,10 @@ import 'package:skotiq_app/screens/night_control/data/session/session_frames_pro
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as db;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/database.dart' as db;
 
 import 'plan/plan_test_support.dart';
 
@@ -34,7 +36,7 @@ _MockNetworkBackend _link() {
   return backend;
 }
 
-db.CapturedImage _row(
+db.DbCapturedImage _row(
   int id,
   int sessionId,
   DateTime at, {
@@ -42,7 +44,7 @@ db.CapturedImage _row(
   String type = 'light',
   bool accepted = true,
 }) =>
-    db.CapturedImage(
+    db.DbCapturedImage(
       id: id,
       filePath: 'C:/Users/scdou/Documents/frame_$id.fits',
       fileName: 'frame_$id.fits',
@@ -138,7 +140,7 @@ void main() {
       () async {
     final plan = TwoTargetPlan();
     final runStart = DateTime(2026, 10, 19, 19, 50);
-    final rows = <db.CapturedImage>[
+    final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(500 + i, 113, runStart.add(Duration(minutes: 2 + i))),
       for (var i = 0; i < 2; i++)
@@ -253,7 +255,7 @@ void main() {
     final runStart = DateTime(2026, 10, 19, 19, 50);
     // The client came back 75 minutes into the run, after a failed flip.
     final now = runStart.add(const Duration(minutes: 75));
-    final rows = <db.CapturedImage>[
+    final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(600 + i, 120, runStart.add(Duration(minutes: 2 + i))),
     ];
@@ -301,7 +303,7 @@ void main() {
   test('SY-37: at the run end the frame views keep the run', () async {
     final plan = TwoTargetPlan();
     final runStart = DateTime(2026, 10, 19, 19, 50);
-    final rows = <db.CapturedImage>[
+    final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(700 + i, 130, runStart.add(Duration(minutes: 2 + i)),
             accepted: i != 1),
@@ -378,7 +380,7 @@ void main() {
     final plan = TwoTargetPlan();
     final runStart = DateTime(2026, 11, 7, 21, 10);
     final restored = DateTime(2026, 11, 8, 0, 40);
-    final rows = <db.CapturedImage>[
+    final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(700 + i, 130, runStart.add(Duration(minutes: 3 * i))),
       for (var i = 0; i < 2; i++)

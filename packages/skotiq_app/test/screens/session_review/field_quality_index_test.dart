@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/workbench_view.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 
 DbCapturedImage _sub(int id, double hfr) => DbCapturedImage(
       id: id,

@@ -16,7 +16,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Recording seam. `coverage` reports one own-light tile in the cone;
 /// `exportDelta` returns a configurable post-anchor own-light tally so the test

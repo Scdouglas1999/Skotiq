@@ -13,7 +13,8 @@ import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/tours/tour.dart';
 import 'package:skotiq_app/tours/tour_overlay.dart';
 import 'package:skotiq_app/tours/tour_runner.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _FailingDao extends TutorialProgressDao {

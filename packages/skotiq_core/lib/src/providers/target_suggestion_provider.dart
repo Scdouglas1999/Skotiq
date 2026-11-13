@@ -43,7 +43,7 @@ final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
 
 /// Catalog targets built from one OpenNGC reader. The catalog manager
 /// replaces the reader when the file changes, which retires this entry.
-final Expando<Future<List<db.Target>>> _catalogTargets = Expando();
+final Expando<Future<List<db.DbTarget>>> _catalogTargets = Expando();
 
 /// Provider that generates target suggestions for tonight's imaging session.
 ///
@@ -128,7 +128,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
 
       try {
         // Fetch host-backed targets and sessions when connected remotely.
-        final List<db.Target> userTargets = await ref.watch(
+        final List<db.DbTarget> userTargets = await ref.watch(
           allDbTargetsProvider.future,
         );
         final List<db.ImagingSession> sessions = await ref.watch(
@@ -192,9 +192,9 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
     });
 
 /// Suggestion candidates from the OpenNGC catalog: every object to
-/// magnitude 14 (which covers most imageable objects), as [db.Target] rows
+/// magnitude 14 (which covers most imageable objects), as [db.DbTarget] rows
 /// with negative ids so they cannot be mistaken for the user's own targets.
-Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
+Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
   final manager = CatalogManager.instance;
 
   if (!manager.isInitialized) {
@@ -233,13 +233,13 @@ Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
   }
 }
 
-Future<List<db.Target>> _readCatalogTargets(
+Future<List<db.DbTarget>> _readCatalogTargets(
   OpenNgcDsoCatalog reader,
   LoggingService logging,
 ) async {
   final dsos = await reader.load();
   var fakeId = -1;
-  final targets = <db.Target>[];
+  final targets = <db.DbTarget>[];
   final now = DateTime.now();
 
   for (final dso in dsos) {
@@ -248,7 +248,7 @@ Future<List<db.Target>> _readCatalogTargets(
     if ((dso.magnitude ?? 99) > 14.0) break;
 
     targets.add(
-      db.Target(
+      db.DbTarget(
         id: fakeId--,
         name: dso.name,
         catalogId: dso.id,

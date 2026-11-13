@@ -410,7 +410,7 @@ void main() {
 
   /// Inserts one accepted light sub. [gain] / [offset] accept null to model the
   /// real nullable columns — a camera or driver that never reported them.
-  Future<CapturedImage> insertSub({
+  Future<DbCapturedImage> insertSub({
     required String path,
     String? filter,
     double quality = 80.0,

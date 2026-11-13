@@ -8,9 +8,12 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/services.dart' as seam;
 
 import '../../harness/mock_database.dart';
 import '../../harness/temporary_data_directory.dart';

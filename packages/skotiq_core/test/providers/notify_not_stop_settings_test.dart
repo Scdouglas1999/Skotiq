@@ -21,6 +21,7 @@ import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_executor/sequence_serializer.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

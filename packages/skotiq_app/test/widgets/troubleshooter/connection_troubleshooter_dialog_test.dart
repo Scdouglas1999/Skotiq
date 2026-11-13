@@ -12,11 +12,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/troubleshooter/connection_troubleshooter_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The C3 knowledge base is intentionally outside the core barrel; import it
-// directly to assert against the exact diagnosis the dialog renders.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/troubleshooter/connection_diagnostic.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 Future<bool?> _showDialog(

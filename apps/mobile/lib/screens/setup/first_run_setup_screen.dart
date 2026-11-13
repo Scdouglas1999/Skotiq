@@ -17,7 +17,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/skotiq_app.dart' show SkotiqSplashGate;
 import 'package:skotiq_app/widgets/remote_directory_picker_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../services/mobile_preferences.dart';

@@ -10,8 +10,6 @@ import 'equipment/filter_wheel_state_provider.dart';
 import 'equipment/focuser_state_provider.dart';
 import 'settings_provider.dart';
 
-export '../services/focuser_backlash/effective_focuser_backlash.dart';
-
 /// The stored backlash measurement for the focuser that is connected now.
 ///
 /// Keyed by device id, so plugging in a different focuser reads that focuser's

@@ -7,7 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_hud.dart';
 import 'package:skotiq_app/screens/imaging/widgets/preview_histogram_visibility.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
 

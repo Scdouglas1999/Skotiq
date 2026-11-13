@@ -2,7 +2,7 @@
 // sub whose removal kept the same 98.9% of the field.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/targets/framing_check.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('a sub limits the field only when leaving it out keeps more', () {

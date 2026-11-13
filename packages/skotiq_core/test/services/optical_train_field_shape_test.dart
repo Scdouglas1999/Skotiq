@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Tilt, field curvature and collimation measured on PSF tiles and residual
 /// vectors as the science pipeline stores them: star-less tiles with a star

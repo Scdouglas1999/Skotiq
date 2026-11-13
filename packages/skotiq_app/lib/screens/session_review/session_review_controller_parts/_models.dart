@@ -1,9 +1,5 @@
 part of '../session_review_controller.dart';
 
-/// The core multi-night service's best-night value type, aliased so the
-/// controller's UI-facing [BestNight] can shadow the bare name.
-typedef CoreBestNight = core.BestNight;
-
 /// Identifies which collection of subs the Session Review screen is reviewing:
 /// a single imaging session, or every sub captured for a target (across nights).
 class SessionReviewScope {
@@ -182,7 +178,7 @@ class GrowthPoint {
 /// the highest mean integration weight, with its frame count and integration
 /// time (hours). A thin UI mirror of the core [BestNight] service type
 /// (which carries seconds) so the panels stay decoupled from the service model.
-class BestNight {
+class ReviewBestNight {
   /// The night's local calendar day (date-only).
   final DateTime date;
 
@@ -195,15 +191,15 @@ class BestNight {
   /// Total integration time contributed that night, in hours.
   final double integrationHours;
 
-  const BestNight({
+  const ReviewBestNight({
     required this.date,
     required this.meanWeight,
     required this.frameCount,
     required this.integrationHours,
   });
 
-  /// Project the core service [CoreBestNight] (seconds) into UI hours.
-  factory BestNight.fromCore(CoreBestNight n) => BestNight(
+  /// Project the core service [BestNight] (seconds) into UI hours.
+  factory ReviewBestNight.fromCore(BestNight n) => ReviewBestNight(
         date: n.date,
         meanWeight: n.meanWeight,
         frameCount: n.frameCount,
@@ -213,7 +209,7 @@ class BestNight {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is BestNight &&
+      other is ReviewBestNight &&
           other.date == date &&
           other.meanWeight == meanWeight &&
           other.frameCount == frameCount &&

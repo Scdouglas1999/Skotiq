@@ -16,9 +16,10 @@ import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.d
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
-import 'package:skotiq_core/src/backend/bridge_event_mapper.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
+import 'package:skotiq_core/backend.dart';
 
 class _Mount extends MountStateNotifier {
   _Mount(super.ref) {

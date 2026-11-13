@@ -21,6 +21,7 @@ import '../utils/json_validation.dart';
 import 'device_service.dart';
 import 'optical_train_limits.dart';
 import '../backend/remote_host.dart';
+import '../models/backend/backend_types.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';

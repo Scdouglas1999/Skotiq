@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show loadedDsosProvider, loadedStarsProvider;
 import 'package:skotiq_astro/skotiq_astro.dart' show CelestialObject;

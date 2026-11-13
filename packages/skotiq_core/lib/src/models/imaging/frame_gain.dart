@@ -1,8 +1,8 @@
-import '../../database/database.dart' show CapturedImage;
+import '../../database/database.dart' show DbCapturedImage;
 import 'gain_kind.dart';
 
 /// A recorded frame's gain, read the way the frame recorded it.
-extension FrameGain on CapturedImage {
+extension FrameGain on DbCapturedImage {
   GainKind get recordedGainKind => GainKind.fromRecord(gainKind);
 
   /// The gain this frame is matched by; null when its ISO is unknown (an

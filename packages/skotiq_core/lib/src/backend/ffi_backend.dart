@@ -6,14 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:logging/logging.dart';
 import '../database/daos/images_dao.dart';
-import '../database/database.dart'
-    hide
-        Target,
-        Sequence,
-        SequenceNode,
-        CapturedImage,
-        EquipmentProfile,
-        DarkroomState;
+import '../database/database.dart';
 import '../models/autofocus_progress.dart';
 import '../models/depthlock/depthlock_models.dart';
 import '../models/equipment_profile.dart';
@@ -45,6 +38,7 @@ import '../models/errors/skotiq_error.dart' as dart_error;
 import 'bridge_event_mapper.dart' show recoveryFieldsFromTyped;
 import '../services/ip_geolocation.dart';
 import 'frame_capture_metadata.dart';
+import '../models/backend/backend_types.dart';
 
 part 'ffi_backend/native_runtime.dart';
 part 'ffi_backend/event_mapping.dart';

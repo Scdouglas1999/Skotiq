@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Small overlay card on the canvas showing the target's name, catalog id,
 /// coordinates, and optional magnitude / size.

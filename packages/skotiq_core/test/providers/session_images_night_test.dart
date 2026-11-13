@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 CapturedImage _frame(String id, DateTime at) => CapturedImage(

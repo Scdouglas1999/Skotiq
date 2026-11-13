@@ -11,6 +11,7 @@ import '../models/imaging/mosaic_stitch_result.dart';
 import '../models/imaging/star_photometry.dart';
 import '../providers/backend_provider.dart';
 import '../backend/remote_host.dart';
+import '../models/backend/backend_types.dart';
 
 /// Injectable seam over the four post-session batch-processing FFI functions
 /// (`apiIntegrateSession`, `apiMasterAccumulate`, `apiBuildMasterFlat`,

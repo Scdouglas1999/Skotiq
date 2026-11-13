@@ -90,7 +90,7 @@ class SessionReviewState {
 
   /// The highest-mean-weight night folded into the reviewed master, or null.
   /// Drives the `GrowthCurvePanel` best-night badge.
-  final BestNight? bestNight;
+  final ReviewBestNight? bestNight;
 
   /// The catalog-powered annotation layer over the finished master, or null
   /// when the master is un-solved / annotation is unavailable. Read by
@@ -182,7 +182,7 @@ class SessionReviewState {
     bool clearImprovementCurve = false,
     List<String>? improvementCurvePopulation,
     List<GrowthPoint>? growthPoints,
-    BestNight? bestNight,
+    ReviewBestNight? bestNight,
     bool clearBestNight = false,
     AnnotationLayer? annotationLayer,
     bool clearAnnotationLayer = false,

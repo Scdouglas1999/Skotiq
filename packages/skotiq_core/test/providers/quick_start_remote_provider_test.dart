@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -51,7 +54,7 @@ void main() {
         ),
       );
 
-      final hostTarget = db.Target(
+      final hostTarget = db.DbTarget(
         id: 8,
         name: 'M31',
         objectType: 'galaxy',
@@ -67,7 +70,7 @@ void main() {
         updatedAt: now,
         isFavorite: true,
       );
-      final hostSequence = db.Sequence(
+      final hostSequence = db.DbSequence(
         id: 9,
         name: 'M31 sequence',
         estimatedDurationMins: 120,

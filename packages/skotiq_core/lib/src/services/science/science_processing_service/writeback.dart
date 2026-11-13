@@ -66,7 +66,7 @@ extension _ScienceProcessingWriteback on ScienceProcessingService {
   /// not retroactively fail a capture that has already been recorded.
   Future<void> _runFitsHeaderWriteback({
     required String imagePath,
-    required db.CapturedImage? capturedImage,
+    required db.DbCapturedImage? capturedImage,
     required ScienceSettings globalSettings,
     required FramePhotometricCalibration? calibration,
     required TransparencySample? transparency,

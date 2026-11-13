@@ -12,7 +12,7 @@ import '../database/daos/mosaic_panels_dao.dart';
 import '../database/daos/mosaic_projects_dao.dart';
 import '../database/daos/targets_dao.dart';
 import '../database/database.dart'
-    show CapturedImage, SkotiqDatabase, TargetsCompanion;
+    show DbCapturedImage, SkotiqDatabase, TargetsCompanion;
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_settings.dart';
 import '../models/imaging/mosaic_project.dart';

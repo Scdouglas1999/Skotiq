@@ -20,6 +20,7 @@ import 'package:skotiq_core/src/providers/host_settings/host_settings_providers.
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import '../../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

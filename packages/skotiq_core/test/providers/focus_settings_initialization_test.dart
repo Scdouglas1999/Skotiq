@@ -6,6 +6,7 @@ import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/providers/imaging_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _DelayedAppSettingsNotifier extends AppSettingsNotifier {
   _DelayedAppSettingsNotifier(this.result);

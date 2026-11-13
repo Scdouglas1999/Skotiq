@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/night_story_timeline.dart';
 import 'package:skotiq_app/widgets/narrator/narrator_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 NarratorEvent _event({

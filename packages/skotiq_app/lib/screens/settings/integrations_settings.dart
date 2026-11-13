@@ -50,15 +50,9 @@ import 'package:skotiq_plugins/skotiq_plugins.dart';
 import 'package:skotiq_plugins/src/plugin_registration.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-// C4 (plugin enablement persistence) lives in skotiq_core but is not
-// surfaced through that package's barrel, so — like C4 itself imports C3 by
-// path — we import the provider by path. The implementation_imports lint is
-// suppressed deliberately; there is no barrel alternative.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart'
-    show pluginEnablementProvider;
-import 'package:skotiq_core/skotiq_core.dart'
-    show HostDataDispatch, backendProvider;
+import 'package:skotiq_core/providers.dart' show pluginEnablementProvider;
+import 'package:skotiq_core/backend.dart' show HostDataDispatch;
+import 'package:skotiq_core/providers.dart' show backendProvider;
 
 import 'settings_sections.dart';
 import 'widgets/settings_widgets.dart';

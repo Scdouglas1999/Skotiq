@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A seam whose cone scans block until released, so the test can hold many
 /// concurrent requests open and count how many reach the native side and how

@@ -15,11 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$MeridianFlipSettings {
 
-// Mode control
 /// Enable standalone monitoring when no sequence is running
- bool get standaloneMonitoringEnabled;// Trigger conditions
-/// Which method to use for determining flip timing
- MeridianTriggerMethod get triggerMethod;/// Minutes past meridian to trigger flip (default: 5)
+ bool get standaloneMonitoringEnabled; MeridianTriggerMethod get triggerMethod;/// Minutes past meridian to trigger flip (default: 5)
  double get minutesPastMeridian;/// Minutes before mount limit to trigger flip (default: 10)
  double get minutesBeforeLimit;/// Hour angle threshold in hours to trigger flip (default: 0.5 = 30 min)
  double get hourAngleThreshold;/// Minutes to wait after tracking limit hit before flipping (0 = immediate).
@@ -31,18 +28,11 @@ mixin _$MeridianFlipSettings {
 /// tripod there. Only used with the minutesPastMeridian trigger method.
  double get pauseBeforeMeridianMinutes;/// What to do when the mount stops tracking on the west side before the
 /// flip window (its own tracking limit). See [TrackingLimitPolicy].
- TrackingLimitPolicy get trackingLimitPolicy;// Flip sequence options
-/// Pause guider before flip
- bool get pauseGuidingBeforeFlip;/// Plate solve and re-center after flip
- bool get recenterAfterFlip;/// Run autofocus after flip
- bool get refocusAfterFlip;/// Settle time in seconds after flip completes
+ TrackingLimitPolicy get trackingLimitPolicy; bool get pauseGuidingBeforeFlip;/// Plate solve and re-center after flip
+ bool get recenterAfterFlip; bool get refocusAfterFlip;/// Settle time in seconds after flip completes
  double get settleTimeSeconds;/// Resume guiding after flip (if was running)
- bool get resumeGuidingAfterFlip;// Error handling
-/// Maximum retry attempts
- int get maxRetries;/// Delay between retries in seconds
- List<double> get retryDelaysSeconds;/// Action to take on permanent failure
- FlipFailureAction get failureAction;// Notifications
-/// Play sound alert when flip starts/completes/fails
+ bool get resumeGuidingAfterFlip; int get maxRetries;/// Delay between retries in seconds
+ List<double> get retryDelaysSeconds; FlipFailureAction get failureAction;/// Play sound alert when flip starts/completes/fails
  bool get soundAlertOnFlip;/// Send push notification to mobile app
  bool get pushNotificationOnFlip;
 /// Create a copy of MeridianFlipSettings
@@ -258,11 +248,8 @@ class _MeridianFlipSettings extends MeridianFlipSettings {
   const _MeridianFlipSettings({this.standaloneMonitoringEnabled = false, this.triggerMethod = MeridianTriggerMethod.minutesPastMeridian, this.minutesPastMeridian = 5.0, this.minutesBeforeLimit = 10.0, this.hourAngleThreshold = 0.5, this.trackingLimitWaitMinutes = 0.0, this.pauseBeforeMeridianMinutes = 0.0, this.trackingLimitPolicy = TrackingLimitPolicy.flipEarly, this.pauseGuidingBeforeFlip = true, this.recenterAfterFlip = true, this.refocusAfterFlip = false, this.settleTimeSeconds = 10.0, this.resumeGuidingAfterFlip = true, this.maxRetries = 3, final  List<double> retryDelaysSeconds = const [30.0, 60.0, 120.0], this.failureAction = FlipFailureAction.pauseAndAlert, this.soundAlertOnFlip = false, this.pushNotificationOnFlip = true}): _retryDelaysSeconds = retryDelaysSeconds,super._();
   factory _MeridianFlipSettings.fromJson(Map<String, dynamic> json) => _$MeridianFlipSettingsFromJson(json);
 
-// Mode control
 /// Enable standalone monitoring when no sequence is running
 @override@JsonKey() final  bool standaloneMonitoringEnabled;
-// Trigger conditions
-/// Which method to use for determining flip timing
 @override@JsonKey() final  MeridianTriggerMethod triggerMethod;
 /// Minutes past meridian to trigger flip (default: 5)
 @override@JsonKey() final  double minutesPastMeridian;
@@ -282,19 +269,14 @@ class _MeridianFlipSettings extends MeridianFlipSettings {
 /// What to do when the mount stops tracking on the west side before the
 /// flip window (its own tracking limit). See [TrackingLimitPolicy].
 @override@JsonKey() final  TrackingLimitPolicy trackingLimitPolicy;
-// Flip sequence options
-/// Pause guider before flip
 @override@JsonKey() final  bool pauseGuidingBeforeFlip;
 /// Plate solve and re-center after flip
 @override@JsonKey() final  bool recenterAfterFlip;
-/// Run autofocus after flip
 @override@JsonKey() final  bool refocusAfterFlip;
 /// Settle time in seconds after flip completes
 @override@JsonKey() final  double settleTimeSeconds;
 /// Resume guiding after flip (if was running)
 @override@JsonKey() final  bool resumeGuidingAfterFlip;
-// Error handling
-/// Maximum retry attempts
 @override@JsonKey() final  int maxRetries;
 /// Delay between retries in seconds
  final  List<double> _retryDelaysSeconds;
@@ -305,9 +287,7 @@ class _MeridianFlipSettings extends MeridianFlipSettings {
   return EqualUnmodifiableListView(_retryDelaysSeconds);
 }
 
-/// Action to take on permanent failure
 @override@JsonKey() final  FlipFailureAction failureAction;
-// Notifications
 /// Play sound alert when flip starts/completes/fails
 @override@JsonKey() final  bool soundAlertOnFlip;
 /// Send push notification to mobile app

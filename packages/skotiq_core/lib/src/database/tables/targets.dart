@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-@DataClassName('Target')
+@DataClassName('DbTarget')
 @TableIndex(name: 'idx_targets_name', columns: {#name})
 @TableIndex(name: 'idx_targets_catalog', columns: {#catalogId})
 @TableIndex(name: 'idx_targets_priority', columns: {#priority})

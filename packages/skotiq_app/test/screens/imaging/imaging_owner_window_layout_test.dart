@@ -15,7 +15,9 @@ import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/imaging/widgets/guiding_active_chip.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_capture_bar.dart';
 import 'package:skotiq_app/tours/tour_target.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../golden/surface_golden_harness.dart';
 import '../../harness/harness.dart';

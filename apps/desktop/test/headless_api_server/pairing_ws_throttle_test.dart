@@ -17,7 +17,7 @@ import 'package:skotiq_desktop/headless_api_server.dart';
 
 import '../headless_api/handler_test_helpers.dart';
 import '../support/route_policy.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 void main() {

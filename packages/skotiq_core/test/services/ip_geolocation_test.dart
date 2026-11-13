@@ -18,7 +18,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/ip_geolocation.dart';
 

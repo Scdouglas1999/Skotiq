@@ -17,6 +17,7 @@ import 'package:skotiq_core/src/providers/equipment/focuser_temp_compensation_pr
 import 'package:skotiq_core/src/providers/sequence/run_record.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Hand-written fake (no codegen): captures focuser move targets and reports
 /// no autofocus in flight. Extending [Mock] means the real (heavy)

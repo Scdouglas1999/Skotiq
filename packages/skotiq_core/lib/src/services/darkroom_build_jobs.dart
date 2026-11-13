@@ -308,7 +308,7 @@ final darkroomMastersRootProvider = FutureProvider<Directory>(
 
 /// Every captured light, by target: the target's name, else the FITS
 /// `OBJECT`, else its session.
-Future<Map<String, List<CapturedImage>>> loadDarkroomTargets(
+Future<Map<String, List<DbCapturedImage>>> loadDarkroomTargets(
   SkotiqDatabase db, {
   DarkroomHeaderReader? readHeader,
 }) async {
@@ -319,7 +319,7 @@ Future<Map<String, List<CapturedImage>>> loadDarkroomTargets(
   final names = {
     for (final t in await db.targetsDao.getAllTargets()) t.id: t.name,
   };
-  final targets = <String, List<CapturedImage>>{};
+  final targets = <String, List<DbCapturedImage>>{};
   for (final f in images.where((f) => f.frameType.toLowerCase() == 'light')) {
     var name = names[f.targetId];
     if (name == null) {

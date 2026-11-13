@@ -16,8 +16,12 @@ T _$identity<T>(T value) => value;
 mixin _$AutoStretchSettings {
 
 /// Whether the frame is shown stretched; off shows it linear.
- bool get enabled;/// The stretch method to use.
- AutoStretchMethod get method;/// Shadow clipping parameter (in standard deviations from median).
+///
+/// Every frame arrives with the default screen stretch already applied,
+/// so on with the default STF parameters shows exactly that, and off
+/// shows the raw values scaled linearly from the frame's darkest to its
+/// brightest pixel.
+ bool get enabled; AutoStretchMethod get method;/// Shadow clipping parameter (in standard deviations from median).
 /// Lower (more negative) values clip more shadows.
 /// Typical range: -4.0 to -1.0. Default -2.8 is standard for STF.
  double get shadowClip;/// Highlight clipping parameter (in standard deviations from median).
@@ -236,8 +240,12 @@ class _AutoStretchSettings extends AutoStretchSettings {
   factory _AutoStretchSettings.fromJson(Map<String, dynamic> json) => _$AutoStretchSettingsFromJson(json);
 
 /// Whether the frame is shown stretched; off shows it linear.
+///
+/// Every frame arrives with the default screen stretch already applied,
+/// so on with the default STF parameters shows exactly that, and off
+/// shows the raw values scaled linearly from the frame's darkest to its
+/// brightest pixel.
 @override@JsonKey() final  bool enabled;
-/// The stretch method to use.
 @override@JsonKey() final  AutoStretchMethod method;
 /// Shadow clipping parameter (in standard deviations from median).
 /// Lower (more negative) values clip more shadows.

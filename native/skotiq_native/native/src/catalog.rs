@@ -864,21 +864,10 @@ pub static FAMILIES: &[Family] = &[
                     .collect())
             })
         }),
-        // `<index>:<port as hex>:<model>`. libgphoto2 opens by index; an id
-        // written before the port was recorded, or a port that does not
-        // decode, leaves the port empty and libgphoto2 finds it by index.
         open: Open::Now(|r| {
-            let mut segments = r.address.split(':');
-            let index = number(
-                segments.next().unwrap_or_default(),
-                "Invalid gPhoto2 camera index",
-            )?;
-            let port = segments
-                .next()
-                .and_then(crate::vendor::gphoto2::decode_port_component)
-                .unwrap_or_default();
             Ok(NativeHandle::Camera(Box::new(
-                crate::vendor::gphoto2::GPhoto2Camera::new(index, r.name, &port),
+                crate::vendor::gphoto2::GPhoto2Camera::from_address(r.address, r.name)
+                    .map_err(BadAddress)?,
             )))
         }),
     },

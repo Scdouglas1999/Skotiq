@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_desktop/headless_api/utils/device_type_parser.dart';
 
 /// Found on live hardware, not by reading code: `GET /api/devices?deviceType=switch`

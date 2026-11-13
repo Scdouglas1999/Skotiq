@@ -29,6 +29,7 @@ import 'dawn_master_resolver.dart';
 import 'dawn_morning_notifier.dart';
 import 'dawn_photometry.dart';
 import '../darkroom_pass/pass_providers.dart' show passReporterProvider;
+import '../../settings/app_settings_state.g.dart';
 
 /// No directory is configured to write the night's drafts and report into.
 ///

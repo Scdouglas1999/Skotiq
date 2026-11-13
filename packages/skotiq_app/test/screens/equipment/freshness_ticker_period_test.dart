@@ -19,7 +19,7 @@
 // displayed.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('the freshness ticker samples faster than the environmental poll', () {

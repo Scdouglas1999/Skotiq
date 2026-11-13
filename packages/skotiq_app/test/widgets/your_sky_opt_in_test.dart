@@ -9,7 +9,10 @@ import 'package:skotiq_app/screens/first_light/first_light_view.dart';
 import 'package:skotiq_app/screens/your_sky/your_sky_screen.dart';
 import 'package:skotiq_app/widgets/your_sky_off_notice.dart';
 import 'package:skotiq_app/widgets/your_sky_opt_in.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/mock_database.dart' show mockDatabase;

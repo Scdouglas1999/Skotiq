@@ -4,8 +4,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/bridge_event_mapper.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _NetworkBackendNotifier extends BackendNotifier {
   _NetworkBackendNotifier(super.ref, SkotiqBackend backend) {

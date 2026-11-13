@@ -7,7 +7,9 @@
 // rotation or its per-filter counts.
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('the saved estimate is the Builder rollup of the whole plan', () {

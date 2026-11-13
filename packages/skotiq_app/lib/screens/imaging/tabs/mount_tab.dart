@@ -6,7 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart' show MountCapabilities, MountState, mountStateProvider, equipmentMountCapabilitiesProvider, gateCapability, slewCoordinatesProvider, CoordinateParser, DeviceConnectionState;
+import 'package:skotiq_core/models.dart'
+    show MountCapabilities, MountState, DeviceConnectionState;
+import 'package:skotiq_core/providers.dart'
+    show mountStateProvider, equipmentMountCapabilitiesProvider, gateCapability, slewCoordinatesProvider;
+import 'package:skotiq_core/utils.dart' show CoordinateParser;
 import '../../../services/mount_command_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/slew_dropdown_button.dart';

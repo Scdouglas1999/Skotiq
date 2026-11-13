@@ -18,7 +18,10 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../harness/mock_database.dart';
 
@@ -377,7 +380,7 @@ void main() {
   /// subscription is what a mounted screen's `ref.watch` does; the container's
   /// own teardown closes it.
   void open(DarkroomScope scope) {
-    container.listen<DarkroomState>(
+    container.listen<DarkroomViewState>(
       darkroomControllerProvider(scope),
       (_, __) {},
       fireImmediately: true,
@@ -397,7 +400,7 @@ void main() {
 
   /// Read the state after the load, the catalogue fetch and the first render
   /// have all settled.
-  Future<DarkroomState> settle(DarkroomScope scope) async {
+  Future<DarkroomViewState> settle(DarkroomScope scope) async {
     open(scope);
     for (var i = 0; i < 12; i++) {
       await Future<void>.delayed(Duration.zero);
@@ -1306,7 +1309,7 @@ void main() {
       steps: [_step('background_extract'), _step('stretch')],
     );
     final scope = DarkroomScope.recipe(id);
-    final subscription = container.listen<DarkroomState>(
+    final subscription = container.listen<DarkroomViewState>(
       darkroomControllerProvider(scope),
       (_, __) {},
       fireImmediately: true,
@@ -1340,7 +1343,7 @@ void main() {
       'last held', () async {
     final id = await seedRecipe(steps: [_step('background_extract')]);
     final scope = DarkroomScope.recipe(id);
-    final subscription = container.listen<DarkroomState>(
+    final subscription = container.listen<DarkroomViewState>(
       darkroomControllerProvider(scope),
       (_, __) {},
       fireImmediately: true,

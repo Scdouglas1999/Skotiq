@@ -21,7 +21,7 @@ typedef SolvedFrameFoldHook = Future<void> Function(int capturedImageId);
 /// Returns the fold summary, or null when skipped/not foldable.
 @visibleForTesting
 Future<AtlasFoldSummary?> applyAtlasFoldDedup({
-  required db.CapturedImage image,
+  required db.DbCapturedImage image,
   required ImagesDao imagesDao,
   required SkyAtlasService atlas,
   required int imageWidth,
@@ -56,7 +56,7 @@ Future<AtlasFoldSummary?> applyAtlasFoldDedup({
 Future<void> _driveCoImagingAutoContribute({
   required Ref ref,
   required LoggingService logger,
-  required db.CapturedImage image,
+  required db.DbCapturedImage image,
 }) async {
   if (image.frameType.toLowerCase() != 'light' || !image.isAccepted) return;
   final ra = image.solvedRa;
@@ -110,7 +110,7 @@ Future<void> _driveCoImagingAutoContribute({
 /// Callers guard `solvedRa`/`solvedDec`/`solvedPixelScale` before calling.
 @visibleForTesting
 SolvedWcs firstLightScanWcs({
-  required db.CapturedImage image,
+  required db.DbCapturedImage image,
   required int imageWidth,
   required int imageHeight,
   required SolvedWcsDistortion distortion,
@@ -145,7 +145,7 @@ SolvedWcs firstLightScanWcs({
 Future<void> _runFirstLightScan({
   required Ref ref,
   required LoggingService logger,
-  required db.CapturedImage image,
+  required db.DbCapturedImage image,
   required int imageWidth,
   required int imageHeight,
   required SolvedWcsDistortion distortion,

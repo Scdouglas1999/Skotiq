@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/tours/tour.dart';
 import 'package:skotiq_app/tours/tour_runner.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _FailingDao extends TutorialProgressDao {
   _FailingDao(super.db);

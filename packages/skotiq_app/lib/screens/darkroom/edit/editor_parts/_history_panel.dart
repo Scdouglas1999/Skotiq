@@ -19,7 +19,7 @@ String _listItem(String label) =>
 ///    expander: `color_calibrate` skipping for want of a catalogue is an
 ///    explanation the operator has to read, not a failure to hunt for.
 class _DarkroomHistoryPanel extends StatefulWidget {
-  final DarkroomState state;
+  final DarkroomViewState state;
   final void Function(int index) onToggle;
   final void Function(int index, String name, Object? value) onParamChanged;
 
@@ -231,7 +231,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// No gutter of their own: every caller places them inside a region that
   /// already carries the step cards' padding, so an alert lines up with the
   /// cards it is about.
-  List<Widget> _alerts(DarkroomState state) {
+  List<Widget> _alerts(DarkroomViewState state) {
     Widget wrap(Widget alert) => Padding(
           padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
           child: alert,
@@ -289,7 +289,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   Widget _card(
     BuildContext context,
     SkotiqColors colors,
-    DarkroomState state,
+    DarkroomViewState state,
     int index,
   ) {
     final step = state.steps[index];
@@ -505,7 +505,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// as the backstop for everything this build cannot decide from the
   /// catalogue.
   Widget _moveButton({
-    required DarkroomState state,
+    required DarkroomViewState state,
     required String title,
     required int index,
     required bool up,
@@ -564,7 +564,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// it would take away the very moves that fix it while blaming the control
   /// for a violation it did not make. The engine's post-commit refusal covers
   /// that case, as it covers every other reason a `validate` can fail.
-  String? _stageOrderObjection(DarkroomState state, int from, int to) {
+  String? _stageOrderObjection(DarkroomViewState state, int from, int to) {
     final steps = state.steps;
     if (_stageOrderViolation(state, steps) != null) return null;
     final candidate = List<DarkroomStep>.from(steps);
@@ -576,7 +576,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// states, or null when it does not.
   ///
   /// This is `recipe/render.rs`'s `validate` loop as the app models it — the
-  /// same rule [DarkroomState.insertIndexFor] places a new step by: walk the
+  /// same rule [DarkroomViewState.insertIndexFor] places a new step by: walk the
   /// stack in order, remember the first stretched-stage step, and object to the
   /// first linear-stage step that comes after it. A step whose operation this
   /// build does not register, or whose stage the registry names and this build
@@ -590,7 +590,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// The step numbers count the order they were handed, from 1, the way the
   /// engine's own sentences and the cards on screen do — so a caller that
   /// passes a candidate order says so, as `_refusalOverCandidate` does.
-  String? _stageOrderViolation(DarkroomState state, List<DarkroomStep> steps) {
+  String? _stageOrderViolation(DarkroomViewState state, List<DarkroomStep> steps) {
     int? stretchedAt;
     for (var i = 0; i < steps.length; i++) {
       final stage = state.catalog?.specFor(steps[i])?.stage;
@@ -689,7 +689,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// the last render".
   Widget _outcomeLine(
     SkotiqColors colors,
-    DarkroomState state,
+    DarkroomViewState state,
     DarkroomStep step,
     DarkroomStepReport? report,
     bool omitted,

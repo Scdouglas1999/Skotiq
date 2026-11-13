@@ -12,6 +12,7 @@ import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import '../sequence_provider.dart';
+import '../../models/backend/backend_types.dart';
 
 const sequenceUpdatedEventType = 'SequenceUpdated';
 const _logSource = 'SequenceCatalogSync';

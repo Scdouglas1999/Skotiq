@@ -9,6 +9,7 @@ import '../services/device_service.dart';
 import '../services/device_matching_service.dart';
 import 'backend_provider.dart';
 import 'settings_provider.dart';
+import '../models/backend/backend_types.dart';
 
 /// The one bucket a linked client's discovery fills: its host answers for
 /// every driver in a single sweep (see `_getAvailableBackends`).

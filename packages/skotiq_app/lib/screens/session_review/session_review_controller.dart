@@ -3,11 +3,13 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide BestNight;
-// The controller exposes its own UI-facing [BestNight] (hours-based) to the
-// panels; reach the core service type — also named `BestNight` — under a prefix
-// so the two never collide.
-import 'package:skotiq_core/skotiq_core.dart' as core show BestNight;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:path/path.dart' as p;
 
 part 'session_review_controller_parts/_models.dart';
@@ -174,7 +176,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
   /// Load (or refresh) the smart-report backbone the narrative + workbench
   /// panels read: the Night Doctor [NightReport], the reviewed master's
   /// marginal-SNR [IntegrationCurve], its multi-night [GrowthPoint] growth
-  /// series + [BestNight], and the catalog [AnnotationLayer].
+  /// series + [ReviewBestNight], and the catalog [AnnotationLayer].
   ///
   /// Every source is loaded fail-soft and independently: a failure in any one
   /// leaves that field null/empty rather than sinking the whole load, so a

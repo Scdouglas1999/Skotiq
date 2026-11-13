@@ -5,7 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/widgets/mount/mount_site_reconciliation_card.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;

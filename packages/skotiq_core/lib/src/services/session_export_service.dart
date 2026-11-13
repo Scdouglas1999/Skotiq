@@ -30,7 +30,7 @@ class SessionFrameGrading {
   const SessionFrameGrading({required this.lights, required this.accepted});
 
   /// The verdict over [images], counting light frames only.
-  factory SessionFrameGrading.of(List<CapturedImage> images) {
+  factory SessionFrameGrading.of(List<DbCapturedImage> images) {
     var lights = 0;
     var accepted = 0;
     for (final image in images) {
@@ -276,8 +276,8 @@ class SessionExportService {
   /// Non-null values of [pick] across [images] — the population a report
   /// aggregate is computed over.
   static List<double> _values(
-    List<CapturedImage> images,
-    double? Function(CapturedImage image) pick,
+    List<DbCapturedImage> images,
+    double? Function(DbCapturedImage image) pick,
   ) {
     final out = <double>[];
     for (final image in images) {
@@ -423,7 +423,7 @@ class SessionExportService {
     buffer.writeln('Rejected: ${images.length - acceptedImages.length}');
     buffer.writeln();
 
-    final filterGroups = <String, List<CapturedImage>>{};
+    final filterGroups = <String, List<DbCapturedImage>>{};
     for (final image in acceptedImages) {
       final filter = image.filter ?? 'No Filter';
       filterGroups.putIfAbsent(filter, () => []).add(image);
@@ -471,10 +471,10 @@ class SessionExportService {
     final grading = SessionFrameGrading.of(images);
     final keptPercent = grading.keptPercent;
 
-    final filterGroups = <String, List<CapturedImage>>{};
+    final filterGroups = <String, List<DbCapturedImage>>{};
     for (final image in acceptedImages) {
       final filter = image.filter ?? 'No Filter';
-      filterGroups.putIfAbsent(filter, () => <CapturedImage>[]).add(image);
+      filterGroups.putIfAbsent(filter, () => <DbCapturedImage>[]).add(image);
     }
 
     final filterRows = filterGroups.entries.map((entry) {

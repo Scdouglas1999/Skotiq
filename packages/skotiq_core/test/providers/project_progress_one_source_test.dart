@@ -1,17 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        IntegrationGoal,
-        ProjectProgress,
-        allDbImagesProvider,
-        allDbTargetsProvider,
-        allSessionsProvider,
-        integrationGoalsStreamProvider,
-        projectProgressListProvider;
+import 'package:skotiq_core/models.dart' show IntegrationGoal;
+import 'package:skotiq_core/providers.dart'
+    show allDbImagesProvider, allDbTargetsProvider, allSessionsProvider, integrationGoalsStreamProvider, projectProgressListProvider;
+import 'package:skotiq_core/services.dart' show ProjectProgress;
 import 'package:skotiq_core/src/database/database.dart' as db;
 
-db.Target _target(int id, String name) => db.Target(
+db.DbTarget _target(int id, String name) => db.DbTarget(
   id: id,
   name: name,
   ra: 6.08,
@@ -43,7 +38,7 @@ db.ImagingSession _run(int id, DateTime start, double integrationSecs) =>
       status: 'completed',
     );
 
-db.CapturedImage _light(int id, int sessionId, DateTime at) => db.CapturedImage(
+db.DbCapturedImage _light(int id, int sessionId, DateTime at) => db.DbCapturedImage(
   id: id,
   filePath: '/captures/Field One_L_$id.fits',
   fileName: 'Field One_L_$id.fits',

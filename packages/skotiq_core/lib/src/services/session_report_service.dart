@@ -182,14 +182,14 @@ class SessionReportService {
   /// Grouping is by the frame-type STRING — the row's own identity for this
   /// purpose — never by position in [frames].
   List<SessionCalibrationReport> _buildCalibrationReports(
-    List<CapturedImage> frames,
+    List<DbCapturedImage> frames,
   ) {
     if (frames.isEmpty) return const [];
 
-    final byType = <String, List<CapturedImage>>{};
+    final byType = <String, List<DbCapturedImage>>{};
     for (final frame in frames) {
       final type = frame.frameType.toLowerCase();
-      byType.putIfAbsent(type, () => <CapturedImage>[]).add(frame);
+      byType.putIfAbsent(type, () => <DbCapturedImage>[]).add(frame);
     }
 
     final types = byType.keys.toList()..sort();
@@ -218,20 +218,20 @@ class SessionReportService {
   /// pseudo-target so the report stays exhaustive even for quick-capture
   /// sessions.
   Future<List<SessionTargetReport>> _buildTargetReports(
-    List<CapturedImage> lightFrames,
+    List<DbCapturedImage> lightFrames,
     Map<int, double> scienceSnrById,
   ) async {
     if (lightFrames.isEmpty) return const [];
 
     // Two-level bucket: targetId? -> filter -> frames.
-    final byTarget = <int?, Map<String, List<CapturedImage>>>{};
+    final byTarget = <int?, Map<String, List<DbCapturedImage>>>{};
     for (final frame in lightFrames) {
       final tid = frame.targetId;
       final filter = (frame.filter == null || frame.filter!.isEmpty)
           ? 'Unfiltered'
           : frame.filter!;
       final byFilter = byTarget.putIfAbsent(tid, () => {});
-      byFilter.putIfAbsent(filter, () => <CapturedImage>[]).add(frame);
+      byFilter.putIfAbsent(filter, () => <DbCapturedImage>[]).add(frame);
     }
 
     // Resolve target names in one pass so we don't issue N queries inside
@@ -295,7 +295,7 @@ class SessionReportService {
   /// Build the per-filter rollup for a single `(target, filter)` bucket.
   SessionFilterReport _filterReportFromFrames(
     String filter,
-    List<CapturedImage> frames,
+    List<DbCapturedImage> frames,
     Map<int, double> scienceSnrById,
   ) {
     final attempted = frames.length;
@@ -390,7 +390,7 @@ class SessionReportService {
     return sum / count;
   }
 
-  SessionGuideStats _buildGuideStats(List<CapturedImage> lightFrames) {
+  SessionGuideStats _buildGuideStats(List<DbCapturedImage> lightFrames) {
     if (lightFrames.isEmpty) {
       return const SessionGuideStats(
         meanRmsRaArcsec: null,

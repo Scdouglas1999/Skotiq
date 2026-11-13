@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/location_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../../harness/harness.dart';
 
@@ -117,7 +120,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     final settings = handle.container.read(appSettingsProvider).value!;
-    final profile = LegacyHorizonProfile.fromJson(
+    final profile = SiteHorizonProfile.fromJson(
       settings.horizonProfileJson,
     );
     expect(profile.altitudeAt('N'), 12);

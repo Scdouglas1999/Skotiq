@@ -20,7 +20,11 @@ import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard
 import 'package:skotiq_app/services/location_sync_service.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 

@@ -4,7 +4,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 class _BrokenKeyring implements SecureKeyValueStore {
   @override

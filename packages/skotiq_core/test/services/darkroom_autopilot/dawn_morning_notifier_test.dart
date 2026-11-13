@@ -7,9 +7,9 @@
 // the operator set, and the report would still say the message was sent.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart';
-import 'package:skotiq_core/src/services/notification_service.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../notification/recording_router.dart';
 

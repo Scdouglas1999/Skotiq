@@ -11,7 +11,8 @@
 // a six-hour block on a target that drops below the horizon three hours in
 // passes pre-flight in silence.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   const estimator = SequenceTimeEstimator();

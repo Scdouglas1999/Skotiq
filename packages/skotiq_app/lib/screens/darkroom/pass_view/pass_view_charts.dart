@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'package:skotiq_core/skotiq_core.dart' show PassDepth;
+import 'package:skotiq_core/services.dart' show PassDepth;
 
 /// The color a filter lane draws in.
 Color passFilterColor(String filter, SkotiqColors colors) =>

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/startup_timeline.dart';
 
 class _RecordingLogger extends LoggingService {

@@ -42,7 +42,8 @@ Skotiq is a comprehensive astronomical imaging application with multiple API lay
 ### Using the Backend API
 
 ```dart
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 // Get the backend instance
 final backend = ref.read(backendProvider);

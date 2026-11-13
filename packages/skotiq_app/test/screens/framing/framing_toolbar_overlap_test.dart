@@ -16,7 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/framing_screen.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_canvas.dart';
 import 'package:skotiq_app/screens/framing/widgets/optical_config_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -94,7 +95,7 @@ void main() {
         ),
         framingFOVProvider.overrideWith(
           (ref) async => const FramingEquipmentResult(
-            status: EquipmentStatus.ready,
+            status: FramingEquipmentStatus.ready,
             equipment: _equipment,
             profileName: 'Test Profile',
           ),

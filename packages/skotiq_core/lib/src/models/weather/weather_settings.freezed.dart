@@ -31,8 +31,7 @@ mixin _$WeatherSettings {
  double get maxWindSpeedKph;/// Maximum safe cloud cover before weather safety pauses imaging
  double get maxCloudCoverPercent;/// Automatically park mount when weather threatens
  bool get autoParkEnabled;/// Automatically resume imaging when weather clears
- bool get autoResumeEnabled;/// Preferred radar data provider
- RadarProviderType get preferredProvider;/// How often to refresh radar data in seconds
+ bool get autoResumeEnabled; RadarProviderType get preferredProvider;/// How often to refresh radar data in seconds
  int get refreshIntervalSeconds;
 /// Create a copy of WeatherSettings
 /// with the given fields replaced by the non-null parameter values.
@@ -265,7 +264,6 @@ class _WeatherSettings implements WeatherSettings {
 @override@JsonKey() final  bool autoParkEnabled;
 /// Automatically resume imaging when weather clears
 @override@JsonKey() final  bool autoResumeEnabled;
-/// Preferred radar data provider
 @override@JsonKey() final  RadarProviderType preferredProvider;
 /// How often to refresh radar data in seconds
 @override@JsonKey() final  int refreshIntervalSeconds;

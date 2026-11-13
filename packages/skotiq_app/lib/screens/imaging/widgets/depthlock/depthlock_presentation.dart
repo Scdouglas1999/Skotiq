@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' show Color;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// How a DepthLock goal reads on screen: the words for each state, the tone

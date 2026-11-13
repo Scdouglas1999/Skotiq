@@ -11,7 +11,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
-import '../database/database.dart' show CapturedImage, NarratorEventRow;
+import '../database/database.dart' show DbCapturedImage, NarratorEventRow;
 import '../services/science/narrator/narrator_context.dart'
     show NarratorFilterIntegration;
 import '../services/science/narrator/narrator_event.dart';
@@ -135,11 +135,11 @@ final recentNarratorFeedProvider = StreamProvider<List<NarratorEvent>>((ref) {
 /// runs where captures land (local / appliance), so remote (companion) mode
 /// yields empty and those detectors simply stay quiet there.
 final sessionImagesStreamProvider =
-    StreamProvider.family<List<CapturedImage>, int>((ref, sessionId) {
+    StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
       final backend = ref.watch(backendProvider);
       final remote = backend.remoteHost?.history;
       if (remote != null) {
-        return Stream.value(const <CapturedImage>[]);
+        return Stream.value(const <DbCapturedImage>[]);
       }
       return ref.watch(imagesDaoProvider).watchImagesForSession(sessionId);
     });
@@ -174,7 +174,7 @@ final sessionFilterIntegrationProvider =
     });
 
 List<NarratorFilterIntegration> _aggregateFilterIntegration(
-  List<CapturedImage> images,
+  List<DbCapturedImage> images,
   String? targetName,
 ) {
   final acceptedSecs = <String, double>{};

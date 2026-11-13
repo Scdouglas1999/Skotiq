@@ -31,7 +31,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';

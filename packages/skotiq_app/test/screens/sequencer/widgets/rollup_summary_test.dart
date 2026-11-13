@@ -5,7 +5,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/rollup_summary.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Wrap [children] under [container], itself under a root, and hand back the
 /// sequence. Children get canonical `parentId` / `orderIndex` so

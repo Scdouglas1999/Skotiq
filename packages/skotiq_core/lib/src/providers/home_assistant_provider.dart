@@ -26,6 +26,7 @@ import 'backend_provider.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'notification_router_provider.dart';
+import '../database/daos/settings_dao.dart';
 
 class HomeAssistantConfigNotifier
     extends AsyncNotifier<HomeAssistantDiscoveryConfig> {

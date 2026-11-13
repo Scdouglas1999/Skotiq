@@ -4,7 +4,8 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Result of encoding a host [CapturedImageResult.displayData] buffer to JPEG.
 class DisplayBufferJpegEncodeResult {

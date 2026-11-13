@@ -9,8 +9,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show PhotometricBand, PhotometricCatalogService, PhotometricCatalogSource;
+import 'package:skotiq_core/models.dart' show PhotometricCatalogSource;
+import 'package:skotiq_core/services.dart'
+    show PhotometricBand, PhotometricCatalogService;
 
 /// A VizieR APASS response with [rows] stars around M67, with r'mag.
 String _vizier(int rows) {

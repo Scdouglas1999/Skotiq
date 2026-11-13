@@ -19,10 +19,10 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-// Hide the core service's `BestNight`/`IntegrationGrowthPoint`: this fixture
-// builds the controller's UI-facing `BestNight`/`GrowthPoint` (hours-based),
-// which the panels read.
-import 'package:skotiq_core/skotiq_core.dart' hide BestNight;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A [PostSessionSeam] whose progress stream is empty and whose other members
 /// throw — the seeded controller never invokes them.
@@ -161,8 +161,8 @@ List<GrowthPoint> seededGrowthPoints() {
 }
 
 /// The standout night to badge (the 2026-06-05 session).
-BestNight seededBestNight() {
-  return BestNight(
+ReviewBestNight seededBestNight() {
+  return ReviewBestNight(
     date: DateTime.utc(2026, 6, 5),
     meanWeight: 0.94,
     frameCount: 45,

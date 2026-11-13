@@ -6,7 +6,11 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/models/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
 import 'package:skotiq_app/screens/night_control/actions/solve_and_sync.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../../../harness/mock_backend.dart';
 import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;

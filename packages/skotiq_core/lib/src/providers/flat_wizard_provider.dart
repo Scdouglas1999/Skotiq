@@ -30,6 +30,10 @@ import 'equipment_provider.dart';
 import 'flat_wizard_output.dart';
 import 'profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
+import '../database/daos/settings_dao.dart';
+import '../models/backend/backend_types.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
 
 part 'flat_wizard/flat_output_paths.dart';
 part 'flat_wizard/flat_camera_config.dart';

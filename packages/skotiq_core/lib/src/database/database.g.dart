@@ -1945,7 +1945,7 @@ class ConversationalBuildsCompanion
 }
 
 class $EquipmentProfilesTable extends EquipmentProfiles
-    with TableInfo<$EquipmentProfilesTable, EquipmentProfile> {
+    with TableInfo<$EquipmentProfilesTable, DbEquipmentProfile> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -2560,7 +2560,7 @@ class $EquipmentProfilesTable extends EquipmentProfiles
   static const String $name = 'equipment_profiles';
   @override
   VerificationContext validateIntegrity(
-    Insertable<EquipmentProfile> instance, {
+    Insertable<DbEquipmentProfile> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -2939,9 +2939,9 @@ class $EquipmentProfilesTable extends EquipmentProfiles
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  EquipmentProfile map(Map<String, dynamic> data, {String? tablePrefix}) {
+  DbEquipmentProfile map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return EquipmentProfile(
+    return DbEquipmentProfile(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -3143,8 +3143,8 @@ class $EquipmentProfilesTable extends EquipmentProfiles
   }
 }
 
-class EquipmentProfile extends DataClass
-    implements Insertable<EquipmentProfile> {
+class DbEquipmentProfile extends DataClass
+    implements Insertable<DbEquipmentProfile> {
   final int id;
   final String name;
   final String? description;
@@ -3193,7 +3193,7 @@ class EquipmentProfile extends DataClass
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isActive;
-  const EquipmentProfile({
+  const DbEquipmentProfile({
     required this.id,
     required this.name,
     this.description,
@@ -3496,12 +3496,12 @@ class EquipmentProfile extends DataClass
     );
   }
 
-  factory EquipmentProfile.fromJson(
+  factory DbEquipmentProfile.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return EquipmentProfile(
+    return DbEquipmentProfile(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
@@ -3627,7 +3627,7 @@ class EquipmentProfile extends DataClass
     };
   }
 
-  EquipmentProfile copyWith({
+  DbEquipmentProfile copyWith({
     int? id,
     String? name,
     Value<String?> description = const Value.absent(),
@@ -3676,7 +3676,7 @@ class EquipmentProfile extends DataClass
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isActive,
-  }) => EquipmentProfile(
+  }) => DbEquipmentProfile(
     id: id ?? this.id,
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
@@ -3758,8 +3758,8 @@ class EquipmentProfile extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isActive: isActive ?? this.isActive,
   );
-  EquipmentProfile copyWithCompanion(EquipmentProfilesCompanion data) {
-    return EquipmentProfile(
+  DbEquipmentProfile copyWithCompanion(EquipmentProfilesCompanion data) {
+    return DbEquipmentProfile(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       description: data.description.present
@@ -3875,7 +3875,7 @@ class EquipmentProfile extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('EquipmentProfile(')
+    return (StringBuffer('DbEquipmentProfile(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -3982,7 +3982,7 @@ class EquipmentProfile extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is EquipmentProfile &&
+      (other is DbEquipmentProfile &&
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
@@ -4033,7 +4033,7 @@ class EquipmentProfile extends DataClass
           other.isActive == this.isActive);
 }
 
-class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
+class EquipmentProfilesCompanion extends UpdateCompanion<DbEquipmentProfile> {
   final Value<int> id;
   final Value<String> name;
   final Value<String?> description;
@@ -4182,7 +4182,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     this.updatedAt = const Value.absent(),
     this.isActive = const Value.absent(),
   }) : name = Value(name);
-  static Insertable<EquipmentProfile> custom({
+  static Insertable<DbEquipmentProfile> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? description,
@@ -4605,7 +4605,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
   }
 }
 
-class $TargetsTable extends Targets with TableInfo<$TargetsTable, Target> {
+class $TargetsTable extends Targets with TableInfo<$TargetsTable, DbTarget> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -4882,7 +4882,7 @@ class $TargetsTable extends Targets with TableInfo<$TargetsTable, Target> {
   static const String $name = 'targets';
   @override
   VerificationContext validateIntegrity(
-    Insertable<Target> instance, {
+    Insertable<DbTarget> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -5043,9 +5043,9 @@ class $TargetsTable extends Targets with TableInfo<$TargetsTable, Target> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Target map(Map<String, dynamic> data, {String? tablePrefix}) {
+  DbTarget map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Target(
+    return DbTarget(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -5139,7 +5139,7 @@ class $TargetsTable extends Targets with TableInfo<$TargetsTable, Target> {
   }
 }
 
-class Target extends DataClass implements Insertable<Target> {
+class DbTarget extends DataClass implements Insertable<DbTarget> {
   final int id;
   final String name;
   final String? catalogId;
@@ -5161,7 +5161,7 @@ class Target extends DataClass implements Insertable<Target> {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isFavorite;
-  const Target({
+  const DbTarget({
     required this.id,
     required this.name,
     this.catalogId,
@@ -5269,12 +5269,12 @@ class Target extends DataClass implements Insertable<Target> {
     );
   }
 
-  factory Target.fromJson(
+  factory DbTarget.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Target(
+    return DbTarget(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       catalogId: serializer.fromJson<String?>(json['catalogId']),
@@ -5330,7 +5330,7 @@ class Target extends DataClass implements Insertable<Target> {
     };
   }
 
-  Target copyWith({
+  DbTarget copyWith({
     int? id,
     String? name,
     Value<String?> catalogId = const Value.absent(),
@@ -5352,7 +5352,7 @@ class Target extends DataClass implements Insertable<Target> {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isFavorite,
-  }) => Target(
+  }) => DbTarget(
     id: id ?? this.id,
     name: name ?? this.name,
     catalogId: catalogId.present ? catalogId.value : this.catalogId,
@@ -5381,8 +5381,8 @@ class Target extends DataClass implements Insertable<Target> {
     updatedAt: updatedAt ?? this.updatedAt,
     isFavorite: isFavorite ?? this.isFavorite,
   );
-  Target copyWithCompanion(TargetsCompanion data) {
-    return Target(
+  DbTarget copyWithCompanion(TargetsCompanion data) {
+    return DbTarget(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       catalogId: data.catalogId.present ? data.catalogId.value : this.catalogId,
@@ -5431,7 +5431,7 @@ class Target extends DataClass implements Insertable<Target> {
 
   @override
   String toString() {
-    return (StringBuffer('Target(')
+    return (StringBuffer('DbTarget(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('catalogId: $catalogId, ')
@@ -5484,7 +5484,7 @@ class Target extends DataClass implements Insertable<Target> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Target &&
+      (other is DbTarget &&
           other.id == this.id &&
           other.name == this.name &&
           other.catalogId == this.catalogId &&
@@ -5508,7 +5508,7 @@ class Target extends DataClass implements Insertable<Target> {
           other.isFavorite == this.isFavorite);
 }
 
-class TargetsCompanion extends UpdateCompanion<Target> {
+class TargetsCompanion extends UpdateCompanion<DbTarget> {
   final Value<int> id;
   final Value<String> name;
   final Value<String?> catalogId;
@@ -5578,7 +5578,7 @@ class TargetsCompanion extends UpdateCompanion<Target> {
   }) : name = Value(name),
        ra = Value(ra),
        dec = Value(dec);
-  static Insertable<Target> custom({
+  static Insertable<DbTarget> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? catalogId,
@@ -5779,7 +5779,7 @@ class TargetsCompanion extends UpdateCompanion<Target> {
 }
 
 class $SequencesTable extends Sequences
-    with TableInfo<$SequencesTable, Sequence> {
+    with TableInfo<$SequencesTable, DbSequence> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -5929,7 +5929,7 @@ class $SequencesTable extends Sequences
   static const String $name = 'sequences';
   @override
   VerificationContext validateIntegrity(
-    Insertable<Sequence> instance, {
+    Insertable<DbSequence> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -6008,9 +6008,9 @@ class $SequencesTable extends Sequences
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Sequence map(Map<String, dynamic> data, {String? tablePrefix}) {
+  DbSequence map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Sequence(
+    return DbSequence(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -6060,7 +6060,7 @@ class $SequencesTable extends Sequences
   }
 }
 
-class Sequence extends DataClass implements Insertable<Sequence> {
+class DbSequence extends DataClass implements Insertable<DbSequence> {
   final int id;
   final String name;
   final String? description;
@@ -6081,7 +6081,7 @@ class Sequence extends DataClass implements Insertable<Sequence> {
   /// Library favorite flag. Drives the "starred" filter/sort in the sequence
   /// library. Defaults to false.
   final bool isFavorite;
-  const Sequence({
+  const DbSequence({
     required this.id,
     required this.name,
     this.description,
@@ -6132,12 +6132,12 @@ class Sequence extends DataClass implements Insertable<Sequence> {
     );
   }
 
-  factory Sequence.fromJson(
+  factory DbSequence.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Sequence(
+    return DbSequence(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
@@ -6169,7 +6169,7 @@ class Sequence extends DataClass implements Insertable<Sequence> {
     };
   }
 
-  Sequence copyWith({
+  DbSequence copyWith({
     int? id,
     String? name,
     Value<String?> description = const Value.absent(),
@@ -6180,7 +6180,7 @@ class Sequence extends DataClass implements Insertable<Sequence> {
     bool? isTemplate,
     String? tagsJson,
     bool? isFavorite,
-  }) => Sequence(
+  }) => DbSequence(
     id: id ?? this.id,
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
@@ -6192,8 +6192,8 @@ class Sequence extends DataClass implements Insertable<Sequence> {
     tagsJson: tagsJson ?? this.tagsJson,
     isFavorite: isFavorite ?? this.isFavorite,
   );
-  Sequence copyWithCompanion(SequencesCompanion data) {
-    return Sequence(
+  DbSequence copyWithCompanion(SequencesCompanion data) {
+    return DbSequence(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       description: data.description.present
@@ -6219,7 +6219,7 @@ class Sequence extends DataClass implements Insertable<Sequence> {
 
   @override
   String toString() {
-    return (StringBuffer('Sequence(')
+    return (StringBuffer('DbSequence(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -6250,7 +6250,7 @@ class Sequence extends DataClass implements Insertable<Sequence> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Sequence &&
+      (other is DbSequence &&
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
@@ -6263,7 +6263,7 @@ class Sequence extends DataClass implements Insertable<Sequence> {
           other.isFavorite == this.isFavorite);
 }
 
-class SequencesCompanion extends UpdateCompanion<Sequence> {
+class SequencesCompanion extends UpdateCompanion<DbSequence> {
   final Value<int> id;
   final Value<String> name;
   final Value<String?> description;
@@ -6298,7 +6298,7 @@ class SequencesCompanion extends UpdateCompanion<Sequence> {
     this.tagsJson = const Value.absent(),
     this.isFavorite = const Value.absent(),
   }) : name = Value(name);
-  static Insertable<Sequence> custom({
+  static Insertable<DbSequence> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? description,
@@ -7549,7 +7549,7 @@ class ImagingSessionsCompanion extends UpdateCompanion<ImagingSession> {
 }
 
 class $CapturedImagesTable extends CapturedImages
-    with TableInfo<$CapturedImagesTable, CapturedImage> {
+    with TableInfo<$CapturedImagesTable, DbCapturedImage> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -8229,7 +8229,7 @@ class $CapturedImagesTable extends CapturedImages
   static const String $name = 'captured_images';
   @override
   VerificationContext validateIntegrity(
-    Insertable<CapturedImage> instance, {
+    Insertable<DbCapturedImage> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -8653,9 +8653,9 @@ class $CapturedImagesTable extends CapturedImages
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  CapturedImage map(Map<String, dynamic> data, {String? tablePrefix}) {
+  DbCapturedImage map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return CapturedImage(
+    return DbCapturedImage(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -8885,7 +8885,7 @@ class $CapturedImagesTable extends CapturedImages
   }
 }
 
-class CapturedImage extends DataClass implements Insertable<CapturedImage> {
+class DbCapturedImage extends DataClass implements Insertable<DbCapturedImage> {
   final int id;
   final String filePath;
   final String fileName;
@@ -8957,7 +8957,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
   /// MILLISECONDS. A frame with neither this nor `isPlateSolved` was never
   /// sent to a solver, so solve-rate statistics leave it out.
   final int? plateSolveFailedAt;
-  const CapturedImage({
+  const DbCapturedImage({
     required this.id,
     required this.filePath,
     required this.fileName,
@@ -9301,12 +9301,12 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
     );
   }
 
-  factory CapturedImage.fromJson(
+  factory DbCapturedImage.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return CapturedImage(
+    return DbCapturedImage(
       id: serializer.fromJson<int>(json['id']),
       filePath: serializer.fromJson<String>(json['filePath']),
       fileName: serializer.fromJson<String>(json['fileName']),
@@ -9426,7 +9426,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
     };
   }
 
-  CapturedImage copyWith({
+  DbCapturedImage copyWith({
     int? id,
     String? filePath,
     String? fileName,
@@ -9482,7 +9482,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
     Value<String?> solvedSip = const Value.absent(),
     Value<String?> thumbnailPath = const Value.absent(),
     Value<int?> plateSolveFailedAt = const Value.absent(),
-  }) => CapturedImage(
+  }) => DbCapturedImage(
     id: id ?? this.id,
     filePath: filePath ?? this.filePath,
     fileName: fileName ?? this.fileName,
@@ -9563,8 +9563,8 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
         ? plateSolveFailedAt.value
         : this.plateSolveFailedAt,
   );
-  CapturedImage copyWithCompanion(CapturedImagesCompanion data) {
-    return CapturedImage(
+  DbCapturedImage copyWithCompanion(CapturedImagesCompanion data) {
+    return DbCapturedImage(
       id: data.id.present ? data.id.value : this.id,
       filePath: data.filePath.present ? data.filePath.value : this.filePath,
       fileName: data.fileName.present ? data.fileName.value : this.fileName,
@@ -9687,7 +9687,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
 
   @override
   String toString() {
-    return (StringBuffer('CapturedImage(')
+    return (StringBuffer('DbCapturedImage(')
           ..write('id: $id, ')
           ..write('filePath: $filePath, ')
           ..write('fileName: $fileName, ')
@@ -9808,7 +9808,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is CapturedImage &&
+      (other is DbCapturedImage &&
           other.id == this.id &&
           other.filePath == this.filePath &&
           other.fileName == this.fileName &&
@@ -9866,7 +9866,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
           other.plateSolveFailedAt == this.plateSolveFailedAt);
 }
 
-class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
+class CapturedImagesCompanion extends UpdateCompanion<DbCapturedImage> {
   final Value<int> id;
   final Value<String> filePath;
   final Value<String> fileName;
@@ -10039,7 +10039,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
        fileName = Value(fileName),
        exposureDuration = Value(exposureDuration),
        capturedAt = Value(capturedAt);
-  static Insertable<CapturedImage> custom({
+  static Insertable<DbCapturedImage> custom({
     Expression<int>? id,
     Expression<String>? filePath,
     Expression<String>? fileName,
@@ -11789,7 +11789,7 @@ class ImageMetadataCompanion extends UpdateCompanion<ImageMetadatum> {
 }
 
 class $SequenceNodesTable extends SequenceNodes
-    with TableInfo<$SequenceNodesTable, SequenceNode> {
+    with TableInfo<$SequenceNodesTable, DbSequenceNode> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -11958,7 +11958,7 @@ class $SequenceNodesTable extends SequenceNodes
   static const String $name = 'sequence_nodes';
   @override
   VerificationContext validateIntegrity(
-    Insertable<SequenceNode> instance, {
+    Insertable<DbSequenceNode> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -12057,9 +12057,9 @@ class $SequenceNodesTable extends SequenceNodes
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  SequenceNode map(Map<String, dynamic> data, {String? tablePrefix}) {
+  DbSequenceNode map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SequenceNode(
+    return DbSequenceNode(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -12117,7 +12117,7 @@ class $SequenceNodesTable extends SequenceNodes
   }
 }
 
-class SequenceNode extends DataClass implements Insertable<SequenceNode> {
+class DbSequenceNode extends DataClass implements Insertable<DbSequenceNode> {
   final int id;
   final String nodeId;
   final int sequenceId;
@@ -12130,7 +12130,7 @@ class SequenceNode extends DataClass implements Insertable<SequenceNode> {
   final String? parentNodeId;
   final int orderIndex;
   final bool isEnabled;
-  const SequenceNode({
+  const DbSequenceNode({
     required this.id,
     required this.nodeId,
     required this.sequenceId,
@@ -12191,12 +12191,12 @@ class SequenceNode extends DataClass implements Insertable<SequenceNode> {
     );
   }
 
-  factory SequenceNode.fromJson(
+  factory DbSequenceNode.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SequenceNode(
+    return DbSequenceNode(
       id: serializer.fromJson<int>(json['id']),
       nodeId: serializer.fromJson<String>(json['nodeId']),
       sequenceId: serializer.fromJson<int>(json['sequenceId']),
@@ -12230,7 +12230,7 @@ class SequenceNode extends DataClass implements Insertable<SequenceNode> {
     };
   }
 
-  SequenceNode copyWith({
+  DbSequenceNode copyWith({
     int? id,
     String? nodeId,
     int? sequenceId,
@@ -12243,7 +12243,7 @@ class SequenceNode extends DataClass implements Insertable<SequenceNode> {
     Value<String?> parentNodeId = const Value.absent(),
     int? orderIndex,
     bool? isEnabled,
-  }) => SequenceNode(
+  }) => DbSequenceNode(
     id: id ?? this.id,
     nodeId: nodeId ?? this.nodeId,
     sequenceId: sequenceId ?? this.sequenceId,
@@ -12259,8 +12259,8 @@ class SequenceNode extends DataClass implements Insertable<SequenceNode> {
     orderIndex: orderIndex ?? this.orderIndex,
     isEnabled: isEnabled ?? this.isEnabled,
   );
-  SequenceNode copyWithCompanion(SequenceNodesCompanion data) {
-    return SequenceNode(
+  DbSequenceNode copyWithCompanion(SequenceNodesCompanion data) {
+    return DbSequenceNode(
       id: data.id.present ? data.id.value : this.id,
       nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
       sequenceId: data.sequenceId.present
@@ -12290,7 +12290,7 @@ class SequenceNode extends DataClass implements Insertable<SequenceNode> {
 
   @override
   String toString() {
-    return (StringBuffer('SequenceNode(')
+    return (StringBuffer('DbSequenceNode(')
           ..write('id: $id, ')
           ..write('nodeId: $nodeId, ')
           ..write('sequenceId: $sequenceId, ')
@@ -12325,7 +12325,7 @@ class SequenceNode extends DataClass implements Insertable<SequenceNode> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is SequenceNode &&
+      (other is DbSequenceNode &&
           other.id == this.id &&
           other.nodeId == this.nodeId &&
           other.sequenceId == this.sequenceId &&
@@ -12340,7 +12340,7 @@ class SequenceNode extends DataClass implements Insertable<SequenceNode> {
           other.isEnabled == this.isEnabled);
 }
 
-class SequenceNodesCompanion extends UpdateCompanion<SequenceNode> {
+class SequenceNodesCompanion extends UpdateCompanion<DbSequenceNode> {
   final Value<int> id;
   final Value<String> nodeId;
   final Value<int> sequenceId;
@@ -12385,7 +12385,7 @@ class SequenceNodesCompanion extends UpdateCompanion<SequenceNode> {
        nodeType = Value(nodeType),
        specificType = Value(specificType),
        name = Value(name);
-  static Insertable<SequenceNode> custom({
+  static Insertable<DbSequenceNode> custom({
     Expression<int>? id,
     Expression<String>? nodeId,
     Expression<int>? sequenceId,
@@ -54346,7 +54346,7 @@ final class $$EquipmentProfilesTableReferences
         BaseReferences<
           _$SkotiqDatabase,
           $EquipmentProfilesTable,
-          EquipmentProfile
+          DbEquipmentProfile
         > {
   $$EquipmentProfilesTableReferences(
     super.$_db,
@@ -55602,14 +55602,14 @@ class $$EquipmentProfilesTableTableManager
         RootTableManager<
           _$SkotiqDatabase,
           $EquipmentProfilesTable,
-          EquipmentProfile,
+          DbEquipmentProfile,
           $$EquipmentProfilesTableFilterComposer,
           $$EquipmentProfilesTableOrderingComposer,
           $$EquipmentProfilesTableAnnotationComposer,
           $$EquipmentProfilesTableCreateCompanionBuilder,
           $$EquipmentProfilesTableUpdateCompanionBuilder,
-          (EquipmentProfile, $$EquipmentProfilesTableReferences),
-          EquipmentProfile,
+          (DbEquipmentProfile, $$EquipmentProfilesTableReferences),
+          DbEquipmentProfile,
           PrefetchHooks Function({
             bool imagingSessionsRefs,
             bool flatLibraryRefs,
@@ -55870,7 +55870,7 @@ class $$EquipmentProfilesTableTableManager
                     return [
                       if (imagingSessionsRefs)
                         await $_getPrefetchedData<
-                          EquipmentProfile,
+                          DbEquipmentProfile,
                           $EquipmentProfilesTable,
                           ImagingSession
                         >(
@@ -55891,7 +55891,7 @@ class $$EquipmentProfilesTableTableManager
                         ),
                       if (flatLibraryRefs)
                         await $_getPrefetchedData<
-                          EquipmentProfile,
+                          DbEquipmentProfile,
                           $EquipmentProfilesTable,
                           FlatLibraryRow
                         >(
@@ -55912,7 +55912,7 @@ class $$EquipmentProfilesTableTableManager
                         ),
                       if (flatHistoryRefs)
                         await $_getPrefetchedData<
-                          EquipmentProfile,
+                          DbEquipmentProfile,
                           $EquipmentProfilesTable,
                           FlatHistoryEntry
                         >(
@@ -55933,7 +55933,7 @@ class $$EquipmentProfilesTableTableManager
                         ),
                       if (polarAlignmentHistoryRefs)
                         await $_getPrefetchedData<
-                          EquipmentProfile,
+                          DbEquipmentProfile,
                           $EquipmentProfilesTable,
                           PolarAlignmentHistoryEntry
                         >(
@@ -55954,7 +55954,7 @@ class $$EquipmentProfilesTableTableManager
                         ),
                       if (photometricTransformsRefs)
                         await $_getPrefetchedData<
-                          EquipmentProfile,
+                          DbEquipmentProfile,
                           $EquipmentProfilesTable,
                           PhotometricTransformRow
                         >(
@@ -55975,7 +55975,7 @@ class $$EquipmentProfilesTableTableManager
                         ),
                       if (observationLogsRefs)
                         await $_getPrefetchedData<
-                          EquipmentProfile,
+                          DbEquipmentProfile,
                           $EquipmentProfilesTable,
                           ObservationLogEntry
                         >(
@@ -55996,7 +55996,7 @@ class $$EquipmentProfilesTableTableManager
                         ),
                       if (focusModelsRefs)
                         await $_getPrefetchedData<
-                          EquipmentProfile,
+                          DbEquipmentProfile,
                           $EquipmentProfilesTable,
                           FocusModelEntry
                         >(
@@ -56027,14 +56027,14 @@ typedef $$EquipmentProfilesTableProcessedTableManager =
     ProcessedTableManager<
       _$SkotiqDatabase,
       $EquipmentProfilesTable,
-      EquipmentProfile,
+      DbEquipmentProfile,
       $$EquipmentProfilesTableFilterComposer,
       $$EquipmentProfilesTableOrderingComposer,
       $$EquipmentProfilesTableAnnotationComposer,
       $$EquipmentProfilesTableCreateCompanionBuilder,
       $$EquipmentProfilesTableUpdateCompanionBuilder,
-      (EquipmentProfile, $$EquipmentProfilesTableReferences),
-      EquipmentProfile,
+      (DbEquipmentProfile, $$EquipmentProfilesTableReferences),
+      DbEquipmentProfile,
       PrefetchHooks Function({
         bool imagingSessionsRefs,
         bool flatLibraryRefs,
@@ -56095,7 +56095,7 @@ typedef $$TargetsTableUpdateCompanionBuilder =
     });
 
 final class $$TargetsTableReferences
-    extends BaseReferences<_$SkotiqDatabase, $TargetsTable, Target> {
+    extends BaseReferences<_$SkotiqDatabase, $TargetsTable, DbTarget> {
   $$TargetsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$ImagingSessionsTable, List<ImagingSession>>
@@ -56122,7 +56122,7 @@ final class $$TargetsTableReferences
     );
   }
 
-  static MultiTypedResultKey<$CapturedImagesTable, List<CapturedImage>>
+  static MultiTypedResultKey<$CapturedImagesTable, List<DbCapturedImage>>
   _capturedImagesRefsTable(_$SkotiqDatabase db) =>
       MultiTypedResultKey.fromTable(
         db.capturedImages,
@@ -56144,7 +56144,7 @@ final class $$TargetsTableReferences
     );
   }
 
-  static MultiTypedResultKey<$SequenceNodesTable, List<SequenceNode>>
+  static MultiTypedResultKey<$SequenceNodesTable, List<DbSequenceNode>>
   _sequenceNodesRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
     db.sequenceNodes,
     aliasName: $_aliasNameGenerator(db.targets.id, db.sequenceNodes.targetId),
@@ -57510,14 +57510,14 @@ class $$TargetsTableTableManager
         RootTableManager<
           _$SkotiqDatabase,
           $TargetsTable,
-          Target,
+          DbTarget,
           $$TargetsTableFilterComposer,
           $$TargetsTableOrderingComposer,
           $$TargetsTableAnnotationComposer,
           $$TargetsTableCreateCompanionBuilder,
           $$TargetsTableUpdateCompanionBuilder,
-          (Target, $$TargetsTableReferences),
-          Target,
+          (DbTarget, $$TargetsTableReferences),
+          DbTarget,
           PrefetchHooks Function({
             bool imagingSessionsRefs,
             bool capturedImagesRefs,
@@ -57689,7 +57689,7 @@ class $$TargetsTableTableManager
                     return [
                       if (imagingSessionsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           ImagingSession
                         >(
@@ -57710,9 +57710,9 @@ class $$TargetsTableTableManager
                         ),
                       if (capturedImagesRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
-                          CapturedImage
+                          DbCapturedImage
                         >(
                           currentTable: table,
                           referencedTable: $$TargetsTableReferences
@@ -57731,9 +57731,9 @@ class $$TargetsTableTableManager
                         ),
                       if (sequenceNodesRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
-                          SequenceNode
+                          DbSequenceNode
                         >(
                           currentTable: table,
                           referencedTable: $$TargetsTableReferences
@@ -57752,7 +57752,7 @@ class $$TargetsTableTableManager
                         ),
                       if (projectTargetsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           ProjectTargetRow
                         >(
@@ -57773,7 +57773,7 @@ class $$TargetsTableTableManager
                         ),
                       if (integrationGoalsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           IntegrationGoalRow
                         >(
@@ -57794,7 +57794,7 @@ class $$TargetsTableTableManager
                         ),
                       if (targetConstraintsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           TargetConstraintRow
                         >(
@@ -57815,7 +57815,7 @@ class $$TargetsTableTableManager
                         ),
                       if (schedulerRemovedTargetsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           SchedulerRemovedTargetRow
                         >(
@@ -57836,7 +57836,7 @@ class $$TargetsTableTableManager
                         ),
                       if (campaignsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           CampaignRow
                         >(
@@ -57857,7 +57857,7 @@ class $$TargetsTableTableManager
                         ),
                       if (integratedMastersRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           IntegratedMasterRow
                         >(
@@ -57878,7 +57878,7 @@ class $$TargetsTableTableManager
                         ),
                       if (recipesRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           RecipeRow
                         >(
@@ -57899,7 +57899,7 @@ class $$TargetsTableTableManager
                         ),
                       if (mosaicProjectsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           MosaicProjectRow
                         >(
@@ -57920,7 +57920,7 @@ class $$TargetsTableTableManager
                         ),
                       if (mosaicPanelsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           MosaicPanelRow
                         >(
@@ -57941,7 +57941,7 @@ class $$TargetsTableTableManager
                         ),
                       if (nightReportsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           NightReportRow
                         >(
@@ -57962,7 +57962,7 @@ class $$TargetsTableTableManager
                         ),
                       if (narrowbandCompositesRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           NarrowbandCompositeRow
                         >(
@@ -57983,7 +57983,7 @@ class $$TargetsTableTableManager
                         ),
                       if (skyAtlasRegionsRefs)
                         await $_getPrefetchedData<
-                          Target,
+                          DbTarget,
                           $TargetsTable,
                           SkyAtlasRegionRow
                         >(
@@ -58014,14 +58014,14 @@ typedef $$TargetsTableProcessedTableManager =
     ProcessedTableManager<
       _$SkotiqDatabase,
       $TargetsTable,
-      Target,
+      DbTarget,
       $$TargetsTableFilterComposer,
       $$TargetsTableOrderingComposer,
       $$TargetsTableAnnotationComposer,
       $$TargetsTableCreateCompanionBuilder,
       $$TargetsTableUpdateCompanionBuilder,
-      (Target, $$TargetsTableReferences),
-      Target,
+      (DbTarget, $$TargetsTableReferences),
+      DbTarget,
       PrefetchHooks Function({
         bool imagingSessionsRefs,
         bool capturedImagesRefs,
@@ -58068,7 +58068,7 @@ typedef $$SequencesTableUpdateCompanionBuilder =
     });
 
 final class $$SequencesTableReferences
-    extends BaseReferences<_$SkotiqDatabase, $SequencesTable, Sequence> {
+    extends BaseReferences<_$SkotiqDatabase, $SequencesTable, DbSequence> {
   $$SequencesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$ImagingSessionsTable, List<ImagingSession>>
@@ -58095,7 +58095,7 @@ final class $$SequencesTableReferences
     );
   }
 
-  static MultiTypedResultKey<$SequenceNodesTable, List<SequenceNode>>
+  static MultiTypedResultKey<$SequenceNodesTable, List<DbSequenceNode>>
   _sequenceNodesRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
     db.sequenceNodes,
     aliasName: $_aliasNameGenerator(
@@ -58615,14 +58615,14 @@ class $$SequencesTableTableManager
         RootTableManager<
           _$SkotiqDatabase,
           $SequencesTable,
-          Sequence,
+          DbSequence,
           $$SequencesTableFilterComposer,
           $$SequencesTableOrderingComposer,
           $$SequencesTableAnnotationComposer,
           $$SequencesTableCreateCompanionBuilder,
           $$SequencesTableUpdateCompanionBuilder,
-          (Sequence, $$SequencesTableReferences),
-          Sequence,
+          (DbSequence, $$SequencesTableReferences),
+          DbSequence,
           PrefetchHooks Function({
             bool imagingSessionsRefs,
             bool sequenceNodesRefs,
@@ -58720,7 +58720,7 @@ class $$SequencesTableTableManager
                     return [
                       if (imagingSessionsRefs)
                         await $_getPrefetchedData<
-                          Sequence,
+                          DbSequence,
                           $SequencesTable,
                           ImagingSession
                         >(
@@ -58741,9 +58741,9 @@ class $$SequencesTableTableManager
                         ),
                       if (sequenceNodesRefs)
                         await $_getPrefetchedData<
-                          Sequence,
+                          DbSequence,
                           $SequencesTable,
-                          SequenceNode
+                          DbSequenceNode
                         >(
                           currentTable: table,
                           referencedTable: $$SequencesTableReferences
@@ -58762,7 +58762,7 @@ class $$SequencesTableTableManager
                         ),
                       if (sequenceCheckpointsRefs)
                         await $_getPrefetchedData<
-                          Sequence,
+                          DbSequence,
                           $SequencesTable,
                           SequenceCheckpoint
                         >(
@@ -58783,7 +58783,7 @@ class $$SequencesTableTableManager
                         ),
                       if (sequenceRunsRefs)
                         await $_getPrefetchedData<
-                          Sequence,
+                          DbSequence,
                           $SequencesTable,
                           SequenceRun
                         >(
@@ -58804,7 +58804,7 @@ class $$SequencesTableTableManager
                         ),
                       if (sequenceVersionsRefs)
                         await $_getPrefetchedData<
-                          Sequence,
+                          DbSequence,
                           $SequencesTable,
                           SequenceVersion
                         >(
@@ -58835,14 +58835,14 @@ typedef $$SequencesTableProcessedTableManager =
     ProcessedTableManager<
       _$SkotiqDatabase,
       $SequencesTable,
-      Sequence,
+      DbSequence,
       $$SequencesTableFilterComposer,
       $$SequencesTableOrderingComposer,
       $$SequencesTableAnnotationComposer,
       $$SequencesTableCreateCompanionBuilder,
       $$SequencesTableUpdateCompanionBuilder,
-      (Sequence, $$SequencesTableReferences),
-      Sequence,
+      (DbSequence, $$SequencesTableReferences),
+      DbSequence,
       PrefetchHooks Function({
         bool imagingSessionsRefs,
         bool sequenceNodesRefs,
@@ -58971,7 +58971,7 @@ final class $$ImagingSessionsTableReferences
     );
   }
 
-  static MultiTypedResultKey<$CapturedImagesTable, List<CapturedImage>>
+  static MultiTypedResultKey<$CapturedImagesTable, List<DbCapturedImage>>
   _capturedImagesRefsTable(_$SkotiqDatabase db) =>
       MultiTypedResultKey.fromTable(
         db.capturedImages,
@@ -61163,7 +61163,7 @@ class $$ImagingSessionsTableTableManager
                         await $_getPrefetchedData<
                           ImagingSession,
                           $ImagingSessionsTable,
-                          CapturedImage
+                          DbCapturedImage
                         >(
                           currentTable: table,
                           referencedTable: $$ImagingSessionsTableReferences
@@ -61722,7 +61722,11 @@ typedef $$CapturedImagesTableUpdateCompanionBuilder =
 
 final class $$CapturedImagesTableReferences
     extends
-        BaseReferences<_$SkotiqDatabase, $CapturedImagesTable, CapturedImage> {
+        BaseReferences<
+          _$SkotiqDatabase,
+          $CapturedImagesTable,
+          DbCapturedImage
+        > {
   $$CapturedImagesTableReferences(
     super.$_db,
     super.$_table,
@@ -63704,14 +63708,14 @@ class $$CapturedImagesTableTableManager
         RootTableManager<
           _$SkotiqDatabase,
           $CapturedImagesTable,
-          CapturedImage,
+          DbCapturedImage,
           $$CapturedImagesTableFilterComposer,
           $$CapturedImagesTableOrderingComposer,
           $$CapturedImagesTableAnnotationComposer,
           $$CapturedImagesTableCreateCompanionBuilder,
           $$CapturedImagesTableUpdateCompanionBuilder,
-          (CapturedImage, $$CapturedImagesTableReferences),
-          CapturedImage,
+          (DbCapturedImage, $$CapturedImagesTableReferences),
+          DbCapturedImage,
           PrefetchHooks Function({
             bool sessionId,
             bool targetId,
@@ -64070,7 +64074,7 @@ class $$CapturedImagesTableTableManager
                     return [
                       if (frameForensicsRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           FrameForensicsRow
                         >(
@@ -64091,7 +64095,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (imageMetadataRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           ImageMetadatum
                         >(
@@ -64112,7 +64116,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (integratedMasterFramesRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           IntegratedMasterFrameRow
                         >(
@@ -64133,7 +64137,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (photometryMeasurementsRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           PhotometryMeasurementRow
                         >(
@@ -64154,7 +64158,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (framePhotometricCalibrationRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           FramePhotometricCalibrationRow
                         >(
@@ -64175,7 +64179,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (transparencySamplesRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           TransparencySampleRow
                         >(
@@ -64196,7 +64200,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (psfFieldTilesRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           PsfFieldTileRow
                         >(
@@ -64217,7 +64221,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (scienceFrameQualityMetricsRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           ScienceFrameQualityMetricsRow
                         >(
@@ -64238,7 +64242,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (scienceTileMetricsRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           ScienceTileMetricRow
                         >(
@@ -64259,7 +64263,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (astrometryResidualVectorsRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           AstrometryResidualVectorRow
                         >(
@@ -64280,7 +64284,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (movingObjectCandidatesRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           MovingObjectCandidateRow
                         >(
@@ -64301,7 +64305,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (narratorEventsRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           NarratorEventRow
                         >(
@@ -64322,7 +64326,7 @@ class $$CapturedImagesTableTableManager
                         ),
                       if (transientDetectionsRefs)
                         await $_getPrefetchedData<
-                          CapturedImage,
+                          DbCapturedImage,
                           $CapturedImagesTable,
                           TransientDetectionRow
                         >(
@@ -64353,14 +64357,14 @@ typedef $$CapturedImagesTableProcessedTableManager =
     ProcessedTableManager<
       _$SkotiqDatabase,
       $CapturedImagesTable,
-      CapturedImage,
+      DbCapturedImage,
       $$CapturedImagesTableFilterComposer,
       $$CapturedImagesTableOrderingComposer,
       $$CapturedImagesTableAnnotationComposer,
       $$CapturedImagesTableCreateCompanionBuilder,
       $$CapturedImagesTableUpdateCompanionBuilder,
-      (CapturedImage, $$CapturedImagesTableReferences),
-      CapturedImage,
+      (DbCapturedImage, $$CapturedImagesTableReferences),
+      DbCapturedImage,
       PrefetchHooks Function({
         bool sessionId,
         bool targetId,
@@ -65280,7 +65284,7 @@ typedef $$SequenceNodesTableUpdateCompanionBuilder =
 
 final class $$SequenceNodesTableReferences
     extends
-        BaseReferences<_$SkotiqDatabase, $SequenceNodesTable, SequenceNode> {
+        BaseReferences<_$SkotiqDatabase, $SequenceNodesTable, DbSequenceNode> {
   $$SequenceNodesTableReferences(
     super.$_db,
     super.$_table,
@@ -65639,14 +65643,14 @@ class $$SequenceNodesTableTableManager
         RootTableManager<
           _$SkotiqDatabase,
           $SequenceNodesTable,
-          SequenceNode,
+          DbSequenceNode,
           $$SequenceNodesTableFilterComposer,
           $$SequenceNodesTableOrderingComposer,
           $$SequenceNodesTableAnnotationComposer,
           $$SequenceNodesTableCreateCompanionBuilder,
           $$SequenceNodesTableUpdateCompanionBuilder,
-          (SequenceNode, $$SequenceNodesTableReferences),
-          SequenceNode,
+          (DbSequenceNode, $$SequenceNodesTableReferences),
+          DbSequenceNode,
           PrefetchHooks Function({bool sequenceId, bool targetId})
         > {
   $$SequenceNodesTableTableManager(
@@ -65788,14 +65792,14 @@ typedef $$SequenceNodesTableProcessedTableManager =
     ProcessedTableManager<
       _$SkotiqDatabase,
       $SequenceNodesTable,
-      SequenceNode,
+      DbSequenceNode,
       $$SequenceNodesTableFilterComposer,
       $$SequenceNodesTableOrderingComposer,
       $$SequenceNodesTableAnnotationComposer,
       $$SequenceNodesTableCreateCompanionBuilder,
       $$SequenceNodesTableUpdateCompanionBuilder,
-      (SequenceNode, $$SequenceNodesTableReferences),
-      SequenceNode,
+      (DbSequenceNode, $$SequenceNodesTableReferences),
+      DbSequenceNode,
       PrefetchHooks Function({bool sequenceId, bool targetId})
     >;
 typedef $$SequenceCheckpointsTableCreateCompanionBuilder =

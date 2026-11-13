@@ -17,13 +17,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/stack_result/stack_and_share_dialog.dart';
 import 'package:skotiq_app/screens/stack_result/stack_result_screen.dart';
 import 'package:skotiq_app/widgets/astro_image_viewer.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The stretch-engine seam type is needed to stub the colour STF in the result
-// viewer without loading the native dynamic library. (Matches the screen's own
-// implementation-import precedent.)
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/stacking_engine_seam.dart'
-    show LinearFrameData, StackingEngineSeam;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 

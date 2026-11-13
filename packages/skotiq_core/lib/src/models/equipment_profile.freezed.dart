@@ -15,18 +15,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$EquipmentProfile {
 
- String get id; String get name; String? get description;// Device identifiers
- String? get cameraId; String? get mountId; String? get focuserId; String? get filterWheelId; String? get guiderId; String? get guideCameraId; double? get guideFocalLength; String? get rotatorId; String? get domeId; String? get weatherId; String? get safetyMonitorId; String? get switchId; String? get coverCalibratorId;// Optical setup
- double get focalLength; double get aperture; double? get focalRatio;// Camera defaults
- int? get defaultGain; int? get defaultOffset; int get defaultBinX; int get defaultBinY; double? get defaultCoolingTemp; bool get coolOnConnect;// Centering/plate-solve exposure default (seconds)
+ String get id; String get name; String? get description; String? get cameraId; String? get mountId; String? get focuserId; String? get filterWheelId; String? get guiderId; String? get guideCameraId; double? get guideFocalLength; String? get rotatorId; String? get domeId; String? get weatherId; String? get safetyMonitorId; String? get switchId; String? get coverCalibratorId; double get focalLength; double get aperture; double? get focalRatio; int? get defaultGain; int? get defaultOffset; int get defaultBinX; int get defaultBinY; double? get defaultCoolingTemp; bool get coolOnConnect;// Centering/plate-solve exposure default (seconds)
  double? get defaultCenteringExposure;// Filter configuration (JSON-serialized in DB)
  String? get filterNames; String? get filterFocusOffsets;// Meridian flip settings overrides (JSON)
- String? get meridianFlipOverrides;// User-friendly device names
- String? get cameraName; String? get mountName; String? get focuserName; String? get filterWheelName; String? get guiderName; String? get guideCameraName; String? get rotatorName; String? get safetyMonitorName; String? get switchName;// Telescope/OTA information
- String? get telescopeName; double get telescopeFocalLength; double get telescopeAperture;// Profile customization
- String? get profileIcon; int? get profileColor; int get sortOrder; bool get isDefault;// Timestamps
- DateTime? get createdAt; DateTime? get updatedAt;// State flags
- bool get isActive;// Camera pixel size in microns (not in DB, used by bridge)
+ String? get meridianFlipOverrides; String? get cameraName; String? get mountName; String? get focuserName; String? get filterWheelName; String? get guiderName; String? get guideCameraName; String? get rotatorName; String? get safetyMonitorName; String? get switchName; String? get telescopeName; double get telescopeFocalLength; double get telescopeAperture; String? get profileIcon; int? get profileColor; int get sortOrder; bool get isDefault; DateTime? get createdAt; DateTime? get updatedAt; bool get isActive;// Camera pixel size in microns (not in DB, used by bridge)
  double? get pixelSize;
 /// Create a copy of EquipmentProfile
 /// with the given fields replaced by the non-null parameter values.
@@ -275,7 +267,6 @@ class _EquipmentProfile implements EquipmentProfile {
 @override final  String id;
 @override final  String name;
 @override final  String? description;
-// Device identifiers
 @override final  String? cameraId;
 @override final  String? mountId;
 @override final  String? focuserId;
@@ -289,11 +280,9 @@ class _EquipmentProfile implements EquipmentProfile {
 @override final  String? safetyMonitorId;
 @override final  String? switchId;
 @override final  String? coverCalibratorId;
-// Optical setup
 @override@JsonKey() final  double focalLength;
 @override@JsonKey() final  double aperture;
 @override final  double? focalRatio;
-// Camera defaults
 @override final  int? defaultGain;
 @override final  int? defaultOffset;
 @override@JsonKey() final  int defaultBinX;
@@ -307,7 +296,6 @@ class _EquipmentProfile implements EquipmentProfile {
 @override final  String? filterFocusOffsets;
 // Meridian flip settings overrides (JSON)
 @override final  String? meridianFlipOverrides;
-// User-friendly device names
 @override final  String? cameraName;
 @override final  String? mountName;
 @override final  String? focuserName;
@@ -317,19 +305,15 @@ class _EquipmentProfile implements EquipmentProfile {
 @override final  String? rotatorName;
 @override final  String? safetyMonitorName;
 @override final  String? switchName;
-// Telescope/OTA information
 @override final  String? telescopeName;
 @override@JsonKey() final  double telescopeFocalLength;
 @override@JsonKey() final  double telescopeAperture;
-// Profile customization
 @override final  String? profileIcon;
 @override final  int? profileColor;
 @override@JsonKey() final  int sortOrder;
 @override@JsonKey() final  bool isDefault;
-// Timestamps
 @override final  DateTime? createdAt;
 @override final  DateTime? updatedAt;
-// State flags
 @override@JsonKey() final  bool isActive;
 // Camera pixel size in microns (not in DB, used by bridge)
 @override final  double? pixelSize;

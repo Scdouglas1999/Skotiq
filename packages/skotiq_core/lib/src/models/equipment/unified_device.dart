@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../services/device_service.dart';
+import '../backend/backend_types.dart';
 
 /// Priority order for driver backends (lower = higher priority)
 const Map<DriverType, int> _backendPriority = {

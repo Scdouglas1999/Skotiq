@@ -8,7 +8,10 @@ library;
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// A sub further than this from the target's catalog position, by the

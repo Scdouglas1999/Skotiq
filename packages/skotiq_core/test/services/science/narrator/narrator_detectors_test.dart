@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/services/science/narrator/narrator_context.dart';
-import 'package:skotiq_core/src/services/science/narrator/narrator_detectors.dart';
 import 'package:skotiq_core/src/services/science/narrator/narrator_engine.dart';
 import 'package:skotiq_core/src/services/science/narrator/detectors/discovery_detectors.dart';
 import 'package:skotiq_core/src/services/science/narrator/detectors/milestone_detectors.dart';

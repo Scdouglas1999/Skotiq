@@ -6,7 +6,10 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
     show dbSessionImagesProvider;
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';

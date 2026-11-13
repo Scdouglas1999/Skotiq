@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/services/observation_report_service.dart';
 // bridge-boundary: science_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFitsFile;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show CatalogManager, Star, airmassForTrueAltitude;
 import 'package:shelf/shelf.dart';

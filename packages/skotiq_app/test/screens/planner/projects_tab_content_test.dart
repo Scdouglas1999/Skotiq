@@ -24,7 +24,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/smart_night_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A fake [ActiveProjectNotifier] that holds a fixed selection in memory and

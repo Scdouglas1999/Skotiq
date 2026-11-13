@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Shared formatting for observatory devices (dome / cover-calibrator /

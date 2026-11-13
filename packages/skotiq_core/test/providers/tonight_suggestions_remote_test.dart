@@ -2,9 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/src/database/database.dart'
-    show Target, ImagingSession;
+    show DbTarget, ImagingSession;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../fakes/fake_network_client.dart';
@@ -74,7 +78,7 @@ void main() {
 
   tearDown(() => backend.dispose());
 
-  ProviderContainer containerFor({List<Target> localTargets = const []}) {
+  ProviderContainer containerFor({List<DbTarget> localTargets = const []}) {
     final container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith(
@@ -144,7 +148,7 @@ void main() {
     final now = DateTime.now();
     final container = containerFor(
       localTargets: [
-        Target(
+        DbTarget(
           id: 1,
           name: 'Polaris field',
           catalogId: 'POLARIS',

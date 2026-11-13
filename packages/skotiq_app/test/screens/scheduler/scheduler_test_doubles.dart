@@ -5,7 +5,9 @@
 // needs to land in one place — the test files carry only the per-test scenario
 // data.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 class FakeSchedulerSequenceSink implements SchedulerSequenceSink {
   @override

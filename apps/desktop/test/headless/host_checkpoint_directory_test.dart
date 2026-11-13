@@ -9,7 +9,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_desktop/headless/host_checkpoint_directory.dart';
 
 void main() {

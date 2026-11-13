@@ -14,7 +14,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
@@ -112,7 +115,7 @@ void main() {
 
       expect(
         offline.status,
-        EquipmentStatus.ready,
+        FramingEquipmentStatus.ready,
         reason:
             'the sensor size was already known; framing must not need the '
             'rig powered up',
@@ -142,7 +145,7 @@ void main() {
 
     expect(
       result.status,
-      EquipmentStatus.noCameraSpecs,
+      FramingEquipmentStatus.noCameraSpecs,
       reason:
           'nothing is known about this sensor, and a guessed FOV is worse '
           'than none',
@@ -179,7 +182,7 @@ void main() {
     addTearDown(container.dispose);
 
     final result = await container.read(framingFOVProvider.future);
-    expect(result.status, EquipmentStatus.ready);
+    expect(result.status, FramingEquipmentStatus.ready);
     // ZWO's ASI1600 manual: 4656 x 3520 at 3.8 um.
     expect(result.equipment!.pixelsX, 4656);
     expect(result.equipment!.pixelsY, 3520);

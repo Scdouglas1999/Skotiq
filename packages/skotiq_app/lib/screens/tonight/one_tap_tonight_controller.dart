@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The phase the one-tap chain is in, surfaced to the UI so the single
 /// primary action can narrate progress ("Framing…", "Planning…", "Starting…")

@@ -6,7 +6,8 @@
 // its start condition, stops at its end condition or the dawn park, and
 // skips when its end condition already holds.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   const estimator = SequenceTimeEstimator();

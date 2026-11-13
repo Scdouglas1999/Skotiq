@@ -12,16 +12,25 @@
 //!
 //! ## Important Behaviors
 //!
-//! 1. **Bulb mode**: For exposures > 30s, the camera must be set to Bulb mode.
-//!    The driver holds the shutter open via `gp_camera_trigger_capture` + timed release.
-//! 2. **ISO as gain**: the gain the driver takes and reports is the ISO number
+//! 1. **Opening a body**: by its model and USB port, so each of several
+//!    attached bodies opens as itself; a body that came back on a new port
+//!    after a replug is found by its model.
+//! 2. **Exposure**: one of the body's timed shutter speeds when it has the
+//!    requested duration, else bulb held open for the request with the body's
+//!    bulb control (Canon `eosremoterelease`, or the `bulb` toggle). A timed
+//!    capture runs on a blocking thread until the camera has written it. The
+//!    frame records what the camera did: the timed speed (or the camera's own
+//!    record of it in the raw file), the measured bulb time, and the ISO the
+//!    raw file records.
+//! 3. **ISO as gain**: the gain the driver takes and reports is the ISO number
 //!    itself; a request between the body's speeds goes to the nearest one, and
 //!    Auto ISO is never offered.
-//! 3. **Long exposure noise reduction** is switched off at connect where the
+//! 4. **Long exposure noise reduction** is switched off at connect where the
 //!    body shows the setting.
-//! 4. **Image download**: After capture, the image is downloaded from camera storage
-//!    as a RAW file and decoded to 16-bit pixel data via the raw pixel extraction path.
-//! 5. **Live view**: Some cameras support live view preview via `gp_camera_capture_preview`.
+//! 5. **Files**: every file a capture writes (two for RAW+JPEG) is read or
+//!    deleted; the raw one is decoded to the 16-bit sensor mosaic. Files left
+//!    in the camera's memory by an earlier capture are deleted before the next.
+//! 6. **Live view**: Some cameras support live view preview via `gp_camera_capture_preview`.
 //!
 //! ## Library Requirements
 //!
@@ -38,13 +47,15 @@ use async_trait::async_trait;
 use skotiq_device::camera::*;
 use skotiq_device::Vendor;
 use skotiq_device::*;
-use std::ffi::{c_char, c_float, c_int, c_void, CStr, CString};
+use std::ffi::{c_char, c_float, c_int, c_ulong, c_void, CStr, CString};
 use std::time::{Duration, Instant};
 
 mod camera;
 mod camera_ops;
 mod discovery;
+mod exposure;
 mod ffi;
+mod models;
 mod sdk;
 mod settings;
 #[cfg(test)]

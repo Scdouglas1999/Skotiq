@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Why a flat run ended with nothing on disk, said in numbers the operator can
 /// act on.

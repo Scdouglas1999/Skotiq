@@ -26,6 +26,7 @@ import 'sequence_provider.dart' show sequenceExecutionStateProvider;
 import '../settings/store_settings.dart';
 import 'settings_provider.dart' show appSettingsProvider;
 import 'ui_notification_provider.dart' show uiNotificationProvider;
+import '../database/daos/settings_dao.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].

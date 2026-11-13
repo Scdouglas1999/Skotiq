@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/mixins/device_connection_mixin.dart';
 import 'package:skotiq_app/widgets/troubleshooter/connection_troubleshooter_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A representative ASCOM COM failure: CoCreateInstance returned `0x80040154`

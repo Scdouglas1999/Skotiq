@@ -8,7 +8,7 @@
 // off its park for nothing, and the operator had been told that was what the
 // sequence required.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 Sequence _sequenceOf(List<SequenceNode> nodes) => Sequence.create(
   name: 'Test Sequence',

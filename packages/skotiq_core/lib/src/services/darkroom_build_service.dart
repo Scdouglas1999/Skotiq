@@ -131,7 +131,7 @@ class DarkroomBuildGroup {
   });
   final String label;
   final String filter;
-  final List<CapturedImage> frames;
+  final List<DbCapturedImage> frames;
   final Map<String, dynamic> calibration;
   final List<String> warnings;
 
@@ -295,7 +295,7 @@ class DarkroomBuildService {
   /// settings, and match calibration masters from the local library. A filter's
   /// flat is applied to every group of that filter that has no flat of its own.
   Future<List<DarkroomBuildGroup>> prepare(
-    List<CapturedImage> frames, {
+    List<DbCapturedImage> frames, {
     bool shareFlats = true,
     Map<String, String> selectedFlats = const {},
   }) async {
@@ -306,14 +306,14 @@ class DarkroomBuildService {
     for (final f in lights) {
       headers[f.id] = await _readHeader(f.filePath);
     }
-    String camera(CapturedImage f) =>
+    String camera(DbCapturedImage f) =>
         FitsHeaderReader.stringValue(headers[f.id]!, 'INSTRUME') ??
         'unknown camera';
-    String optics(CapturedImage f) =>
+    String optics(DbCapturedImage f) =>
         FitsHeaderReader.stringValue(headers[f.id]!, 'TELESCOP') ??
         'unknown optics';
     final cameras = lights.map(camera).toSet().length;
-    final setups = <String, List<CapturedImage>>{};
+    final setups = <String, List<DbCapturedImage>>{};
     for (final f in lights) {
       final h = headers[f.id]!;
       final key = [
@@ -413,7 +413,7 @@ class DarkroomBuildService {
     return result;
   }
 
-  static String _filterOf(CapturedImage f) =>
+  static String _filterOf(DbCapturedImage f) =>
       f.filter?.trim().isNotEmpty == true ? f.filter!.trim() : 'NoFilter';
 
   static String _seconds(double v) =>
@@ -422,14 +422,14 @@ class DarkroomBuildService {
   /// Split frames where consecutive sensor temperatures differ by more than
   /// [darkroomTemperatureGapC]. Frames without a temperature join the
   /// largest cluster.
-  static List<List<CapturedImage>> _temperatureClusters(
-    List<CapturedImage> frames,
+  static List<List<DbCapturedImage>> _temperatureClusters(
+    List<DbCapturedImage> frames,
   ) {
     final known = frames.where((f) => f.sensorTemp != null).toList()
       ..sort((a, b) => a.sensorTemp!.compareTo(b.sensorTemp!));
     final unknown = frames.where((f) => f.sensorTemp == null).toList();
     if (known.isEmpty) return [frames];
-    final clusters = <List<CapturedImage>>[
+    final clusters = <List<DbCapturedImage>>[
       [known.first],
     ];
     for (final f in known.skip(1)) {
@@ -1338,7 +1338,7 @@ class DarkroomBuildService {
 
   /// Preflight an unattended build without registering or integrating lights.
   Future<void> requireCompleteCalibration(
-    List<CapturedImage> frames, {
+    List<DbCapturedImage> frames, {
     Map<String, String> selectedFlats = const {},
   }) async {
     await _requireCalibration(
@@ -1369,7 +1369,7 @@ class DarkroomBuildService {
   /// explicitly permits incomplete calibration. Selected flats stay pinned.
   Future<DarkroomUnattendedOutcome> buildUnattended({
     required String target,
-    required List<CapturedImage> frames,
+    required List<DbCapturedImage> frames,
     required Directory directory,
     double minRetainedArea = defaultMinRetainedArea,
     void Function(DarkroomBuildStep)? onStep,

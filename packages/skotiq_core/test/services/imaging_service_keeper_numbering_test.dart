@@ -11,14 +11,17 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/clock_provider.dart';
+import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
@@ -26,6 +29,8 @@ import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);
@@ -109,6 +114,7 @@ void main() {
   late MockBackend backend;
   late StreamController<SkotiqEvent> events;
   late Directory outputDir;
+  late SkotiqDatabase database;
   late List<String> writtenPaths;
 
   setUpAll(() {
@@ -124,6 +130,7 @@ void main() {
 
   setUp(() {
     outputDir = Directory.systemTemp.createTempSync('sk_keeper_numbering');
+    database = SkotiqDatabase.forTesting(NativeDatabase.memory());
     writtenPaths = <String>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();
@@ -176,8 +183,9 @@ void main() {
     });
   });
 
-  tearDown(() {
-    events.close();
+  tearDown(() async {
+    await database.close();
+    unawaited(events.close());
     if (outputDir.existsSync()) outputDir.deleteSync(recursive: true);
   });
 
@@ -200,6 +208,10 @@ void main() {
             AppSettingsState(imageOutputPath: outputDir.path),
           ),
         ),
+        // A rebuilt service is a second container beside the first. They
+        // share this one connection, as a restarted app shares one database;
+        // two connections to one file in a process lock each other out.
+        databaseProvider.overrideWithValue(database),
         clockProvider.overrideWithValue(const _FixedClock()),
         capturePreviewPublisherProvider.overrideWithValue(
           _NoOpCapturePreviewPublisher(),

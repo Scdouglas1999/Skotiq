@@ -1,7 +1,7 @@
 import 'dart:io' show HttpStatus;
 
 import 'package:shelf/shelf.dart';
-import 'package:skotiq_core/skotiq_core.dart' show AdminOnly;
+import 'package:skotiq_core/settings.dart' show AdminOnly;
 
 import 'request_context.dart';
 import 'validation.dart';

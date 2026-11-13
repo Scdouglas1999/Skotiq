@@ -10,7 +10,8 @@
 // decides *whether* the layer runs.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 // Both packages declare a `SurveySource`: skotiq_core's names the HiPS /
 // cutout surveys the framing stack addresses (the one meant here), while the
 // planetarium's names its own single-image survey-preview sources. Hide the

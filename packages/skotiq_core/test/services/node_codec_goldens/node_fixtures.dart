@@ -3,7 +3,8 @@
 // fields. Both sets share ids (`n-<Type>`) so a diff between them lists every
 // field the diff service knows about.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 final DateTime _t0 = DateTime.utc(2026, 3, 14, 22, 30);
 final DateTime _t1 = DateTime.utc(2026, 3, 15, 4, 45);

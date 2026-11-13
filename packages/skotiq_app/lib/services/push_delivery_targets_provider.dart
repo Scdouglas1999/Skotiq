@@ -23,7 +23,9 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 /// The pairing database the host's headless server stores push tokens in.

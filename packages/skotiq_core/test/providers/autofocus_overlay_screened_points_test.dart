@@ -24,6 +24,7 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 SkotiqEvent _progress(int point, List<Map<String, Object>> points) =>
     SkotiqEvent(

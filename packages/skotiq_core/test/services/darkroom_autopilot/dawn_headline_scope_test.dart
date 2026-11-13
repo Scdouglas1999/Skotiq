@@ -9,7 +9,7 @@
 // for one practical outcome, decided by which way the master failed.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 DawnMaster _master(int id, String filter) => DawnMaster(
   masterId: id,

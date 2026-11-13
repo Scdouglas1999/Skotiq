@@ -7,6 +7,7 @@ import 'package:skotiq_core/src/providers/capability_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/camera_state_provider.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _BackendNotifier extends BackendNotifier {
   _BackendNotifier(super.ref, SkotiqBackend backend) {

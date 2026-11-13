@@ -6,7 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/constellation/constellation_contribute_sheet.dart';
 import 'package:skotiq_app/screens/constellation/constellation_ui_providers.dart'
     as ui;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A [ConstellationService] that records the exact license, attribution, privacy
@@ -138,7 +141,7 @@ void main() {
           skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider.overrideWith((ref) => info.future),
           ui.constellationPrivacyProvider
-              .overrideWith((ref) async => ui.ConstellationPrivacy.sums),
+              .overrideWith((ref) async => ConstellationPrivacy.sums),
         ],
       );
 
@@ -173,7 +176,7 @@ void main() {
             (ref) async => hub(supportedLicenses: const ['unknown-license']),
           ),
           ui.constellationPrivacyProvider
-              .overrideWith((ref) async => ui.ConstellationPrivacy.sums),
+              .overrideWith((ref) async => ConstellationPrivacy.sums),
         ],
       );
 
@@ -204,7 +207,7 @@ void main() {
           skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider.overrideWith((ref) async => hub()),
           ui.constellationPrivacyProvider
-              .overrideWith((ref) async => ui.ConstellationPrivacy.sums),
+              .overrideWith((ref) async => ConstellationPrivacy.sums),
         ],
       );
 
@@ -231,7 +234,7 @@ void main() {
             (ref) async => hub(supportedLicenses: const ['cc-by-sa', 'cc0']),
           ),
           ui.constellationPrivacyProvider
-              .overrideWith((ref) async => ui.ConstellationPrivacy.sums),
+              .overrideWith((ref) async => ConstellationPrivacy.sums),
           constellationServiceProvider.overrideWithValue(service),
           settingsDaoProvider.overrideWithValue(_RecordingSettingsDao()),
         ],
@@ -265,7 +268,7 @@ void main() {
             (ref) async => hub(supportedLicenses: const ['cc-by-sa', 'cc0']),
           ),
           ui.constellationPrivacyProvider
-              .overrideWith((ref) async => ui.ConstellationPrivacy.sums),
+              .overrideWith((ref) async => ConstellationPrivacy.sums),
           constellationServiceProvider.overrideWithValue(service),
           settingsDaoProvider.overrideWithValue(_RecordingSettingsDao()),
         ],
@@ -290,7 +293,7 @@ void main() {
     'checking consent locks the sheet so a late-resolving privacy preference '
     'cannot flip the represented sharing choice',
     (tester) async {
-      final privacy = Completer<ui.ConstellationPrivacy>();
+      final privacy = Completer<ConstellationPrivacy>();
       await openSheet(
         tester,
         overrides: [
@@ -309,7 +312,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // ...then the persisted preference resolves LATE to the opposite choice.
-      privacy.complete(ui.ConstellationPrivacy.subs);
+      privacy.complete(ConstellationPrivacy.subs);
       await tester.pumpAndSettle();
 
       // The represented sharing choice did not change under the user.
@@ -321,7 +324,7 @@ void main() {
   testWidgets(
     'touching only the credit toggle also locks the late privacy seed',
     (tester) async {
-      final privacy = Completer<ui.ConstellationPrivacy>();
+      final privacy = Completer<ConstellationPrivacy>();
       await openSheet(
         tester,
         overrides: [
@@ -339,7 +342,7 @@ void main() {
       await tester.tap(find.textContaining('Credit me as a contributor'));
       await tester.pumpAndSettle();
 
-      privacy.complete(ui.ConstellationPrivacy.subs);
+      privacy.complete(ConstellationPrivacy.subs);
       await tester.pumpAndSettle();
 
       expect(find.textContaining('additive co-add sums'), findsOneWidget);

@@ -7,7 +7,8 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 const double kTrueZeroPoint = 21.350;
 const double kTrueExtinction = 0.1800; // mag per airmass

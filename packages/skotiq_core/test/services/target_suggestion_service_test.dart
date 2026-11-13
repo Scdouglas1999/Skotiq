@@ -4,11 +4,11 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide HorizonProfile;
-import 'package:skotiq_core/src/models/site/site_horizon_profile.dart'
-    show HorizonProfile;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart'
-    show Target, ImagingSession;
+    show DbTarget, ImagingSession;
 
 /// Mock implementation of LoggingService
 class MockLoggingService extends Mock implements LoggingService {}
@@ -24,7 +24,7 @@ void main() {
     });
 
     /// Helper to create a test target
-    Target createTarget({
+    DbTarget createTarget({
       required int id,
       required String name,
       required double ra,
@@ -37,7 +37,7 @@ void main() {
       int totalPlannedSubs = 0,
       double totalIntegrationSecs = 0,
     }) {
-      return Target(
+      return DbTarget(
         id: id,
         name: name,
         catalogId: catalogId,
@@ -172,7 +172,7 @@ void main() {
           sizeArcmin: 25,
         ),
       ];
-      Future<List<TargetSuggestion>> score(HorizonProfile? horizon) =>
+      Future<List<TargetSuggestion>> score(SiteHorizonProfile? horizon) =>
           service.getSuggestionsForTonight(
             config: const TargetSuggestionConfig(minAltitude: 0, minScore: 0),
             latitude: 39.97,
@@ -185,7 +185,7 @@ void main() {
       expect(await score(null), isNotEmpty);
       expect(
         await score(
-          HorizonProfile.fromSamples(const [
+          SiteHorizonProfile.fromSamples(const [
             (azimuth: 0, altitude: 89),
             (azimuth: 180, altitude: 89),
           ]),

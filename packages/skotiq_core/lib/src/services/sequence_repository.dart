@@ -228,7 +228,7 @@ class SequenceRepository {
 
     // Update in place where the node survives (preserves database row IDs),
     // insert what is new, delete what the edit dropped.
-    final updates = <db.SequenceNode>[];
+    final updates = <db.DbSequenceNode>[];
     final deletedRowIds = <int>[];
     for (final dbNode in existingNodes) {
       final node = sequence.nodes[dbNode.nodeId];
@@ -246,7 +246,7 @@ class SequenceRepository {
 
     await dao.transaction(() async {
       await dao.updateSequence(
-        db.Sequence(
+        db.DbSequence(
           id: sequenceId,
           name: sequence.name,
           description: sequence.description,
@@ -285,11 +285,11 @@ class SequenceRepository {
 
   /// The persisted row for a node that already exists, carrying the database
   /// row id (and the target link, which lives only on the row) forward.
-  db.SequenceNode _nodeUpdateRow(
+  db.DbSequenceNode _nodeUpdateRow(
     int sequenceId,
     SequenceNode node,
-    db.SequenceNode existing,
-  ) => db.SequenceNode(
+    db.DbSequenceNode existing,
+  ) => db.DbSequenceNode(
     id: existing.id,
     nodeId: node.id,
     sequenceId: sequenceId,
@@ -768,7 +768,7 @@ class SequenceRepository {
       'comment': node.comment,
   };
 
-  SequenceNode? _dbNodeToModel(db.SequenceNode dbNode) {
+  SequenceNode? _dbNodeToModel(db.DbSequenceNode dbNode) {
     final kind = NodeKind.forDatabaseName(dbNode.specificType);
     if (kind == null) return null;
     final props = decodeJsonObjectString(

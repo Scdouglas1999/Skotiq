@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'driver_error_pretty.dart';
 

@@ -25,14 +25,8 @@ import 'package:skotiq_plugins/skotiq_plugins.dart';
 // surfaced through their package barrels).
 // ignore: implementation_imports
 import 'package:skotiq_plugins/src/plugin_registration.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
-// Real DB + database provider so a "live" enablement notifier can drive the
-// host and persist through the same Drift path production uses.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/database/database.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Fake C4 notifier exposing a fixed enabled-set and recording setEnabled calls.

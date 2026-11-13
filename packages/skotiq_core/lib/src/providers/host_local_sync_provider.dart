@@ -10,6 +10,8 @@ import 'host_mutation_event_provider.dart';
 import 'remote_sync_handler.dart';
 import 'settings_provider.dart';
 import 'web_server_provider.dart' show remoteAccessServing;
+import '../models/backend/backend_types.dart';
+import '../settings/app_settings_state.g.dart';
 
 /// Keeps the desktop GUI aligned when a remote companion mutates state through
 /// the embedded [HeadlessApiServer] REST surface or when native EventBus events

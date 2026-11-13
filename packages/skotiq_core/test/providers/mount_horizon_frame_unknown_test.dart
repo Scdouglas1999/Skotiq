@@ -18,6 +18,7 @@ import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 void main() {
   test('a status with no horizon frame parses as unknown, not as 0°', () {

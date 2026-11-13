@@ -6,7 +6,7 @@ import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_strip.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/widgets/frame_exclusion_badge.dart';
-import 'package:skotiq_core/skotiq_core.dart' show FrameExclusionKind;
+import 'package:skotiq_core/providers.dart' show FrameExclusionKind;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';

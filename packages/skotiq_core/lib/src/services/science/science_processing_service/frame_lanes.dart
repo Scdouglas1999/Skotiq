@@ -16,7 +16,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
     FramePhotometricCalibration? writebackCalibration;
     TransparencySample? writebackTransparency;
     try {
-      db.CapturedImage? capturedImage;
+      db.DbCapturedImage? capturedImage;
       if (capturedImageId != null) {
         capturedImage = await _imagesRepo.getImageById(capturedImageId);
         final frameType = capturedImage?.frameType.toLowerCase();
@@ -216,7 +216,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
           );
           final recent = <FramePhotometricCalibration>[];
           for (final row in recentRows) {
-            db.CapturedImage? rowImage;
+            db.DbCapturedImage? rowImage;
             if (row.capturedImageId != null) {
               rowImage = await _imagesRepo.getImageById(row.capturedImageId!);
             }

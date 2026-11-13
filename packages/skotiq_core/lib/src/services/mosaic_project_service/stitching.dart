@@ -28,7 +28,7 @@ extension _MosaicStitching on MosaicProjectService {
   /// Accepted light subs for a capture target (the population the per-panel
   /// integration folds). Non-accepted subs are excluded so a panel's master is
   /// built only from frames that passed grading.
-  Future<List<CapturedImage>> _acceptedSubsForTarget(int targetId) async {
+  Future<List<DbCapturedImage>> _acceptedSubsForTarget(int targetId) async {
     final all = await _imagesDao.getImagesForTarget(targetId);
     return all.where((s) => s.isAccepted).toList(growable: false);
   }

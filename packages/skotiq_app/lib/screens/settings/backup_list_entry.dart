@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
 
 /// One row in the Backup & Restore list, portable across the local backend
 /// (files on disk) and a remote headless host (`/api/backup/list`).

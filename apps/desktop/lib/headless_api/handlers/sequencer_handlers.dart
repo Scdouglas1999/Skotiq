@@ -6,7 +6,11 @@ import 'dart:ui' show Locale;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // bridge-boundary: sequencer_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:shelf/shelf.dart';

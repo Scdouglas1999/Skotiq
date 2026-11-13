@@ -5,6 +5,7 @@ import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart';
 import 'package:skotiq_core/src/models/depthlock/depthlock_models.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 /// Mock implementation of SkotiqBackend for testing
 class MockBackend extends Mock implements SkotiqBackend {

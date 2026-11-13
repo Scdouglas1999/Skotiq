@@ -16,7 +16,7 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/database/database.dart' hide Sequence;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/alerts/transient_alert.dart';
 import 'package:skotiq_core/src/models/calibration/dark_library_match_tolerances.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';

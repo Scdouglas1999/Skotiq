@@ -21,6 +21,7 @@ import '../weather_providers.dart'
         weatherSettingsProvider;
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequencer_defaults.dart';
+import '../../settings/app_settings_state.g.dart';
 
 /// Keeps the host's executor on the run configuration the operator's settings
 /// make: the native `RunConfig`, built whole from the settings catalog

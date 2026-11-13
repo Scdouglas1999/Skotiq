@@ -19,7 +19,7 @@ class FrameAutoGrader {
 
   /// Returns `true` when the frame was rejected, `false` when accepted or
   /// skipped, `null` when grading did not run (disabled / not a light).
-  Future<bool?> gradeCapturedFrame({required db.CapturedImage image}) async {
+  Future<bool?> gradeCapturedFrame({required db.DbCapturedImage image}) async {
     if (image.frameType.toLowerCase() != 'light') return null;
     if (!image.isAccepted) return false;
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_timeline_scrubber.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 ScienceFrameQualityMetricsRow _metric(int id) => ScienceFrameQualityMetricsRow(

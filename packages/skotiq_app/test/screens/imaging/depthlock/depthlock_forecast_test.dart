@@ -6,7 +6,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/depthlock/depthlock_presentation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 import 'depthlock_test_doubles.dart';
 

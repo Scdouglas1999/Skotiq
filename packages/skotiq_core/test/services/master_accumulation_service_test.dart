@@ -41,7 +41,7 @@ void main() {
     await db.close();
   });
 
-  Future<CapturedImage> insertSub(String path, {String filter = 'L'}) async {
+  Future<DbCapturedImage> insertSub(String path, {String filter = 'L'}) async {
     final id = await db
         .into(db.capturedImages)
         .insert(

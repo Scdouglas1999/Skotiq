@@ -26,14 +26,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The connection-troubleshooter knowledge base is a pure, side-effect-free model
-// that its owner deliberately kept out of the skotiq_core barrel (matching
-// its own test suite, which imports the source path directly). We follow that
-// precedent — the same pattern ConnectionTroubleshooterDialog uses (see
-// connection_troubleshooter_dialog.dart:4-10).
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/troubleshooter/connection_diagnostic.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';

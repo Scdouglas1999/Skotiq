@@ -19,7 +19,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../../utils/sequence_mutator_helper.dart';
 import '../../sequence_fold_model.dart';

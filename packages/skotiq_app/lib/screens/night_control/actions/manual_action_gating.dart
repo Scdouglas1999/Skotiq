@@ -4,7 +4,8 @@
 // (`nightManualActionsProvider`) and the controller's own refusal check
 // can never disagree about whether an action may run.
 import 'package:flutter/foundation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 
 import '../night_control_contracts.dart';
 
