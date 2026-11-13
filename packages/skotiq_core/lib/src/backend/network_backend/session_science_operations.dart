@@ -757,22 +757,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return response;
   }
 
-  /// Restore from a backup by absolute server [filePath].
-  ///
-  /// Legacy/compat entry point retained for older hosts. Newer clients should
-  /// use [restoreBackupById]; the host containment-checks any `filePath` to the
-  /// backup directory regardless, so a path outside it is rejected.
-  Future<Map<String, dynamic>> restoreBackup(
-    String filePath, {
-    bool replaceExisting = false,
-  }) async {
-    final response = await _post(
-      BackupApi.restoreBackup,
-      body: {'filePath': filePath, 'replaceExisting': replaceExisting},
-    );
-    return response;
-  }
-
   Future<void> deleteBackup(String backupId) async {
     await _delete(BackupApi.deleteBackup, path: {'id': backupId});
   }

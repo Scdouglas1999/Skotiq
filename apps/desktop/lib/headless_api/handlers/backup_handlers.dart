@@ -149,46 +149,21 @@ class BackupHandlers implements RouteSource {
     final blocked = _restoreBlockedResponse();
     if (blocked != null) return blocked;
     final payload = await readJsonObject(request);
-    final id = optionalString(payload, 'id');
-    final filePath = optionalString(payload, 'filePath');
+    final id = requireString(payload, 'id');
     final replaceExisting = optionalBool(payload, 'replaceExisting') ?? false;
 
     final service = container.read(backupServiceProvider);
 
-    // Resolve the restore source to a real file that lives INSIDE this host's
-    // backup directory. A remote client must never be able to make
-    // the host read an arbitrary absolute path off disk as a "backup".
-    //   * Preferred: a stable backup `id`, resolved against listBackups() —
-    //     exactly the same resolution delete/download/metadata already use.
-    //   * Legacy: an absolute `filePath` from an older client, accepted ONLY
-    //     when it canonicalises to a file directly inside the backup directory
-    //     (a `..` segment or an out-of-tree symlink fails closed).
-    final String resolvedPath;
-    if (id != null && id.isNotEmpty) {
-      final backupFiles = await _listContainedBackups(service);
-      final file = backupFiles
-          .where((f) => _idForBackupFile(f) == id)
-          .firstOrNull;
-      if (file == null) {
-        return jsonNotFound({'error': 'Backup not found: $id'});
-      }
-      resolvedPath = file.path;
-    } else if (filePath != null && filePath.isNotEmpty) {
-      final contained = await _resolveContainedBackupFile(service, filePath);
-      if (contained == null) {
-        return jsonBadRequest({
-          'error':
-              'filePath must reference an existing backup inside the backup '
-              'directory',
-        });
-      }
-      resolvedPath = contained.path;
-    } else {
-      throw BadRequestError(
-        field: 'id',
-        expected: 'a backup id (or a contained filePath)',
-      );
+    // The restore source is a backup `id`, resolved against the contained
+    // backup list exactly as delete/download/metadata resolve it, so a client
+    // can never make the host read an arbitrary path off disk as a "backup".
+    final file = (await _listContainedBackups(
+      service,
+    )).where((f) => _idForBackupFile(f) == id).firstOrNull;
+    if (file == null) {
+      return jsonNotFound({'error': 'Backup not found: $id'});
     }
+    final resolvedPath = file.path;
 
     final result = await service.restoreBackup(
       filePath: resolvedPath,
@@ -524,38 +499,6 @@ class BackupHandlers implements RouteSource {
         .replaceAll(':', '-')
         .replaceAll('.', '-');
     return File(p.join(resolvedBackupDir, '${stem}_upload_$timestamp$ext'));
-  }
-
-  /// Resolve [candidatePath] to a real file guaranteed to live directly inside
-  /// this host's backup directory, or null when it escapes (path traversal),
-  /// does not exist, or the backup directory is missing.
-  ///
-  /// Mirrors the symlink canonicalisation used by [_resolveUploadDestination]
-  /// so a `..` segment or a symlink pointing out of the backup directory fails
-  /// closed. Backs the legacy `filePath` restore path in [handleRestoreBackup]:
-  /// older clients still send an absolute server path, and this containment
-  /// check is what keeps that path from being an arbitrary-file-read primitive.
-  Future<File?> _resolveContainedBackupFile(
-    BackupService service,
-    String candidatePath,
-  ) async {
-    final file = File(candidatePath);
-    if (!await file.exists()) return null;
-
-    final backupDir = await service.getBackupDirectory();
-    if (!await backupDir.exists()) return null;
-
-    final resolvedBackupDir = await backupDir.resolveSymbolicLinks();
-    final resolvedFile = await file.resolveSymbolicLinks();
-    final resolvedParent = p.dirname(resolvedFile);
-    final compareBackupDir = Platform.isWindows
-        ? resolvedBackupDir.toLowerCase()
-        : resolvedBackupDir;
-    final compareParent = Platform.isWindows
-        ? resolvedParent.toLowerCase()
-        : resolvedParent;
-    if (compareParent != compareBackupDir) return null;
-    return File(resolvedFile);
   }
 
   /// Return only real backup files whose canonical target is directly inside

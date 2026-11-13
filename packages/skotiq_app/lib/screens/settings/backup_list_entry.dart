@@ -9,10 +9,9 @@ import 'package:skotiq_core/backend.dart';
 /// The [id] is the only field safe to use as an action target: for a remote
 /// host it is the stable, process-independent backup id the host derives from
 /// the filename (see the desktop `BackupHandlers._idForBackupFile`); for a
-/// local file it is a path-derived key. [filePath] is retained for the local
-/// restore path and for backward compatibility with older hosts, but a remote
-/// restore/delete/download always addresses the backup by [id] so no absolute
-/// server path crosses the wire.
+/// local file it is a path-derived key. [filePath] is the local restore path;
+/// a remote restore/delete/download addresses the backup by [id], so no
+/// absolute server path crosses the wire.
 @immutable
 class BackupListEntry {
   final String id;

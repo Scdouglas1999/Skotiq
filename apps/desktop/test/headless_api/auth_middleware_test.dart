@@ -294,7 +294,7 @@ void main() {
         '/api/backup/restore',
         method: 'POST',
         token: 'control-token',
-        body: const {'filePath': 'backup.zip'},
+        body: const {'id': 'backup'},
       );
 
       expect(response.statusCode, HttpStatus.forbidden);
