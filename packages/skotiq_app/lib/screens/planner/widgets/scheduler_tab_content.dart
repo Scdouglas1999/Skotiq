@@ -16,6 +16,7 @@ import '../editors/target_constraints_editor.dart';
 import 'target_score_row.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/planner_route.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Dynamic scheduler body used by the Planner's Scheduler tab.
 part 'scheduler_tab_content/decision_panel.dart';
@@ -182,8 +183,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     } catch (error) {
       if (!mounted) return;
       if (command.isCurrent) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Scheduler action failed: ${userFacingError(error)}')),
+        context.showErrorSnackBar(
+          'Scheduler action failed: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -273,10 +274,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
         }
         if (mounted && host.isCurrent && !_configSaveErrorVisible) {
           _configSaveErrorVisible = true;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not save scheduler settings: ${userFacingError(error)}'),
-            ),
+          context.showErrorSnackBar(
+            'Could not save scheduler settings: ${userFacingError(error)}',
           );
         }
       }

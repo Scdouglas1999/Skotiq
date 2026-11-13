@@ -228,12 +228,8 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to export chart: ${userFacingError(e)}'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: SkotiqColors.of(context).error,
-          ),
+        context.showErrorSnackBar(
+          'Failed to export chart: ${userFacingError(e)}',
         );
       }
     } finally {

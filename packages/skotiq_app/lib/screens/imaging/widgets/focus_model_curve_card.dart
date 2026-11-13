@@ -55,6 +55,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../equipment/focuser_backlash/focuser_backlash_offer.dart';
 import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 part 'focus_model_curve_card/chart.dart';
 part 'focus_model_curve_card/actions.dart';
 part 'focus_model_curve_card/filter_offsets.dart';
@@ -272,33 +273,27 @@ class _FocusModelCurveCardState extends ConsumerState<FocusModelCurveCard> {
         )
             .then<void>((_) {
           if (messenger.mounted) {
-            messenger.showSnackBar(
-              const SnackBar(content: Text('Autofocus complete')),
-            );
+            messenger.showInfoSnackBar('Autofocus complete');
           }
         }).onError<AutofocusCancelledException>((_, __) {
           if (messenger.mounted) {
-            messenger.showSnackBar(
-              const SnackBar(content: Text('Autofocus canceled')),
-            );
+            messenger.showInfoSnackBar('Autofocus canceled');
           }
         }).catchError((Object e, StackTrace st) {
           if (messenger.mounted) {
-            messenger.showSnackBar(
-              SnackBar(content: Text('Autofocus failed: ${userFacingError(e)}')),
+            messenger.showErrorSnackBar(
+              'Autofocus failed: ${userFacingError(e)}',
             );
           }
         }),
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Autofocus started')),
-        );
+        context.showInfoSnackBar('Autofocus started');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start autofocus: ${userFacingError(e)}')),
+        context.showErrorSnackBar(
+          'Failed to start autofocus: ${userFacingError(e)}',
         );
       }
     }

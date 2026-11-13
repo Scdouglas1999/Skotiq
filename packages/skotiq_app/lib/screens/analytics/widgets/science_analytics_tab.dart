@@ -44,6 +44,7 @@ import 'science_onboarding/science_empty_onramp.dart';
 import 'science_onboarding/science_nav_row_card.dart';
 import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'science_analytics_tab/navigation_and_snapshots.dart';
 part 'science_analytics_tab/science_info_and_series_chart.dart';
@@ -726,15 +727,10 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
                         if (rejected != null &&
                             rejected > 0 &&
                             context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Rejected $rejected frame'
-                                '${rejected == 1 ? "" : "s"} '
-                                'using the threshold rules.',
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          context.showInfoSnackBar(
+                            'Rejected $rejected frame'
+                            '${rejected == 1 ? "" : "s"} '
+                            'using the threshold rules.',
                           );
                         }
                       },

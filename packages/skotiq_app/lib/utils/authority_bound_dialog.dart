@@ -176,8 +176,6 @@ void _announceHostChange(
   if (discardsInput) {
     context.showWarningSnackBar(message);
   } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    context.showInfoSnackBar(message);
   }
 }

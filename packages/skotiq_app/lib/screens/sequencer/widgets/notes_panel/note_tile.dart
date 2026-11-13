@@ -129,11 +129,9 @@ class _NoteTile extends StatelessWidget {
                 // browser if they choose.
                 if (href != null && href.isNotEmpty) {
                   Clipboard.setData(ClipboardData(text: href));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Link copied: $href'),
-                      duration: const Duration(seconds: 2),
-                    ),
+                  context.showInfoSnackBar(
+                    'Link copied: $href',
+                    duration: const Duration(seconds: 2),
                   );
                 }
               },

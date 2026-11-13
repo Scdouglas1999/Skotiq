@@ -12,6 +12,7 @@ import 'settings_widgets.dart';
 import '../../../router/app_routes.dart';
 import '../../../tours/tour.dart';
 import '../../../tours/tour_runner.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class HelpTutorialsSettings extends ConsumerWidget {
   const HelpTutorialsSettings({super.key});
@@ -312,13 +313,9 @@ class _TutorialRowState extends State<_TutorialRow> {
       await Future<void>.sync(_buttonAction);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not ${_buttonText.toLowerCase()} '
-              '${widget.title}. Please try again.',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not ${_buttonText.toLowerCase()} '
+          '${widget.title}. Please try again.',
         );
       }
     } finally {
@@ -465,9 +462,7 @@ class _AsyncActionButtonState extends State<_AsyncActionButton> {
       await Future<void>.sync(widget.onPressed);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(widget.failureMessage)),
-        );
+        context.showInfoSnackBar(widget.failureMessage);
       }
     } finally {
       if (mounted) setState(() => _isRunning = false);

@@ -17,6 +17,7 @@ import 'shared_target_detail_screen.dart';
 import 'widgets/follow_the_night_card.dart';
 import 'widgets/hub_status_card.dart';
 import 'widgets/shared_target_card.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Pillar C ("Constellation") — the community swarm surface.
 ///
@@ -399,19 +400,13 @@ class _FollowTheNightCardWiredState
           .releaseHandoff(widget.suggestion.targetId);
       if (!mounted) return;
       ref.invalidate(followTheNightProvider(-1));
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Released the baton for ${widget.suggestion.targetName} back to '
-            'the swarm.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        'Released the baton for ${widget.suggestion.targetName} back to '
+        'the swarm.',
       );
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _releasing = false);
     }
@@ -431,19 +426,13 @@ class _FollowTheNightCardWiredState
             decDegrees: s.decDeg,
           );
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '${s.targetName} is queued in your planner — open Planning to '
-            'schedule it tonight.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        '${s.targetName} is queued in your planner — open Planning to '
+        'schedule it tonight.',
       );
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _planning = false);
     }
@@ -458,21 +447,15 @@ class _FollowTheNightCardWiredState
           .claimHandoff(widget.suggestion.targetId);
       if (!mounted) return;
       ref.invalidate(followTheNightProvider(-1));
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            claim?.claimToken != null
-                ? 'You hold the baton for ${widget.suggestion.targetName}. '
-                    'Image it tonight.'
-                : 'Claim requested for ${widget.suggestion.targetName}.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        claim?.claimToken != null
+            ? 'You hold the baton for ${widget.suggestion.targetName}. '
+                'Image it tonight.'
+            : 'Claim requested for ${widget.suggestion.targetName}.',
       );
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _claiming = false);
     }

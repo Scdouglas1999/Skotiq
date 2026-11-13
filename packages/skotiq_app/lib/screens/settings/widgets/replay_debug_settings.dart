@@ -30,6 +30,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/confirm_dialog.dart';
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class ReplayDebugSettings extends ConsumerStatefulWidget {
   const ReplayDebugSettings({
@@ -134,12 +135,8 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
                     await controller.setEnabled(value);
                   } catch (error) {
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Could not change replay logging: ${userFacingError(error)}',
-                        ),
-                      ),
+                    context.showErrorSnackBar(
+                      'Could not change replay logging: ${userFacingError(error)}',
                     );
                   }
                 },
@@ -166,12 +163,8 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
                       await controller.setRetentionDays(v.toInt());
                     } catch (error) {
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Could not change replay retention: ${userFacingError(error)}',
-                          ),
-                        ),
+                      context.showErrorSnackBar(
+                        'Could not change replay retention: ${userFacingError(error)}',
                       );
                     }
                   },
@@ -265,22 +258,16 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
     try {
       final removed = await c.clearAllHistory();
       if (mounted && _isCurrentClear(generation, authority)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              removed == 1
-                  ? 'Cleared 1 recorded decision.'
-                  : 'Cleared $removed recorded decisions.',
-            ),
-          ),
+        context.showInfoSnackBar(
+          removed == 1
+              ? 'Cleared 1 recorded decision.'
+              : 'Cleared $removed recorded decisions.',
         );
       }
     } catch (error) {
       if (mounted && _isCurrentClear(generation, authority)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  'Could not clear replay history: ${userFacingError(error)}')),
+        context.showErrorSnackBar(
+          'Could not clear replay history: ${userFacingError(error)}',
         );
       }
     } finally {

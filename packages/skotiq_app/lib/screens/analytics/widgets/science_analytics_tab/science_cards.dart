@@ -72,21 +72,15 @@ class _AavsoExportButtonState extends ConsumerState<_AavsoExportButton> {
       );
     } on AavsoExportError catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: widget.colors.error,
-          duration: const Duration(seconds: 5),
-        ),
+      context.showErrorSnackBar(
+        e.message,
+        duration: const Duration(seconds: 5),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Export failed: ${userFacingError(e)}'),
-          backgroundColor: widget.colors.error,
-          duration: const Duration(seconds: 5),
-        ),
+      context.showErrorSnackBar(
+        'Export failed: ${userFacingError(e)}',
+        duration: const Duration(seconds: 5),
       );
     } finally {
       if (mounted) {

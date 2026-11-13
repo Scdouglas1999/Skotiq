@@ -41,6 +41,7 @@ import 'utils/error_snackbar.dart';
 import 'widgets/checkpoint_resume_dialog.dart';
 import 'widgets/phone_battery_indicator.dart';
 import 'widgets/tailscale_setup_sheet.dart';
+import 'package:skotiq_app/utils/snackbar_helper.dart';
 
 part 'main_parts/mobile_connection_state.dart';
 part 'main_parts/mobile_discovery_ops.dart';
@@ -326,9 +327,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     if (ref.read(lastImageStatsProvider) == null) {
       final navContext = router.routerDelegate.navigatorKey.currentContext;
       if (navContext != null && navContext.mounted) {
-        ScaffoldMessenger.maybeOf(navContext)?.showSnackBar(
-          const SnackBar(content: Text('No captured image yet this session.')),
-        );
+        navContext.showInfoSnackBar('No captured image yet this session.');
       }
       return;
     }

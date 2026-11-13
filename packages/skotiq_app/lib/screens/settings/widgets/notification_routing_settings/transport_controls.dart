@@ -387,10 +387,9 @@ class _SaveButtonState extends State<_SaveButton> {
     }
     if (!mounted) return;
     setState(() => _busy = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-          result.ok ? widget.successMessage : (result.message ?? 'Failed.')),
-    ));
+    context.showInfoSnackBar(
+      result.ok ? widget.successMessage : (result.message ?? 'Failed.'),
+    );
   }
 
   @override
@@ -458,15 +457,13 @@ class _TestSendButtonState extends ConsumerState<_TestSendButton> {
       _result = res;
       _busy = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-        res.success
-            ? 'Test sent via ${widget.kind.label}'
-            : res.skipped
-                ? 'Not sent: ${res.error}'
-                : 'Failed: ${res.error}',
-      ),
-    ));
+    context.showInfoSnackBar(
+      res.success
+          ? 'Test sent via ${widget.kind.label}'
+          : res.skipped
+              ? 'Not sent: ${res.error}'
+              : 'Failed: ${res.error}',
+    );
   }
 
   @override

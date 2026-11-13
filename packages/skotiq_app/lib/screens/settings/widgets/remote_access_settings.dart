@@ -19,6 +19,7 @@ import '../pairing_screen.dart' show pairingProvider;
 import 'admin_only.dart';
 import 'settings_widgets.dart';
 import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'remote_access_settings/shared_controls.dart';
 part 'remote_access_settings/lan_pairing_panel.dart';
@@ -94,11 +95,9 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
             text: restored,
             selection: TextSelection.collapsed(offset: restored.length),
           );
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.text('remoteAccessSavePortFailed')),
-              duration: const Duration(seconds: 2),
-            ),
+          context.showInfoSnackBar(
+            context.l10n.text('remoteAccessSavePortFailed'),
+            duration: const Duration(seconds: 2),
           );
         } finally {
           _pendingPortWrites--;
@@ -119,11 +118,9 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     ++_portEditGeneration;
     _portController.text = confirmed.toString();
     if (showFeedback && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.text('remoteAccessInvalidPort')),
-          duration: const Duration(seconds: 2),
-        ),
+      context.showInfoSnackBar(
+        context.l10n.text('remoteAccessInvalidPort'),
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -133,16 +130,12 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.l10n.text(
-            'remoteAccessCopiedUrl',
-            params: {'url': url},
-          ),
-        ),
-        duration: const Duration(seconds: 2),
+    context.showInfoSnackBar(
+      context.l10n.text(
+        'remoteAccessCopiedUrl',
+        params: {'url': url},
       ),
+      duration: const Duration(seconds: 2),
     );
   }
 
@@ -156,11 +149,9 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.text('remoteAccessOpenFailed')),
-          duration: const Duration(seconds: 2),
-        ),
+      context.showInfoSnackBar(
+        context.l10n.text('remoteAccessOpenFailed'),
+        duration: const Duration(seconds: 2),
       );
     }
   }

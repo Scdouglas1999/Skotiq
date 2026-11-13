@@ -121,13 +121,8 @@ class _TargetEditorOverlay extends ConsumerWidget {
                                                 );
                                               } catch (error) {
                                                 if (!context.mounted) return;
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Could not re-evaluate scheduler: ${userFacingError(error)}',
-                                                    ),
-                                                  ),
+                                                context.showErrorSnackBar(
+                                                  'Could not re-evaluate scheduler: ${userFacingError(error)}',
                                                 );
                                               }
                                             }());

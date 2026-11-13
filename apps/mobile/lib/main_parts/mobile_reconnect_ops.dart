@@ -581,14 +581,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             if (shouldResume) {
               await executor.resumeFromCheckpoint();
               if (!context.mounted) return;
-              final colors = Theme.of(context).extension<SkotiqColors>();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Sequence resumed from checkpoint'),
-                  backgroundColor:
-                      colors?.success ?? Theme.of(context).colorScheme.primary,
-                ),
-              );
+              context.showSuccessSnackBar('Sequence resumed from checkpoint');
             } else {
               await executor.discardCheckpoint();
             }

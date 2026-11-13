@@ -190,10 +190,8 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
       final notifier = ref.read(currentSequenceProvider.notifier);
       final sequence = ref.read(currentSequenceProvider);
       if (sequence == null) {
-        messenger?.showSnackBar(
-          const SnackBar(
-            content: Text('No sequence is open to apply the suggestion to.'),
-          ),
+        messenger?.showInfoSnackBar(
+          'No sequence is open to apply the suggestion to.',
         );
         return;
       }
@@ -221,25 +219,17 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
         match = headers.first;
       }
       if (match == null) {
-        messenger?.showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not resolve which target to apply altitude to.',
-            ),
-          ),
+        messenger?.showErrorSnackBar(
+          'Could not resolve which target to apply altitude to.',
         );
         return;
       }
       notifier.updateNode(match.copyWith(
         startWhen: AltitudeAboveTrigger(value),
       ));
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Applied: ${match.targetName} starts at '
-            '${value.toStringAsFixed(0)}° altitude.',
-          ),
-        ),
+      messenger?.showInfoSnackBar(
+        'Applied: ${match.targetName} starts at '
+        '${value.toStringAsFixed(0)}° altitude.',
       );
       return;
     }
@@ -276,11 +266,8 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _dismissed = false);
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(
-          content: Text('Could not save dismissed suggestion: ${userFacingError(error)}'),
-          backgroundColor: widget.colors.error,
-        ),
+      context.showErrorSnackBar(
+        'Could not save dismissed suggestion: ${userFacingError(error)}',
       );
     }
   }

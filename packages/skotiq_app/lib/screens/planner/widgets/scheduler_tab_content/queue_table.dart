@@ -138,12 +138,8 @@ class _QueueTable extends ConsumerWidget {
   }
 
   void _showAuthorityChanged(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'The imaging host changed. Scheduler cleanup was canceled.',
-        ),
-      ),
+    context.showInfoSnackBar(
+      'The imaging host changed. Scheduler cleanup was canceled.',
     );
   }
 

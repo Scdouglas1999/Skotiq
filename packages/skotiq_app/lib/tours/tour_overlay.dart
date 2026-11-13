@@ -15,6 +15,7 @@ import '../localization/skotiq_localizations.dart';
 import '../router/app_routes.dart';
 import 'tour.dart';
 import 'tour_runner.dart';
+import '../utils/snackbar_helper.dart';
 
 part 'overlay/card.dart';
 part 'overlay/coach_marks.dart';
@@ -193,12 +194,8 @@ class _TourOverlayState extends ConsumerState<TourOverlay>
           stackTrace: stack,
         );
         if (mounted) {
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Could not save tutorial progress. Please try again.',
-              ),
-            ),
+          context.showErrorSnackBar(
+            'Could not save tutorial progress. Please try again.',
           );
         }
       } finally {

@@ -483,6 +483,60 @@ Future<void> main() async {
     ],
   );
 
+  await check(
+    'a snackbar shown outside the feedback helper fails, in the app and in '
+    'an app entry package',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_app/lib/screens/imaging/capture_panel.dart',
+        'void f(BuildContext context) {\n'
+            '  ScaffoldMessenger.of(context).showSnackBar(\n'
+            "    const SnackBar(content: Text('Saved')),\n"
+            '  );\n'
+            '}\n',
+      );
+      await _write(
+        root,
+        'apps/mobile/lib/screens/pairing_screen.dart',
+        'void g(ScaffoldMessengerState messenger) =>\n'
+            "    messenger..hideCurrentSnackBar()..showSnackBar(bar);\n",
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[app-feedback]',
+      'capture_panel.dart:2: calls showSnackBar directly',
+      'pairing_screen.dart:2: calls showSnackBar directly',
+      'Where it goes instead: Show it with context.showInfoSnackBar',
+    ],
+  );
+
+  await check(
+    'the feedback helper, its callers, tests and comments pass',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_app/lib/utils/snackbar_helper.dart',
+        'void _show(ScaffoldMessengerState m, SnackBar bar) =>\n'
+            '    m.showSnackBar(bar);\n',
+      );
+      await _write(
+        root,
+        'packages/skotiq_app/lib/screens/imaging/capture_panel.dart',
+        '// Not `ScaffoldMessenger.of(context).showSnackBar(...)`.\n'
+            'void f(BuildContext context) =>\n'
+            "    context.showInfoSnackBar('Saved');\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_app/test/capture_panel_test.dart',
+        'void t(ScaffoldMessengerState m) => m.showSnackBar(bar);\n',
+      );
+    },
+    exitCode: 0,
+  );
+
   await check('screens, the router and start-up importing screens, and shared '
       'folders importing each other pass', (root) async {
     await _write(

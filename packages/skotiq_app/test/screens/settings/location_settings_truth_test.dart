@@ -327,8 +327,9 @@ void main() {
 
       // Let the first confirmation expire: ScaffoldMessenger QUEUES snackbars,
       // so without this the second one never renders and the assertion below
-      // would be reading the first message's text.
-      await tester.pumpAndSettle(const Duration(seconds: 6));
+      // would be reading the first message's text. A long message stays up
+      // for its reading time, at most 10 s.
+      await tester.pumpAndSettle(const Duration(seconds: 11));
       await tester.tap(find.widgetWithText(SkotiqButton, 'Scan'));
       await tester.pumpAndSettle();
 

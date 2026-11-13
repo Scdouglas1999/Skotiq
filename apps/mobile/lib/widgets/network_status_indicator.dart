@@ -9,6 +9,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/network_service.dart';
+import 'package:skotiq_app/utils/snackbar_helper.dart';
 
 /// How the active session reaches the headless server. Drives the LAN-vs-
 /// Tailscale badge + icon on the indicator so the operator can tell at a
@@ -499,10 +500,8 @@ class _ConnectionDetailsSheetState
     final linkedHost = activeBackend.remoteHost;
     if (linkedHost == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No remote server is selected. Reconnect first.'),
-          ),
+        context.showInfoSnackBar(
+          'No remote server is selected. Reconnect first.',
         );
       }
       return;
@@ -513,9 +512,7 @@ class _ConnectionDetailsSheetState
       await linkedHost.link.reconnectNow();
     } catch (e) {
       if (mounted && identical(ref.read(backendProvider), backend)) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Reconnect failed: $e')));
+        context.showErrorSnackBar('Reconnect failed: $e');
       }
     } finally {
       if (mounted) {
@@ -541,14 +538,10 @@ class _ConnectionDetailsSheetState
     if (!mounted) return;
     if (server == null) {
       setState(() => _searching = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            discoveryError == null
-                ? 'No servers found on this network.'
-                : 'Server discovery failed: $discoveryError',
-          ),
-        ),
+      context.showInfoSnackBar(
+        discoveryError == null
+            ? 'No servers found on this network.'
+            : 'Server discovery failed: $discoveryError',
       );
       return;
     }
@@ -566,9 +559,7 @@ class _ConnectionDetailsSheetState
     } catch (e) {
       if (!mounted) return;
       setState(() => _searching = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to connect: $e')));
+      context.showErrorSnackBar('Failed to connect: $e');
       return;
     }
     if (!mounted) return;
@@ -585,9 +576,7 @@ class _ConnectionDetailsSheetState
     } catch (e) {
       if (!mounted) return;
       setState(() => _disconnecting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Disconnect blocked: $e')));
+      context.showErrorSnackBar('Disconnect blocked: $e');
     }
   }
 

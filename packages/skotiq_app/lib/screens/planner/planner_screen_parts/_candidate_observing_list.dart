@@ -162,12 +162,11 @@ class _CandidateObservingListDialogState
   void _showOutcomeAndClose(String message, {required bool success}) {
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: success ? widget.colors.success : null,
-      ),
-    );
+    if (success) {
+      messenger.showSuccessSnackBar(message);
+    } else {
+      messenger.showInfoSnackBar(message);
+    }
   }
 
   @override

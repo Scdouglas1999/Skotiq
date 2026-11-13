@@ -32,12 +32,9 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       await action();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$failureMessage: ${userFacingError(error)}'),
-          backgroundColor: SkotiqColors.of(context).error,
-          duration: const Duration(seconds: 4),
-        ),
+      context.showErrorSnackBar(
+        '$failureMessage: ${userFacingError(error)}',
+        duration: const Duration(seconds: 4),
       );
     }
   }
@@ -51,11 +48,8 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       await annotationService.reAnnotate();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Re-annotation failed: ${userFacingError(error)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-          ),
+        context.showErrorSnackBar(
+          'Re-annotation failed: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -113,12 +107,9 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save annotated image: ${userFacingError(e)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to save annotated image: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     } finally {
@@ -162,21 +153,16 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           .read(annotationPresetsProvider.notifier)
           .saveCurrentAsPreset(name);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Preset "$name" saved'),
-            duration: const Duration(seconds: 3),
-          ),
+        context.showInfoSnackBar(
+          'Preset "$name" saved',
+          duration: const Duration(seconds: 3),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save preset: ${userFacingError(e)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to save preset: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     }
@@ -199,12 +185,9 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       await ref.read(annotationSettingsProvider.notifier).applyPreset(preset);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to apply preset: ${userFacingError(e)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to apply preset: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     }
@@ -239,21 +222,16 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
     try {
       await ref.read(annotationPresetsProvider.notifier).deletePreset(name);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Preset "$name" deleted'),
-            duration: const Duration(seconds: 3),
-          ),
+        context.showInfoSnackBar(
+          'Preset "$name" deleted',
+          duration: const Duration(seconds: 3),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete preset: ${userFacingError(e)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to delete preset: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     }

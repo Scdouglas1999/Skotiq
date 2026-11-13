@@ -133,12 +133,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                 final description = descriptionController.text.trim();
 
                 if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Please enter a template name'),
-                      backgroundColor: widget.colors.error,
-                    ),
-                  );
+                  context.showErrorSnackBar('Please enter a template name');
                   return;
                 }
 
@@ -299,20 +294,12 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       await ref.read(customSnippetsProvider.notifier).addSnippet(snippet);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Template "$name" created successfully'),
-            backgroundColor: widget.colors.success,
-          ),
-        );
+        context.showSuccessSnackBar('Template "$name" created successfully');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create template: ${userFacingError(e)}'),
-            backgroundColor: widget.colors.error,
-          ),
+        context.showErrorSnackBar(
+          'Failed to create template: ${userFacingError(e)}',
         );
       }
     }
@@ -380,19 +367,11 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
     try {
       await ref.read(customSnippetsProvider.notifier).removeSnippet(snippet.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Template "${snippet.name}" deleted'),
-          backgroundColor: widget.colors.info,
-        ),
-      );
+      context.showInfoSnackBar('Template "${snippet.name}" deleted');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete template: ${userFacingError(e)}'),
-          backgroundColor: widget.colors.error,
-        ),
+      context.showErrorSnackBar(
+        'Failed to delete template: ${userFacingError(e)}',
       );
     }
   }
@@ -425,12 +404,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       await ref.read(customSnippetsProvider.notifier).addSnippet(imported);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Imported snippet "${imported.name}"'),
-          backgroundColor: widget.colors.success,
-        ),
-      );
+      context.showSuccessSnackBar('Imported snippet "${imported.name}"');
     } on SnippetVersionMismatchException catch (e) {
       // Loud, distinct path so the user understands an upgrade — not a
       // file fix — is required. Different copy from the schema-issue
@@ -453,11 +427,8 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to import snippet: ${userFacingError(e)}'),
-          backgroundColor: widget.colors.error,
-        ),
+      context.showErrorSnackBar(
+        'Failed to import snippet: ${userFacingError(e)}',
       );
     } finally {
       _finishSnippetFileAction();
@@ -486,11 +457,8 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to export snippet: ${userFacingError(e)}'),
-          backgroundColor: widget.colors.error,
-        ),
+      context.showErrorSnackBar(
+        'Failed to export snippet: ${userFacingError(e)}',
       );
     } finally {
       _finishSnippetFileAction();
@@ -530,11 +498,8 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to share snippet: ${userFacingError(e)}'),
-          backgroundColor: widget.colors.error,
-        ),
+      context.showErrorSnackBar(
+        'Failed to share snippet: ${userFacingError(e)}',
       );
     } finally {
       _finishSnippetFileAction();

@@ -15,6 +15,7 @@ import '../your_sky/sky_atlas_format.dart';
 import 'constellation_contribute_sheet.dart';
 import 'constellation_ui_providers.dart';
 import 'widgets/contribution_bar.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Detail for one shared community target: the fused swarm co-add summary, your
 /// contribution, and the three swarm actions — JOIN (record the hub target),
@@ -178,17 +179,13 @@ class _SharedTargetDetailScreenState
       // promise a co-add.
       final sharing = await ensureCoImagingSharingConsent(context, ref);
       if (sharing == null) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            sharing
-                ? 'Started a live co-imaging session on ${session.targetName} — '
-                    'your subs co-add into the combined stack.'
-                : 'Started a live co-imaging session on ${session.targetName}. '
-                    'Enable unattended contribution to add your subs to the '
-                    'combined stack.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        sharing
+            ? 'Started a live co-imaging session on ${session.targetName} — '
+                'your subs co-add into the combined stack.'
+            : 'Started a live co-imaging session on ${session.targetName}. '
+                'Enable unattended contribution to add your subs to the '
+                'combined stack.',
       );
     } finally {
       if (mounted) setState(() => _coImaging = false);
@@ -209,7 +206,7 @@ class _SharedTargetDetailScreenState
         : 'Contributed ${outcome.acceptedCount} tile'
             '${outcome.acceptedCount == 1 ? '' : 's'} to the swarm'
             '${outcome.rejectedCount > 0 ? ' (${outcome.rejectedCount} rejected)' : ''}.';
-    messenger.showSnackBar(SnackBar(content: Text(msg)));
+    messenger.showInfoSnackBar(msg);
   }
 
   Future<void> _pullAndBlend() async {
@@ -244,22 +241,16 @@ class _SharedTargetDetailScreenState
       // The pull already merged each delta into the local atlas tiles; refresh
       // the atlas read surface so Your Sky reflects the deeper blended stack.
       ref.invalidate(skyAtlasCoverageProvider);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            tiles.isEmpty
-                ? 'Nothing to pull for this target yet.'
-                : 'Pulled and blended ${tiles.length} community tile'
-                    '${tiles.length == 1 ? '' : 's'} into Your Sky.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        tiles.isEmpty
+            ? 'Nothing to pull for this target yet.'
+            : 'Pulled and blended ${tiles.length} community tile'
+                '${tiles.length == 1 ? '' : 's'} into Your Sky.',
       );
     } catch (error) {
       if (!mounted) return;
       setState(() => _pulling = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     }
   }
 
@@ -276,13 +267,9 @@ class _SharedTargetDetailScreenState
         .getRegionForPoint(_target.raDeg, _target.decDeg);
     if (!mounted) return;
     if (region == null) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Open Your Sky to scrub the blended depth — name this field as a '
-            'region to track it night over night.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        'Open Your Sky to scrub the blended depth — name this field as a '
+        'region to track it night over night.',
       );
       return;
     }
@@ -331,20 +318,14 @@ class _SharedTargetDetailScreenState
       ref.invalidate(myContributionsProvider);
       ref.invalidate(sharedTargetsProvider);
       ref.invalidate(yourContributionSecondsProvider(_target));
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Retracted your contribution to tile ${record.tileId}. The fused '
-            'depth is now ${receipt.totalFramesAfter} frame'
-            '${receipt.totalFramesAfter == 1 ? '' : 's'}.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        'Retracted your contribution to tile ${record.tileId}. The fused '
+        'depth is now ${receipt.totalFramesAfter} frame'
+        '${receipt.totalFramesAfter == 1 ? '' : 's'}.',
       );
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _retracting = false);
     }

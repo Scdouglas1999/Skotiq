@@ -16,6 +16,7 @@ import '../../analytics/widgets/science_status_banner.dart';
 import '../imaging_science_state.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/analytics_route.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'science_hud_parts/_offers_and_chips.dart';
 
@@ -600,8 +601,8 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
       }
     } catch (error) {
       if (_isCurrentSave(save, sessionId)) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Could not save science session: ${userFacingError(error)}')),
+        messenger.showErrorSnackBar(
+          'Could not save science session: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -628,8 +629,8 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
       onSuccess?.call();
     } catch (error) {
       if (_isCurrentSave(save, sessionId)) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Could not save photometry setup: ${userFacingError(error)}')),
+        messenger.showErrorSnackBar(
+          'Could not save photometry setup: ${userFacingError(error)}',
         );
       }
     } finally {

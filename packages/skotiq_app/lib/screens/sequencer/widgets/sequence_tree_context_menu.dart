@@ -14,6 +14,7 @@ import 'palette_category_color.dart';
 import 'sequence_tree/fold_group_actions.dart';
 import 'tree_insert.dart';
 import 'node_appearance.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Right-click / long-press context menu for nodes in the sequencer tree.
 ///
@@ -698,13 +699,7 @@ class SequenceTreeContextMenu extends ConsumerWidget {
 
   void _showSnackBar(BuildContext context, String message) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: colors.error,
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    context.showErrorSnackBar(message, duration: const Duration(seconds: 4));
   }
 
   /// Open the node-palette sheet rooted at this node's parent so the new

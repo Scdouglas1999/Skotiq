@@ -20,6 +20,7 @@ import '../../../widgets/accessible_dropdown.dart';
 import 'admin_only.dart';
 import 'settings_widgets.dart'
     show SettingsControlBox, SettingsFormScope, settingsPagePaddingOf;
+import '../../../utils/snackbar_helper.dart';
 
 part 'log_viewer_parts/_export_seams.dart';
 part 'log_viewer_parts/_actions.dart';

@@ -20,6 +20,7 @@ import '../../stack_result/stack_and_share_dialog.dart';
 import '../../../widgets/osc_stacking_controls.dart';
 import 'panel_widgets.dart';
 import 'session_stack_plan.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'stacking_panel/stack_and_share_entry.dart';
 part 'stacking_panel/status_widgets.dart';
@@ -205,12 +206,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
       await operation(() => start.isCurrent);
     } catch (error) {
       if (!mounted || start.isStale) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not start live stacking: ${userFacingError(error)}',
-          ),
-        ),
+      context.showErrorSnackBar(
+        'Could not start live stacking: ${userFacingError(error)}',
       );
     } finally {
       if (start.isCurrent) setState(() => _isStarting = false);
@@ -318,16 +315,12 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
       final saved = library.saved;
       if (!mounted) return true;
       final integration = saved.totalIntegrationSecs;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Stacked master (${saved.stackedFrameCount} frames'
-            '${integration != null && integration > 0 ? ', '
-                '${integration.toStringAsFixed(0)} s integration' : ''}) '
-            'saved to ${saved.filePath}'
-            '${library.masterId == null ? '' : ' and added to the Darkroom'}',
-          ),
-        ),
+      context.showInfoSnackBar(
+        'Stacked master (${saved.stackedFrameCount} frames'
+        '${integration != null && integration > 0 ? ', '
+            '${integration.toStringAsFixed(0)} s integration' : ''}) '
+        'saved to ${saved.filePath}'
+        '${library.masterId == null ? '' : ' and added to the Darkroom'}',
       );
       return true;
     } on LiveStackingMasterFormatUnsupported catch (error) {
@@ -365,8 +358,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
       await ref.read(liveStackingProvider.notifier).stop();
     } catch (error) {
       if (!mounted || stop.isStale) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not stop live stacking: ${userFacingError(error)}')),
+      context.showErrorSnackBar(
+        'Could not stop live stacking: ${userFacingError(error)}',
       );
     } finally {
       if (stop.isCurrent) setState(() => _isStopping = false);
@@ -381,8 +374,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
       await ref.read(liveStackingProvider.notifier).reset();
     } catch (error) {
       if (!mounted || reset.isStale) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not reset live stacking: ${userFacingError(error)}')),
+      context.showErrorSnackBar(
+        'Could not reset live stacking: ${userFacingError(error)}',
       );
     } finally {
       if (reset.isCurrent) setState(() => _isResetting = false);
@@ -441,12 +434,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   Future<void> _openStackAndShare(int sessionId) async {
     if (_isOpeningStackAndShare) return;
     if (ref.read(isRemoteModeProvider)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Stack & Share must be run on the imaging host in this release.',
-          ),
-        ),
+      context.showInfoSnackBar(
+        'Stack & Share must be run on the imaging host in this release.',
       );
       return;
     }

@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../../widgets/accessible_dropdown.dart';
 import 'node_appearance.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'snippet_palette/rendering.dart';
 part 'snippet_palette/actions.dart';

@@ -17,6 +17,7 @@ import 'share_session_dialog.dart';
 
 import 'work_locally.dart';
 import '../../router/app_routes.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Four-state model for the shared remote-connection indicator.
 ///
@@ -466,10 +467,8 @@ class _RemoteConnectionSheetState
     final linkedHost = reconnect.value.remoteHost;
     if (linkedHost == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No remote server is selected. Reconnect first.'),
-          ),
+        context.showInfoSnackBar(
+          'No remote server is selected. Reconnect first.',
         );
       }
       return;
@@ -479,9 +478,7 @@ class _RemoteConnectionSheetState
       await linkedHost.link.reconnectNow();
     } catch (e) {
       if (mounted && reconnect.isCurrent) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Reconnect failed: ${userFacingError(e)}')),
-        );
+        context.showErrorSnackBar('Reconnect failed: ${userFacingError(e)}');
       }
     } finally {
       if (reconnect.isCurrent) setState(() => _reconnecting = false);
@@ -497,9 +494,7 @@ class _RemoteConnectionSheetState
     } catch (e) {
       if (!mounted) return;
       setState(() => _disconnecting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Disconnect blocked: ${userFacingError(e)}')),
-      );
+      context.showErrorSnackBar('Disconnect blocked: ${userFacingError(e)}');
     }
   }
 

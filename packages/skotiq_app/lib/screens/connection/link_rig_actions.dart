@@ -8,6 +8,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../../utils/confirm_dialog.dart';
 import 'link_rig_dialog.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// True when this process can change role at all: a desktop build whose entry
 /// point installed a relauncher.
@@ -77,22 +78,14 @@ Future<void> linkRememberedRig(
     case ServerProbeOutcome.authRejected:
       await showLinkRigDialog(context, request: LinkRigRequest.repair(rig));
     case ServerProbeOutcome.incompatible:
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(
-          content: Text(
-            '${rig.name} runs a Skotiq version this one cannot drive. Update '
-            'one of them so both match.',
-          ),
-        ),
+      context.showInfoSnackBar(
+        '${rig.name} runs a Skotiq version this one cannot drive. Update '
+        'one of them so both match.',
       );
     case ServerProbeOutcome.unreachable:
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(
-          content: Text(
-            "Can't reach ${rig.name} at ${rig.address}. Check that Skotiq is "
-            'open there with Remote access on.',
-          ),
-        ),
+      context.showErrorSnackBar(
+        "Can't reach ${rig.name} at ${rig.address}. Check that Skotiq is "
+        'open there with Remote access on.',
       );
   }
 }
