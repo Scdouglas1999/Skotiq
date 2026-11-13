@@ -11,12 +11,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/clock_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
@@ -112,6 +114,7 @@ void main() {
   late MockBackend backend;
   late StreamController<SkotiqEvent> events;
   late Directory outputDir;
+  late SkotiqDatabase database;
   late List<String> writtenPaths;
 
   setUpAll(() {
@@ -127,6 +130,7 @@ void main() {
 
   setUp(() {
     outputDir = Directory.systemTemp.createTempSync('sk_keeper_numbering');
+    database = SkotiqDatabase.forTesting(NativeDatabase.memory());
     writtenPaths = <String>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();
@@ -179,8 +183,9 @@ void main() {
     });
   });
 
-  tearDown(() {
-    events.close();
+  tearDown(() async {
+    await database.close();
+    unawaited(events.close());
     if (outputDir.existsSync()) outputDir.deleteSync(recursive: true);
   });
 
@@ -203,6 +208,10 @@ void main() {
             AppSettingsState(imageOutputPath: outputDir.path),
           ),
         ),
+        // A rebuilt service is a second container beside the first. They
+        // share this one connection, as a restarted app shares one database;
+        // two connections to one file in a process lock each other out.
+        databaseProvider.overrideWithValue(database),
         clockProvider.overrideWithValue(const _FixedClock()),
         capturePreviewPublisherProvider.overrideWithValue(
           _NoOpCapturePreviewPublisher(),
@@ -214,10 +223,6 @@ void main() {
     );
     addTearDown(container.dispose);
     await container.read(appSettingsProvider.future);
-    // Two tests build a second container while the first is alive. Both open
-    // the same database file, so the first must have finished opening it
-    // before the second runs its start-up check on it.
-    await container.read(databaseProvider).customSelect('SELECT 1').get();
     return container;
   }
 
