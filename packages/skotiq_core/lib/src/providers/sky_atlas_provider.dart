@@ -253,7 +253,6 @@ final class _HostYourSkyAtlas implements YourSkyAtlas {
   ) {
     final logger = _ref.read(loggingServiceProvider);
     return remoteSnapshotStream<T>(
-      ref: _ref,
       backend: _ref.read(backendProvider),
       fetch: fetch,
       decode: fromJson,

@@ -115,7 +115,6 @@ final class _HostNarratorEventLog implements NarratorEventLog {
   Stream<List<NarratorEvent>> _watch(
     Future<List<Map<String, dynamic>>> Function() fetch,
   ) => remoteSnapshotStream<NarratorEvent>(
-    ref: _ref,
     backend: _ref.read(backendProvider),
     fetch: fetch,
     decode: narratorEventFromWireJson,

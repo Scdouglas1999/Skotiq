@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
 import '../models/backend/backend_types.dart';
@@ -37,9 +36,8 @@ const Set<String> hostTelemetryEventTypes = {
 /// one follow-up fetch, and fetches start at least [minInterval] apart. A
 /// failed re-fetch keeps the last good snapshot; a failed first fetch is
 /// surfaced so the view can show its error and Retry state. The stream and its
-/// event subscription end when [ref] is disposed.
+/// event subscription end when the stream's listener cancels.
 Stream<List<T>> remoteSnapshotStream<T>({
-  required Ref ref,
   required SkotiqBackend backend,
   required Future<List<Map<String, dynamic>>> Function() fetch,
   required T Function(Map<String, dynamic>) decode,
@@ -98,17 +96,19 @@ Stream<List<T>> remoteSnapshotStream<T>({
   };
 
   StreamSubscription<SkotiqEvent>? sub;
-  ref.onDispose(() {
+  controller.onListen = () {
+    unawaited(run());
+    sub = backend.eventStream.listen((event) {
+      if (!shouldRefetch(event)) return;
+      pending = true;
+      maybeStart();
+    });
+  };
+  controller.onCancel = () {
     debounce?.cancel();
     cooldown?.cancel();
     unawaited(sub?.cancel());
-    unawaited(controller.close());
-  });
-  unawaited(run());
-  sub = backend.eventStream.listen((event) {
-    if (!shouldRefetch(event)) return;
-    pending = true;
-    maybeStart();
-  });
+    return controller.close();
+  };
   return controller.stream;
 }
