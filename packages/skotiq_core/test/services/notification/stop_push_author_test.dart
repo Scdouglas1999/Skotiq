@@ -415,6 +415,7 @@ void main() {
             'summary': 'Autofocus failed — continuing with last-good focus',
             'details_json': '{"trigger":"interval"}',
             'sequence_run_id': _runId,
+            'notice': 'autofocus_continued',
           },
         ),
       ],

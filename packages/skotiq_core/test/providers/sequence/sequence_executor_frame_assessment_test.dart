@@ -128,6 +128,15 @@ void main() {
   void pumpRun37(SequenceExecutor executor) {
     for (final entry in _run37.entries) {
       final (count, rejected, secs) = entry.value;
+      // The run names the filter as each frame starts; the verdict does not.
+      executor.handleSequencerEventForTest(
+        _event('ExposureStarted', {
+          'frame': 1,
+          'total': count,
+          'filter': entry.key,
+          'duration_secs': secs,
+        }),
+      );
       for (var i = 0; i < count; i++) {
         final accepted = i >= rejected;
         executor.handleSequencerEventForTest(

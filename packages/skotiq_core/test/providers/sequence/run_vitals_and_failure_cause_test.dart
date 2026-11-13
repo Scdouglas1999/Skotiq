@@ -144,6 +144,9 @@ void main() {
         'bin_x': 2,
         'bin_y': 2,
         'frame_type': 'Light',
+        'accepted_total': 0,
+        'rejected_total': index,
+        'consecutive_rejects': index,
         'reason': 'HFR 15.61 px exceeds absolute threshold 3.50 px',
         'reject_path':
             r'C:\Images\NGC7380\Reject\NGC7380_' + filter + '_000$index.fits',
@@ -219,7 +222,12 @@ void main() {
           'node_id': 'smart1',
           'frame': 1,
           'total': 1,
+          'accepted_total': 1,
+          'rejected_total': 0,
           'exposure_secs': 180.0,
+          'bin_x': 2,
+          'bin_y': 2,
+          'frame_type': 'Light',
           'save_path': r'C:\Images\NGC7380\NGC7380_Ha_0001.fits',
         }),
       );

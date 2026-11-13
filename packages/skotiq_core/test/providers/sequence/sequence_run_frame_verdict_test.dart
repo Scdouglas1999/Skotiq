@@ -341,8 +341,10 @@ void main() {
             ...frameData(frame: frame),
             if (verdict == 'FrameAccepted')
               'save_path': '/tmp/light_000$frame.fits'
-            else
+            else ...{
               'reason': 'HFR 6.2 above threshold 4.0',
+              'consecutive_rejects': 1,
+            },
           }),
         );
         executor.handleSequencerEventForTest(

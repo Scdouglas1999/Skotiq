@@ -1827,7 +1827,14 @@ void main() {
       // A real stat-producing event (TriggerFired) submits an incremental
       // updateStats through the executor's own path — held in flight by the gate.
       eventController.add(
-        _sequencerEvent('TriggerFired', data: {'trigger_name': 'dusk'}),
+        _sequencerEvent(
+          'TriggerFired',
+          data: {
+            'trigger_id': 'dusk',
+            'trigger_name': 'dusk',
+            'action': 'Notify',
+          },
+        ),
       );
       await pumpEvents();
       expect(ops, contains('updateStats-start'));
