@@ -85,8 +85,6 @@ pub(crate) trait Camera: RigDriver {
 
     async fn set_offset(&self, offset: i32) -> Result<(), DeviceOpError>;
 
-    async fn set_binning(&self, bin_x: i32, bin_y: i32) -> Result<(), DeviceOpError>;
-
     async fn set_readout_mode(&self, mode_index: i32) -> Result<(), DeviceOpError>;
 
     /// `target_temp` of `None` leaves the camera's setpoint alone.

@@ -124,7 +124,7 @@ async fn the_mount_workflow_against_omnisim() {
     assert!((clock.utc_unix_seconds - now).abs() < 5, "{clock:?}");
 
     println!("capabilities");
-    let capabilities = crate::device_capabilities::alpaca::get_alpaca_capabilities(&device_id)
+    let capabilities = crate::device_capabilities::get_device_capabilities(&device_id)
         .await
         .expect("capabilities");
     let crate::device_capabilities::types::DeviceCapabilities::Mount(mount_caps) = capabilities else {

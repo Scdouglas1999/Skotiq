@@ -79,12 +79,10 @@ async fn drive(manager: &DeviceManager, id: &str, driver_type: DriverType, trace
     op!("get_time", manager.mount_get_time(id));
     status!();
     op!("coordinates", manager.mount_get_coordinates(id));
-    op!("can_park", manager.mount_can_park(id));
     op!("can_set_park", manager.mount_can_set_park(id));
     op!("can_find_home", manager.mount_can_find_home(id));
     op!("unpark", manager.mount_unpark(id));
     op!("set_tracking off", manager.mount_set_tracking(id, false));
-    op!("tracking_rate", manager.mount_get_tracking_rate(id));
     op!(
         "set_tracking_rate lunar",
         manager.mount_set_tracking_rate(id, 1)
@@ -104,7 +102,7 @@ async fn drive(manager: &DeviceManager, id: &str, driver_type: DriverType, trace
     op!("move_axis 0 at 1", manager.mount_move_axis(id, 0, 1.0));
     op!("move_axis 0 at 0", manager.mount_move_axis(id, 0, 0.0));
     op!("move_axis 1 at -1", manager.mount_move_axis(id, 1, -1.0));
-    op!("stop", manager.mount_stop(id));
+    op!("abort", manager.mount_abort(id));
     op!(
         "slew_alt_az 50 120",
         manager.mount_slew_alt_az(id, 50.0, 120.0)

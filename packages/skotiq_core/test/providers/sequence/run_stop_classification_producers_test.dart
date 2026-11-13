@@ -110,7 +110,7 @@ void main() {
     test('a trigger-driven park names its trigger, not a human', () {
       applySequencerEventToSequenceProviders(
         container.read,
-        _triggerFired('Dawn Approaching', kParkAndAbortTriggerAction),
+        _triggerFired('Dawn Approaching', 'ParkAndAbort'),
       );
       applySequencerEventToSequenceProviders(
         container.read,
@@ -127,7 +127,7 @@ void main() {
     test('the cause survives the cause-neutral rows that follow it', () {
       applySequencerEventToSequenceProviders(
         container.read,
-        _triggerFired('Weather Unsafe', kParkAndAbortTriggerAction),
+        _triggerFired('Weather Unsafe', 'ParkAndAbort'),
       );
       applySequencerEventToSequenceProviders(
         container.read,
@@ -165,7 +165,7 @@ void main() {
     test('a new run clears the previous run\'s cause', () {
       applySequencerEventToSequenceProviders(
         container.read,
-        _triggerFired('Dawn Approaching', kParkAndAbortTriggerAction),
+        _triggerFired('Dawn Approaching', 'ParkAndAbort'),
       );
       applySequencerEventToSequenceProviders(
         container.read,

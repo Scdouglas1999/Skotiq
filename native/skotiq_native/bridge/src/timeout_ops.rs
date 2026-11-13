@@ -1,37 +1,14 @@
-//! Operation Timeout Utilities
+//! How long the bridge waits on a device before reporting a timeout.
 //!
-//! This module provides utilities for adding timeouts to device operations.
-//! All device operations that communicate with hardware should be wrapped
-//! with appropriate timeouts to prevent indefinite blocking.
-//!
-//! # Timeout Guidelines
-//!
-//! | Operation Type | Default Timeout | Notes |
-//! |----------------|-----------------|-------|
-//! | Connection | 30s | Initial device connection |
-//! | Property Read | 5s | Getting device state |
-//! | Property Write | 10s | Setting device parameters |
-//! | Short Slew | 60s | Small mount movements |
-//! | Long Slew | 300s | GoTo operations |
-//! | Exposure Start | 10s | Begin exposure command |
-//! | Exposure Wait | exposure_time + 60s | Wait for image |
-//! | Focuser Move | 120s | Focuser position change |
-//! | Filter Wheel | 60s | Filter wheel rotation |
-//!
-//! # Example
-//!
-//! ```rust
-//! use skotiq_bridge::timeout_ops::*;
-//!
-//! async fn slew_mount(mount_id: &str, ra: f64, dec: f64) -> Result<(), SkotiqError> {
-//!     with_timeout(
-//!         mount_slew_internal(mount_id, ra, dec),
-//!         Timeouts::long_slew(),
-//!         mount_id,
-//!         "slew_to_coordinates"
-//!     ).await
-//! }
-//! ```
+//! | Operation | Timeout |
+//! |-----------|---------|
+//! | Connection | 30 s |
+//! | Property read / write | 5 s / 10 s |
+//! | Short slew / long slew | 60 s / 300 s |
+//! | Exposure start | 10 s |
+//! | Large image download | 120 s |
+//! | Focuser move | 30-180 s by distance, 120 s when the start is unknown |
+//! | Filter wheel, rotator | 60 s |
 
 use crate::error::SkotiqError;
 use std::future::Future;
@@ -42,11 +19,34 @@ use tokio::time::timeout;
 pub struct Timeouts;
 
 impl Timeouts {
-    /// Timeout for establishing a connection
+    /// Timeout for long mount movements (GoTo)
+    pub const fn long_slew() -> Duration {
+        Duration::from_secs(300)
+    }
+
+    /// Timeout for large image downloads (high resolution cameras)
+    pub const fn image_download_large() -> Duration {
+        Duration::from_secs(120)
+    }
+
+    pub const fn focuser_move() -> Duration {
+        Duration::from_secs(120)
+    }
+
+    pub const fn rotator_move() -> Duration {
+        Duration::from_secs(60)
+    }
+
+    /// Timeout for establishing an ASCOM connection
+    #[cfg(any(windows, test))]
     pub const fn connection() -> Duration {
         Duration::from_secs(30)
     }
+}
 
+/// The waits of the ASCOM COM worker, the only code that waits on these.
+#[cfg(windows)]
+impl Timeouts {
     /// Timeout for reading device properties
     pub const fn property_read() -> Duration {
         Duration::from_secs(5)
@@ -62,11 +62,6 @@ impl Timeouts {
         Duration::from_secs(60)
     }
 
-    /// Timeout for long mount movements (GoTo)
-    pub const fn long_slew() -> Duration {
-        Duration::from_secs(300)
-    }
-
     pub const fn park() -> Duration {
         Duration::from_secs(180)
     }
@@ -80,27 +75,8 @@ impl Timeouts {
         Duration::from_secs(10)
     }
 
-    /// Calculate timeout for waiting for an exposure to complete
-    pub fn exposure_wait(exposure_secs: f64) -> Duration {
-        // Add 60s buffer for download and processing
-        Duration::from_secs_f64(exposure_secs + 60.0)
-    }
-
-    /// Timeout for large image downloads (high resolution cameras)
-    pub const fn image_download_large() -> Duration {
-        Duration::from_secs(120)
-    }
-
-    pub const fn focuser_move() -> Duration {
-        Duration::from_secs(120)
-    }
-
     /// Timeout for filter wheel rotation
     pub const fn filter_wheel() -> Duration {
-        Duration::from_secs(60)
-    }
-
-    pub const fn rotator_move() -> Duration {
         Duration::from_secs(60)
     }
 
@@ -121,10 +97,6 @@ impl Timeouts {
     /// Timeout for heartbeat/ping operations
     pub const fn heartbeat() -> Duration {
         Duration::from_secs(5)
-    }
-
-    pub const fn discovery() -> Duration {
-        Duration::from_secs(10)
     }
 }
 
@@ -154,6 +126,7 @@ where
 /// Execute a future with a timeout, mapping string errors to SkotiqError
 ///
 /// This variant is useful for operations that return `Result<T, String>`
+#[cfg(windows)]
 pub async fn with_timeout_str<T, F>(
     future: F,
     timeout_duration: Duration,
@@ -180,6 +153,7 @@ where
 /// The budget is fixed rather than scaled by slew distance: the driver arms
 /// that call this do not read the mount's current position first, so there is
 /// no distance to scale by.
+#[cfg(windows)]
 pub async fn mount_slew_with_timeout<F>(future: F, mount_id: &str) -> Result<(), SkotiqError>
 where
     F: Future<Output = Result<(), SkotiqError>>,

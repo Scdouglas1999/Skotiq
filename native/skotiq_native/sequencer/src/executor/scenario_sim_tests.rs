@@ -2654,7 +2654,7 @@ pub(crate) fn parked_or_closed(calls: &[String]) -> bool {
 /// Collect the trigger-fired actions and error messages sent so far.
 pub(crate) fn drain_fired_and_errors(
     events: &mut tokio::sync::broadcast::Receiver<super::ExecutorEvent>,
-) -> (Vec<(String, String)>, Vec<String>) {
+) -> (Vec<(String, super::TriggerFiredAction)>, Vec<String>) {
     let mut fired = Vec::new();
     let mut errors = Vec::new();
     while let Ok(event) = events.try_recv() {
@@ -2749,7 +2749,8 @@ async fn unsafe_weather_holds_without_parking_when_the_operator_turned_parking_o
     assert!(
         fired
             .iter()
-            .any(|(id, action)| id == "weather_unsafe" && action == "Pause"),
+            .any(|(id, action)| id == "weather_unsafe"
+                && *action == super::TriggerFiredAction::Pause),
         "the fired trigger must say what it did, not ParkAndAbort; fired={fired:?}"
     );
 }
@@ -2919,7 +2920,8 @@ async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off(
     assert!(
         fired
             .iter()
-            .any(|(id, action)| id == "dawn_approaching" && action == "Abort"),
+            .any(|(id, action)| id == "dawn_approaching"
+                && *action == super::TriggerFiredAction::Abort),
         "fired={fired:?}"
     );
     assert!(
@@ -3285,7 +3287,8 @@ async fn a_forecast_cloud_holds_and_resumes_and_never_parks() {
     assert!(
         fired
             .iter()
-            .all(|(id, action)| id != "weather_unsafe" || action == "Pause"),
+            .all(|(id, action)| id != "weather_unsafe"
+                || *action == super::TriggerFiredAction::Pause),
         "fired={fired:?}"
     );
     assert_eq!(after, super::ExecutorState::Running, "calls={calls:?}");

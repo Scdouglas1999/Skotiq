@@ -41,25 +41,6 @@ impl DeviceManager {
         Ok(())
     }
 
-    pub async fn camera_set_binning(
-        &self,
-        device_id: &str,
-        bin_x: i32,
-        bin_y: i32,
-    ) -> Result<(), DeviceOpError> {
-        self.camera_set_binning_dispatch(device_id, bin_x, bin_y)
-            .await?;
-        if !self.publish_camera_settings(device_id).await {
-            self.publish_property_changed(
-                DeviceType::Camera,
-                device_id,
-                property::BINNING,
-                format!("{bin_x}x{bin_y}"),
-            );
-        }
-        Ok(())
-    }
-
     /// Set the camera readout mode by index.
     pub async fn camera_set_readout_mode(
         &self,
@@ -106,31 +87,6 @@ impl DeviceManager {
         let camera = self.camera(device_id).await?;
 
         camera.set_offset(offset).await
-    }
-
-    async fn camera_set_binning_dispatch(
-        &self,
-        device_id: &str,
-        bin_x: i32,
-        bin_y: i32,
-    ) -> Result<(), DeviceOpError> {
-        tracing::info!(
-            "DeviceManager: camera_set_binning for {} bin={}x{}",
-            device_id,
-            bin_x,
-            bin_y
-        );
-
-        if bin_x < 1 || bin_y < 1 {
-            return Err(DeviceOpError::invalid_parameter(format!(
-                "Invalid binning values: {}x{} (must be >= 1)",
-                bin_x, bin_y
-            )));
-        }
-
-        let camera = self.camera(device_id).await?;
-
-        camera.set_binning(bin_x, bin_y).await
     }
 
     /// Set camera readout mode by index

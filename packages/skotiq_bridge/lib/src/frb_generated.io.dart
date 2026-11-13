@@ -862,6 +862,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SequencerStop dco_decode_sequencer_stop(dynamic raw);
 
   @protected
+  SequencerTriggerAction dco_decode_sequencer_trigger_action(dynamic raw);
+
+  @protected
   ShutterState dco_decode_shutter_state(dynamic raw);
 
   @protected
@@ -1933,6 +1936,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerStop sse_decode_sequencer_stop(SseDeserializer deserializer);
+
+  @protected
+  SequencerTriggerAction sse_decode_sequencer_trigger_action(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ShutterState sse_decode_shutter_state(SseDeserializer deserializer);
@@ -6073,7 +6081,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SequencerEvent_TriggerFired) {
       var pre_trigger_id = cst_encode_String(apiObj.triggerId);
       var pre_trigger_name = cst_encode_String(apiObj.triggerName);
-      var pre_action = cst_encode_String(apiObj.action);
+      var pre_action = cst_encode_sequencer_trigger_action(apiObj.action);
       wireObj.tag = 15;
       wireObj.kind.TriggerFired.trigger_id = pre_trigger_id;
       wireObj.kind.TriggerFired.trigger_name = pre_trigger_name;
@@ -7150,6 +7158,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw);
+
+  @protected
+  int cst_encode_sequencer_trigger_action(SequencerTriggerAction raw);
 
   @protected
   int cst_encode_shutter_state(ShutterState raw);
@@ -8470,6 +8481,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_sequencer_stop(SequencerStop self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sequencer_trigger_action(
+    SequencerTriggerAction self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_shutter_state(ShutterState self, SseSerializer serializer);
@@ -19336,7 +19353,8 @@ final class wire_cst_SequencerEvent_TriggerFired extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger_name;
 
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> action;
+  @ffi.Int32()
+  external int action;
 }
 
 final class wire_cst_SequencerEvent_InstructionProgress extends ffi.Struct {

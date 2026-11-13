@@ -140,9 +140,6 @@ pub struct DeviceManager {
 
     reconnect_config: ReconnectConfig,
 
-    /// Flag to stop the reconnection task
-    stop_reconnect: Arc<RwLock<bool>>,
-
     /// The connected devices' handles: every device type but the guider.
     pub(crate) handles: handle::Handles,
 
@@ -341,7 +338,6 @@ impl DeviceManager {
             observed_identities: RwLock::new(HashMap::new()),
             expected_models: Default::default(),
             reconnect_config: ReconnectConfig::default(),
-            stop_reconnect: Arc::new(RwLock::new(false)),
             handles: Default::default(),
             native_devices: RwLock::new(HashMap::new()),
             indi_clients: RwLock::new(HashMap::new()),
@@ -369,14 +365,6 @@ impl DeviceManager {
         }
 
         manager
-    }
-
-    /// Get all managed devices, in [`listing_order`].
-    pub async fn get_all_devices(&self) -> Vec<ManagedDevice> {
-        let devices = self.devices.read().await;
-        let mut all: Vec<ManagedDevice> = devices.values().cloned().collect();
-        all.sort_by(|a, b| listing_order(&a.info, &b.info));
-        all
     }
 
     /// Get devices by type, in [`listing_order`].

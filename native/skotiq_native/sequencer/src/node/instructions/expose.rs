@@ -901,7 +901,7 @@ fn notify_exposure_trigger(
         let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
             trigger_id: trigger_id.to_string(),
             trigger_name: trigger_name.clone(),
-            action: "Notify".to_string(),
+            action: crate::executor::TriggerFiredAction::Notify,
         });
         let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
             message: message.clone(),
