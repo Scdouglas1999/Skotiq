@@ -1,4 +1,3 @@
-import '../../linked_host.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
@@ -7,6 +6,7 @@ import '../../../database/database.dart' show DarkLibraryEntry, DbTarget;
 import '../../../models/backend/device_capabilities.dart';
 import '../../../models/backend/device_types.dart';
 import 'package:skotiq_remote_protocol/wire_models.dart';
+import '../../linked_host.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
@@ -563,8 +563,10 @@ class IsoSpeedRule implements RefAwareSequenceValidator {
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
     final sensitivity = ctx.ref.read(cameraSensitivityProvider);
     if (sensitivity is! IsoSensitivity) return const [];
-    final strictness =
-        ctx.ref.read(appSettingsProvider).valueOrNull?.preflightStrictness;
+    final strictness = ctx.ref
+        .read(appSettingsProvider)
+        .valueOrNull
+        ?.preflightStrictness;
     final lowest = sensitivity.speeds.first;
     final issues = <ValidationIssue>[];
     for (final node in sequence.nodes.values) {

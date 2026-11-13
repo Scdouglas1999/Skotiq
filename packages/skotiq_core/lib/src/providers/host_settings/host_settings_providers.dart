@@ -1,8 +1,8 @@
-import '../linked_host.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../linked_host.dart';
 import '../../database/database.dart' show SkotiqDatabase;
 import '../../models/backend/host_mutation_event.dart';
 import '../host_mutation_event_provider.dart';

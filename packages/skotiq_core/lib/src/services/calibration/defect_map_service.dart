@@ -1,7 +1,7 @@
-import '../../providers/linked_host.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
+import '../../providers/linked_host.dart';
 import '../../models/defect_map.dart';
 import '../../backend/remote_host.dart';
 

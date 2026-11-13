@@ -1,7 +1,7 @@
-import 'linked_host.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
+import 'linked_host.dart';
 import '../database/database.dart' as db;
 import '../models/errors/server_error.dart';
 import '../models/planning/target_suggestion.dart';

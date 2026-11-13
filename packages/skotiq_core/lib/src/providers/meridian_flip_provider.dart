@@ -1,5 +1,3 @@
-import '../models/backend/event_types.dart';
-import 'linked_host.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +10,8 @@ import '../models/meridian_flip_event.dart';
 import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
 import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
+import '../models/backend/event_types.dart';
+import 'linked_host.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';

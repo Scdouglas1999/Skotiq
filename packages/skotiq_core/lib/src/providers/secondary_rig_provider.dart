@@ -14,12 +14,12 @@
 /// non-goals list.
 library;
 
-import 'host_role.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
+import 'host_role.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'equipment/camera_state_provider.dart';

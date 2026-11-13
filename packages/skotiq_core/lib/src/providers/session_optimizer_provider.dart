@@ -1,10 +1,10 @@
-import 'host_role.dart';
-import 'async_scope.dart';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show TwilightTimes;
 
+import 'host_role.dart';
+import 'async_scope.dart';
 import '../models/planning/target_suggestion.dart';
 import '../services/science/science_camera_auto_config.dart';
 import '../services/smart_night/exposure_calculator.dart';
@@ -323,10 +323,7 @@ final _recentGuideRmsProvider = hostRoleProvider<_RecentGuideRms>(
     final dao = ref.watch(guideRmsHistoryDaoProvider);
     return (mountId) async => [
       for (final sample in await dao.recentForMount(mountId, limit: 20))
-        (
-          totalRmsArcsec: sample.totalRmsArcsec,
-          recordedAt: sample.recordedAt,
-        ),
+        (totalRmsArcsec: sample.totalRmsArcsec, recordedAt: sample.recordedAt),
     ];
   },
   linked: (_, host) => (mountId) async {
@@ -336,10 +333,7 @@ final _recentGuideRmsProvider = hostRoleProvider<_RecentGuideRms>(
     );
     return [
       for (final sample in page.items)
-        (
-          totalRmsArcsec: sample.totalRmsArcsec,
-          recordedAt: sample.recordedAt,
-        ),
+        (totalRmsArcsec: sample.totalRmsArcsec, recordedAt: sample.recordedAt),
     ];
   },
 );

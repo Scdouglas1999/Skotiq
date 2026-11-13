@@ -1,10 +1,10 @@
-import '../linked_host.dart';
-import '../async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../linked_host.dart';
+import '../async_scope.dart';
 import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
@@ -488,9 +488,7 @@ class SequenceExecutor {
     if (!before.canStop) return;
     _setExecutionState(SequenceExecutionState.stopping);
     try {
-      await host.sequencerStopOnHost(
-        preserveCheckpoint: preserveCheckpoint,
-      );
+      await host.sequencerStopOnHost(preserveCheckpoint: preserveCheckpoint);
     } catch (_) {
       _setExecutionState(before);
       rethrow;

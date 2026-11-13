@@ -1,6 +1,3 @@
-import 'linked_host.dart';
-import 'host_role.dart';
-import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show listEquals;
@@ -11,6 +8,9 @@ import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import 'package:skotiq_remote_protocol/wire_models.dart';
+import 'linked_host.dart';
+import 'host_role.dart';
+import '../errors/error_text.dart';
 import '../services/calibration_service.dart';
 import '../services/dark_library_service.dart';
 import '../settings/store_settings.dart';

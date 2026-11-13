@@ -1,9 +1,9 @@
-import 'linked_host.dart';
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'linked_host.dart';
 import '../backend/remote_host.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/alerts/transient_alert.dart';

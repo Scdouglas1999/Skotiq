@@ -1,11 +1,11 @@
-import '../models/backend/event_types.dart';
-import 'linked_host.dart';
-import 'async_scope.dart';
-import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/backend/event_types.dart';
+import 'linked_host.dart';
+import 'async_scope.dart';
+import '../errors/error_text.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/defect_map.dart';
 import '../models/equipment/equipment_models.dart';

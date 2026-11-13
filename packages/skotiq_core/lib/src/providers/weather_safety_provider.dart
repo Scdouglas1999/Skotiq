@@ -1,10 +1,10 @@
-import 'linked_host.dart';
-import '../errors/error_text.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show tryParseWireTime;
+import 'linked_host.dart';
+import '../errors/error_text.dart';
 import '../models/weather/weather_models.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/settings/app_settings.dart';

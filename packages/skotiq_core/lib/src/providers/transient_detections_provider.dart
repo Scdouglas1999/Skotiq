@@ -1,4 +1,3 @@
-import 'linked_host.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -18,6 +17,7 @@ import 'remote_snapshot_stream.dart';
 import 'sky_atlas_provider.dart'
     show isAtlasChangingEvent, remoteAtlasRefetchMinInterval;
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'linked_host.dart';
 import 'logging_service_provider.dart';
 import 'science/photometric_catalog_service_provider.dart';
 import 'transients/difference_image_seam_provider.dart';

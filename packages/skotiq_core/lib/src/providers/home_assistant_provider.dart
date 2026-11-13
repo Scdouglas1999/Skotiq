@@ -10,12 +10,12 @@
 // `notificationRouterProvider`) so discovery runs without any UI
 // surface depending on it.
 
-import 'linked_host.dart';
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'linked_host.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/notification/transport_configs.dart';
 import '../services/home_assistant/home_assistant_discovery_config.dart';

@@ -1,8 +1,8 @@
-import 'host_role.dart';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'host_role.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart';

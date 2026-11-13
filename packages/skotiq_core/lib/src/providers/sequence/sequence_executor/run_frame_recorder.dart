@@ -1,9 +1,9 @@
-import '../../backend_provider.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../backend_provider.dart';
 import '../../../backend/frame_capture_metadata.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../database_provider.dart' show campaignsDaoProvider;
@@ -524,9 +524,7 @@ class RunFrameRecorder {
               frameType: frameType,
               temperature: capture.sensorTempC,
               gain: capture.hasRecord ? capture.gain : attribution.gain,
-              offset: capture.hasRecord
-                  ? capture.offset
-                  : attribution.offset,
+              offset: capture.hasRecord ? capture.offset : attribution.offset,
               binX: capture.binX ?? attribution.binX,
               binY: capture.binY ?? attribution.binY,
             );

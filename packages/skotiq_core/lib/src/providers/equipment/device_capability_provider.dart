@@ -25,13 +25,13 @@
 //     hook is installed by `installCapabilityRefreshOnConnect(ref)`, which
 //     should be wired during app bootstrap.
 
-import '../host_role.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_diag;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_caps;
 
+import '../host_role.dart';
 import '../../backend/remote_host.dart';
 import '../../models/backend/device_capabilities.dart';
 import '../../models/equipment/equipment_models.dart';
@@ -213,12 +213,10 @@ Future<CoverCalibratorCapabilitySnapshot?> refreshCoverCalibratorSnapshot(
   String deviceId,
 ) async {
   if (deviceId.isEmpty) return null;
-  final fetcher = container.read(coverCalibratorCapabilityFetcherProvider,
-  );
+  final fetcher = container.read(coverCalibratorCapabilityFetcherProvider);
   final snapshot = await fetcher(deviceId);
   if (snapshot == null) return null;
-  final live = container.read(liveCoverCalibratorSnapshotsProvider.notifier,
-  );
+  final live = container.read(liveCoverCalibratorSnapshotsProvider.notifier);
   if (live.state[deviceId] != snapshot) {
     live.state = {...live.state, deviceId: snapshot};
   }

@@ -1,5 +1,3 @@
-import 'linked_host.dart';
-import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -12,6 +10,8 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
+import 'linked_host.dart';
+import '../errors/error_text.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/framing_models.dart';

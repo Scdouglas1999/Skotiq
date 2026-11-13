@@ -1,4 +1,3 @@
-import 'linked_host.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -8,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
 
+import 'linked_host.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../utils/host_paths.dart';

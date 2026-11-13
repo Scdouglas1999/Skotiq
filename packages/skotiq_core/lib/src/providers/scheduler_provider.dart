@@ -1,4 +1,3 @@
-import 'linked_host.dart';
 import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -50,6 +49,7 @@ import 'settings_provider.dart';
 // generates EventPayload_Guiding / EventPayload_Equipment as part-of-library
 // classes, so a plain import surfaces them here).
 import 'package:skotiq_bridge/skotiq_bridge.dart';
+import 'linked_host.dart';
 import '../services/end_of_night_calibration/eon_trigger.dart'
     show EonEndReason;
 import '../settings/app_settings_state.g.dart';
