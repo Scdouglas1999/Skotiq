@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 import '../backend/skotiq_backend.dart';
@@ -14,6 +13,7 @@ import 'flat_exposure_calculator.dart';
 import 'flat_exposure_follower.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
+import 'logging_service.dart';
 part 'flat_wizard_service/flat_wizard_models.dart';
 part 'flat_wizard_service/exposure_events.dart';
 part 'flat_wizard_service/exposure_event_keys.dart';
@@ -95,19 +95,17 @@ class FlatWizardService {
     try {
       status = await backend.getCameraStatus(deviceId);
     } catch (e) {
-      developer.log(
+      Log.warning(
         'FlatWizard: camera status probe failed for $deviceId: $e',
-        name: 'FlatWizardService',
-        level: 900,
+        source: 'FlatWizardService',
       );
     }
     try {
       caps = await backend.getCameraCapabilities(deviceId);
     } catch (e) {
-      developer.log(
+      Log.warning(
         'FlatWizard: camera capabilities probe failed for $deviceId: $e',
-        name: 'FlatWizardService',
-        level: 900,
+        source: 'FlatWizardService',
       );
     }
 
@@ -324,10 +322,9 @@ class FlatWizardService {
           try {
             await backend.cameraAbortExposure(deviceId);
           } catch (e) {
-            developer.log(
+            Log.warning(
               'FlatWizardService: cameraAbortExposure failed: $e',
-              name: 'FlatWizardService',
-              level: 900,
+              source: 'FlatWizardService',
               error: e,
             );
             return false; // abort failed → camera state unknown
@@ -378,11 +375,10 @@ class FlatWizardService {
           // The exposure never reached a terminal event. Abort it (once) and
           // wait for the camera to settle — do NOT read `getLastImage`, which
           // would hand back a STALE prior frame as if it were this exposure.
-          developer.log(
+          Log.warning(
             'FlatWizardService: Exposure timed out after '
             '${exposureTime + 30}s; aborting',
-            name: 'FlatWizardService',
-            level: 900,
+            source: 'FlatWizardService',
           );
           final quiescent = await abortAndSettle();
           return FlatFrameCapture(
@@ -426,20 +422,18 @@ class FlatWizardService {
           .timeout(
             imageDownloadTimeout,
             onTimeout: () {
-              developer.log(
+              Log.warning(
                 'FlatWizardService: Image retrieval timed out after '
                 '${imageDownloadTimeout.inSeconds}s',
-                name: 'FlatWizardService',
-                level: 900,
+                source: 'FlatWizardService',
               );
               return null;
             },
           );
       if (image == null) {
-        developer.log(
+        Log.warning(
           'FlatWizardService: Failed to retrieve captured frame',
-          name: 'FlatWizardService',
-          level: 900,
+          source: 'FlatWizardService',
         );
         return const FlatFrameCapture(
           outcome: FlatFrameOutcome.failed,
@@ -451,10 +445,9 @@ class FlatWizardService {
         image: image,
       );
     } catch (e) {
-      developer.log(
+      Log.error(
         'FlatWizardService: Error capturing frame: $e',
-        name: 'FlatWizardService',
-        level: 1000,
+        source: 'FlatWizardService',
         error: e,
       );
       return FlatFrameCapture(
@@ -542,13 +535,12 @@ class FlatWizardService {
     double? lastAdu;
     int iteration = 0;
 
-    developer.log(
+    Log.info(
       'FlatWizardService: Starting calibration for filter "$filter"\n'
       '  Target ADU: ${targetAdu.toStringAsFixed(0)}\n'
       '  Tolerance: ±${tolerance.toStringAsFixed(1)}%\n'
       '  Exposure range: ${minExposure.toStringAsFixed(3)}s - ${maxExposure.toStringAsFixed(3)}s',
-      name: 'FlatWizardService',
-      level: 800,
+      source: 'FlatWizardService',
     );
 
     for (iteration = 1; iteration <= attempts; iteration++) {
@@ -567,11 +559,10 @@ class FlatWizardService {
         );
       }
 
-      developer.log(
+      Log.info(
         'FlatWizardService: Iteration $iteration/$attempts - '
         'Testing exposure: ${exposure.toStringAsFixed(3)}s',
-        name: 'FlatWizardService',
-        level: 800,
+        source: 'FlatWizardService',
       );
 
       // Measure through the overridable [captureTestFrame] seam (so tests can
@@ -642,22 +633,20 @@ class FlatWizardService {
       }
 
       lastAdu = adu;
-      developer.log(
+      Log.info(
         'FlatWizardService: Measured ADU: ${adu.toStringAsFixed(0)}',
-        name: 'FlatWizardService',
-        level: 800,
+        source: 'FlatWizardService',
       );
 
       onProgress?.call(iteration, exposure, adu);
 
       final error = ((adu - targetAdu).abs() / targetAdu) * 100;
       if (error <= tolerance) {
-        developer.log(
+        Log.info(
           'FlatWizardService: SUCCESS! Found optimal exposure: '
           '${exposure.toStringAsFixed(3)}s (ADU: ${adu.toStringAsFixed(0)}, '
           'error: ${error.toStringAsFixed(2)}%)',
-          name: 'FlatWizardService',
-          level: 800,
+          source: 'FlatWizardService',
         );
         return FlatResult(
           filter: filter,
@@ -678,11 +667,10 @@ class FlatWizardService {
 
       // Check for convergence (exposure not changing significantly)
       if ((nextExposure - exposure).abs() < 0.001) {
-        developer.log(
+        Log.info(
           'FlatWizardService: Converged at exposure: ${exposure.toStringAsFixed(3)}s '
           '(ADU: ${adu.toStringAsFixed(0)})',
-          name: 'FlatWizardService',
-          level: 800,
+          source: 'FlatWizardService',
         );
         return FlatResult(
           filter: filter,
@@ -697,11 +685,10 @@ class FlatWizardService {
     }
 
     // Max iterations reached
-    developer.log(
+    Log.warning(
       'FlatWizardService: Max iterations reached. Best result: '
       '${exposure.toStringAsFixed(3)}s (ADU: ${lastAdu?.toStringAsFixed(0) ?? "N/A"})',
-      name: 'FlatWizardService',
-      level: 900,
+      source: 'FlatWizardService',
     );
     return FlatResult(
       filter: filter,
@@ -960,10 +947,9 @@ class FlatWizardService {
     for (final filter in filters) {
       if (cancelToken?.isCancelled ?? false) break;
 
-      developer.log(
+      Log.info(
         'FlatWizardService: Starting calibration for filter: $filter',
-        name: 'FlatWizardService',
-        level: 800,
+        source: 'FlatWizardService',
       );
 
       final result = await calibrateFilter(
@@ -995,10 +981,9 @@ class FlatWizardService {
       if (result.haltRun) break;
 
       if (!result.success) {
-        developer.log(
+        Log.warning(
           'FlatWizardService: Warning - Calibration failed for filter: $filter',
-          name: 'FlatWizardService',
-          level: 900,
+          source: 'FlatWizardService',
         );
       }
     }
@@ -1024,10 +1009,9 @@ class FlatWizardService {
 
     for (final cal in calibrations) {
       if (onlySuccessful && !cal.success) {
-        developer.log(
+        Log.info(
           'FlatWizardService: Skipping failed calibration for filter: ${cal.filter}',
-          name: 'FlatWizardService',
-          level: 800,
+          source: 'FlatWizardService',
         );
         continue;
       }
@@ -1047,12 +1031,11 @@ class FlatWizardService {
       );
 
       nodes.add(node);
-      developer.log(
+      Log.info(
         'FlatWizardService: Generated sequence node - '
         'Filter: ${cal.filter}, Exposure: ${cal.exposure.toStringAsFixed(3)}s, '
         'Count: $framesPerFilter',
-        name: 'FlatWizardService',
-        level: 800,
+        source: 'FlatWizardService',
       );
     }
 

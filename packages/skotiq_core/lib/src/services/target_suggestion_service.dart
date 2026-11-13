@@ -392,7 +392,11 @@ class _TonightSuggestionScorer {
     );
     final bounds = _extractNightBounds(night);
     if (bounds != null) {
-      return _NightWindow(start: bounds.start, end: bounds.end, twilight: night);
+      return _NightWindow(
+        start: bounds.start,
+        end: bounds.end,
+        twilight: night,
+      );
     }
 
     // No astronomical/nautical/civil darkness (e.g. polar midnight sun).
@@ -406,11 +410,7 @@ class _TonightSuggestionScorer {
       // If we're past 5 AM, shift to tonight
       defaultEnd = defaultEnd.add(const Duration(days: 1));
     }
-    return _NightWindow(
-      start: defaultStart,
-      end: defaultEnd,
-      twilight: night,
-    );
+    return _NightWindow(start: defaultStart, end: defaultEnd, twilight: night);
   }
 
   /// Extract the best available night bounds from twilight times.

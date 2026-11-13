@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -11,7 +9,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/snackbar_helper.dart';
-
+import 'package:skotiq_core/services.dart';
 
 part 'notes_panel/target_notes_dialog.dart';
 part 'notes_panel/note_tile.dart';
@@ -306,10 +304,9 @@ class RunNotesSection extends ConsumerWidget {
       // own, and telling the operator to wait for it hides the one fact that
       // would let them fix it.
       error: (e, stack) {
-        developer.log(
+        Log.error(
           '[NotesPanel] Journal notes query failed: $e',
-          name: 'NotesPanel',
-          level: 1000,
+          source: 'NotesPanel',
           error: e,
           stackTrace: stack,
         );

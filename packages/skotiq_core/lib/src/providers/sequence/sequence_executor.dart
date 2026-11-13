@@ -8,6 +8,7 @@ import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
+import '../../models/sequence/sequence_run_status.dart';
 import '../../services/safe_rig_service.dart';
 import '../../services/end_of_night_calibration/eon_deferral.dart';
 import '../../services/logging_service.dart';
@@ -806,7 +807,7 @@ class SequenceExecutor {
         stats.endTime = DateTime.now();
         await _ref
             .read(sequenceRunsDaoProvider)
-            .finishRun(runId, 'failed', stats.toJson());
+            .finishRun(runId, SequenceRunStatus.failed, stats.toJson());
       } catch (e) {
         _logger.warning(
           'The start was refused and run row $runId could not be closed: $e',
@@ -1047,7 +1048,7 @@ class SequenceExecutor {
     }
     final f = RunFinalization(
       generation: _lifecycle.nextGeneration(),
-      runStatus: 'failed',
+      runStatus: SequenceRunStatus.failed,
       finalUiState: SequenceExecutionState.failed,
       runId: _ref.read(currentRunIdProvider),
       dbSessionId: _ref.read(sessionStateProvider).dbSessionId,
@@ -1148,7 +1149,7 @@ class SequenceExecutor {
   /// succeeds, inside [_driveFinalization].
   void _onTerminalEvent(
     SequenceExecutionState uiState,
-    String runStatus, {
+    SequenceRunStatus runStatus, {
     String? error,
     String? warning,
   }) {
@@ -1195,8 +1196,9 @@ class SequenceExecutor {
     // SequenceFailed). Re-finalizing would republish a Stop as a failure.
     if (_lifecycle.phase case RunSettled(runStatus: final settled)) {
       _logger.info(
-        '[$kStopClassificationLogTag] sequence_executor: late "$runStatus" '
-        'terminal ignored — this run already settled as "$settled"'
+        '[$kStopClassificationLogTag] sequence_executor: late '
+        '"${runStatus.token}" terminal ignored — this run already settled as '
+        '"${settled.token}"'
         '${error == null ? '' : ' (reason: $error)'}',
         source: 'SequenceExecutor',
       );
@@ -1379,7 +1381,7 @@ class SequenceExecutor {
     try {
       await _ref
           .read(sessionStateProvider.notifier)
-          .endSession(status: f.runStatus);
+          .endSession(status: f.runStatus.token);
     } catch (e, st) {
       // endSession FAILED after a successful finishRun. Retain a retryable
       // cleanupFailed; a Stop retry re-runs ONLY endSession + the later steps
@@ -1434,9 +1436,7 @@ class SequenceExecutor {
     final String? endOrigin;
     if (f.nativeStopRequired) {
       endOrigin = f.stopOrigin ?? 'operator';
-    } else if (f.runStatus == 'stopped' ||
-        f.runStatus == 'paused-stopped' ||
-        f.runStatus == 'aborted') {
+    } else if (f.runStatus.endedByStop) {
       endOrigin = 'safety';
     } else {
       endOrigin = null;
@@ -1643,7 +1643,7 @@ class SequenceExecutor {
       }
 
       _notePausedByExecutor(true);
-      await _persistLiveRunStatus('paused');
+      await _persistLiveRunStatus(SequenceRunStatus.paused);
     } finally {
       _lifecycle.pauseResume.release();
     }
@@ -1679,7 +1679,7 @@ class SequenceExecutor {
       }
 
       _notePausedByExecutor(false);
-      await _persistLiveRunStatus('running');
+      await _persistLiveRunStatus(SequenceRunStatus.running);
     } finally {
       _lifecycle.pauseResume.release();
     }
@@ -1698,14 +1698,14 @@ class SequenceExecutor {
   /// API, the web dashboard and the phone all read the database. Failure is
   /// logged and swallowed: a pause that succeeded on the hardware must not be
   /// reported as failed because a row could not be updated.
-  Future<void> _persistLiveRunStatus(String status) async {
+  Future<void> _persistLiveRunStatus(SequenceRunStatus status) async {
     final runId = _ref.read(currentRunIdProvider);
     if (runId == null) return;
     try {
       await _ref.read(sequenceRunsDaoProvider).setLiveStatus(runId, status);
     } catch (e) {
       _logger.warning(
-        'Could not persist run $runId status "$status": $e',
+        'Could not persist run $runId status "${status.token}": $e',
         source: 'SequenceExecutor',
       );
     }
@@ -1780,7 +1780,9 @@ class SequenceExecutor {
     _lifecycle.releaseSettled();
     final f = RunFinalization(
       generation: _lifecycle.nextGeneration(),
-      runStatus: preserveCheckpoint ? 'paused-stopped' : 'stopped',
+      runStatus: preserveCheckpoint
+          ? SequenceRunStatus.stoppedResumable
+          : SequenceRunStatus.stopped,
       finalUiState: SequenceExecutionState.idle,
       runId: _ref.read(currentRunIdProvider),
       dbSessionId: _ref.read(sessionStateProvider).dbSessionId,
@@ -2311,7 +2313,7 @@ class SequenceExecutor {
     if (!_lifecycle.launch.isHeld && _lifecycle.attachNativeRun()) {
       _logger.info(
         'A new native run is starting on an executor whose previous run '
-        'settled as "${(settled as RunSettled).runStatus}"; releasing that '
+        'settled as "${(settled as RunSettled).runStatus.token}"; releasing that '
         'run\'s terminal state so this one can finalize',
         source: 'SequenceExecutor',
       );

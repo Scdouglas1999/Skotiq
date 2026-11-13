@@ -78,12 +78,12 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
       );
       notifier.setMoving(status.moving || status.isMoving);
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'Failed to get initial rotator status for $deviceId: $e',
           source: 'DeviceService',
         ),
-        'rotator-initial-status-fail',
       );
     }
   }

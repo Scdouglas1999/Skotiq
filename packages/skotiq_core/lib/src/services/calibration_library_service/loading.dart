@@ -11,65 +11,35 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
 
     final darkRows = await _db.select(_db.darkLibrary).get();
     for (final row in darkRows) {
-      final type = row.frameType == 'bias'
-          ? CalibrationMasterType.bias
-          : CalibrationMasterType.dark;
-      final tag = tagFor(type, row.id);
-      records.add(
-        CalibrationMasterRecord(
-          type: type,
-          id: row.id,
-          filePath: row.masterDarkPath ?? row.filePath,
-          isMaster: row.masterDarkPath != null,
-          frameCount: row.masterFrameCount,
-          exposureSeconds: row.exposureTime,
-          temperature: row.temperature,
-          gain: row.gain,
-          offset: row.offset,
-          binX: row.binX,
-          binY: row.binY,
-          width: row.width,
-          height: row.height,
-          cameraId: tag?.cameraId,
-          createdAt: row.createdAt,
-          tags: tag?.tags ?? const [],
-          notes: tag?.notes,
-          provenance: _provenanceFromTag(tag),
-          license: _licenseFromTag(tag),
-          sharedBy: tag?.sharedBy,
-          publishedRemoteId: tag?.publishedRemoteId,
-        ),
-      );
+      final record = darkLibraryRecord(row);
+      final tag = tagFor(record.type, row.id);
+      records.add(_withTag(record, tag));
     }
 
     final flatRows = await _flatDao.getAllEntries();
     for (final row in flatRows) {
       final tag = tagFor(CalibrationMasterType.flat, row.id);
       records.add(
-        CalibrationMasterRecord(
-          type: CalibrationMasterType.flat,
-          id: row.id,
-          filePath: row.filePath,
-          isMaster: true,
-          frameCount: row.masterFrameCount,
-          temperature: row.temperature,
-          gain: row.gain,
-          offset: row.offset,
-          binX: row.binX,
-          binY: row.binY,
-          filter: row.filter,
-          flatKind: row.flatKind,
-          width: row.width,
-          height: row.height,
-          cameraId: tag?.cameraId,
-          opticalTrainId: row.opticalTrainId,
-          createdAt: row.createdAt,
-          tags: tag?.tags ?? const [],
-          notes: tag?.notes,
-          provenance: _provenanceFromTag(tag),
-          license: _licenseFromTag(tag),
-          sharedBy: tag?.sharedBy,
-          publishedRemoteId: tag?.publishedRemoteId,
+        _withTag(
+          CalibrationMasterRecord(
+            type: CalibrationMasterType.flat,
+            id: row.id,
+            filePath: row.filePath,
+            isMaster: true,
+            frameCount: row.masterFrameCount,
+            temperature: row.temperature,
+            gain: row.gain,
+            offset: row.offset,
+            binX: row.binX,
+            binY: row.binY,
+            filter: row.filter,
+            flatKind: row.flatKind,
+            width: row.width,
+            height: row.height,
+            opticalTrainId: row.opticalTrainId,
+            createdAt: row.createdAt,
+          ),
+          tag,
         ),
       );
     }
@@ -97,6 +67,38 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
 
     return records;
   }
+
+  /// [record] with the annotations and shared-library provenance its
+  /// `calibration_tags` row carries.
+  CalibrationMasterRecord _withTag(
+    CalibrationMasterRecord record,
+    CalibrationTagEntry? tag,
+  ) => CalibrationMasterRecord(
+    type: record.type,
+    id: record.id,
+    filePath: record.filePath,
+    isMaster: record.isMaster,
+    frameCount: record.frameCount,
+    exposureSeconds: record.exposureSeconds,
+    temperature: record.temperature,
+    gain: record.gain,
+    offset: record.offset,
+    binX: record.binX,
+    binY: record.binY,
+    filter: record.filter,
+    flatKind: record.flatKind,
+    width: record.width,
+    height: record.height,
+    cameraId: tag?.cameraId,
+    opticalTrainId: record.opticalTrainId,
+    createdAt: record.createdAt,
+    tags: tag?.tags ?? const [],
+    notes: tag?.notes,
+    provenance: _provenanceFromTag(tag),
+    license: _licenseFromTag(tag),
+    sharedBy: tag?.sharedBy,
+    publishedRemoteId: tag?.publishedRemoteId,
+  );
 
   /// [_enrich] over a whole set. The single answer to "what metadata does this
   /// master really carry", shared by [listMasters] and [match] so the library
@@ -126,10 +128,9 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       if (!await File(path).exists()) return record;
       headers = await headerReader.readPrimaryHeader(path);
     } catch (e) {
-      developer.log(
+      Log.warning(
         'Calibration enrichment skipped for $path: $e',
-        name: 'CalibrationLibraryService',
-        level: 900,
+        source: 'CalibrationLibraryService',
       );
       return record;
     }
@@ -153,10 +154,9 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       try {
         await _tagsDao.upsert(record.type, record.id, cameraId: camera);
       } catch (e) {
-        developer.log(
+        Log.warning(
           'Failed to cache camera id for ${record.type.name}#${record.id}: $e',
-          name: 'CalibrationLibraryService',
-          level: 900,
+          source: 'CalibrationLibraryService',
         );
       }
     }

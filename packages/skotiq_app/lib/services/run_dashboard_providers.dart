@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
@@ -1281,10 +1280,10 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
         // button the operator just pressed. It still reaches the feed as an
         // info row via [_toDashboardEvent].
         if (isOperatorStopNotice(event)) {
-          developer.log(
+          Log.debug(
             '[$kStopClassificationLogTag] run_dashboard bridge: cancellation '
             'notice not escalated',
-            name: 'RunCriticalAlerts',
+            source: 'RunCriticalAlerts',
           );
           continue;
         }
@@ -1296,9 +1295,7 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
         // An alert the host raised before this window linked to it is shown
         // with the night so far. It has already sounded and paged where it
         // was raised.
-        if (ref
-            .read(eventHistoryProvider.notifier)
-            .happenedEarlier(event)) {
+        if (ref.read(eventHistoryProvider.notifier).happenedEarlier(event)) {
           continue;
         }
         alerts.add(RunCriticalAlert(event: event, row: row));
@@ -1340,9 +1337,9 @@ final runCriticalAlertSoundProvider = Provider<void>((ref) {
     );
     unawaited(
       ref.read(criticalAlertPlayerProvider).play(sound: sound).catchError(
-            (Object error) => developer.log(
+            (Object error) => Log.debug(
               'Critical alert sound failed: $error',
-              name: 'RunCriticalAlertSound',
+              source: 'RunCriticalAlertSound',
             ),
           ),
     );

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show mapEquals, visibleForTesting;
 
@@ -7,6 +6,7 @@ import '../../backend/roles/host_data/host_rig_settings.dart';
 import '../../database/daos/settings_dao.dart' show SettingsDao;
 import '../../models/backend/event_types.dart' show SkotiqEvent;
 import '../../models/backend/host_mutation_event.dart';
+import '../../services/logging_service.dart';
 
 /// How much of the imaging host's key/value settings this client can reach.
 enum HostSettingsStoreSupport {
@@ -38,6 +38,7 @@ class HostSettingsStore {
   });
 
   final HostRigSettings _backend;
+
   /// Read when the store starts following the host, not before.
   final Stream<SkotiqEvent> Function() _events;
   final Duration minRefreshInterval;
@@ -235,10 +236,9 @@ class HostSettingsStore {
     if (_disposed) return;
     _refreshQueued = false;
     final run = _fetchAndApply(notify: true).catchError((Object error) {
-      developer.log(
+      Log.warning(
         'Could not refresh the imaging host settings: $error',
-        name: 'HostSettingsStore',
-        level: 900,
+        source: 'HostSettingsStore',
       );
     });
     _inFlight = run;

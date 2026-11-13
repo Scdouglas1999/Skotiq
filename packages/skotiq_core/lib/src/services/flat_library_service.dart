@@ -1,6 +1,5 @@
 import 'dart:io';
 
-
 import '../database/daos/flat_library_dao.dart';
 import '../models/imaging/integrated_master.dart';
 import 'calibration/fits_header_reader.dart';

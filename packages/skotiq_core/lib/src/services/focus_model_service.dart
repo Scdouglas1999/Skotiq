@@ -2,12 +2,12 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 import '../utils/skotiq_data_directory.dart';
+import 'logging_service.dart';
 
 /// User-configurable thresholds that gate the focus regression model.
 ///
@@ -416,11 +416,10 @@ class FocusModelService {
 
     final slope = (n * sumXY - sumX * sumY) / denominator;
     if (slope.abs() > config.maxAcceptableSlopeStepsPerC) {
-      developer.log(
+      Log.warning(
         'Rejecting focus model with unrealistic slope ${slope.toStringAsFixed(2)} steps/°C '
         '(threshold ${config.maxAcceptableSlopeStepsPerC.toStringAsFixed(0)})',
-        name: 'FocusModelService',
-        level: 900,
+        source: 'FocusModelService',
       );
       return null;
     }
@@ -547,11 +546,10 @@ class FocusModelService {
             '${config.minRSquared.toStringAsFixed(2)} — offsets are raw '
             'averages and may include temperature drift.';
       }
-      developer.log(
+      Log.warning(
         'Filter offsets computed without temperature correction '
         '(${batchReason.replaceAll('\n', ' ')}); reporting low confidence.',
-        name: 'FocusModelService',
-        level: 900,
+        source: 'FocusModelService',
       );
     } else if (tempSpread < _highConfidenceTemperatureSpreadC) {
       batchBand = FilterOffsetConfidence.medium;
@@ -824,10 +822,9 @@ class FocusModelService {
           _profileData[data.profileId] = data;
         } catch (e) {
           // Log corrupted files but continue loading others
-          developer.log(
+          Log.warning(
             'FocusModelService: Skipping corrupted focus data file ${entity.path}: $e',
-            name: 'FocusModelService',
-            level: 900,
+            source: 'FocusModelService',
             error: e,
           );
         }

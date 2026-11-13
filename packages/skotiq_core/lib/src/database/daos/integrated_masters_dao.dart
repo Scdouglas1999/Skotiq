@@ -198,9 +198,8 @@ class IntegratedMastersDao extends DatabaseAccessor<SkotiqDatabase>
   /// eight scalars ASTAP / `WcsInfo::from_plate_solve` emit; `updated_at` is
   /// bumped to now. Mirrors [updateSmartFields] (only supplied fields written).
   ///
-  /// The CRVAL/CRPIX/CD scalars are stored verbatim so the `WcsOverlay` reader
-  /// can derive cdelt/crota from the CD matrix using the same sign convention as
-  /// the native source of truth (`imaging/src/fits.rs`). Once written,
+  /// The CRVAL/CRPIX/CD scalars are stored verbatim, so the projection reads
+  /// the solver's own matrix. Once written,
   /// `IntegratedMaster.hasWcs` flips true and the annotation overlay + colour
   /// calibration unblock.
   Future<int> updateWcs(

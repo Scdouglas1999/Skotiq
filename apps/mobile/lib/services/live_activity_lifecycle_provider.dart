@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -230,14 +229,7 @@ class LiveActivityLifecycleController {
         'LiveActivity started (id=$id, sequence=${sequence.id}, target=$targetName)',
         source: 'LiveActivityLifecycle',
       );
-    } catch (e, st) {
-      developer.log(
-        '[LiveActivityLifecycle] start failed: $e',
-        name: 'LiveActivityLifecycle',
-        level: 1000,
-        error: e,
-        stackTrace: st,
-      );
+    } catch (e) {
       _logger.error(
         'LiveActivity start failed: $e',
         source: 'LiveActivityLifecycle',
@@ -280,14 +272,7 @@ class LiveActivityLifecycleController {
       );
       _lastUpdateAt = DateTime.now();
       _pendingProgress = null;
-    } catch (e, st) {
-      developer.log(
-        '[LiveActivityLifecycle] update failed: $e',
-        name: 'LiveActivityLifecycle',
-        level: 1000,
-        error: e,
-        stackTrace: st,
-      );
+    } catch (e) {
       _logger.warning(
         'LiveActivity update failed: $e',
         source: 'LiveActivityLifecycle',
@@ -328,14 +313,7 @@ class LiveActivityLifecycleController {
         'LiveActivity ended (id=$id, terminalState=$terminalState)',
         source: 'LiveActivityLifecycle',
       );
-    } catch (e, st) {
-      developer.log(
-        '[LiveActivityLifecycle] end failed: $e',
-        name: 'LiveActivityLifecycle',
-        level: 1000,
-        error: e,
-        stackTrace: st,
-      );
+    } catch (e) {
       _logger.error(
         'LiveActivity end failed: $e',
         source: 'LiveActivityLifecycle',
@@ -376,10 +354,9 @@ class LiveActivityLifecycleController {
       try {
         await _service.end(id, dismissDate: DateTime.now());
       } catch (e, st) {
-        developer.log(
+        Log.warning(
           '[LiveActivityLifecycle] dispose end failed: $e',
-          name: 'LiveActivityLifecycle',
-          level: 900,
+          source: 'LiveActivityLifecycle',
           error: e,
           stackTrace: st,
         );

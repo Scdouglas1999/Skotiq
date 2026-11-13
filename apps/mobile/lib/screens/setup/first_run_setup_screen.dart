@@ -11,7 +11,6 @@
 // sets `MobilePreferences.firstRunCompleted`.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +25,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../services/mobile_preferences.dart';
 import '../../utils/error_snackbar.dart';
+import 'package:skotiq_core/services.dart';
 
 /// What the linked host is missing for a first night.
 class FirstRunSetupNeeds {
@@ -69,10 +69,9 @@ final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
     try {
       return await check();
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'first-run: could not check $what: $e',
-        name: 'FirstRunSetup',
-        level: 1000,
+        source: 'FirstRunSetup',
         error: e,
         stackTrace: st,
       );
@@ -150,10 +149,9 @@ class _FirstRunSetupGateState extends ConsumerState<FirstRunSetupGate> {
     } catch (e, st) {
       // Setup is help, not a requirement: if this phone's own preferences
       // cannot be read, open the app rather than strand the user here.
-      developer.log(
+      Log.error(
         'first-run: setup check failed, opening the app: $e',
-        name: 'FirstRunSetup',
-        level: 1000,
+        source: 'FirstRunSetup',
         error: e,
         stackTrace: st,
       );
@@ -285,10 +283,9 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
             if (isAccessLevelRefusal(e)) {
               canChooseFolders = false;
             } else {
-              developer.log(
+              Log.warning(
                 'first-run: folder access check failed: $e',
-                name: 'FirstRunSetup',
-                level: 900,
+                source: 'FirstRunSetup',
               );
             }
           }
@@ -298,10 +295,9 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           catalogs = await linkedHost.catalogs.listAvailableCatalogs();
         } catch (e, st) {
           catalogError = userFacingError(e);
-          developer.log(
+          Log.error(
             'first-run: failed to load catalogs: $e',
-            name: 'FirstRunSetup',
-            level: 1000,
+            source: 'FirstRunSetup',
             error: e,
             stackTrace: st,
           );
@@ -312,10 +308,9 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           profiles = await backend.getProfiles();
         } catch (e, st) {
           profileError = userFacingError(e);
-          developer.log(
+          Log.error(
             'first-run: failed to load profiles: $e',
-            name: 'FirstRunSetup',
-            level: 1000,
+            source: 'FirstRunSetup',
             error: e,
             stackTrace: st,
           );

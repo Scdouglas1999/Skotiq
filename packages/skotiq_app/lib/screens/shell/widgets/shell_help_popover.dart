@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +10,7 @@ import '../../../tours/tour_overlay.dart';
 import '../../../tours/tour_runner.dart';
 import '../shell_navigation.dart';
 import 'window_chrome.dart' show commandPaletteShortcutLabel;
+import 'package:skotiq_core/services.dart';
 
 /// Where "Open the manual" goes.
 ///
@@ -100,10 +99,9 @@ class ShellHelpButton extends ConsumerWidget {
             Uri.parse(kManualUrl),
             mode: LaunchMode.externalApplication,
           ).catchError((Object e) {
-            developer.log(
+            Log.warning(
               '[ShellHelp] Could not open the manual: $e',
-              name: 'ShellHelp',
-              level: 900,
+              source: 'ShellHelp',
               error: e,
             );
             return false;

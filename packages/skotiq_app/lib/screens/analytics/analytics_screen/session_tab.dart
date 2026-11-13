@@ -83,7 +83,8 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
           ? l10n.text(
               'analyticsStarted',
               params: {
-                'time': ClockFormat.monthDayYearHm(sessionState.startTime!.toLocal()),
+                'time': ClockFormat.monthDayYearHm(
+                    sessionState.startTime!.toLocal()),
               },
             )
           : l10n.text('analyticsSessionInProgress');
@@ -92,7 +93,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
       headerSubtitle =
           '${ClockFormat.weekdayMonthDayYear(reviewSession.startTime.toLocal())} · '
           '${ClockFormat.hm(reviewSession.startTime.toLocal())}'
-          '  ·  ${runStatusLabel(reviewSession.status)}';
+          '  ·  ${runStatusTokenLabel(reviewSession.status)}';
     } else if (isStandaloneMode) {
       headerTitle = l10n.text('analyticsQuickCapture');
       headerSubtitle = l10n.text('analyticsQuickCaptureSubtitle');
@@ -367,7 +368,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                       ),
                     if (reviewStatus != null)
                       SkotiqChip(
-                        label: runStatusLabel(reviewStatus),
+                        label: runStatusTokenLabel(reviewStatus),
                         tone: _SessionHistoryCard._statusTone(reviewStatus),
                       ),
                   ],

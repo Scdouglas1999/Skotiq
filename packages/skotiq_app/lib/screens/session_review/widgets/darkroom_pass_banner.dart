@@ -154,9 +154,8 @@ class _CompletedPass extends ConsumerWidget {
     // filled in — the sentence stands without the time rather than naming an
     // hour nothing recorded.
     final finished = pass.finishedAt;
-    final when = finished == null
-        ? ''
-        : ' at ${ClockFormat.hm(finished.toLocal())}';
+    final when =
+        finished == null ? '' : ' at ${ClockFormat.hm(finished.toLocal())}';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),

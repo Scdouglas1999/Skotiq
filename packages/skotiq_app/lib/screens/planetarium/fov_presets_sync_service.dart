@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_core/services.dart';
 
 /// SharedPreferences key under which the planetarium FOV framing presets are
 /// persisted as a JSON string ([FovPresetsState.toJsonString]).
@@ -38,8 +38,12 @@ final fovPresetsSyncProvider = Provider<void>((ref) {
         lastWritten = stored;
       }
     } catch (e, st) {
-      developer.log('Failed to hydrate FOV presets: $e',
-          name: 'FovPresetsSync', error: e, stackTrace: st);
+      Log.warning(
+        'Failed to hydrate FOV presets: $e',
+        source: 'FovPresetsSync',
+        error: e,
+        stackTrace: st,
+      );
     } finally {
       if (!disposed) hydrated = true;
     }
@@ -57,8 +61,12 @@ final fovPresetsSyncProvider = Provider<void>((ref) {
       if (disposed) return;
       await prefs.setString(fovPresetsPrefsKey, json);
     } catch (e, st) {
-      developer.log('Failed to persist FOV presets: $e',
-          name: 'FovPresetsSync', error: e, stackTrace: st);
+      Log.warning(
+        'Failed to persist FOV presets: $e',
+        source: 'FovPresetsSync',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/database.dart';
 import '../models/backend/host_mutation_event.dart';
@@ -27,6 +26,7 @@ import 'ui_notification_provider.dart' show uiNotificationProvider;
 import '../database/daos/settings_dao.dart';
 import 'logging_service_provider.dart';
 import 'notification_service_provider.dart';
+import '../services/logging_service.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].
@@ -117,10 +117,9 @@ class GlobalMeridianFlipSettingsNotifier
           );
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          Log.error(
             'Meridian-flip settings event stream failed: $error',
-            name: 'MeridianFlip',
-            level: 1000,
+            source: 'MeridianFlip',
             error: error,
             stackTrace: stackTrace,
           );
@@ -178,10 +177,9 @@ class GlobalMeridianFlipSettingsNotifier
       _loadError = e;
       _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
           AsyncError(e, stackTrace);
-      developer.log(
+      Log.error(
         'Failed to load meridian-flip settings: $e',
-        name: 'MeridianFlip',
-        level: 1000,
+        source: 'MeridianFlip',
         error: e,
         stackTrace: stackTrace,
       );
@@ -223,10 +221,9 @@ class GlobalMeridianFlipSettingsNotifier
         _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
             const AsyncData(null);
       } catch (e, stackTrace) {
-        developer.log(
+        Log.error(
           'Failed to save meridian-flip settings: $e',
-          name: 'MeridianFlip',
-          level: 1000,
+          source: 'MeridianFlip',
           error: e,
           stackTrace: stackTrace,
         );
@@ -369,11 +366,7 @@ final effectiveMeridianFlipSettingsProvider = Provider<MeridianFlipSettings>((
     final merged = {...globalJson, ...overrides};
     return MeridianFlipSettings.fromJson(merged);
   } catch (e) {
-    developer.log(
-      'Failed to parse profile overrides: $e',
-      name: 'MeridianFlip',
-      level: 1000,
-    );
+    Log.error('Failed to parse profile overrides: $e', source: 'MeridianFlip');
     return global;
   }
 });
@@ -450,10 +443,9 @@ class MeridianFlipDisconnectGuard extends StateNotifier<void> {
         final flipState = _ref.read(flipExecutionStateProvider);
         if (flipState == FlipExecutionState.executing ||
             flipState == FlipExecutionState.retrying) {
-          developer.log(
+          Log.warning(
             'Mount disconnected during meridian flip - aborting flip state',
-            name: 'MeridianFlip',
-            level: 900,
+            source: 'MeridianFlip',
           );
           _ref.read(flipExecutionStateProvider.notifier).state =
               FlipExecutionState.aborted;

@@ -202,12 +202,10 @@ class SafeRigService {
   /// "there was nothing to stop").
   final Future<bool> Function() _stopSecondaryRig;
 
-  SafeRigService(
-    Ref ref, {
-    required Future<bool> Function() stopSecondaryRig,
-  }) : _ref = ref,
-       _host = ref.providerBackendScope(),
-       _stopSecondaryRig = stopSecondaryRig;
+  SafeRigService(Ref ref, {required Future<bool> Function() stopSecondaryRig})
+    : _ref = ref,
+      _host = ref.providerBackendScope(),
+      _stopSecondaryRig = stopSecondaryRig;
 
   void _ensureSameHost(
     String reason,

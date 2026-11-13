@@ -151,11 +151,10 @@ class _WebRtcLiveViewSubscription {
     if (channel.label != kLiveViewClientDataChannelLabel) {
       // Unexpected channel — log and ignore. The server only ever
       // opens `live-view-frames` for this session type.
-      developer.log(
+      Log.warning(
         '[NetworkBackend] webrtc: unexpected data channel label '
         '"${channel.label}" on session $sessionId',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
       return;
     }
@@ -174,11 +173,10 @@ class _WebRtcLiveViewSubscription {
       final meta = _pendingMeta;
       _pendingMeta = null;
       if (meta == null) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] webrtc: binary frame with no preceding '
           'meta envelope on session $sessionId; dropping',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
         return;
       }
@@ -214,11 +212,10 @@ class _WebRtcLiveViewSubscription {
       }
       // ready/pong: nothing to surface.
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] webrtc: text frame decode failed on session '
         '$sessionId: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
     }
   }
@@ -247,18 +244,16 @@ class _WebRtcLiveViewSubscription {
         body: body,
       );
       if (response.statusCode >= 400) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] webrtc: POST ICE candidate failed '
           'status=${response.statusCode} body=${response.body}',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
       }
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] webrtc: POST ICE candidate threw: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
     }
   }
@@ -322,11 +317,10 @@ class _WebRtcLiveViewSubscription {
         },
         onError: (Object e, _) {
           if (!_disposed) {
-            developer.log(
+            Log.warning(
               '[NetworkBackend] webrtc: ICE SSE stream error on session '
               '$sessionId: $e',
-              name: 'NetworkBackend',
-              level: 900,
+              source: 'NetworkBackend',
             );
           }
           if (!completer.isCompleted) completer.complete();
@@ -336,11 +330,10 @@ class _WebRtcLiveViewSubscription {
       await completer.future;
     } catch (e) {
       if (_disposed) return;
-      developer.log(
+      Log.warning(
         '[NetworkBackend] webrtc: ICE SSE failed for session '
         '$sessionId: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
     }
   }
@@ -365,11 +358,10 @@ class _WebRtcLiveViewSubscription {
           ),
         );
       } catch (e) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] webrtc: failed to apply server ICE '
           'candidate on session $sessionId: $e',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
       }
     } else if (event == 'complete') {

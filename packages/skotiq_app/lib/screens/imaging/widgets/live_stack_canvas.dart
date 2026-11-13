@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -15,6 +14,7 @@ import 'preview_viewport.dart';
 import 'session_stack_plan.dart';
 import 'stacking_panel.dart'
     show StackedPreviewStretch, stackedPreviewStretchProvider;
+import 'package:skotiq_core/services.dart';
 
 /// Where the live stack canvas is zoomed and panned to.
 ///
@@ -359,11 +359,10 @@ class _StackedImageSourceState extends State<StackedImageSource> {
         channels: samples,
       );
       if (rgba.length < pixels * 4) {
-        developer.log(
+        Log.warning(
           '[LiveStackCanvas] Stretched stack is ${rgba.length} bytes, '
           'expected ${pixels * 4}',
-          name: 'LiveStackCanvas',
-          level: 900,
+          source: 'LiveStackCanvas',
         );
         return;
       }
@@ -388,10 +387,9 @@ class _StackedImageSourceState extends State<StackedImageSource> {
       descriptor.dispose();
       buffer.dispose();
     } catch (error) {
-      developer.log(
+      Log.warning(
         '[LiveStackCanvas] Error building the stacked image: $error',
-        name: 'LiveStackCanvas',
-        level: 900,
+        source: 'LiveStackCanvas',
         error: error,
       );
     } finally {

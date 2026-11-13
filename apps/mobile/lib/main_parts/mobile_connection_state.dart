@@ -297,13 +297,13 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
             if (!mounted) return;
             final current = ref.read(backendProvider);
             if (current.remoteHost == null ||
-                linkedHost.link.connectionState == BackendConnectionState.connected) {
+                linkedHost.link.connectionState ==
+                    BackendConnectionState.connected) {
               return;
             }
-            developer.log(
+            Log.error(
               'WebSocket disconnected for ${_connectionGracePeriod.inSeconds}s — declaring connection lost',
-              name: 'Connection',
-              level: 1000,
+              source: 'Connection',
             );
             _stopConnectionMonitor();
             // Remember who we were talking to, so the retries below re-dial
@@ -327,10 +327,9 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
             try {
               await ref.read(backendProvider.notifier).disconnect();
             } catch (e, stackTrace) {
-              developer.log(
+              Log.error(
                 'Could not detach the lost backend session: $e',
-                name: 'Connection',
-                level: 1000,
+                source: 'Connection',
                 error: e,
                 stackTrace: stackTrace,
               );

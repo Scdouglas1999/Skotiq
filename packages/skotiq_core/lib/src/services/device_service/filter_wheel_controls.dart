@@ -78,13 +78,13 @@ extension _DeviceServiceFilterWheelControls on DeviceService {
         // remains authoritative in that case. Logged because losing it also
         // loses the positionCount range check below, so an out-of-range slot
         // would reach the driver instead of being rejected here.
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.info(
             'Filter wheel $deviceId capability lookup failed; the slot-count '
             'range check will be skipped for this move: $e',
             source: 'DeviceService',
           ),
-          'filter-wheel-capabilities',
         );
       }
       if (!_isStillConnectedToFilterWheel(deviceId)) {
@@ -173,13 +173,13 @@ extension _DeviceServiceFilterWheelControls on DeviceService {
         // Capability lookup is advisory for older drivers, but losing it also
         // drops the canSetFilterNames guard and falls back to the cached slot
         // count for the length check, so record that we are writing blind.
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.info(
             'Filter wheel $deviceId capability lookup failed; writing slot '
             'names without the driver canSetFilterNames guard: $e',
             source: 'DeviceService',
           ),
-          'filter-wheel-capabilities',
         );
       }
       if (!_isStillConnectedToFilterWheel(deviceId)) {

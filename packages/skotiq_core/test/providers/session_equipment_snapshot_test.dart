@@ -157,7 +157,10 @@ void main() {
         startTime: DateTime.now().subtract(const Duration(hours: 1)),
       ),
     );
-    await sessionsDao.endSession(id, status: kOperatorStoppedSessionStatus);
+    await sessionsDao.endSession(
+      id,
+      status: SequenceRunStatus.stoppedResumable.token,
+    );
     final quickStart = QuickStartService(
       sessionsDao: sessionsDao,
       profilesDao: EquipmentProfilesDao(db),

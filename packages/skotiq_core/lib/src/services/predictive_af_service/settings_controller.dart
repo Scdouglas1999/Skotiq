@@ -91,11 +91,10 @@ final class HostPredictiveAfSettings implements PredictiveAfSettingsController {
         // A single corrupted historic row must not hide every healthy model,
         // but the operator's model list is now short by one and nothing else
         // reports that — say so instead of letting the row vanish silently.
-        developer.log(
+        Log.warning(
           'Skipping an unreadable predictive-AF model row from the host: '
           '$error',
-          name: 'PredictiveAfService',
-          level: 900,
+          source: 'PredictiveAfService',
           error: error,
         );
       }

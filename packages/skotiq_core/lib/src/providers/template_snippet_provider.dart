@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +8,7 @@ import '../models/sequence/template_snippet.dart';
 import '../models/sequence/sequence_models.dart';
 import '../services/sequence_file_service.dart';
 import '../utils/skotiq_data_directory.dart';
+import '../services/logging_service.dart';
 
 final builtInSnippetsProvider = Provider<List<TemplateSnippet>>((ref) {
   return BuiltInSnippets.all;
@@ -87,11 +87,7 @@ class CustomSnippetsNotifier extends StateNotifier<List<TemplateSnippet>> {
       state = snippets;
     } catch (e) {
       _loadFailure = e;
-      developer.log(
-        'Error loading custom snippets: $e',
-        name: 'TemplateSnippet',
-        level: 1000,
-      );
+      Log.error('Error loading custom snippets: $e', source: 'TemplateSnippet');
     } finally {
       _loaded = true;
     }

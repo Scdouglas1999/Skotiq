@@ -34,7 +34,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 /// A backend whose unstubbed members answer with a completed `Future<void>`,
 /// so the whole seed runs end to end without stubbing every push.
@@ -411,7 +412,7 @@ void main() {
         }
 
         final result = c.read(sequenceTerminalRunResultProvider);
-        expect(result?.runStatus, 'failed');
+        expect(result?.runStatus, SequenceRunStatus.failed);
         expect(
           c.read(liveSequenceStatsProvider)?.errorMessages ?? const <String>[],
           anyElement(contains('Nothing was imaged')),

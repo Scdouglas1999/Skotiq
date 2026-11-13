@@ -6,32 +6,37 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/run_status/run_status_presentation.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   test('the resumable stop reads as a stop, not as a pause', () {
-    expect(runStatusLabel('paused-stopped'), 'Stopped (resumable)');
-    expect(runStatusLabel('paused-stopped'), isNot(contains('paused')));
+    expect(runStatusLabel(SequenceRunStatus.stoppedResumable),
+        'Stopped (resumable)');
+    expect(runStatusLabel(SequenceRunStatus.stoppedResumable),
+        isNot(contains('paused')));
   });
 
-  test('every status the executor durably writes has product English', () {
-    const durable = {
-      'completed': 'Completed',
-      'failed': 'Failed',
-      'aborted': 'Aborted',
-      'stopped': 'Stopped',
-      'paused-stopped': 'Stopped (resumable)',
-      'interrupted': 'Interrupted',
-      'running': 'Running',
-      'paused': 'Paused',
-    };
-    durable.forEach((status, label) {
-      expect(runStatusLabel(status), label);
-    });
+  test('every stored token reads as its status label', () {
+    for (final status in SequenceRunStatus.values) {
+      expect(runStatusTokenLabel(status.token), runStatusLabel(status));
+    }
+    expect(runStatusTokenLabel('paused-stopped'), 'Stopped (resumable)');
   });
 
-  test('an unmapped status degrades to something readable', () {
-    expect(runStatusLabel('half_way-there'), 'Half way there');
-    expect(runStatusLabel(''), 'Unknown');
+  test('a token that is not a run status degrades to something readable', () {
+    expect(runStatusTokenLabel('half_way-there'), 'Half way there');
+    expect(runStatusTokenLabel('active'), 'Active');
+    expect(runStatusTokenLabel(''), 'Unknown');
+  });
+
+  test('a paused run is live; an interrupted one is not', () {
+    expect(SequenceRunStatus.paused.isLive, isTrue);
+    expect(SequenceRunStatus.running.isLive, isTrue);
+    expect(SequenceRunStatus.interrupted.isLive, isFalse);
+    expect(
+      SequenceRunStatus.values.where((s) => s.stoppedByOperator),
+      [SequenceRunStatus.stopped, SequenceRunStatus.stoppedResumable],
+    );
   });
 
   // A substring test on "cancelled" inside `isRunCancellationNotice` drops a
@@ -47,7 +52,7 @@ void main() {
     ];
 
     test('real faults survive an operator stop', () {
-      final kept = runErrorMessagesFor('paused-stopped', [
+      final kept = runErrorMessagesFor(SequenceRunStatus.stoppedResumable, [
         'Sequence cancelled',
         ...realFaults,
       ]);
@@ -56,7 +61,7 @@ void main() {
 
     test('the notice itself is dropped, in either spelling', () {
       expect(
-        runErrorMessagesFor('paused-stopped', const [
+        runErrorMessagesFor(SequenceRunStatus.stoppedResumable, const [
           'Sequence cancelled',
           'Sequence canceled',
           'Stopped by request',
@@ -67,7 +72,7 @@ void main() {
 
     test('a run that failed on its own keeps every message', () {
       const messages = ['Sequence cancelled', 'Camera disconnected'];
-      expect(runErrorMessagesFor('failed', messages), messages);
+      expect(runErrorMessagesFor(SequenceRunStatus.failed, messages), messages);
     });
   });
 }

@@ -624,10 +624,11 @@ class ImagingService {
     r'$TELESCOPE': telescope,
     r'$SEQUENCE': sequence,
     // The run's session, so a night past UTC midnight stays one session.
-    r'$SESSION': sentAt.toUtc().toIso8601String().substring(0, 10).replaceAll(
-      '-',
-      '',
-    ),
+    r'$SESSION': sentAt
+        .toUtc()
+        .toIso8601String()
+        .substring(0, 10)
+        .replaceAll('-', ''),
   };
 
   /// The Settings naming [pattern] as the save template (`save_to`) of a

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting, listEquals;
@@ -35,6 +34,7 @@ import '../models/backend/backend_types.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import 'calibration_backlog_service_provider.dart';
+import '../services/logging_service.dart';
 
 part 'flat_wizard/flat_output_paths.dart';
 part 'flat_wizard/flat_camera_config.dart';

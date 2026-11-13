@@ -1,7 +1,6 @@
 import '../async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -319,13 +318,6 @@ Future<bool> _persistRemoteSequence(
       'Remote sequence auto-save failed ($reason): $e',
       source: _logSource,
       fields: {'stackTrace': '$stackTrace', 'sequenceName': sequence.name},
-    );
-    developer.log(
-      'Remote sequence auto-save failed: $e',
-      name: _logSource,
-      level: 1000,
-      error: e,
-      stackTrace: stackTrace,
     );
     return false;
   }

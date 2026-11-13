@@ -88,7 +88,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         relayUrl: parsedRelay,
         applianceId: trimmedId,
         allowBadTlsCertificate: allowInsecureTls,
-        onLog: (message) => developer.log(message, name: 'Relay'),
+        onLog: (message) => Log.debug(message, source: 'Relay'),
       );
       _activeRelayTunnel = tunnel;
 
@@ -159,10 +159,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       } catch (e, st) {
         // A persistence failure must not drop the live session — the relay
         // tunnel and backend are already up. Log and carry on.
-        developer.log(
+        Log.error(
           'relay: failed to persist saved server: $e',
-          name: 'Relay',
-          level: 1000,
+          source: 'Relay',
           error: e,
           stackTrace: st,
         );
@@ -241,10 +240,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             tailscaleHost: validTailscaleHost,
           );
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'saved_servers: failed to upsert connected server: $e',
-        name: 'Discovery',
-        level: 1000,
+        source: 'Discovery',
         error: e,
         stackTrace: st,
       );
@@ -310,12 +308,11 @@ mixin _MobileReconnectOps on _MobileConnectionState {
                 lanResult.success &&
                 lanResult.token != null &&
                 lanResult.token!.isNotEmpty) {
-              developer.log(
+              Log.info(
                 'One-tap LAN pairing succeeded for '
                 '${enrichedServer.host}:${enrichedServer.webPort} — '
                 'no code needed',
-                name: 'Discovery',
-                level: 800,
+                source: 'Discovery',
               );
               authToken = lanResult.token;
               enrichedServer = enrichedServer.copyWith(authToken: authToken);
@@ -334,10 +331,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           } on RemotePairingException catch (e) {
             // Transport / unexpected error from the one-tap path. Log and fall
             // through to the code dialog — the operator can still pair by code.
-            developer.log(
+            Log.warning(
               'One-tap LAN pairing unavailable, falling back to code: $e',
-              name: 'Discovery',
-              level: 900,
+              source: 'Discovery',
             );
           }
         }
@@ -377,7 +373,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       if (!_isCurrentConnectionOperation(operationGeneration)) return;
 
       if (isReachable) {
-        developer.log('Connection successful!', name: 'Discovery', level: 800);
+        Log.info('Connection successful!', source: 'Discovery');
 
         // Update global backend state to use NetworkBackend.
         //
@@ -440,10 +436,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           try {
             await EnhancedSkotiqDiscovery.saveLastServer(enrichedServer);
           } catch (e, stackTrace) {
-            developer.log(
+            Log.error(
               'Could not cache connected server for startup reconnect: $e',
-              name: 'Discovery',
-              level: 1000,
+              source: 'Discovery',
               error: e,
               stackTrace: stackTrace,
             );
@@ -462,10 +457,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             return;
           }
         } else {
-          developer.log(
+          Log.warning(
             'Skipping saveLastServer — /api/info did not return metadata',
-            name: 'Discovery',
-            level: 900,
+            source: 'Discovery',
           );
         }
 
@@ -505,10 +499,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       return;
     } catch (e, stackTrace) {
       if (!_isCurrentConnectionOperation(operationGeneration)) return;
-      developer.log(
+      Log.error(
         'Connection error: $e',
-        name: 'Discovery',
-        level: 1000,
+        source: 'Discovery',
         error: e,
         stackTrace: stackTrace,
       );
@@ -596,11 +589,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           }
         }
       } catch (e) {
-        developer.log(
-          'Error checking for checkpoint: $e',
-          name: 'Main',
-          level: 1000,
-        );
+        Log.error('Error checking for checkpoint: $e', source: 'Main');
       }
     });
   }

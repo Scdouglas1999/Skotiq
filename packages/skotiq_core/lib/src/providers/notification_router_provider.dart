@@ -32,7 +32,6 @@
 import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -58,6 +57,7 @@ import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
+import '../services/logging_service.dart';
 
 /// Serializes persistence operations while still returning an independent
 /// future to each caller. Notification settings are edited from several
@@ -135,11 +135,10 @@ Future<void> _persistConfigWithSecrets({
       try {
         await secrets.write(field, previousValues[field] ?? '');
       } catch (rollbackError) {
-        developer.log(
+        Log.error(
           '[NotificationProviders] Could not roll back $field after a '
           'config save failed: $rollbackError',
-          name: 'NotificationProviders',
-          level: 1000,
+          source: 'NotificationProviders',
           error: rollbackError,
         );
       }
@@ -242,11 +241,10 @@ final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
     }
     await dao.write(StoreSettings.legacyNotificationCredentialsCarried, true);
   } catch (e, stackTrace) {
-    developer.log(
+    Log.error(
       '[NotificationProviders] Could not carry the earlier Discord/Pushover '
       'settings into notification routing: $e',
-      name: 'NotificationProviders',
-      level: 1000,
+      source: 'NotificationProviders',
       error: e,
       stackTrace: stackTrace,
     );
@@ -267,11 +265,10 @@ Future<void> _mirrorToAppSettings(
       if (field.current != field.value) await field.set(field.value);
     }
   } catch (e) {
-    developer.log(
+    Log.warning(
       '[NotificationProviders] Could not update the app-settings copy of a '
       'transport credential: $e',
-      name: 'NotificationProviders',
-      level: 900,
+      source: 'NotificationProviders',
     );
   }
 }
@@ -310,10 +307,9 @@ class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad email config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -362,7 +358,9 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
     final raw = await dao.read(
-      StoreSettings.notificationTransport(NotificationTransportKind.webhookGeneric),
+      StoreSettings.notificationTransport(
+        NotificationTransportKind.webhookGeneric,
+      ),
     );
     // Missing blob → first-run default; corrupt blob → surface the error.
     final WebhookTransportConfig base;
@@ -393,10 +391,9 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad webhook config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -490,10 +487,9 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad pushover config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -576,10 +572,9 @@ class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad telegram config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -646,10 +641,9 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad discord config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -723,10 +717,9 @@ class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad mqtt config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -776,10 +769,9 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad routing matrix: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -1036,11 +1028,10 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
 void _saveFromAppSettings(Future<void> save) {
   unawaited(
     save.catchError((Object e) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Could not apply a credential edited from a '
         'linked client: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
       );
     }),
   );

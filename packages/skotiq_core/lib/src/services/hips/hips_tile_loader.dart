@@ -73,7 +73,6 @@
 // C5 fetcher, and a real C4 cache.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show ChangeNotifier, immutable;
@@ -85,6 +84,7 @@ import '../../models/framing_models.dart' show FramingTarget;
 import 'hips_tile_cache.dart';
 import 'hips_tile_fetcher.dart';
 import 'hips_tile_selection.dart';
+import '../logging_service.dart';
 
 part 'hips_tile_loader/contracts.dart';
 

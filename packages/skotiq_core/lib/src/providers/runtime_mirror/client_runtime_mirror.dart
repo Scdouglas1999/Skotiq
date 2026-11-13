@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,7 @@ import '../backend_provider.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
 import '../logging_service_provider.dart';
+import '../../services/logging_service.dart';
 
 const _logSource = 'ClientRuntimeMirror';
 
@@ -94,10 +94,9 @@ void applyHostRuntimeUpdate(
       update.value,
     );
   } on FormatException catch (e) {
-    developer.log(
+    Log.warning(
       'Runtime update ${update.channel} dropped: ${e.message}',
-      name: _logSource,
-      level: 900,
+      source: _logSource,
     );
   } finally {
     state._applying.remove(update.channel);
@@ -149,10 +148,9 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
     try {
       value = channel.encodeCurrent(ref.container);
     } on Object catch (e) {
-      developer.log(
+      Log.warning(
         'Runtime report ${channel.key} not encoded: $e',
-        name: _logSource,
-        level: 900,
+        source: _logSource,
       );
       return;
     }

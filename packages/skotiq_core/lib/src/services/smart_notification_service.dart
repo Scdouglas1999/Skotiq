@@ -32,5 +32,4 @@ class SmartNotificationService {
       _notifier.showSuccess(message, title: title);
     }
   }
-
 }

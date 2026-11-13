@@ -167,10 +167,9 @@ ProfileExportData parseExportedProfile(Object? entry, {required int index}) {
     // above turn the ones we know about into prose; this keeps a stray cast
     // from reaching the operator as a Dart type error while still leaving the
     // real thing in the log.
-    developer.log(
+    Log.error(
       'ProfileService: unexpected error importing profile entry $index: $e',
-      name: 'ProfileService',
-      level: 1000,
+      source: 'ProfileService',
       error: e,
     );
     throw ProfileImportException(
@@ -292,10 +291,9 @@ class ProfileExportData {
         );
       } catch (e) {
         // Malformed filter names JSON - skip
-        developer.log(
+        Log.error(
           'ProfileService: Failed to parse filterNames: $e',
-          name: 'ProfileService',
-          level: 1000,
+          source: 'ProfileService',
           error: e,
         );
       }
@@ -310,10 +308,9 @@ class ProfileExportData {
         );
       } catch (e) {
         // Malformed filter offsets JSON - skip
-        developer.log(
+        Log.error(
           'ProfileService: Failed to parse filterFocusOffsets: $e',
-          name: 'ProfileService',
-          level: 1000,
+          source: 'ProfileService',
           error: e,
         );
       }

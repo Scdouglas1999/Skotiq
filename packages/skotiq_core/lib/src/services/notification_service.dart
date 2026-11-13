@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/services.dart';
 
@@ -8,6 +7,7 @@ import '../models/notification/notification_categories.dart'
     show NotificationCategory;
 import 'notification/notification_router.dart';
 import '../settings/app_settings_state.g.dart';
+import 'logging_service.dart';
 
 /// Plays a short audible alert via the platform's built-in beep channel.
 ///
@@ -26,10 +26,9 @@ Future<void> _defaultPlayAlertSound() async {
   try {
     await SystemSound.play(SystemSoundType.alert);
   } catch (e) {
-    developer.log(
+    Log.warning(
       '[Notification] SystemSound.play failed: $e',
-      name: 'NotificationService',
-      level: 900,
+      source: 'NotificationService',
     );
   }
 }

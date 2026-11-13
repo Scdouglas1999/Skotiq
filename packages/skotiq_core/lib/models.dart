@@ -46,6 +46,7 @@ export 'src/models/imaging/annotation.dart';
 export 'src/models/live_view/live_view_frame.dart';
 export 'src/models/calibration/dark_library_match_tolerances.dart';
 export 'src/models/sequence/sequence_models.dart';
+export 'src/models/sequence/sequence_run_status.dart';
 // Active-plan ownership of the editor/executor slot (manual vs automated).
 export 'src/models/sequence/active_plan_owner.dart';
 // Sky-brightness adaptive exposure event surface.

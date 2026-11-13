@@ -104,8 +104,7 @@ class IntegratedMaster {
   // Per-master plate-solved WCS (CD-matrix form)
   // The eight FITS scalars ASTAP / `WcsInfo::from_plate_solve` emit. All null
   // until the master is plate-solved at integration time; when present they
-  // light up the catalog annotation overlay AND colour calibration (both need a
-  // `WcsOverlay`).
+  // light up the catalog annotation overlay AND colour calibration.
   /// Reference RA in degrees (CRVAL1).
   final double? wcsCrval1;
 
@@ -185,8 +184,8 @@ class IntegratedMaster {
   bool get isColor => channels >= 3;
 
   /// Whether a plate-solved WCS has been persisted on this master. When true the
-  /// catalog annotation overlay and colour calibration can both build a
-  /// `WcsOverlay` from the CD-matrix columns.
+  /// catalog annotation overlay and colour calibration can both project
+  /// through the CD-matrix columns.
   bool get hasWcs => wcsCrval1 != null && wcsCrval2 != null;
 
   IntegratedMaster copyWith({

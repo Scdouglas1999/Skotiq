@@ -3,38 +3,21 @@ import '../database/daos/equipment_profiles_dao.dart';
 import '../models/equipment_profile_remote_mapping.dart';
 import '../services/logging_service.dart';
 
-/// Push the SQLite-active profile into the native (Rust) executor store so the
-/// executor's `load_and_set_profile` side effects run.
+/// Push the saved row of the active profile into the native executor store,
+/// which resolves the active profile from its own copy. Best effort: the save
+/// has committed, so a native refusal is logged and the next activation
+/// ([activateProfileStrictTransactional]) carries the row across.
 ///
-/// SQLite is the source of truth for profile READS, but the Rust executor
-/// resolves the active profile from its OWN native store, so an activation
-/// made from the GUI must be pushed across or sequencing keeps stale (or
-/// empty) active-profile context. The REST `handleLoadProfile` path already
-/// write-throughs.
+/// Host only: a linked client saves through the host, which does this.
 ///
-/// Host/desktop-only: in remote (slave) mode the backend is a `NetworkBackend`,
-/// which has no native store — callers must gate on `isRemoteModeProvider` (or,
-/// like [EquipmentProfilesNotifier], only run this on the local backend branch)
-/// and route activation through the host REST path instead.
-///
-/// [dao], [backend] and [logger] are passed in already-resolved so this core
-/// performs NO `ref.read` of its own. That matters when the caller is a
-/// notifier whose `build()` watches the profile streams: after the DB active
-/// flag flips, reading a provider through that notifier's `ref` would trip
-/// Riverpod's "dependency changed before rebuild" guard. Notifier call sites
-/// therefore resolve their collaborators BEFORE mutating SQLite and hand them
-/// here.
-///
-/// [strict] controls legacy direct write-through callers: false keeps their
-/// best-effort behaviour; true logs and rethrows. New activation call sites
-/// must use [activateProfileStrictTransactional], which makes native acceptance
-/// a prerequisite for every SQLite/UI activation, including interactive taps.
+/// [dao], [backend] and [logger] are passed in resolved, so a notifier whose
+/// `build()` watches the profile streams can call this after it has written
+/// SQLite without reading a provider through a `ref` that is about to rebuild.
 Future<void> writeActiveProfileThrough({
   required EquipmentProfilesDao dao,
   required ProfileSettingsBackend backend,
   required LoggingService logger,
   required int profileId,
-  bool strict = false,
 }) async {
   try {
     final row = await dao.getProfileById(profileId);
@@ -43,22 +26,14 @@ Future<void> writeActiveProfileThrough({
     await backend.saveProfile(remote);
     await backend.loadProfile(remote.id);
   } on Object catch (e, stack) {
-    if (strict) {
-      logger.error(
-        'Active-profile write-through to native store FAILED: $e',
-        source: 'ProfileActivationWriteThrough',
-        fields: {
-          'error': e.toString(),
-          'stack': stack.toString(),
-          'profileId': profileId.toString(),
-        },
-      );
-      rethrow;
-    }
-    logger.debug(
-      'Active-profile write-through to native store failed: $e',
+    logger.warning(
+      'The saved active profile did not reach the native store: $e',
       source: 'ProfileActivationWriteThrough',
-      fields: {'error': e.toString(), 'stack': stack.toString()},
+      fields: {
+        'profileId': profileId,
+        'error': e.toString(),
+        'stack': stack.toString(),
+      },
     );
   }
 }

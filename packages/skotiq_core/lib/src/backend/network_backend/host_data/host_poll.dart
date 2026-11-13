@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import '../../../utils/resilient_poll_stream.dart';
+import '../../../services/logging_service.dart';
 
 /// Makes host data that has no change event watchable.
 ///
@@ -30,10 +30,9 @@ final class HostPoll {
     interval: interval,
     refresh: _refresh.stream,
     onRetainedError: (error, stackTrace) {
-      developer.log(
+      Log.warning(
         'Host poll for $name failed; keeping the last value',
-        name: 'HostPoll',
-        level: 900,
+        source: 'HostPoll',
         error: error,
         stackTrace: stackTrace,
       );

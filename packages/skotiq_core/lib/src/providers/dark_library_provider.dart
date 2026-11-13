@@ -1,6 +1,5 @@
 import '../errors/error_text.dart';
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +18,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'calibration_master_builder_provider.dart';
 import 'calibration_service_providers.dart';
+import '../services/logging_service.dart';
 
 final darkLibraryDaoProvider = Provider<DarkLibraryDao>((ref) {
   return DarkLibraryDao(ref.watch(databaseProvider));
@@ -75,10 +75,9 @@ Stream<List<DarkLibraryEntry>> _pollRemoteDarkEntries(
   unchanged: listEquals,
   interval: interval,
   onRetainedError: (error, stackTrace) {
-    developer.log(
+    Log.warning(
       'Remote dark-library poll failed; retaining last value',
-      name: 'DarkLibraryProvider',
-      level: 900,
+      source: 'DarkLibraryProvider',
       error: error,
       stackTrace: stackTrace,
     );
@@ -137,13 +136,8 @@ DarkLibraryStats _statsFromEntries(List<DarkLibraryEntry> entries) {
   );
 }
 
-/// Unified tolerances for dark-frame matching.
-///
-/// This is the SINGLE source of truth that both the coverage UI
-/// (`DarkLibraryCoverageService.evaluate`) and the runtime calibration
-/// matcher (`DarkLibraryDao.findBestMatch` via `DarkLibraryService`) must
-/// consult so the green "all darks present" badge can never contradict
-/// `findMatchingDark` returning null.
+/// The operator's tolerances for the dark selection rule, read by every
+/// caller of it (live calibration, the Darkroom, coverage).
 ///
 /// A stored tolerance that is not a number, or is negative, throws rather
 /// than being clamped or read as the default: a tolerance other than the one

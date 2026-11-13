@@ -213,9 +213,9 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
       topLevelNodeIds.add(node.id);
     }
 
-    developer.log(
+    Log.debug(
       'insertSnippet: availableFilters=$availableFilters, createdNodes=${createdNodes.length}',
-      name: 'Sequence',
+      source: 'Sequence',
     );
     if (availableFilters != null && availableFilters.isNotEmpty) {
       for (int i = 0; i < createdNodes.length; i++) {
@@ -232,9 +232,9 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
               filter: availableFilters[matchedIndex],
               filterIndex: matchedIndex,
             );
-            developer.log(
+            Log.debug(
               'insertSnippet: Mapped filter "${node.filter}" -> "${availableFilters[matchedIndex]}" (index $matchedIndex)',
-              name: 'Sequence',
+              source: 'Sequence',
             );
           }
         } else if (node is FilterChangeNode) {

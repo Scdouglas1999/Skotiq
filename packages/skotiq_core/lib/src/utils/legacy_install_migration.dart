@@ -34,12 +34,12 @@
 //     profile saved). Rows are user data; rewriting strings in SQLite here
 //     would risk corrupting real installs.
 
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
 import 'skotiq_data_directory.dart' show skotiqDataDirEnv;
+import '../services/logging_service.dart';
 
 // --- Pre-rename literals ----------------------------------------------------
 // These strings describe where the OLD product stored things. They must not
@@ -143,9 +143,7 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
   final env = environment ?? Platform.environment;
   final os = operatingSystem ?? Platform.operatingSystem;
   final emit =
-      log ??
-      (String m) =>
-          developer.log(m, name: 'skotiq.legacy_migration', level: 900);
+      log ?? (String m) => Log.warning(m, source: 'skotiq.legacy_migration');
 
   // Run a step, folding any failure into a warning. First-launch migration
   // is strictly best-effort — a failed move must never stop the app booting
@@ -697,10 +695,9 @@ Future<int> migrateLegacySecretsNamespace(
       await delete(oldKey);
       moved++;
     } catch (e) {
-      developer.log(
+      Log.error(
         'legacy secrets re-key $field failed: $e',
-        name: 'skotiq.legacy_migration',
-        level: 1000,
+        source: 'skotiq.legacy_migration',
         error: e,
       );
     }

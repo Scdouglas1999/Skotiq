@@ -9,6 +9,7 @@ import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_settings.dart';
 import '../providers/dark_library_provider.dart';
+import 'calibration/dark_selection.dart';
 import 'dark_library_service.dart';
 import 'flat_library_service.dart';
 import 'logging_service.dart';
@@ -509,8 +510,8 @@ class MasterAccumulationService {
 
     final dark = await _darkLibrary.findMatchingDark(
       exposureTime: anchor.exposureDuration,
-      gain: gain,
-      offset: offset,
+      gain: anchor.gain,
+      offset: anchor.offset,
       binX: binX,
       binY: binY,
       temperature: temperature,
@@ -525,7 +526,7 @@ class MasterAccumulationService {
       temperature: temperature,
     );
 
-    final darkPath = dark?.masterDarkPath ?? dark?.filePath;
+    final darkPath = dark?.calibrationPath;
     return {
       if (darkPath != null) 'dark': darkPath,
       if (flat != null) 'flat': flat.filePath,

@@ -108,7 +108,7 @@ void _finishNight(ProviderContainer host) {
   const imaging = SequenceTerminalRunResult(
     generation: 4,
     outcome: SequenceExecutionState.completed,
-    runStatus: 'completed',
+    runStatus: SequenceRunStatus.completed,
     runId: 41,
     dbSessionId: 113,
   );
@@ -121,7 +121,7 @@ void _finishNight(ProviderContainer host) {
         const SequenceTerminalRunResult(
           generation: 5,
           outcome: SequenceExecutionState.idle,
-          runStatus: 'stopped',
+          runStatus: SequenceRunStatus.stopped,
           runId: 42,
           dbSessionId: 114,
           isCalibration: true,

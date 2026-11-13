@@ -1,7 +1,6 @@
 import 'async_scope.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,6 +17,7 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import '../database/daos/settings_dao.dart';
 import 'logging_service_provider.dart';
+import '../services/logging_service.dart';
 
 const Object _defectMapSettingsSentinel = Object();
 const Object _defectMapUiSentinel = Object();
@@ -257,10 +257,9 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
           try {
             await _service.apply(cameraId: cameraId, applyDuringCapture: false);
           } catch (rollbackError, rollbackStack) {
-            developer.log(
+            Log.error(
               'Could not roll back defect-map preference: $rollbackError',
-              name: 'DefectMap',
-              level: 1000,
+              source: 'DefectMap',
               error: rollbackError,
               stackTrace: rollbackStack,
             );
@@ -634,10 +633,9 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
           _remoteLoad = _loadRemote(showLoading: false);
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          Log.error(
             'Defect-map settings event stream failed: $error',
-            name: 'DefectMapSettings',
-            level: 1000,
+            source: 'DefectMapSettings',
             error: error,
             stackTrace: stackTrace,
           );
@@ -691,10 +689,9 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
     } catch (error, stackTrace) {
       if (!mounted) return;
       state = state.copyWith(isLoading: false, loadError: error);
-      developer.log(
+      Log.error(
         'Could not load defect-map settings from imaging host: $error',
-        name: 'DefectMapSettings',
-        level: 1000,
+        source: 'DefectMapSettings',
         error: error,
         stackTrace: stackTrace,
       );

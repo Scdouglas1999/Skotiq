@@ -9,8 +9,6 @@
 // CONFLICT STANCE shown to the user: sync is bundle-based, no merging —
 // restoring a remote bundle replaces local configuration.
 
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -121,7 +119,8 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      context.showErrorSnackBar('Failed to load sync settings: ${userFacingError(e)}');
+      context.showErrorSnackBar(
+          'Failed to load sync settings: ${userFacingError(e)}');
     }
   }
 
@@ -217,7 +216,8 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       return true;
     } catch (e) {
       if (!mounted || !identical(service, _service)) return false;
-      context.showErrorSnackBar('Failed to save sync settings: ${userFacingError(e)}');
+      context.showErrorSnackBar(
+          'Failed to save sync settings: ${userFacingError(e)}');
       return false;
     } finally {
       if (manageBusy && mounted && identical(service, _service)) {

@@ -37,7 +37,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -207,6 +208,7 @@ void _stubBackendForStart(MockBackend backend) {
 
 void main() {
   setUpAll(() {
+    registerFallbackValue(SequenceRunStatus.completed);
     registerMocktailFallbackValues();
   });
 
@@ -1475,7 +1477,7 @@ void main() {
       final result = container.read(sequenceTerminalRunResultProvider);
       expect(result, isNotNull);
       expect(result!.outcome, SequenceExecutionState.completed);
-      expect(result.runStatus, 'completed');
+      expect(result.runStatus, SequenceRunStatus.completed);
       expect(
         result.runId,
         runIdDuringRun,
@@ -1500,7 +1502,7 @@ void main() {
 
         final result = container.read(sequenceTerminalRunResultProvider)!;
         expect(result.outcome, SequenceExecutionState.failed);
-        expect(result.runStatus, 'failed');
+        expect(result.runStatus, SequenceRunStatus.failed);
         expect(result.runId, runId);
         expect(result.dbSessionId, sessionId);
       },
@@ -1648,9 +1650,9 @@ void main() {
         ),
       ).thenAnswer((_) async => 4242);
       when(() => dao.updateStats(any(), any())).thenAnswer((_) async {});
-      final finishCalls = <String>[];
+      final finishCalls = <SequenceRunStatus>[];
       when(() => dao.finishRun(any(), any(), any())).thenAnswer((inv) async {
-        finishCalls.add(inv.positionalArguments[1] as String);
+        finishCalls.add(inv.positionalArguments[1] as SequenceRunStatus);
         throw StateError('finishRun failed (injected)');
       });
 
@@ -1676,7 +1678,7 @@ void main() {
 
       // finishRun was attempted and failed; endSession must NOT have been
       // called (no half-finished session end after an unpersisted run row).
-      expect(finishCalls, ['completed']);
+      expect(finishCalls, [SequenceRunStatus.completed]);
       expect(
         session.endedStatuses,
         isEmpty,
@@ -1916,7 +1918,7 @@ void main() {
         sequenceId: null,
         sequenceName: 'interrupted night',
       );
-      await dao.setLiveStatus(runId, 'paused');
+      await dao.setLiveStatus(runId, SequenceRunStatus.paused);
 
       // The startup sweep runs in `beforeOpen`; re-running its statement here
       // is what a fresh process does with the same rows.
@@ -2223,7 +2225,7 @@ void main() {
         expect(second.dbSessionId, isNot(first.dbSessionId));
         expect(second.dbSessionId, session.lastSessionId);
         expect(second.generation, greaterThan(first.generation));
-        expect(second.runStatus, 'completed');
+        expect(second.runStatus, SequenceRunStatus.completed);
       },
     );
 
@@ -2337,7 +2339,11 @@ void main() {
         await executor.terminalCleanupSettledForTest;
         expect(
           executor.runPhaseForTest,
-          isA<RunSettled>().having((p) => p.runStatus, 'status', 'completed'),
+          isA<RunSettled>().having(
+            (p) => p.runStatus,
+            'status',
+            SequenceRunStatus.completed,
+          ),
         );
       },
     );

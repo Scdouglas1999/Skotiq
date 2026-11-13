@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/imaging/annotation.dart';
-import 'wcs_overlay.dart';
+import 'wcs/gnomonic_projection.dart';
 
 /// A DSO cone search over the deep-sky catalog: the OpenNGC rows within
 /// [radiusDegrees] of ([ra], [dec]) in degrees, optionally magnitude-limited.
@@ -36,9 +36,9 @@ typedef StarConeSearchForAnnotation =
 /// The pipeline (per the Smart Morning Report design, Pillar 3):
 ///  1. **Cone-search** the DSO catalog ([CatalogManager.searchDsoNearby]) and
 ///     the star catalog ([HygStarCatalog.getStarsNear]) over the master's field,
-///     centred on the WCS reference, radius = half the FOV diagonal.
+///     centred on the image, radius = half the FOV diagonal.
 ///  2. **Project** each object's (RA, Dec) to a pixel via
-///     [WcsOverlay.celestialToPixel].
+///     [GnomonicProjection.worldToPixel].
 ///  3. **Clip** to the image bounds and **map** the catalog type to an
 ///     [AnnotationKind] + a pixel size from the object's angular size and the
 ///     WCS pixel scale.
@@ -59,36 +59,34 @@ class MasterAnnotationService {
   /// keep the layer to recognisable landmarks; this caps how many per field.
   static const int maxNamedStars = 24;
 
-  /// Build the annotation layer for the master of [width] × [height] px whose
-  /// solved WCS is [wcs] and whose field of view is [fovDeg] degrees (the larger
-  /// axis). [maxMagnitude] optionally limits both catalog searches to brighter
+  /// Build the annotation layer for the master whose solved WCS is [wcs].
+  /// [maxMagnitude] optionally limits both catalog searches to brighter
   /// objects.
   ///
   /// Returns an [AnnotationLayer] of in-frame, kinded, pixel-placed markers.
   Future<AnnotationLayer> annotate({
-    required WcsOverlay wcs,
-    required int width,
-    required int height,
-    required double fovDeg,
+    required SolvedWcs wcs,
     double? maxMagnitude,
   }) async {
-    if (width <= 0 || height <= 0) {
+    final width = wcs.imageWidth;
+    final height = wcs.imageHeight;
+    if (!wcs.isValid) {
       return AnnotationLayer(width: width, height: height, items: const []);
     }
 
-    // Search radius: 0.75 x the larger axis, which covers half the diagonal of
-    // any field up to a square one (0.71 x), so corner objects are included.
-    final radiusDeg = (fovDeg.abs() * 0.75).clamp(0.02, 30.0);
-    final pixelScaleArcsec = wcs.pixelScale; // arcsec / px (|cdelt1| * 3600)
+    final projection = GnomonicProjection(wcs);
+    final centre = projection.imageCentre;
+    final radiusDeg = wcs.coneSearchRadiusDegrees;
+    final pixelScaleArcsec = wcs.pixelScaleArcsec;
 
     final dsos = await _safeDsoSearch(
-      ra: wcs.crval1,
-      dec: wcs.crval2,
+      ra: centre.raDegrees,
+      dec: centre.decDegrees,
       radiusDegrees: radiusDeg,
       maxMagnitude: maxMagnitude,
     );
     final stars = await _safeStarSearch(
-      CelestialCoordinate(ra: wcs.crval1 / 15.0, dec: wcs.crval2),
+      CelestialCoordinate(ra: centre.raDegrees / 15.0, dec: centre.decDegrees),
       radiusDeg,
       maxMagnitude: maxMagnitude,
     );
@@ -96,11 +94,12 @@ class MasterAnnotationService {
     final items = <Annotation>[];
 
     for (final dso in dsos) {
-      final (x, y) = wcs.celestialToPixel(
-        dso.coordinates.raDegrees,
-        dso.coordinates.dec,
+      final projected = projection.worldToPixel(
+        raDegrees: dso.coordinates.raDegrees,
+        decDegrees: dso.coordinates.dec,
       );
-      if (!_inBounds(x, y, width, height)) continue;
+      if (projected == null || !projected.onImage) continue;
+      final PixelPoint(:x, :y) = projected.pixel;
       items.add(
         Annotation(
           label: dso.name,
@@ -117,11 +116,12 @@ class MasterAnnotationService {
     for (final star in stars) {
       if (namedStars >= maxNamedStars) break;
       if (!_hasProperName(star)) continue;
-      final (x, y) = wcs.celestialToPixel(
-        star.coordinates.raDegrees,
-        star.coordinates.dec,
+      final projected = projection.worldToPixel(
+        raDegrees: star.coordinates.raDegrees,
+        decDegrees: star.coordinates.dec,
       );
-      if (!_inBounds(x, y, width, height)) continue;
+      if (projected == null || !projected.onImage) continue;
+      final PixelPoint(:x, :y) = projected.pixel;
       items.add(
         Annotation(
           label: star.name,
@@ -170,9 +170,6 @@ class MasterAnnotationService {
       return const [];
     }
   }
-
-  static bool _inBounds(double x, double y, int width, int height) =>
-      x.isFinite && y.isFinite && x >= 0 && x < width && y >= 0 && y < height;
 
   static bool _hasProperName(Star star) =>
       star.name.trim().isNotEmpty && star.name.trim() != star.id.trim();

@@ -1,7 +1,6 @@
 import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
@@ -9,6 +8,7 @@ import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import '../services/push_notification_service.dart';
 import '../database/daos/settings_dao.dart';
+import '../services/logging_service.dart';
 
 /// Notifier that manages push notification configuration, persisted to database
 class PushNotificationConfigNotifier
@@ -36,10 +36,9 @@ class PushNotificationConfigNotifier
               map['notifyEquipmentDisconnected'] as bool? ?? false,
         );
       } catch (e, stackTrace) {
-        developer.log(
+        Log.error(
           '[PushNotificationConfig] Failed to parse config: $e',
-          name: 'PushNotificationConfig',
-          level: 1000,
+          source: 'PushNotificationConfig',
           error: e,
           stackTrace: stackTrace,
         );

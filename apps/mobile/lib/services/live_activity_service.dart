@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Thrown when the caller invokes the Live Activity service on a platform
 /// that does not (and cannot) support it.
@@ -58,10 +58,9 @@ class LiveActivityService {
       final result = await _channel.invokeMethod<bool>('isSupported');
       return result ?? false;
     } on PlatformException catch (e, st) {
-      developer.log(
+      Log.error(
         '[LiveActivityService] isSupported failed: ${e.message}',
-        name: 'LiveActivityService',
-        level: 1000,
+        source: 'LiveActivityService',
         error: e,
         stackTrace: st,
       );

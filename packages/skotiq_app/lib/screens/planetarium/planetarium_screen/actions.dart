@@ -257,10 +257,9 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     try {
       context.go(AppRoutes.planner(tab: PlannerTab.framing));
     } catch (e, stack) {
-      developer.log(
+      Log.warning(
         '[Planetarium] Could not open ${obj.name} in Framing: $e',
-        name: 'Planetarium',
-        level: 900,
+        source: 'Planetarium',
         error: e,
         stackTrace: stack,
       );

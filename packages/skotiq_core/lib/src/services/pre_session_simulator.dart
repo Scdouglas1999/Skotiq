@@ -136,7 +136,9 @@ class PreSessionSimulator {
         : (walkEnd.isAfter(segments.last.end) ? walkEnd : segments.last.end);
     // A run continued from its checkpoint takes only the frames its steps
     // still owe.
-    final remainingEnd = planEnd.subtract(_framesDoneTime(sequence, framesDone));
+    final remainingEnd = planEnd.subtract(
+      _framesDoneTime(sequence, framesDone),
+    );
     final end = remainingEnd.isBefore(start) ? start : remainingEnd;
     final issues = <PreSessionSimulationIssue>[
       ...analysis.conflicts.map(
@@ -224,5 +226,4 @@ class PreSessionSimulator {
       }
     }
   }
-
 }

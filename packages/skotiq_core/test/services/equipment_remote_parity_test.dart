@@ -57,7 +57,10 @@ void main() {
             ),
           ],
         );
-        when(() => backend.saveProfile(any())).thenAnswer((_) async {});
+        when(
+          () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+        ).thenAnswer((_) async {});
+        when(() => backend.lastSavedProfileId).thenReturn('9');
 
         final container = ProviderContainer(
           overrides: [
@@ -73,7 +76,10 @@ void main() {
         await service.updateProfileDevices(9, {DeviceType.camera: 'new-cam'});
 
         final captured = verify(
-          () => backend.saveProfile(captureAny()),
+          () => backend.saveProfileFields(
+            captureAny(),
+            fields: any(named: 'fields'),
+          ),
         ).captured;
         final saved = captured.single as remote_profile.EquipmentProfile;
         expect(saved.id, '9');
@@ -120,8 +126,12 @@ void main() {
         ]);
 
         await expectLater(assigning, throwsStateError);
-        verifyNever(() => hostA.saveProfile(any()));
-        verifyNever(() => hostB.saveProfile(any()));
+        for (final host in [hostA, hostB]) {
+          verifyNever(() => host.saveProfile(any()));
+          verifyNever(
+            () => host.saveProfileFields(any(), fields: any(named: 'fields')),
+          );
+        }
       },
     );
 
@@ -160,13 +170,16 @@ void main() {
         await container.read(equipmentProfilesProvider.future);
         expect(loadCount, 1, reason: 'one initial build');
 
-        applyHostLocalSyncEvent(container, const SkotiqEvent(
+        applyHostLocalSyncEvent(
+          container,
+          const SkotiqEvent(
             timestamp: 1,
             severity: EventSeverity.info,
             category: EventCategory.equipment,
             eventType: 'Connected',
             data: {'device_type': 'camera', 'device_id': 'cam-42'},
-          ));
+          ),
+        );
 
         await container.read(equipmentProfilesProvider.future);
         expect(
@@ -204,10 +217,13 @@ void main() {
       await container.read(equipmentProfilesProvider.future);
       expect(loadCount, 1, reason: 'one initial build');
 
-      applyHostLocalSyncEvent(container, buildHostMutationEvent(
+      applyHostLocalSyncEvent(
+        container,
+        buildHostMutationEvent(
           entityType: HostMutationEntity.profile,
           action: HostMutationAction.updated,
-        ));
+        ),
+      );
 
       await container.read(equipmentProfilesProvider.future);
       expect(

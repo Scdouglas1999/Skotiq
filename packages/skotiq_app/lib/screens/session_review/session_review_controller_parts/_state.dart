@@ -37,7 +37,6 @@ class SessionReviewState {
   /// True while an accumulation run is in flight.
   final bool integrating;
 
-
   /// A user-facing error from the last failed action, or null.
   final String? error;
 

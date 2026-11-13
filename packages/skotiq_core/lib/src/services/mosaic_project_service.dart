@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -18,6 +17,7 @@ import '../models/imaging/mosaic_stitch_result.dart';
 import 'mosaic_service.dart';
 import 'post_session_integration_service.dart';
 import 'post_session_seam.dart';
+import 'logging_service.dart';
 part 'mosaic_project_service/mosaic_models.dart';
 part 'mosaic_project_service/panel_integration.dart';
 part 'mosaic_project_service/stitching.dart';

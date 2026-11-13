@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,7 +85,7 @@ Duration lostSessionRetryDelay(int attempt) {
 }
 
 void main() async {
-  developer.log('Starting Skotiq...', name: 'Main', level: 800);
+  Log.info('Starting Skotiq...', source: 'Main');
   WidgetsFlutterBinding.ensureInitialized();
 
   // Respect the user's immersive-mode preference. Edge-to-edge keeps the
@@ -105,22 +104,14 @@ void main() async {
       builtIn: builtInCatalogs,
     );
   } catch (e) {
-    developer.log(
-      'Failed to initialize CatalogManager: $e',
-      name: 'Main',
-      level: 1000,
-    );
+    Log.error('Failed to initialize CatalogManager: $e', source: 'Main');
   }
 
   try {
     await NetworkService().initialize();
-    developer.log('NetworkService initialized', name: 'Main');
+    Log.debug('NetworkService initialized', source: 'Main');
   } catch (e) {
-    developer.log(
-      'Failed to initialize NetworkService: $e',
-      name: 'Main',
-      level: 1000,
-    );
+    Log.error('Failed to initialize NetworkService: $e', source: 'Main');
   }
 
   // Sampled before the first frame so the top-bar battery warning and the
@@ -128,12 +119,11 @@ void main() async {
   // battery were full.
   try {
     await BatteryService().start();
-    developer.log('BatteryService started', name: 'Main');
+    Log.debug('BatteryService started', source: 'Main');
   } catch (e, st) {
-    developer.log(
+    Log.error(
       'Failed to start BatteryService: $e',
-      name: 'Main',
-      level: 1000,
+      source: 'Main',
       error: e,
       stackTrace: st,
     );
@@ -157,12 +147,11 @@ void main() async {
   if (Platform.isAndroid || Platform.isIOS) {
     try {
       await MobileNotificationService().initialize();
-      developer.log('MobileNotificationService initialized', name: 'Main');
+      Log.debug('MobileNotificationService initialized', source: 'Main');
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'Failed to initialize MobileNotificationService: $e',
-        name: 'Main',
-        level: 1000,
+        source: 'Main',
         error: e,
         stackTrace: st,
       );
@@ -179,12 +168,11 @@ void main() async {
         // answered the first prompt) is a no-op on every supported API
         // level.
         await ImagingForegroundService().requestNotificationPermission();
-        developer.log('ImagingForegroundService initialized', name: 'Main');
+        Log.debug('ImagingForegroundService initialized', source: 'Main');
       } catch (e, st) {
-        developer.log(
+        Log.error(
           'Failed to initialize ImagingForegroundService: $e',
-          name: 'Main',
-          level: 1000,
+          source: 'Main',
           error: e,
           stackTrace: st,
         );
@@ -194,10 +182,9 @@ void main() async {
 
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    developer.log(
+    Log.error(
       'Flutter Error: ${details.exception}',
-      name: 'Main',
-      level: 1000,
+      source: 'Main',
       error: details.exception,
       stackTrace: details.stack,
     );
@@ -434,10 +421,9 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       if (_connectedServer == null) return shell;
       return FirstRunSetupGate(frame: _standaloneApp, child: shell);
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         'Error building app: $e',
-        name: 'Main',
-        level: 1000,
+        source: 'Main',
         error: e,
         stackTrace: stackTrace,
       );

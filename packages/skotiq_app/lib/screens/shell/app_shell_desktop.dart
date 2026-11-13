@@ -1,11 +1,11 @@
 // Desktop implementation with window_manager
-import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'shell_exit_recorder.dart';
 import 'widgets/window_chrome_desktop.dart' as chrome_impl;
+import 'package:skotiq_core/services.dart';
 
 typedef OnCloseRequested = Future<bool> Function();
 
@@ -27,8 +27,11 @@ class _WindowCloseListener extends WindowListener {
       try {
         await ShellExit.runPendingRelaunch();
       } catch (e) {
-        developer.log('[AppShell] Relaunch failed: $e',
-            name: 'AppShell', level: 1000, error: e);
+        Log.error(
+          '[AppShell] Relaunch failed: $e',
+          source: 'AppShell',
+          error: e,
+        );
       }
       final end = ShellExit.endProcess;
       if (end != null) {
@@ -64,8 +67,11 @@ void initWindowManager(State state, {OnCloseRequested? onCloseRequested}) {
       // grips.
       chrome_impl.ensureWindowChromeState();
     } catch (e) {
-      developer.log('[AppShell] Error initializing window manager: $e',
-          name: 'AppShell', level: 1000, error: e);
+      Log.error(
+        '[AppShell] Error initializing window manager: $e',
+        source: 'AppShell',
+        error: e,
+      );
     }
   }
 }
@@ -86,8 +92,11 @@ void disposeWindowManager(State state) {
         windowManager.addListener(_closeListener!);
       }
     } catch (e) {
-      developer.log('[AppShell] Error disposing window manager: $e',
-          name: 'AppShell', level: 1000, error: e);
+      Log.error(
+        '[AppShell] Error disposing window manager: $e',
+        source: 'AppShell',
+        error: e,
+      );
     }
   }
 }

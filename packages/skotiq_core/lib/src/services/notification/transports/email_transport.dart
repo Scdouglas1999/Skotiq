@@ -22,12 +22,12 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
+import '../../logging_service.dart';
 
 /// Strategy hook so tests can swap the socket layer for an in-memory
 /// fake. Defaults to real TCP / TLS sockets from `dart:io`.
@@ -92,10 +92,9 @@ class EmailTransport extends NotificationTransport {
         'SMTP session timed out after ${_timeout.inSeconds}s',
       );
     } catch (e) {
-      developer.log(
+      Log.error(
         '[Notifications/Email] SMTP failed: $e',
-        name: 'EmailTransport',
-        level: 1000,
+        source: 'EmailTransport',
         error: e,
       );
       return NotificationResult.fail(e.toString());
