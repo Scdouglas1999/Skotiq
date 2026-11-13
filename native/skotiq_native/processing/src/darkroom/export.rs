@@ -52,7 +52,7 @@ use skotiq_imaging::recipe::{
     canonical_json, fingerprint_hex, OpImage, OpRegistry, OpStage, Recipe, RenderOptions,
     RenderReport, StepOutcome, RECIPE_SCHEMA_VERSION,
 };
-use skotiq_imaging::{write_jpeg, write_png, write_tiff, FitsHeader, ImageData, PixelType};
+use skotiq_imaging::{FitsHeader, ImageData, PixelType, RasterFormat, DEFAULT_JPEG_QUALITY};
 
 use crate::darkroom::args::{empty_report_json, report_json, CancelledRender, DarkroomExportArgs};
 use crate::darkroom::render::{
@@ -74,9 +74,6 @@ const LEGACY_HISTORY_RECIPE_MARKER: &str = "NSRECIPE-B64";
 /// text; the marker and the four-digit index take 18, leaving room for this with
 /// margin to spare.
 const HISTORY_CHUNK_CHARS: usize = 48;
-
-/// Default JPEG quality when the caller states none.
-const DEFAULT_JPEG_QUALITY: u8 = 92;
 
 /// Whether a sidecar is written when the caller states nothing. Provenance
 /// travels with the file by default; opting out is explicit.
@@ -483,7 +480,8 @@ fn write_raster(
                 data: samples,
                 range: skotiq_imaging::SampleRange::of(PixelType::U8),
             };
-            write_jpeg(&temp, &data, quality)?;
+            skotiq_imaging::write_raster(&temp, &data, RasterFormat::Jpeg { quality })
+                .map_err(|e| e.to_string())?;
         }
         "png" | "tiff" => {
             let samples: Vec<u16> = image
@@ -492,11 +490,12 @@ fn write_raster(
                 .map(|value| quantise_unit(*value, 65535.0, &mut clamped) as u16)
                 .collect();
             let data = ImageData::from_u16(image.width(), image.height(), channels, &samples);
-            if format == "png" {
-                write_png(&temp, &data)?;
+            let format = if format == "png" {
+                RasterFormat::Png
             } else {
-                write_tiff(&temp, &data)?;
-            }
+                RasterFormat::Tiff
+            };
+            skotiq_imaging::write_raster(&temp, &data, format).map_err(|e| e.to_string())?;
         }
         other => {
             return Err(format!(

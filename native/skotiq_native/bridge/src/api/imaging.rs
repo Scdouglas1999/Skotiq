@@ -1350,7 +1350,7 @@ pub async fn api_save_png_file(
     let image_data = skotiq_imaging::ImageData::from_u16(width, height, 1, &data);
 
     let path = Path::new(&file_path);
-    skotiq_imaging::write_png(path, &image_data)
+    skotiq_imaging::write_raster(path, &image_data, skotiq_imaging::RasterFormat::Png)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to write PNG: {}", e)))?;
 
     tracing::info!("PNG file saved: {}", file_path);
@@ -1377,42 +1377,8 @@ pub async fn api_save_rgba_png_file(
     height: u32,
     rgba: Vec<u8>,
 ) -> Result<(), SkotiqError> {
-    use image::RgbaImage;
-    use std::path::Path;
-
     tracing::info!("Saving RGBA PNG file: {} ({}x{})", file_path, width, height);
-
-    let expected = (width as usize)
-        .checked_mul(height as usize)
-        .and_then(|px| px.checked_mul(4))
-        .ok_or_else(|| {
-            SkotiqError::ImageError(format!(
-                "RGBA PNG dimensions overflow: {}x{}",
-                width, height
-            ))
-        })?;
-    if rgba.len() != expected {
-        return Err(SkotiqError::ImageError(format!(
-            "RGBA PNG buffer length mismatch: got {} bytes, expected {} for {}x{}x4",
-            rgba.len(),
-            expected,
-            width,
-            height
-        )));
-    }
-
-    let image: RgbaImage = RgbaImage::from_raw(width, height, rgba).ok_or_else(|| {
-        SkotiqError::ImageError(format!(
-            "Failed to build {}x{} RGBA image buffer",
-            width, height
-        ))
-    })?;
-
-    let path = Path::new(&file_path);
-    image
-        .save(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to write RGBA PNG: {}", e)))?;
-
+    write_rgba(&file_path, width, height, rgba, skotiq_imaging::RasterFormat::Png)?;
     tracing::info!("RGBA PNG file saved: {}", file_path);
     Ok(())
 }
@@ -1420,12 +1386,9 @@ pub async fn api_save_rgba_png_file(
 /// Save an 8-bit RGBA buffer as a JPEG, flattening alpha onto black.
 ///
 /// Companion to [`api_save_rgba_png_file`] for the lossy export path. JPEG has
-/// no alpha channel, so we explicitly composite each pixel over an opaque black
-/// background (`out = src * alpha / 255`) and encode the resulting RGB. Doing
-/// the flatten here — rather than handing `Rgba8` straight to the encoder,
-/// which would treat the buffer as fully opaque RGB and ignore alpha entirely —
-/// keeps transparent regions rendering as black instead of leaking whatever
-/// stale color bytes happen to sit under a transparent pixel.
+/// no alpha channel, so each pixel is composited over opaque black
+/// (`out = src * alpha / 255`): transparent regions render black instead of
+/// leaking whatever color bytes sit under a transparent pixel.
 ///
 /// Length validation matches [`api_save_rgba_png_file`]: a mismatch is an
 /// upstream bug and is surfaced as [`SkotiqError::ImageError`].
@@ -1436,11 +1399,6 @@ pub async fn api_save_rgba_jpeg_file(
     rgba: Vec<u8>,
     quality: u8,
 ) -> Result<(), SkotiqError> {
-    use image::{ImageEncoder, RgbImage};
-    use std::fs::File;
-    use std::io::BufWriter;
-    use std::path::Path;
-
     tracing::info!(
         "Saving RGBA JPEG file: {} ({}x{}, quality: {})",
         file_path,
@@ -1448,55 +1406,35 @@ pub async fn api_save_rgba_jpeg_file(
         height,
         quality
     );
-
-    let expected = (width as usize)
-        .checked_mul(height as usize)
-        .and_then(|px| px.checked_mul(4))
-        .ok_or_else(|| {
-            SkotiqError::ImageError(format!(
-                "RGBA JPEG dimensions overflow: {}x{}",
-                width, height
-            ))
-        })?;
-    if rgba.len() != expected {
-        return Err(SkotiqError::ImageError(format!(
-            "RGBA JPEG buffer length mismatch: got {} bytes, expected {} for {}x{}x4",
-            rgba.len(),
-            expected,
-            width,
-            height
-        )));
-    }
-
-    // Flatten RGBA onto an opaque black background -> packed RGB8.
-    let pixel_count = (width as usize) * (height as usize);
-    let mut rgb = Vec::with_capacity(pixel_count * 3);
-    for px in rgba.as_chunks::<4>().0.iter() {
-        // `px` is [r, g, b, a]; composite over black: out = src * a / 255.
-        let a = px[3] as u32;
-        rgb.push(((px[0] as u32 * a) / 255) as u8);
-        rgb.push(((px[1] as u32 * a) / 255) as u8);
-        rgb.push(((px[2] as u32 * a) / 255) as u8);
-    }
-
-    let rgb_image: RgbImage = RgbImage::from_raw(width, height, rgb).ok_or_else(|| {
-        SkotiqError::ImageError(format!(
-            "Failed to build {}x{} RGB image buffer",
-            width, height
-        ))
-    })?;
-
-    let path = Path::new(&file_path);
-    let file = File::create(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to create JPEG file: {}", e)))?;
-    let writer = BufWriter::new(file);
-    let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(writer, quality);
-    encoder
-        .write_image(rgb_image.as_raw(), width, height, image::ColorType::Rgb8)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to encode RGBA JPEG: {}", e)))?;
-
+    write_rgba(
+        &file_path,
+        width,
+        height,
+        rgba,
+        skotiq_imaging::RasterFormat::Jpeg { quality },
+    )?;
     tracing::info!("RGBA JPEG file saved: {}", file_path);
     Ok(())
+}
+
+/// An 8-bit RGBA buffer written as `format`.
+fn write_rgba(
+    file_path: &str,
+    width: u32,
+    height: u32,
+    rgba: Vec<u8>,
+    format: skotiq_imaging::RasterFormat,
+) -> Result<(), SkotiqError> {
+    let image = skotiq_imaging::ImageData {
+        width,
+        height,
+        channels: 4,
+        pixel_type: skotiq_imaging::PixelType::U8,
+        data: rgba,
+        range: skotiq_imaging::SampleRange::of(skotiq_imaging::PixelType::U8),
+    };
+    skotiq_imaging::write_raster(std::path::Path::new(file_path), &image, format)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to write {file_path}: {e}")))
 }
 
 #[cfg(test)]
@@ -1973,18 +1911,13 @@ pub fn api_calibrate_image_file(
     // A raster name gets a raster; any other name the frame format it names,
     // carrying the light's header with its card order and comments.
     let out = Path::new(&output_path);
-    match image::ImageFormat::from_path(out) {
-        Ok(image::ImageFormat::Tiff) => {
-            skotiq_imaging::write_tiff(out, &calibrated).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated TIFF: {}", e))
+    match skotiq_imaging::RasterFormat::from_path(out) {
+        Some(format) => {
+            skotiq_imaging::write_raster(out, &calibrated, format).map_err(|e| {
+                SkotiqError::ImageError(format!("Failed to write the calibrated image: {e}"))
             })?;
         }
-        Ok(image::ImageFormat::Png) => {
-            skotiq_imaging::write_png(out, &calibrated).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated PNG: {}", e))
-            })?;
-        }
-        _ => {
+        None => {
             let mut header = light_result.header;
             header.set_string("CALSTAT", "calibrated by Skotiq");
             for (card, path) in [
