@@ -36,33 +36,14 @@ typedef ImageGraderPsfMetric = ({double? fwhm, double? eccentricity});
 /// network backend already exposes the host's session science products; local
 /// mode continues to read Drift directly.
 Future<Map<int, ImageGraderPsfMetric>> loadImageGraderPsfMetrics({
-  required SkotiqBackend backend,
-  required ScienceDao? localScienceDao,
+  required ScienceProducts products,
   required List<DbCapturedImage> frames,
   int? sessionId,
 }) async {
   final frameIds = frames.map((frame) => frame.id).toSet();
-  final tiles = <PsfFieldTileRow>[];
-
-  if (backend.remoteHost case final linkedHost?) {
-    if (sessionId != null) {
-      tiles.addAll(await linkedHost.science.getSessionPsfTiles(sessionId));
-    } else {
-      tiles.addAll((await linkedHost.science.getSessionlessScienceBundle()).psfTiles);
-    }
-  } else {
-    final dao = localScienceDao;
-    if (dao == null) {
-      throw StateError('A local science database is required in local mode');
-    }
-    if (sessionId != null) {
-      tiles.addAll(await dao.getPsfTilesForSession(sessionId));
-    } else {
-      for (final frame in frames) {
-        tiles.addAll(await dao.getPsfTilesForImage(frame.id));
-      }
-    }
-  }
+  final tiles = sessionId != null
+      ? await products.getPsfTilesForSession(sessionId)
+      : await products.getAllSessionlessPsfTiles();
 
   final grouped = <int, List<PsfFieldTileRow>>{};
   for (final tile in tiles) {
@@ -197,12 +178,9 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog>
         _psfMetricsError = null;
       });
     }
-    final backend = host.value;
     try {
       final result = await loadImageGraderPsfMetrics(
-        backend: backend,
-        localScienceDao:
-            backend.remoteHost != null ? null : ref.read(scienceDaoProvider),
+        products: ref.read(scienceProductsProvider),
         frames: widget.frames,
         sessionId: widget.sessionId,
       );

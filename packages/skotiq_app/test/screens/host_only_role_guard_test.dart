@@ -67,11 +67,7 @@ const _hostOnlyEntryPoints = <String>[
 /// An entry here is a claim that some file answers "is a host linked right
 /// now?" from the connection ON PURPOSE, about something other than opening a
 /// host-only surface, and that claim has to be written down beside the path.
-const _allowed = <String, String>{
-  'lib/screens/stack_result/stack_result_screen.dart':
-      'decides whether to stamp a stack result into the local database, which '
-          'only exists to stamp when the database is this machine\'s',
-};
+const _allowed = <String, String>{};
 
 void main() {
   test('no host-only gate decides remote-ness from the backend type', () {

@@ -1,3 +1,4 @@
+import 'async_scope.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,7 +40,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
   // lands while a poll is in flight must still refresh the current frame.
   var pendingIsPeriodic = true;
   requestHydration = (backend, {bool periodic = false}) {
-    if (!identical(ref.read(backendProvider), backend)) return;
+    if (ref.backendScopeOver(backend).isStale) return;
     // Terminal backend state (auth rejected, version/identity mismatch):
     // every request in the hydration fan-out can only fail — and for a
     // dead token each failure feeds the server's auth-failure limiter.
@@ -107,7 +108,7 @@ Future<void> _hydrate(
       backend,
       refreshCurrentFrame: refreshCurrentFrame,
     );
-    if (!identical(ref.read(backendProvider), backend)) return;
+    if (ref.backendScopeOver(backend).isStale) return;
     logger.info('Hydrated remote session from host', source: _logSource);
   } catch (e, stackTrace) {
     logger.error(

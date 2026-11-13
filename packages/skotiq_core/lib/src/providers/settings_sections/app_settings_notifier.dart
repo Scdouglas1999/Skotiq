@@ -80,7 +80,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       );
     }
     await _saveSettings(rows);
-    if (ref.read(backendProvider).remoteHost == null) {
+    if (!ref.read(isRemoteModeProvider)) {
       _patchState(
         (current) => AppSettingsCodec.fromRows({
           ...AppSettingsCodec.toRows(current),
@@ -202,7 +202,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final host = backend.remoteHost;
     if (host == null ||
         generation != _backendGeneration ||
-        !identical(ref.read(backendProvider), backend)) {
+        ref.backendScopeOver(backend).isStale) {
       throw StateError(
         'The settings host changed before this write could start. Try again.',
       );
@@ -242,7 +242,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       rethrow;
     }
     if (generation != _backendGeneration ||
-        !identical(ref.read(backendProvider), backend)) {
+        ref.backendScopeOver(backend).isStale) {
       throw StateError(
         'The settings host changed while saving. Verify the value on the new host.',
       );
@@ -261,7 +261,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     }
     await store.write(rows);
     if (generation != _backendGeneration ||
-        !identical(ref.read(backendProvider), backend)) {
+        ref.backendScopeOver(backend).isStale) {
       throw StateError(
         'The settings host changed while saving. Verify the value on the new host.',
       );
@@ -401,7 +401,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       _settingsEventSub = backend.eventStream.listen(
         (event) {
           if (generation != _backendGeneration ||
-              !identical(ref.read(backendProvider), backend)) {
+              ref.backendScopeOver(backend).isStale) {
             return;
           }
           if (event.category != EventCategory.system) return;
@@ -420,7 +420,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       try {
         final remoteSettings = await backend.getSettings();
         if (generation != _backendGeneration ||
-            !identical(ref.read(backendProvider), backend)) {
+            ref.backendScopeOver(backend).isStale) {
           throw StateError('Settings host changed while fetching.');
         }
         _remoteSettingsSnapshot = remoteSettings;
@@ -498,7 +498,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(key, generation, () async {
       if (generation != _backendGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
+          ref.backendScopeOver(backend).isStale) {
         throw StateError('The settings host changed before saving $key.');
       }
       _requireLoadedSettings('saving $key');
@@ -523,8 +523,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       }
       await dao!.setSetting(key, value);
       if (generation != _backendGeneration ||
-          !identical(ref.read(backendProvider), backend) ||
-          !identical(ref.read(settingsDaoProvider), dao)) {
+          ref.backendScopeOver(backend).isStale ||
+          ref.scopeOver(settingsDaoProvider, dao).isStale) {
         throw StateError(
           'The settings store changed while saving $key. Verify the value in '
           'the active store.',
@@ -583,7 +583,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       generation,
       () async {
         if (generation != _backendGeneration ||
-            !identical(ref.read(backendProvider), backend)) {
+            ref.backendScopeOver(backend).isStale) {
           throw StateError('The settings host changed before saving.');
         }
         _requireLoadedSettings('saving ${settings.keys.join(', ')}');
@@ -615,8 +615,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         }
         await dao!.setSettings(settings);
         if (generation != _backendGeneration ||
-            !identical(ref.read(backendProvider), backend) ||
-            !identical(ref.read(settingsDaoProvider), dao)) {
+            ref.backendScopeOver(backend).isStale ||
+            ref.scopeOver(settingsDaoProvider, dao).isStale) {
           throw StateError(
             'The settings store changed while saving. Verify the values in '
             'the active store.',
@@ -766,8 +766,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       generation,
       () async {
         if (generation != _backendGeneration ||
-            !identical(ref.read(backendProvider), backend) ||
-            !identical(ref.read(settingsDaoProvider), dao)) {
+            ref.backendScopeOver(backend).isStale ||
+            ref.scopeOver(settingsDaoProvider, dao).isStale) {
           throw StateError(
             'The settings store changed before applying the remote snapshot.',
           );
@@ -797,8 +797,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
         await dao.setSettings(AppSettingsCodec.toRows(next));
         if (generation != _backendGeneration ||
-            !identical(ref.read(backendProvider), backend) ||
-            !identical(ref.read(settingsDaoProvider), dao)) {
+            ref.backendScopeOver(backend).isStale ||
+            ref.scopeOver(settingsDaoProvider, dao).isStale) {
           throw StateError(
             'The settings store changed while applying the remote snapshot. '
             'Verify the values in the active store.',
@@ -851,7 +851,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   /// Save several settings in one write and show them.
   Future<void> _setAll(List<SettingValue<Object?>> values) async {
-    final remote = ref.read(backendProvider).remoteHost != null;
+    final remote = ref.read(isRemoteModeProvider);
     final rows = <String, String>{
       for (final entry in values)
         for (final row in entry.rows.entries)

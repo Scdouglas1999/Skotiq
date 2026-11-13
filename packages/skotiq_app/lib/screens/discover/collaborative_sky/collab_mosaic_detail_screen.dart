@@ -291,7 +291,7 @@ class _JoinMosaicButtonState extends ConsumerState<_JoinMosaicButton> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
-    final isRemote = backend.remoteHost != null;
+    final isRemote = ref.watch(isRemoteModeProvider);
     final canJoin = backend.runsRigHere;
     // A mosaic this rig already published or joined has a local project behind
     // it. Telling its OWNER to "Join this mosaic" — and describing their own
@@ -390,7 +390,7 @@ class _JoinMosaicButtonState extends ConsumerState<_JoinMosaicButton> {
       final projectId = await ref
           .read(collaborativeMosaicServiceProvider)
           .joinMosaicAsParticipant(widget.mosaic);
-      if (!mounted || !identical(ref.read(backendProvider), authority)) return;
+      if (!mounted || ref.backendScopeOver(authority).isStale) return;
       // Joining takes a participant slot on the hub, so every cached listing of
       // this mosaic is now stale.
       invalidateCollaborativeMosaicStateFor(ref);

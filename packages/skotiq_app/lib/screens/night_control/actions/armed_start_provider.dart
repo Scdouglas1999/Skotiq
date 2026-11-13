@@ -2,7 +2,6 @@
 // `nightArmedStartProvider` in skotiq_core, which the host also serves to
 // linked clients.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../../services/observing_site.dart';
@@ -16,7 +15,7 @@ final nightAstroDarkProvider = Provider<DateTime?>((ref) {
 /// The note an armed start carries: on the imaging host the app must stay
 /// open; on a client the host starts the run whatever this computer does.
 final armedStartNoteKeyProvider = Provider<String>(
-  (ref) => ref.watch(backendProvider).remoteHost != null
+  (ref) => ref.watch(isRemoteModeProvider)
       ? 'nightActArmedOnHost'
       : 'nightActArmedKeepOpen',
 );

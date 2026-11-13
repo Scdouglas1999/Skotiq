@@ -10,7 +10,6 @@
 // plan's exposure steps, loops included.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
@@ -69,7 +68,7 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     // what this app saw arrive, and a client that joined after the run
     // started saw none of the frames before it.
     final sessionRows = terminal?.isCalibration == true ||
-        ref.watch(backendProvider).remoteHost != null;
+        ref.watch(isRemoteModeProvider);
     final frames = sessionRows
         ? ref.watch(nightRunLightRowsProvider).map(capturedImageFromDbRow)
         : ref.watch(recentSessionFramesProvider);

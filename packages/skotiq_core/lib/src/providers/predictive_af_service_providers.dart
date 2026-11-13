@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'backend_provider.dart';
+
 import '../services/predictive_af_service.dart';
+import 'host_role.dart';
 
 final predictiveAfSettingsControllerProvider =
-    Provider<PredictiveAfSettingsController>((ref) {
-      final backend = ref.watch(backendProvider);
-      return PredictiveAfSettingsController(ref, backend);
-    });
+    hostRoleProvider<PredictiveAfSettingsController>(
+      here: (ref) =>
+          LocalPredictiveAfSettings(ref.watch(predictiveAfServiceProvider)),
+      linked: (ref, host) => HostPredictiveAfSettings(host.focusModels),
+    );
 
 /// See [PredictiveAfStatus].
 final lastPredictiveAfStatusProvider = StateProvider<PredictiveAfStatus?>(

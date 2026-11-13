@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/remote_host.dart';
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
 import '../providers/backend_provider.dart';
@@ -80,7 +79,7 @@ typedef RestoredOpenPlan = ({Sequence sequence, bool unsaved});
 Future<RestoredOpenPlan?> restoreOpenPlan(
   T Function<T>(ProviderListenable<T>) read,
 ) async {
-  if (read(backendProvider).remoteHost != null) return null;
+  if (read(isRemoteModeProvider)) return null;
   try {
     if (read(currentSequenceProvider) != null) return null;
     final kept = await _keptPlan(read);

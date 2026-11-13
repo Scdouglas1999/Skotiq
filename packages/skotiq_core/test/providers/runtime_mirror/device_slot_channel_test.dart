@@ -322,6 +322,49 @@ void main() {
     expect(camera.isHealthy, isTrue);
   });
 
+  test("the host's failing reads of its mount mark the client's values stale, "
+      'and the client does not poll the mount itself', () async {
+    final host = mirrorHost();
+    when(
+      () => host.backend.getMountStatus(any()),
+    ).thenThrow(StateError('mount does not answer'));
+    _connect(host.container.read(mountStateProvider.notifier), 'm', 'Mount');
+    final reads = host.container.read(deviceReadHealthProvider.notifier);
+    reads
+      ..recordFailure(DeviceType.mount, 'm', StateError('no answer'))
+      ..recordFailure(DeviceType.mount, 'm', StateError('no answer'));
+    await settle(_slotInterval);
+
+    final client = mirrorClient(host.container);
+    var clientReads = 0;
+    when(() => client.backend.getMountStatus(any())).thenAnswer((_) async {
+      clientReads++;
+      throw StateError('not asked for');
+    });
+    await hydrateHostRuntimeState(client.container, client.backend);
+
+    expect(
+      client.container.read(staleReadingsProvider((DeviceType.mount, 'm'))),
+      isNotNull,
+    );
+    await settle(const Duration(seconds: 6));
+    expect(clientReads, 0);
+
+    reads.recordSuccess(DeviceType.mount, 'm');
+    await settle(_slotInterval);
+    for (final update in host.sent) {
+      applyHostRuntimeUpdate(
+        client.container,
+        update,
+        networkBackend: client.backend,
+      );
+    }
+    expect(
+      client.container.read(staleReadingsProvider((DeviceType.mount, 'm'))),
+      isNull,
+    );
+  });
+
   group('what the client does with a slot it did not get from the host', () {
     // A linked client's Disconnect all let go of the guide camera first; the
     // host's notice of that emptied the client's camera slot, so the client

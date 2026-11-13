@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/network_backend/host_data/remote_host_records.dart';
@@ -16,6 +17,12 @@ import 'host_role.dart';
 abstract interface class CapturedImageRows {
   /// Every row, newest capture first.
   Stream<List<db.DbCapturedImage>> watchAll();
+
+  /// The rows of one session, oldest first.
+  Stream<List<db.DbCapturedImage>> watchSession(int sessionId);
+
+  /// The newest rows captured outside any session, newest first.
+  Stream<List<db.DbCapturedImage>> watchStandalone();
 
   AsyncValue<bool> hasAny(Ref ref);
 
@@ -80,6 +87,14 @@ final class _DatabaseImageRows implements CapturedImageRows {
 
   @override
   Stream<List<db.DbCapturedImage>> watchAll() => _dao.watchAllImages();
+
+  @override
+  Stream<List<db.DbCapturedImage>> watchSession(int sessionId) =>
+      _dao.watchImagesForSession(sessionId);
+
+  @override
+  Stream<List<db.DbCapturedImage>> watchStandalone() =>
+      _dao.watchStandaloneImages();
 
   @override
   AsyncValue<bool> hasAny(Ref ref) => ref.watch(_hasAnyImageProvider);
@@ -149,7 +164,8 @@ class RemoteImageRows implements CapturedImageRows {
   /// Rows fetched one at a time or by session since that list, by id.
   final Map<int, db.DbCapturedImage> _fetched = {};
   final Set<int> _inFlight = {};
-  final Set<StreamController<List<db.DbCapturedImage>>> _listeners = {};
+  /// Each open list with the cut of the table it shows.
+  final Map<StreamController<List<db.DbCapturedImage>>, _Cut> _listeners = {};
   StreamSubscription<List<db.DbCapturedImage>>? _pollSubscription;
   bool _sessionRefreshRunning = false;
   bool _sessionRefreshAgain = false;
@@ -166,23 +182,55 @@ class RemoteImageRows implements CapturedImageRows {
   }
 
   @override
-  Stream<List<db.DbCapturedImage>> watchAll() {
+  Stream<List<db.DbCapturedImage>> watchAll() =>
+      _watch((rows) => rows, rereadOnListen: true);
+
+  @override
+  Stream<List<db.DbCapturedImage>> watchSession(int sessionId) => _watch(
+    (rows) =>
+        rows.where((row) => row.sessionId == sessionId).toList()
+          ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt)),
+  );
+
+  @override
+  Stream<List<db.DbCapturedImage>> watchStandalone() => _watch(
+    (rows) => rows
+        .where((row) => row.sessionId == null)
+        .take(_standaloneLimit)
+        .toList(),
+  );
+
+  /// As many as `ImagesDao.watchStandaloneImages` returns on the host.
+  static const _standaloneLimit = 100;
+
+  /// One list cut from the polled table. The whole table ([rereadOnListen])
+  /// waits for a new read when it is listened to: that is a rebuild of its
+  /// provider, for instance after the host announced a change to its images.
+  /// A cut starts from the rows already here and shares the running poll.
+  Stream<List<db.DbCapturedImage>> _watch(
+    List<db.DbCapturedImage> Function(List<db.DbCapturedImage> rows) cut, {
+    bool rereadOnListen = false,
+  }) {
     late final StreamController<List<db.DbCapturedImage>> controller;
+    List<db.DbCapturedImage>? shown;
+    List<db.DbCapturedImage> distinct(List<db.DbCapturedImage> rows) {
+      final next = cut(rows);
+      final last = shown;
+      return shown = last != null && listEquals(last, next) ? last : next;
+    }
+
     controller = StreamController<List<db.DbCapturedImage>>(
       onListen: () {
-        _listeners.add(controller);
-        // A new listener is a rebuild of the provider, for instance after the
-        // host announced a change to its images: it waits for the table read
-        // again now, not for the rows from before the change.
-        unawaited(_pollSubscription?.cancel());
-        _pollSubscription = _poll().listen(
-          _onPolled,
-          onError: (Object error, StackTrace stackTrace) {
-            for (final listener in _listeners) {
-              if (_polled == null) listener.addError(error, stackTrace);
-            }
-          },
-        );
+        _listeners[controller] = rereadOnListen
+            ? cut
+            : (rows) {
+                final last = shown;
+                final next = distinct(rows);
+                return identical(last, next) ? null : next;
+              };
+        final rows = current;
+        if (!rereadOnListen && rows != null) controller.add(distinct(rows));
+        if (rereadOnListen || _pollSubscription == null) _startPoll();
       },
       onCancel: () {
         _listeners.remove(controller);
@@ -193,6 +241,19 @@ class RemoteImageRows implements CapturedImageRows {
       },
     );
     return controller.stream;
+  }
+
+  void _startPoll() {
+    unawaited(_pollSubscription?.cancel());
+    _pollSubscription = _poll().listen(
+      _onPolled,
+      onError: (Object error, StackTrace stackTrace) {
+        if (_polled != null) return;
+        for (final listener in _listeners.keys) {
+          listener.addError(error, stackTrace);
+        }
+      },
+    );
   }
 
   void _onPolled(List<db.DbCapturedImage> rows) {
@@ -210,8 +271,9 @@ class RemoteImageRows implements CapturedImageRows {
     if (_disposed) return;
     final rows = current;
     if (rows == null) return;
-    for (final listener in _listeners) {
-      listener.add(rows);
+    for (final MapEntry(key: listener, value: cut) in _listeners.entries) {
+      final list = cut(rows);
+      if (list != null) listener.add(list);
     }
   }
 
@@ -321,9 +383,14 @@ class RemoteImageRows implements CapturedImageRows {
     _disposed = true;
     unawaited(_pollSubscription?.cancel());
     _pollSubscription = null;
-    for (final listener in _listeners.toList()) {
+    for (final listener in _listeners.keys.toList()) {
       unawaited(listener.close());
     }
     _listeners.clear();
   }
 }
+
+/// The rows one open list shows of the whole table, or null when they are
+/// the rows it already has.
+typedef _Cut =
+    List<db.DbCapturedImage>? Function(List<db.DbCapturedImage> rows);

@@ -85,7 +85,7 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
   bool _isCurrentRetry(int generation, SkotiqBackend backend) =>
       mounted &&
       generation == _retryGeneration &&
-      identical(ref.read(backendProvider), backend);
+      ref.backendScopeOver(backend).isCurrent;
 
   @override
   Widget build(BuildContext context) {

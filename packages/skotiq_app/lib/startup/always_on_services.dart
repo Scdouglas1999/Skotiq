@@ -154,6 +154,15 @@ final List<AlwaysOnService> alwaysOnServices = [
 
   // Equipment.
   AlwaysOnService(
+    'device events',
+    deviceServiceProvider,
+    // On a client too: it was built only when a screen first read it, so
+    // which screens had been opened decided whether a disconnect was shown.
+    _everyRole,
+    'device disconnects, reconnects and heartbeat health reaching the '
+        'device cards, and a mount command showing its result at once',
+  ),
+  AlwaysOnService(
     'USB disconnect log',
     usbDisconnectEventBridgeProvider,
     _everyRole,
@@ -301,6 +310,13 @@ final List<AlwaysOnService> alwaysOnServices = [
     clientRuntimeReporterProvider,
     _windows,
     'results a client computes reaching the host and the other clients',
+  ),
+  AlwaysOnService(
+    'camera exposure',
+    hostExposureFollowProvider,
+    _hosts,
+    'the camera card and countdown showing the frames of a run and captures '
+        'a client or the API started, on the host and on its clients',
   ),
   AlwaysOnService(
     'host local sync',

@@ -16,6 +16,13 @@ abstract interface class TargetLibrary {
   Stream<List<DbTarget>> watchFavoriteTargets();
 
   Future<List<DbTarget>> getAllTargets();
+
+  /// How many targets nothing refers to: no goal, no frames, no session, not
+  /// a favorite.
+  Future<int> countUntrackedTargets();
+
+  /// Deletes those targets and returns how many went.
+  Future<int> deleteUntrackedTargets();
 }
 
 /// The sequences saved in the imaging host's database.

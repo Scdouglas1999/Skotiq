@@ -46,6 +46,8 @@ abstract interface class ScienceProducts {
 
   Stream<List<PsfFieldTileRow>> watchPsfTilesForSession(int sessionId);
 
+  Future<List<PsfFieldTileRow>> getPsfTilesForSession(int sessionId);
+
   Stream<List<ScienceFrameQualityMetricsRow>>
   watchFrameQualityMetricsForSession(int sessionId);
 

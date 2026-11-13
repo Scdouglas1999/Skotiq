@@ -418,7 +418,7 @@ class _HostSettingsRefreshButtonState
       mounted &&
       _refreshing &&
       generation == _generation &&
-      identical(ref.read(backendProvider), authority);
+      ref.backendScopeOver(authority).isCurrent;
 
   @override
   Widget build(BuildContext context) {

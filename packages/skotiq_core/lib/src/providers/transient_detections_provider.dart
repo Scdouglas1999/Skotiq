@@ -213,7 +213,6 @@ Stream<List<TransientDetectionRow>> _remoteFirstLightStream(
   Future<List<Map<String, dynamic>>> Function() fetch,
 ) {
   return remoteSnapshotStream<TransientDetectionRow>(
-    ref: ref,
     backend: backend,
     fetch: fetch,
     decode: transientDetectionFromWireJson,

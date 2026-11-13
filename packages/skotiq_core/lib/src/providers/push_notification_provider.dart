@@ -1,3 +1,4 @@
+import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,7 +65,7 @@ class PushNotificationConfigNotifier
       'notifyEquipmentDisconnected': config.notifyEquipmentDisconnected,
     });
     await dao.write(StoreSettings.pushNotifications, json);
-    if (!identical(ref.read(settingsDaoProvider), dao)) {
+    if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
       throw StateError(
         'The settings database changed while saving push notifications.',
       );

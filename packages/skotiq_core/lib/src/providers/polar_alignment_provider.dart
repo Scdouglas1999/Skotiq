@@ -1,3 +1,4 @@
+import 'async_scope.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:collection';
@@ -9,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/database.dart';
 import '../models/polar_alignment_config.dart';
-import '../backend/remote_host.dart';
 import '../backend/roles/host_data/polar_alignment_log.dart';
 import 'backend_provider.dart';
 import 'host_role.dart';
@@ -584,7 +584,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     int admittedGeneration,
   ) {
     if (admittedGeneration == _backendGeneration &&
-        identical(ref.read(backendProvider), admittedBackend)) {
+        ref.backendScopeOver(admittedBackend).isCurrent) {
       return;
     }
     throw PolarAlignmentBackendChangedException(
@@ -840,7 +840,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       equipmentProfileId: profileId,
     );
 
-    if (ref.read(backendProvider).remoteHost != null) {
+    if (ref.read(isRemoteModeProvider)) {
       // The equipment host runs the same state notifier for REST-started
       // alignments and owns the authoritative history write. A remote
       // controller must not create a second row from its slightly later WS

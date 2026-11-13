@@ -58,7 +58,7 @@ final flatWizardSaveFolderProvider = Provider<String?>((ref) {
       ref.watch(appSettingsProvider).valueOrNull?.imageOutputPath ?? '';
   return defaultFlatFolder(
     captureFolder,
-    onHost: ref.watch(backendProvider).remoteHost != null,
+    onHost: ref.watch(isRemoteModeProvider),
   );
 });
 

@@ -229,7 +229,7 @@ class _IntegrationGoalsEditorState
   }
 
   bool _isCurrentAuthority(SkotiqBackend authority) =>
-      mounted && identical(ref.read(backendProvider), authority);
+      mounted && ref.backendScopeOver(authority).isCurrent;
 
   bool _isCurrentOperation(
     SkotiqBackend authority,

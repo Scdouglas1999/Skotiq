@@ -5,7 +5,7 @@ part of '../catalog_settings_screen.dart';
 extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
   Widget _buildContent(BuildContext context) {
     final colors = context.skotiqColors;
-    final isRemote = ref.watch(backendProvider).remoteHost != null;
+    final isRemote = ref.watch(isRemoteModeProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

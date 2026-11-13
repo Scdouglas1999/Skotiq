@@ -95,6 +95,15 @@ class DeviceReadHealthNotifier
     };
   }
 
+  /// A linked client showing how its host's reads of the [type] slot go;
+  /// null when the slot holds no device.
+  void mirrorHost(DeviceType type, DeviceReadHealth? health) {
+    if (state[type] == health) return;
+    state = health == null
+        ? ({...state}..remove(type))
+        : {...state, type: health};
+  }
+
   /// Forget the [type] slot (its device disconnected).
   void clear(DeviceType type) {
     _lastGoodRead.remove(type);

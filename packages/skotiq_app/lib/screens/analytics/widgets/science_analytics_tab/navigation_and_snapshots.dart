@@ -1,49 +1,5 @@
 part of '../science_analytics_tab.dart';
 
-/// Export the Science tab's shortcut report without ever reading a remote
-/// controller's empty local database. The local path preserves the existing
-/// Markdown exporter; a remote client downloads the host-generated PDF and
-/// stores a copy in its own exports directory.
-///
-/// [period] is the period search the operator ran on this tab. It is UI state,
-/// never a stored product, so it has to travel with the export request: with it
-/// omitted the report's "Period analysis" section says "Not run for this
-/// session" while the panel two inches above the button is showing the result.
-Future<File> exportScienceShortcutReport({
-  required SkotiqBackend backend,
-  required int sessionId,
-  required ScienceReportExporter localExporter,
-  PeriodAnalysisResult? period,
-  Future<Directory> Function()? documentsDirectoryProvider,
-  DateTime? generatedAt,
-}) async {
-  final linkedHost = backend.remoteHost;
-  if (linkedHost == null) {
-    return localExporter.exportToDisk(sessionId, period: period);
-  }
-
-  final bytes = await linkedHost.science.generateObservationReport(sessionId);
-  if (bytes.isEmpty) {
-    throw StateError('The imaging host returned an empty science report.');
-  }
-  final exportDirectory = await resolveSkotiqExportsDirectory(
-    documents: documentsDirectoryProvider ?? resolveSkotiqDocumentsDirectory,
-  );
-  final timestamp = (generatedAt ?? DateTime.now())
-      .toIso8601String()
-      .replaceAll(':', '-')
-      .split('.')
-      .first;
-  final file = File(
-    path.join(
-      exportDirectory.path,
-      'science_report_session_${sessionId}_$timestamp.pdf',
-    ),
-  );
-  await file.writeAsBytes(bytes, flush: true);
-  return file;
-}
-
 /// Inline export button that routes to the consolidated [ScienceExportHub]
 /// pre-selected to a specific dataset, so there is one canonical export
 /// surface rather than a CSV writer per card.
@@ -161,15 +117,11 @@ class _ScienceJumpNav extends ConsumerWidget {
       duration: Duration(seconds: 2),
     );
     try {
-      final backend = ref.read(backendProvider);
-      final exporter = ref.read(scienceReportExporterProvider);
       final folders = ref.read(localFoldersProvider);
-      final file = await exportScienceShortcutReport(
-        backend: backend,
-        sessionId: sessionId,
-        localExporter: exporter,
-        period: ref.read(periodAnalysisProvider).result,
-      );
+      final file = await ref.read(analyticsExportsProvider).scienceReport(
+            sessionId,
+            period: ref.read(periodAnalysisProvider).result,
+          );
       if (!context.mounted) return;
       messenger.clearSnackBars();
       // On mobile the app-docs file is unreachable and "Open folder"

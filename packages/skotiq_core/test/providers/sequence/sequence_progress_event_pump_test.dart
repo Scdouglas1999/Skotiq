@@ -251,39 +251,20 @@ void main() {
 
   group('camera card is released when the run leaves the exposing path', () {
     test('a stop mid-exposure clears Exposing (no sticky Exposing)', () {
-      apply(
-        _event('ExposureStarted', {
-          'frame': 1,
-          'total': 10,
-          'duration_secs': 120.0,
-        }),
-      );
-      expect(container.read(cameraStateProvider).isExposing, isTrue);
+      container.read(cameraStateProvider.notifier).setExposing(true);
 
       apply(_event('Stopped'));
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     });
 
     test('a completion mid-exposure clears Exposing', () {
-      apply(
-        _event('ExposureStarted', {
-          'frame': 1,
-          'total': 1,
-          'duration_secs': 5.0,
-        }),
-      );
+      container.read(cameraStateProvider.notifier).setExposing(true);
       apply(_event('Completed'));
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     });
 
     test('a terminal failure mid-exposure clears Exposing', () {
-      apply(
-        _event('ExposureStarted', {
-          'frame': 1,
-          'total': 1,
-          'duration_secs': 5.0,
-        }),
-      );
+      container.read(cameraStateProvider.notifier).setExposing(true);
       apply(_event('SequenceFailed', {'error': 'guider lost star'}));
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     });

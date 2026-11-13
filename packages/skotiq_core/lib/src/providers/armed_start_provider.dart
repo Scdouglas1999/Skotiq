@@ -8,7 +8,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/remote_host.dart';
 import '../models/sequence/sequence_models.dart';
 import 'backend_provider.dart';
 import 'host_scheduled_start_provider.dart';
@@ -28,7 +27,7 @@ class ArmedStartController extends Notifier<DateTime?> {
     ref.onDispose(_cancelTimer);
     // A client shows the host's schedule; arming and canceling go to the host
     // (see NightActionController).
-    if (ref.watch(backendProvider).remoteHost != null) {
+    if (ref.watch(isRemoteModeProvider)) {
       return ref.watch(hostScheduledStartProvider);
     }
     // A run started some other way (the header's Start, a remote client)

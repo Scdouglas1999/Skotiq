@@ -44,6 +44,27 @@ Future<void> _shareRegionCutout(
   await Share.shareXFiles([XFile(filePath)], text: text);
 }
 
+/// The region's co-add as a PNG file on this machine, ready to share, or
+/// null when the region has no co-add yet. The host exports its own atlas; a
+/// linked client downloads the host's cutout into its temporary folder.
+final _regionPngToShareProvider =
+    hostRoleProvider<Future<String?> Function(int regionId, String name)>(
+  here: (ref) => (regionId, name) async {
+    if (ref.read(backendProvider).hasNoHost) {
+      throw StateError('Reconnect to the imaging host before exporting.');
+    }
+    final export = await ref.read(yourSkyRegionExporterProvider)(regionId);
+    return export?.pngPath;
+  },
+  linked: (ref, host) => (regionId, name) async {
+    final bytes = await host.skyAtlas.getAtlasRegionCutout(regionId);
+    final dir = await getTemporaryDirectory();
+    final file = File(p.join(dir.path, 'region_${regionId}_${_safeName(name)}.png'));
+    await file.writeAsBytes(bytes);
+    return file.path;
+  },
+);
+
 final yourSkyRegionExporterProvider = Provider<YourSkyRegionExporter>((ref) {
   return ref.read(skyAtlasServiceProvider).exportRegionCutout;
 });
@@ -473,35 +494,16 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     final backend = ref.read(backendProvider);
     setState(() => _busy = true);
     try {
-      final String sharePath;
-      if (backend.remoteHost case final linkedHost?) {
-        // Slave: pull PNG bytes over the wire and stage a temp file to share.
-        final bytes = await linkedHost.skyAtlas.getAtlasRegionCutout(regionId);
-        if (!_isCurrent(generation, backend, regionId)) return;
-        final dir = await getTemporaryDirectory();
-        if (!_isCurrent(generation, backend, regionId)) return;
-        final file = File(p.join(
-          dir.path,
-          'region_${regionId}_${_safeName(regionName)}.png',
-        ));
-        await file.writeAsBytes(bytes);
-        if (!_isCurrent(generation, backend, regionId)) return;
-        sharePath = file.path;
-      } else if (!backend.hasNoHost) {
-        final export = await ref.read(yourSkyRegionExporterProvider)(regionId);
-        if (!_isCurrent(generation, backend, regionId)) return;
-        if (export == null || export.pngPath == null) {
-          messenger.showInfoSnackBar(
-            'No co-add to export yet.',
-            duration: Duration(seconds: 3),
-          );
-          return;
-        }
-        sharePath = export.pngPath!;
-      } else {
-        throw StateError('Reconnect to the imaging host before exporting.');
-      }
+      final sharePath =
+          await ref.read(_regionPngToShareProvider)(regionId, regionName);
       if (!_isCurrent(generation, backend, regionId)) return;
+      if (sharePath == null) {
+        messenger.showInfoSnackBar(
+          'No co-add to export yet.',
+          duration: Duration(seconds: 3),
+        );
+        return;
+      }
       await ref.read(yourSkyRegionShareProvider)(
         sharePath,
         text: '$regionName — co-added in Your Sky',
@@ -564,7 +566,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     return mounted &&
         generation == _operationGeneration &&
         widget.region.id == regionId &&
-        identical(ref.read(backendProvider), backend);
+        ref.backendScopeOver(backend).isCurrent;
   }
 
   void _finish(int generation) {
@@ -572,11 +574,11 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
       setState(() => _busy = false);
     }
   }
+}
 
-  static String _safeName(String name) {
-    final cleaned = name.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
-    return cleaned.isEmpty ? 'region' : cleaned;
-  }
+String _safeName(String name) {
+  final cleaned = name.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
+  return cleaned.isEmpty ? 'region' : cleaned;
 }
 
 class _ScrubPanel extends ConsumerWidget {

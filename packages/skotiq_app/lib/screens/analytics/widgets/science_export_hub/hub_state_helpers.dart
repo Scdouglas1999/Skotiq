@@ -339,31 +339,12 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         setState(() => _selectedSessionId = reportSessionId);
       }
 
-      late final String filePath;
-      if (scope.value.remoteHost case final linkedHost?) {
-        final bytes = await linkedHost.science.generateObservationReport(reportSessionId);
-        if (scope.isStale) return;
-        final directory = await ref.read(scienceExportDirectoryProvider.future);
-        if (scope.isStale) return;
-        final timestamp = DateTime.now()
-            .toUtc()
-            .toIso8601String()
-            .replaceAll(':', '-')
-            .split('.')
-            .first;
-        filePath =
-            path.join(directory.path, 'observation_report_${timestamp}Z.pdf');
-        await File(filePath).writeAsBytes(bytes, flush: true);
-      } else {
-        final reportService = ObservationReportService(
-          sessionsDao: ref.read(sessionsDaoProvider),
-          imagesDao: ref.read(imagesDaoProvider),
-          scienceDao: ref.read(scienceDaoProvider),
-        );
-        filePath = await reportService.generateReport(
-          sessionId: reportSessionId,
-        );
-      }
+      final filePath = await ref
+          .read(analyticsExportsProvider)
+          .observationReport(reportSessionId, () {
+        scope.ensureCurrent('saving the observation report');
+        return ref.read(scienceExportDirectoryProvider.future);
+      });
 
       if (scope.isStale || !mounted) return;
       setState(() {
@@ -402,7 +383,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
   Future<List<T>> _standaloneRows<T>(
     ProviderListenable<Future<List<T>>> export,
   ) {
-    if (ref.read(backendProvider).remoteHost != null) {
+    if (ref.read(isRemoteModeProvider)) {
       _standaloneWindowed = true;
     }
     return ref.read(export);

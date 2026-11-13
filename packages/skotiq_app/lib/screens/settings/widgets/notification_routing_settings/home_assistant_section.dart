@@ -42,7 +42,7 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (ref.watch(backendProvider).remoteHost != null) {
+    if (ref.watch(isRemoteModeProvider)) {
       return const _RemoteHomeAssistantSection();
     }
     final cfgAsync = ref.watch(homeAssistantConfigProvider);

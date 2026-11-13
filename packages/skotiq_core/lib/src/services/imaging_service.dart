@@ -758,6 +758,9 @@ class ExposureProgressNotifier extends StateNotifier<ExposureProgress> {
     );
   }
 
+  /// Shows the countdown another process reported.
+  void show(ExposureProgress progress) => state = progress;
+
   void reset() {
     state = ExposureProgress.idle();
   }

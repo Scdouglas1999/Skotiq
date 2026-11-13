@@ -21,7 +21,6 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../providers/end_of_night_calibration/eon_providers.dart';
 import 'eon_service.dart' show EonReport;
 import 'eon_settings.dart';
-import '../../backend/remote_host.dart';
 import '../../providers/end_of_night_calibration/eon_deferral_provider.dart';
 import '../../providers/logging_service_provider.dart';
 
@@ -321,7 +320,7 @@ class EndOfNightCalibrationCoordinator {
     bool waitForCompletion = false,
     bool forceWarmUp = false,
   }) async {
-    if (_ref.read(backendProvider).remoteHost != null) return false;
+    if (_ref.read(isRemoteModeProvider)) return false;
     final settings = await EonSettings.load(_ref.read(settingsDaoProvider));
     if (!settings.enabled) {
       _log.info(

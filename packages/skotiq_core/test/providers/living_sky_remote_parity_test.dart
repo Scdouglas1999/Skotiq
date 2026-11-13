@@ -182,7 +182,7 @@ void main() {
       verify(() => backend.getAtlasRegions()).called(1);
     });
 
-    test('skyAtlasRegionWriterProvider creates metadata on the host', () async {
+    test('yourSkyAtlasProvider creates metadata on the host', () async {
       final backend = slaveBackend();
       when(
         () => backend.createAtlasRegion(
@@ -197,7 +197,7 @@ void main() {
       final container = containerFor(backend);
 
       final id = await container
-          .read(skyAtlasRegionWriterProvider)
+          .read(yourSkyAtlasProvider)
           .ensureRegion(
             name: 'M31 core',
             centerRaDeg: 10.68,

@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
@@ -36,7 +35,7 @@ class SessionStackPlan {
 final sessionStackPlanProvider = Provider<SessionStackPlan?>((ref) {
   // A linked client arms the host's stacker instead; the files are the
   // host's.
-  if (ref.watch(backendProvider).remoteHost != null) return null;
+  if (ref.watch(isRemoteModeProvider)) return null;
   return sessionStackPlanFor(ref.watch(recentSessionFramesProvider));
 });
 

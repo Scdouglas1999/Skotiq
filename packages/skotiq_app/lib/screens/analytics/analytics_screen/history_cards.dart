@@ -5,7 +5,7 @@ class _ProjectsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isRemote = ref.watch(backendProvider).remoteHost != null;
+    final isRemote = ref.watch(isRemoteModeProvider);
     return Padding(
       padding: const EdgeInsets.all(SkotiqTokens.space2xl),
       child: Column(

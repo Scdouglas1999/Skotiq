@@ -33,3 +33,4 @@ export 'src/backend/device_connect_exception.dart';
 export 'src/backend/network_backend/host_data/remote_imaging_records.dart';
 export 'src/backend/roles/host_data/imaging_records.dart';
 export 'src/backend/bridge_event_mapper.dart';
+export 'src/backend/roles/host_data/photometric_transforms.dart';

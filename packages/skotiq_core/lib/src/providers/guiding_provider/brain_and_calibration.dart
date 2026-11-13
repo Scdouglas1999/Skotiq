@@ -119,7 +119,7 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
       mounted &&
       backendGeneration == _backendGeneration &&
       fetchGeneration == _fetchGeneration &&
-      identical(backend, ref.read(backendProvider));
+      ref.backendScopeOver(backend).isCurrent;
 
   Future<void> setParam(String axis, String name, double value) async {
     final backend = ref.read(backendProvider);
@@ -129,7 +129,7 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
       await backend.phd2SetAlgoParam(axis: axis, name: name, value: value);
 
       if (backendGeneration != _backendGeneration ||
-          !identical(backend, ref.read(backendProvider))) {
+          ref.backendScopeOver(backend).isStale) {
         throw StateError(
           'The imaging host changed while updating PHD2 brain settings.',
         );
@@ -258,7 +258,7 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
       mounted &&
       backendGeneration == _backendGeneration &&
       fetchGeneration == _fetchGeneration &&
-      identical(backend, ref.read(backendProvider));
+      ref.backendScopeOver(backend).isCurrent;
 
   Future<void> clearCalibration({String which = 'both'}) async {
     final backend = ref.read(backendProvider);
@@ -282,7 +282,7 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     String action,
   ) {
     if (generation == _backendGeneration &&
-        identical(backend, ref.read(backendProvider))) {
+        ref.backendScopeOver(backend).isCurrent) {
       return;
     }
     throw StateError('The imaging host changed while $action.');

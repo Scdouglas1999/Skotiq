@@ -245,16 +245,8 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
 
     try {
       final profileId = ref.read(activeEquipmentProfileIdProvider);
-      final hostScience = authority.remoteHost?.science;
-      final coefficients = hostScience != null
-          ? await hostScience.computePhotometricTransform(
-              starMatches: starMatches,
-              filterName: filterName,
-              equipmentProfileId: profileId,
-            )
-          : ref
-              .read(photometricTransformServiceProvider)
-              .computeTransformCoefficients(
+      final (:coefficients, :refusal) =
+          await ref.read(photometricTransformsProvider).fit(
                 starMatches: starMatches,
                 filterName: filterName,
                 equipmentProfileId: profileId,
@@ -265,10 +257,7 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
         _computedCoefficients = coefficients;
         _isComputing = false;
         if (coefficients == null) {
-          final reason = authority.remoteHost != null
-              ? null
-              : ref.read(photometricTransformServiceProvider).lastRefusalReason;
-          _statusMessage = reason ??
+          _statusMessage = refusal ??
               'Failed to compute fit. Check that stars have sufficient '
                   'airmass and color index spread.';
         }

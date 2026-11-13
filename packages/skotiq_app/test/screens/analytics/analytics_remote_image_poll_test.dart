@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -33,20 +34,13 @@ DbCapturedImage _frame(String name) => DbCapturedImage(
 
 void main() {
   test(
-    'remote image polling suppresses duplicates and retains data through a blip',
+    'a linked client cuts a session\'s frames from the one polled table',
     () async {
       final backend = _MockNetworkBackend();
-      final first = _frame('first.fits');
-      final updated = _frame('updated.fits');
-      var calls = 0;
-      when(() => backend.getSessionImageRows(42)).thenAnswer((_) async {
-        calls++;
-        return switch (calls) {
-          1 || 2 => [first.toJson()],
-          3 => throw StateError('temporary host blip'),
-          _ => [updated.toJson()],
-        };
-      });
+      final other = _frame('other.fits').copyWith(id: 8, sessionId: const Value(9));
+      when(() => backend.getAllImageRows()).thenAnswer(
+        (_) async => [_frame('first.fits').toJson(), other.toJson()],
+      );
 
       final container = ProviderContainer(
         overrides: [
@@ -54,36 +48,20 @@ void main() {
           backendProvider.overrideWith(
             (ref) => _FixedBackendNotifier(ref, backend),
           ),
-          analyticsRemoteImagePollIntervalProvider.overrideWithValue(
-            const Duration(milliseconds: 5),
-          ),
         ],
       );
       addTearDown(container.dispose);
 
-      final states = <AsyncValue<List<DbCapturedImage>>>[];
-      final subscription = container.listen(
-        dbSessionImagesProvider(42),
-        (_, next) => states.add(next),
-        fireImmediately: true,
-      );
-      addTearDown(subscription.close);
+      final session = container.listen(dbSessionImagesProvider(42), (_, __) {});
+      final standalone = container.listen(standaloneImagesProvider, (_, __) {});
+      addTearDown(session.close);
+      addTearDown(standalone.close);
 
-      final deadline = DateTime.now().add(const Duration(seconds: 1));
-      while (calls < 4 && DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
-
-      expect(calls, greaterThanOrEqualTo(4));
-      expect(states.where((state) => state.hasError), isEmpty);
-      expect(
-        states
-            .map((state) => state.valueOrNull)
-            .whereType<List<DbCapturedImage>>()
-            .map((images) => images.single.fileName)
-            .toList(),
-        ['first.fits', 'updated.fits'],
-      );
+      final images = await container.read(dbSessionImagesProvider(42).future);
+      expect(images.map((image) => image.fileName), ['first.fits']);
+      expect(await container.read(standaloneImagesProvider.future), isEmpty);
+      verify(() => backend.getAllImageRows()).called(1);
+      verifyNever(() => backend.getSessionImageRows(any()));
     },
   );
 }

@@ -55,9 +55,6 @@ Widget _surface(NetworkBackend backend, {ValueChanged<bool?>? onResult}) {
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
-      skyAtlasRegionWriterProvider.overrideWithValue(
-        SkyAtlasRegionWriter.remote(backend),
-      ),
       allDbTargetsProvider.overrideWith((ref) => Stream.value(const [])),
     ],
     child: MaterialApp(

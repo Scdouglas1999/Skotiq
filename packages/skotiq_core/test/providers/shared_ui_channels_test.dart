@@ -360,14 +360,14 @@ void main() {
       () async {
         final host = _host();
         addTearDown(host.container.dispose);
-        applyHostLocalSyncEvent(host.container, imaging('ExposureStarted', {'duration_secs': 8.0, 'frame_type': 'light'}));
+        followHostCameraExposure(host.container, imaging('ExposureStarted', {'duration_secs': 8.0, 'frame_type': 'light'}));
         expect(host.container.read(cameraStateProvider).isExposing, isTrue);
         expect(host.container.read(exposureProgressProvider).remaining, 8.0);
 
-        applyHostLocalSyncEvent(host.container, imaging('ExposureProgress', {'progress': 0.5, 'remainingSecs': 4.0}));
+        followHostCameraExposure(host.container, imaging('ExposureProgress', {'progress': 0.5, 'remainingSecs': 4.0}));
         expect(host.container.read(exposureProgressProvider).remaining, 4.0);
 
-        applyHostLocalSyncEvent(host.container, imaging('ExposureComplete', const {}));
+        followHostCameraExposure(host.container, imaging('ExposureComplete', const {}));
         expect(host.container.read(cameraStateProvider).isExposing, isFalse);
         expect(
           host.container.read(exposureProgressProvider),
@@ -385,8 +385,8 @@ void main() {
           .read(exposureProgressProvider.notifier)
           .startExposure(30, 4, null);
 
-      applyHostLocalSyncEvent(host.container, imaging('ExposureStarted', {'duration_secs': 1.0, 'frame_type': 'light'}));
-      applyHostLocalSyncEvent(host.container, imaging('ExposureComplete', const {}));
+      followHostCameraExposure(host.container, imaging('ExposureStarted', {'duration_secs': 1.0, 'frame_type': 'light'}));
+      followHostCameraExposure(host.container, imaging('ExposureComplete', const {}));
 
       expect(host.container.read(cameraStateProvider).isExposing, isTrue);
       expect(host.container.read(exposureProgressProvider).remaining, 30.0);
