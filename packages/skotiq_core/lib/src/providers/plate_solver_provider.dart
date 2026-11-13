@@ -9,12 +9,32 @@ import 'settings_provider.dart';
 import 'logging_service_provider.dart';
 import 'plate_solve_service_provider.dart';
 
+/// The imaging host's plate solvers: what it found on its disk and what its
+/// operator chose. Either is null until it has been read.
+typedef PlateSolverSetup = ({
+  PlateSolverDetection? detection,
+  PlateSolverPreference? preference,
+});
+
+/// The host's solvers as a linked client was last told them by the host
+/// (the plate-solver channel, or the host's answer to this client's own
+/// rescan or save); null on the host itself and with a host from before the
+/// channel, whose solvers are read on request.
+final hostPlateSolverSetupProvider = StateProvider<PlateSolverSetup?>((ref) {
+  ref.watch(backendProvider);
+  return null;
+});
+
 /// Detection snapshot for the Plate Solving settings page. Re-runs the
 /// filesystem probe + ASTAP catalog scan via `PlateSolveService.detect()`
 /// whenever invalidated (after the user picks a new path or hits "Re-scan").
 final plateSolverDetectionProvider =
     FutureProvider.autoDispose<PlateSolverDetection>((ref) async {
       ref.watch(backendProvider);
+      final told = ref.watch(
+        hostPlateSolverSetupProvider.select((setup) => setup?.detection),
+      );
+      if (told != null) return told;
       final service = ref.watch(plateSolveServiceProvider);
       return service.detect();
     });
@@ -24,9 +44,22 @@ final plateSolverDetectionProvider =
 final plateSolverPreferenceProvider =
     FutureProvider.autoDispose<PlateSolverPreference>((ref) async {
       ref.watch(backendProvider);
+      final told = ref.watch(
+        hostPlateSolverSetupProvider.select((setup) => setup?.preference),
+      );
+      if (told != null) return told;
       final service = ref.watch(plateSolveServiceProvider);
       return service.getConfig();
     });
+
+/// The solvers as this process has them, which the host shares with its
+/// linked clients.
+final plateSolverSetupShownProvider = Provider.autoDispose<PlateSolverSetup>(
+  (ref) => (
+    detection: ref.watch(plateSolverDetectionProvider).valueOrNull,
+    preference: ref.watch(plateSolverPreferenceProvider).valueOrNull,
+  ),
+);
 
 /// Whether the solver the operator selected can solve right now: false when
 /// it is missing, null while detection or the preference is still loading or
@@ -133,10 +166,22 @@ class PlateSolverSettingsNotifier
     final generation = _authorityGeneration;
     state = state.copyWith(rescanning: true);
     try {
-      ref.invalidate(plateSolverDetectionProvider);
-      // The `await` here ensures any test driver can observe the new detect
-      // result before returning. Production callers can fire-and-forget.
-      await ref.read(plateSolverDetectionProvider.future);
+      final told = ref.read(hostPlateSolverSetupProvider);
+      if (told != null) {
+        // The host detects again and tells every linked client; this one
+        // shows the host's answer at once.
+        final detection = await _service.detect();
+        if (!_isCurrent(generation)) return false;
+        ref.read(hostPlateSolverSetupProvider.notifier).state = (
+          detection: detection,
+          preference: told.preference,
+        );
+      } else {
+        ref.invalidate(plateSolverDetectionProvider);
+        // The `await` here ensures any test driver can observe the new detect
+        // result before returning. Production callers can fire-and-forget.
+        await ref.read(plateSolverDetectionProvider.future);
+      }
       if (!_isCurrent(generation)) return false;
       state = state.copyWith(rescanning: false);
       return true;
@@ -187,6 +232,15 @@ class PlateSolverSettingsNotifier
             );
       }
       if (!_isCurrent(generation)) return false;
+      // A linked host tells its clients the saved preference and what it
+      // finds with it; until then this client shows what it saved.
+      final told = ref.read(hostPlateSolverSetupProvider);
+      if (told != null) {
+        ref.read(hostPlateSolverSetupProvider.notifier).state = (
+          detection: told.detection,
+          preference: next,
+        );
+      }
       ref.invalidate(plateSolverPreferenceProvider);
       ref.invalidate(plateSolverDetectionProvider);
       state = state.copyWith(savingPreference: false);
