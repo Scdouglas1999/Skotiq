@@ -12,6 +12,8 @@ import '../../../services/imaging_service.dart' show ImagingService;
 import '../../clock_provider.dart';
 import '../../equipment_provider.dart';
 import '../../imaging_provider.dart' show namingPatternProvider;
+import '../../scheduler_provider.dart' show altitudeFloorProvider;
+import '../../../services/scheduler/horizon_profile.dart' show HorizonProfile;
 import '../../profiles_provider.dart' show activeEquipmentProfileProvider;
 import '../../frame_watch_settings_provider.dart';
 import '../../focuser_backlash_provider.dart'
@@ -97,6 +99,14 @@ class SequenceSerializer {
         session: _sentAt ?? _ref.read(clockProvider).nowUtc(),
       ),
     );
+  }
+
+  /// The site's horizon as a scheduler mask when it is the altitude floor
+  /// (`altitudeFloorProvider`), else null.
+  HorizonProfile? _siteHorizonMask() {
+    final floor = _ref.read(altitudeFloorProvider);
+    if (!floor.followsHorizon) return null;
+    return floor.horizon!.toSchedulerProfile();
   }
 
   /// The run's native tree. With [deferShutdownWarmUp], the Warm Camera
@@ -781,15 +791,16 @@ class SequenceSerializer {
           'swap_hysteresis_secs': n.swapHysteresisSecs,
           'brightness_tier_preferences': n.brightnessTierPreferences.toJson(),
           'max_conditions_score_age_secs': n.maxConditionsScoreAgeSecs,
-          // Azimuth-dependent site-horizon mask. The Rust `horizon_profile`
-          // config takes the samples-only shape; null => no mask (flat floor).
-          'horizon_profile': n.horizonProfile == null
-              ? null
-              : {
-                  'samples': n.horizonProfile!.samples
-                      .map((s) => s.toJson())
-                      .toList(),
-                },
+          // Azimuth-dependent horizon mask: the node's own, else the site's
+          // when its horizon is the altitude floor. The Rust
+          // `horizon_profile` config takes the samples-only shape; null => no
+          // mask (flat floor).
+          'horizon_profile': switch (n.horizonProfile ?? _siteHorizonMask()) {
+            null => null,
+            final mask => {
+              'samples': mask.samples.map((s) => s.toJson()).toList(),
+            },
+          },
         };
       // Science: SciencePhotometry — cadence-enforced photometric capture.
       case SciencePhotometryNode n:

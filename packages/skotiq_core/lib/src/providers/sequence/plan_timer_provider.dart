@@ -5,12 +5,13 @@ import '../../services/sequence_time_estimator.dart';
 import '../sequence_provider.dart' show currentSequenceProvider;
 import '../settings_provider.dart'
     show appObserverLocationProvider, appSettingsProvider;
+import '../scheduler_provider.dart' show altitudeFloorProvider;
 import 'plan_run_end.dart';
 import 'sequencer_defaults.dart' show sequencerOverheadConfigProvider;
 
 /// The [PlanTimer] for this rig's settings: the Sequencer's overhead model,
 /// the site, "Park before dawn", the autofocus cadence the executor adds and
-/// the horizon.
+/// the site's altitude floor.
 final planTimerProvider = Provider<PlanTimer>((ref) {
   final site = ref.watch(appObserverLocationProvider);
   final s = ref.watch(
@@ -20,7 +21,6 @@ final planTimerProvider = Provider<PlanTimer>((ref) {
         parkBeforeDawn: settings?.parkBeforeDawn ?? true,
         autoFocusOnFilterChange: settings?.autoFocusOnFilterChange ?? false,
         autoFocusEveryMinutes: settings?.autoFocusEveryMinutes ?? 0,
-        horizon: settings?.effectiveHorizonDeg ?? 20.0,
       );
     }),
   );
@@ -39,7 +39,9 @@ final planTimerProvider = Provider<PlanTimer>((ref) {
     ),
     autoFocusOnFilterChange: s.autoFocusOnFilterChange,
     autoFocusEveryMinutes: s.autoFocusEveryMinutes,
-    minAltitude: s.horizon,
+    // The estimator holds one number for the night: the lowest the floor
+    // goes, so no target is timed out for a direction it may not be in.
+    minAltitude: ref.watch(altitudeFloorProvider).lowestDeg,
   );
 });
 

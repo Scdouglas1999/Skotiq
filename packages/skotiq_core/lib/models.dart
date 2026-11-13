@@ -137,6 +137,7 @@ export 'src/models/sequence/run_stop_classification.dart';
 export 'src/models/site/bortle_scale.dart';
 export 'src/models/site/location_settings.dart';
 export 'src/models/site/site_horizon_profile.dart';
+export 'src/models/site/altitude_floor.dart';
 export 'src/models/equipment_profile_model.dart';
 export 'src/models/sequencer/host_scheduled_start.dart';
 export 'src/models/backend/host_mutation_event.dart';

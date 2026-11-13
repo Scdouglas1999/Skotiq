@@ -103,17 +103,15 @@ final runDashboardSkyStatsProvider = Provider<RunDashboardSkyStats?>((ref) {
     timeToTransit = transit.difference(now);
   }
 
-  // The same effectiveHorizonDeg is consumed by the planetarium altitude
-  // card via `effectiveHorizonDegProvider`, so this stat matches the
-  // planetarium's "Time to set" exactly.
-  final horizonDeg = ref.watch(effectiveHorizonDegProvider);
-  final timeToSet = AstronomyCalculations.timeUntilBelow(
+  // The site's altitude floor, the one every time-to-set reads.
+  final floor = ref.watch(altitudeFloorProvider);
+  final horizonDeg = floor.atAzimuth(azimuth);
+  final timeToSet = floor.timeUntilBelow(
     raDeg: target.raHours * 15.0,
     decDeg: target.decDegrees,
     now: now,
     latitudeDeg: location.latitude,
     longitudeDeg: location.longitude,
-    horizonDeg: horizonDeg,
   );
 
   return RunDashboardSkyStats(

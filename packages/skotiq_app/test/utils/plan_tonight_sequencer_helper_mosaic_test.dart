@@ -86,7 +86,9 @@ void main() {
             (ref) => _SeededFramingNotifier(ref, framingState),
           ),
           smartNightExposureContextProvider.overrideWith((ref) async => null),
-          siteMinimumAltitudeDegProvider.overrideWithValue(25),
+          altitudeFloorProvider.overrideWithValue(
+            const AltitudeFloor(horizon: null, minimumDeg: 25),
+          ),
         ],
         child: MaterialApp(
           home: Consumer(builder: (context, ref, _) {

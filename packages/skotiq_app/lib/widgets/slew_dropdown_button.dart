@@ -143,8 +143,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             label: visibleLabel,
             icon: widget.icon ?? LucideIcons.move,
             variant: widget.variant,
-            onPressed:
-                enabled ? () => _handleSlewMode(mainMode) : null,
+            onPressed: enabled ? () => _handleSlewMode(mainMode) : null,
           ),
         ),
         const SizedBox(width: 4),
@@ -404,18 +403,17 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
 
     // Same alt/az model the scheduler uses to decide what is worth imaging, so
     // the slew gate and the planner never disagree about where a target is.
-    final (altitudeDeg, azimuthDeg) =
-        AstronomyCalculations.objectAltAz(
-              raDeg: widget.ra * 15.0,
-              decDeg: widget.dec,
-              dt: DateTime.now().toUtc(),
-              latitudeDeg: site.latitude,
-              longitudeDeg: site.longitude,
-            );
+    final (altitudeDeg, azimuthDeg) = AstronomyCalculations.objectAltAz(
+      raDeg: widget.ra * 15.0,
+      decDeg: widget.dec,
+      dt: DateTime.now().toUtc(),
+      latitudeDeg: site.latitude,
+      longitudeDeg: site.longitude,
+    );
 
-    // Settings → Location → effective horizon. 0° (the mathematical horizon)
-    // is the default and the floor: a site cannot opt out of the ground.
-    final floorDeg = ref.read(effectiveHorizonDegProvider);
+    // The site's altitude floor toward the target; a site cannot opt out of
+    // the ground.
+    final floorDeg = ref.read(altitudeFloorProvider).atAzimuth(azimuthDeg);
     if (altitudeDeg >= 0 && altitudeDeg >= floorDeg) return true;
     if (!mounted) return false;
 
@@ -440,9 +438,10 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       context: context,
       title: 'Target is below your horizon limit',
       message: '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
-          'horizon ($where), under the ${floorDeg.toStringAsFixed(0)}° '
-          'effective horizon set in Settings → Location. It may be behind '
-          'trees or a roof, and it will be looking through a lot of air.',
+          'horizon ($where), under the site\'s ${floorDeg.toStringAsFixed(0)}° '
+          '${ref.read(altitudeFloorProvider).followsHorizon ? 'horizon there (Settings → Location)' : 'minimum altitude'}. '
+          'It may be behind trees or a roof, and it will be looking through '
+          'a lot of air.',
       confirmLabel: 'Slew anyway',
     );
   }
@@ -478,7 +477,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return false;
     } catch (e) {
       if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showErrorSnackBar('Could not check the plate solver: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not check the plate solver: ${userFacingError(e)}');
       }
       return false;
     }

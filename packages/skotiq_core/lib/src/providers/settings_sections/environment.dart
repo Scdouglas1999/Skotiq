@@ -4,7 +4,7 @@
 // push paths used when something goes wrong.
 //
 // Owns:
-//   * bortleClass, horizonProfileJson, effectiveHorizonDeg
+//   * bortleClass, horizonProfileJson
 //   * audibleAlertsOnCritical, criticalAlertSound, pushCriticalAlerts
 //   * observerName (FITS `OBSERVER` keyword)
 //
@@ -21,13 +21,6 @@ extension EnvironmentSettingsSection on AppSettingsNotifier {
 
   Future<void> setHorizonProfileJson(String value) =>
       _set(AppSettingDefs.horizonProfileJson, value);
-
-  /// Set the effective horizon used by Run Dashboard, scheduler, and
-  /// planetarium for time-to-set calculations. Clamped to [0, 60] degrees
-  /// because anything above 60 makes most of the sky unreachable and is
-  /// almost certainly a typo rather than an intentional value.
-  Future<void> setEffectiveHorizonDeg(double value) =>
-      _set(AppSettingDefs.effectiveHorizonDeg, value);
 
   Future<void> setAudibleAlertsOnCritical(bool value) =>
       _set(AppSettingDefs.audibleAlertsOnCritical, value);

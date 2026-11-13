@@ -184,7 +184,9 @@ ProviderContainer planContainer({
         site ? (night ?? bostonNight()) : null,
       ),
       appObserverLocationProvider.overrideWithValue(site ? boston : null),
-      effectiveHorizonDegProvider.overrideWithValue(30),
+      altitudeFloorProvider.overrideWithValue(
+        const AltitudeFloor(horizon: null, minimumDeg: 30),
+      ),
       sequencerOverheadConfigProvider.overrideWithValue(
         SequenceTimeEstimator.defaultEstimatorOverhead,
       ),
