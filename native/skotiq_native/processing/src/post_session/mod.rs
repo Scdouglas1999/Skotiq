@@ -28,7 +28,7 @@
 
 use crate::post_session::report::{report, PassReport};
 
-pub use helpers::{calibrate_with_flat_state, load_optional_flat, FlatMaster};
+pub use helpers::LightCalibration;
 
 mod args;
 mod calibration_master;
@@ -40,6 +40,8 @@ pub(crate) mod delivery;
 pub mod entrypoints;
 pub(crate) mod helpers;
 mod integrate;
+#[cfg(test)]
+mod light_calibration_tests;
 mod master_cards;
 pub(crate) mod masters;
 mod multi_night;

@@ -12,10 +12,9 @@ use crate::post_session::calibration_report::build_calibration_report;
 use crate::post_session::cancel::{check_stage, RUNS};
 use crate::post_session::helpers::{
     aligned_quality, build_integration_config, build_master_header, build_normalization_config,
-    build_registration_config, build_weight_formula, calibrate_with_flat_state, choose_reference,
-    collect_master_provenance, derive_luma_f64, exposures_per_light, extract_channel,
-    header_string, image_to_f64, load_optional_flat, load_optional_master, reference_wcs_from_fits,
-    write_channel,
+    build_registration_config, build_weight_formula, choose_reference, collect_master_provenance,
+    derive_luma_f64, exposures_per_light, extract_channel, header_string, image_to_f64,
+    reference_wcs_from_fits, write_channel, LightCalibration,
 };
 use crate::post_session::telemetry::{
     elapsed_ms, emit_pass_telemetry, file_name, master_noise, report_normalized, RunningPreview,
@@ -59,9 +58,11 @@ pub(crate) fn run_integration(
     let run_id = args.run_id.clone();
 
     // Load calibration masters once (shared across all lights).
-    let dark = load_optional_master(&args.calibration.dark, "dark")?;
-    let flat = load_optional_flat(&args.calibration.flat)?;
-    let bias = load_optional_master(&args.calibration.bias, "bias")?;
+    let masters = LightCalibration::load(
+        &args.calibration.dark,
+        &args.calibration.flat,
+        &args.calibration.bias,
+    )?;
 
     // What the masters above actually are, measured against the group's anchor
     // sub — the same first-sub anchor the Dart matcher selects on.
@@ -76,9 +77,9 @@ pub(crate) fn run_integration(
             "names": args.light_paths.iter().map(|p| file_name(p)).collect::<Vec<_>>(),
             "exposures": exposures,
             "calibration": {
-                "dark": dark.is_some(),
-                "flat": flat.is_some(),
-                "bias": bias.is_some(),
+                "dark": masters.dark.is_some(),
+                "flat": masters.flat.is_some(),
+                "bias": masters.bias.is_some(),
                 "cosmetic": args.calibration.cosmetic_correction,
             },
         }),
@@ -105,8 +106,9 @@ pub(crate) fn run_integration(
                 image.pixel_type
             ));
         }
-        if dark.is_some() || flat.is_some() || bias.is_some() {
-            image = calibrate_with_flat_state(&image, dark.as_ref(), flat.as_ref(), bias.as_ref())
+        if !masters.is_empty() {
+            image = masters
+                .apply(&image)
                 .map_err(|e| format!("calibration of '{path}' failed: {e}"))?;
         }
         if args.calibration.cosmetic_correction {

@@ -1911,17 +1911,10 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
     encode_preview_jpeg(&preview, max_size)
 }
 
-/// Calibrate an image file using dark, flat, and/or bias calibration frames.
-///
-/// Loads the light frame and any provided calibration frames from disk,
-/// applies the calibration pipeline, and saves the result to `output_path`.
-///
-/// The calibration order is:
-/// 1. Subtract bias from dark and flat (if bias provided)
-/// 2. Subtract dark from light
-/// 3. Divide light by normalized flat
-///
-/// Any calibration frame path can be empty/None to skip that correction.
+/// Calibrate a light frame file with the masters at the given paths
+/// ([`LightCalibration`](skotiq_processing::post_session::LightCalibration))
+/// and write the result to `output_path`. An absent or empty master path
+/// skips that correction.
 pub fn api_calibrate_image_file(
     light_path: String,
     dark_path: Option<String>,
@@ -1929,46 +1922,15 @@ pub fn api_calibrate_image_file(
     bias_path: Option<String>,
     output_path: String,
 ) -> Result<(), SkotiqError> {
-    use skotiq_imaging::read_image;
     use std::path::Path;
 
-    let light_result = read_image(Path::new(&light_path)).map_err(|e| {
+    let light_result = skotiq_imaging::read_image(Path::new(&light_path)).map_err(|e| {
         SkotiqError::ImageError(format!(
             "Failed to read light frame '{}': {}",
             light_path, e
         ))
     })?;
-
-    let dark = match &dark_path {
-        Some(p) if !p.is_empty() => {
-            let result = read_image(Path::new(p)).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to read dark frame '{}': {}", p, e))
-            })?;
-            Some(result.image)
-        }
-        _ => None,
-    };
-
-    let flat = skotiq_processing::post_session::load_optional_flat(&flat_path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read flat frame: {e}")))?;
-
-    let bias = match &bias_path {
-        Some(p) if !p.is_empty() => {
-            let result = read_image(Path::new(p)).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to read bias frame '{}': {}", p, e))
-            })?;
-            Some(result.image)
-        }
-        _ => None,
-    };
-
-    let calibrated = skotiq_processing::post_session::calibrate_with_flat_state(
-        &light_result.image,
-        dark.as_ref(),
-        flat.as_ref(),
-        bias.as_ref(),
-    )
-    .map_err(|e| SkotiqError::ImageError(format!("Calibration failed: {}", e)))?;
+    let calibrated = calibrate_light(&light_result.image, &dark_path, &flat_path, &bias_path)?;
 
     // A raster name gets a raster; any other name the frame format it names,
     // carrying the light's header with its card order and comments.
@@ -2019,36 +1981,38 @@ pub fn api_calibrate_image_file(
     Ok(())
 }
 
-/// Calibrate raw pixel data in memory (u16).
-///
-/// Takes pixel data directly rather than file paths. Returns calibrated pixel data.
-/// All frames must have the same dimensions and be single-channel u16.
-#[flutter_rust_bridge::frb(sync)]
+/// Calibrate a single-plane u16 light in memory with the masters at the
+/// given paths, by the same rule as [`api_calibrate_image_file`].
 pub fn api_calibrate_image_data(
     width: u32,
     height: u32,
     light_data: Vec<u16>,
-    dark_data: Option<Vec<u16>>,
-    flat_data: Option<Vec<u16>>,
-    bias_data: Option<Vec<u16>>,
+    dark_path: Option<String>,
+    flat_path: Option<String>,
+    bias_path: Option<String>,
 ) -> Result<Vec<u16>, SkotiqError> {
-    use skotiq_imaging::{calibration, ImageData};
-
     let light = ImageData::from_u16(width, height, 1, &light_data);
+    calibrate_light(&light, &dark_path, &flat_path, &bias_path)?
+        .as_u16()
+        .ok_or_else(|| {
+            SkotiqError::ImageError(
+                "Failed to extract u16 pixel data from calibrated image".to_string(),
+            )
+        })
+}
 
-    let dark = dark_data.map(|d| ImageData::from_u16(width, height, 1, &d));
-    let flat = flat_data.map(|f| ImageData::from_u16(width, height, 1, &f));
-    let bias = bias_data.map(|b| ImageData::from_u16(width, height, 1, &b));
-
-    let calibrated =
-        calibration::calibrate_frame(&light, dark.as_ref(), flat.as_ref(), bias.as_ref())
-            .map_err(|e| SkotiqError::ImageError(format!("Calibration failed: {}", e)))?;
-
-    calibrated.as_u16().ok_or_else(|| {
-        SkotiqError::ImageError(
-            "Failed to extract u16 pixel data from calibrated image".to_string(),
-        )
-    })
+fn calibrate_light(
+    light: &ImageData,
+    dark_path: &Option<String>,
+    flat_path: &Option<String>,
+    bias_path: &Option<String>,
+) -> Result<ImageData, SkotiqError> {
+    let masters =
+        skotiq_processing::post_session::LightCalibration::load(dark_path, flat_path, bias_path)
+            .map_err(SkotiqError::ImageError)?;
+    masters
+        .apply(light)
+        .map_err(|e| SkotiqError::ImageError(format!("Calibration failed: {}", e)))
 }
 
 // Live stacking API
@@ -2650,6 +2614,9 @@ mod auto_stretch_color_tests;
 
 #[cfg(test)]
 mod calibrate_header_carry_over_tests;
+
+#[cfg(test)]
+mod calibrate_rule_tests;
 
 #[cfg(test)]
 mod fits_thumbnail_tests;
