@@ -134,7 +134,12 @@ class GuidingHandlers implements RouteSource {
     // configured, matching the desktop Equipment → Guider connect path.
     // Raw backend.phd2Connect skips _ensurePhd2Running on the desktop.
     final deviceService = container.read(deviceServiceProvider);
-    await deviceService.connect(DeviceType.guider, kPhd2CanonicalId, host: host, port: port);
+    await deviceService.connect(
+      DeviceType.guider,
+      kPhd2CanonicalId,
+      host: host,
+      port: port,
+    );
 
     // Linked clients read GET /api/guider/status right after POST connect.
     // Block until PHD2 answers so we do not return success early.

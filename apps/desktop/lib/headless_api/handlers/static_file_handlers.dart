@@ -120,7 +120,7 @@ class StaticFileHandlers implements RouteSource {
 
   /// The release of this host, which the dashboard page reads from
   /// `js/release.js` and names in its requests ([LinkVersion]).
-  final String release;
+  final String Function() release;
 
   StaticFileHandlers({required this.logger, required this.release});
 
@@ -187,7 +187,7 @@ class StaticFileHandlers implements RouteSource {
     }
     if (normalized == 'js/release.js') {
       return contentResponse(
-        utf8.encode('const SKOTIQ_RELEASE = ${jsonEncode(release)};\n'),
+        utf8.encode('const SKOTIQ_RELEASE = ${jsonEncode(release())};\n'),
         contentType: _mimeTypes['.js']!,
         headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
       );

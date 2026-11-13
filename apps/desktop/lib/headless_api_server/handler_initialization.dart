@@ -18,7 +18,7 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
 
     final staticFiles = StaticFileHandlers(
       logger: logger,
-      release: container.read(appVersionProvider).version,
+      release: () => container.read(appVersionProvider).version,
     );
 
     _equipmentHandlers = EquipmentHandlers(container);

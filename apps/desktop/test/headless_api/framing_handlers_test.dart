@@ -194,42 +194,44 @@ void main() {
       return jobs.get(jobId)!;
     }
 
-    test('a centering that gives up ends the job failed, with its attempts',
-        () async {
-      final job = await runCenteringJob(
-        CenteringResult(
-          success: false,
-          iterations: 5,
-          errorMessage: 'Plate solve failed after 5 attempts: No solution '
-              'found for this frame.',
-          iterationHistory: [
-            for (var n = 1; n <= 5; n++)
-              CenteringIteration(
-                iterationNumber: n,
-                plateSolveSuccess: false,
-                errorMessage: 'No solution found for this frame.',
-                timestamp: DateTime.utc(2026, 11, 11),
-              ),
-          ],
-        ),
-      );
-
-      expect(job.state, JobState.failed);
-      expect(job.result, isNull);
-      expect(job.error!['code'], 'centering_failed');
-      expect(
-        job.error!['message'],
-        'Plate solve failed after 5 attempts: No solution found for this '
-        'frame.',
-      );
-      final details = job.error!['details'] as Map;
-      expect(details['success'], isFalse);
-      expect(details['iterations'], 5);
-      expect(details['iterationHistory'], hasLength(5));
-    });
-
     test(
-        "a center request without settings of its own runs the host's manual "
+      'a centering that gives up ends the job failed, with its attempts',
+      () async {
+        final job = await runCenteringJob(
+          CenteringResult(
+            success: false,
+            iterations: 5,
+            errorMessage:
+                'Plate solve failed after 5 attempts: No solution '
+                'found for this frame.',
+            iterationHistory: [
+              for (var n = 1; n <= 5; n++)
+                CenteringIteration(
+                  iterationNumber: n,
+                  plateSolveSuccess: false,
+                  errorMessage: 'No solution found for this frame.',
+                  timestamp: DateTime.utc(2026, 11, 11),
+                ),
+            ],
+          ),
+        );
+
+        expect(job.state, JobState.failed);
+        expect(job.result, isNull);
+        expect(job.error!['code'], 'centering_failed');
+        expect(
+          job.error!['message'],
+          'Plate solve failed after 5 attempts: No solution found for this '
+          'frame.',
+        );
+        final details = job.error!['details'] as Map;
+        expect(details['success'], isFalse);
+        expect(details['iterations'], 5);
+        expect(details['iterationHistory'], hasLength(5));
+      },
+    );
+
+    test("a center request without settings of its own runs the host's manual "
         'centering', () async {
       CenteringConfig? ranWith;
       PlateSolverConfig? solvedWith;
@@ -299,8 +301,7 @@ class _CenteringEndingWith extends CenteringService {
   _CenteringEndingWith(super.ref, this.outcome, {this.onRun});
 
   final CenteringResult outcome;
-  final void Function(CenteringConfig config, PlateSolverConfig solver)?
-      onRun;
+  final void Function(CenteringConfig config, PlateSolverConfig solver)? onRun;
 
   @override
   Future<CenteringResult> centerOnTarget({

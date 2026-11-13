@@ -111,7 +111,9 @@ void main() {
     container
         .read(currentSequenceProvider.notifier)
         .loadSequence(_plan('Running plan'));
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     final response = await handlers.handleSequencerPutEditorSequence(
       _put({'sequence': files.sequenceToMap(_plan('Client plan'))}),
