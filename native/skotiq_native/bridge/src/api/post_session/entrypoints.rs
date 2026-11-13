@@ -1,5 +1,3 @@
-use crate::api::post_session::publish_pass_reports;
-
 /// One-shot batch integration of a sub list into a linear FITS master.
 ///
 /// Pipeline: optional calibration (dark/flat/bias) + cosmetic correction →
@@ -17,7 +15,6 @@ use crate::api::post_session::publish_pass_reports;
 /// encoding of a [`CancelledOutcome`] (`{"kind":"cancelled", …}`) and writes no
 /// master — cancellation is never reported as a partial success.
 pub fn api_integrate_session(args_json: String) -> Result<String, String> {
-    publish_pass_reports();
     skotiq_processing::post_session::entrypoints::integrate_session(args_json)
 }
 
@@ -46,7 +43,6 @@ pub fn api_integrate_session(args_json: String) -> Result<String, String> {
 /// [`api_integrate_session`] does: a cancelled fold returns the encoded
 /// [`CancelledOutcome`] and leaves the sidecar untouched.
 pub fn api_master_accumulate(args_json: String) -> Result<String, String> {
-    publish_pass_reports();
     skotiq_processing::post_session::entrypoints::master_accumulate(args_json)
 }
 

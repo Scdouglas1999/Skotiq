@@ -16,6 +16,7 @@ pub fn api_init_with_logging(log_directory: Option<String>) -> Result<(), Skotiq
     tracing::info!("Skotiq Native API initialized");
 
     let _ = get_state();
+    crate::api::post_session::publish_pass_reports();
 
     // Start OS device-change notifications after state/runtime initialization
     // so hotplug messages can invalidate discovery caches and fan out through
