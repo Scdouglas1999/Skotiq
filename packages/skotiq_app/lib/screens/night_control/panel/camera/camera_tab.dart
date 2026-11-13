@@ -38,10 +38,11 @@ class NightCameraTab extends ConsumerWidget {
           type: DeviceType.filterWheel,
           deviceId: ref.watch(filterWheelStateProvider).deviceId,
         ),
-        NightCoolerSection(
-          vm: vm,
-          history: ref.watch(nightCoolerHistoryProvider),
-        ),
+        if (ref.watch(cameraHasCoolerProvider))
+          NightCoolerSection(
+            vm: vm,
+            history: ref.watch(nightCoolerHistoryProvider),
+          ),
         NightCaptureSection(vm: vm),
         NightFilterSection(vm: vm),
         NightReadoutSection(vm: vm),

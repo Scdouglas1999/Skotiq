@@ -42,8 +42,14 @@ class SessionChartsRow extends ConsumerWidget {
     final density = NightControlDensity.maybeOf(context);
     final height = density?.chartRowHeight ?? NightControlLayout.chartRowHeight;
     final before = nightIsBeforeRun(ref.watch(nightRunPhaseProvider));
+    // A camera without a cooler (a DSLR, most guide cameras) has no
+    // cooling card.
     final cells = before
-        ? const <Widget>[_FocusCard(), _GuiderIdleCard(), _CoolingCard()]
+        ? <Widget>[
+            const _FocusCard(),
+            const _GuiderIdleCard(),
+            if (ref.watch(cameraHasCoolerProvider)) const _CoolingCard(),
+          ]
         : const <Widget>[_HfrChart(), _GuideChart(), _TemperatureChart()];
 
     // In a single column the page scrolls, so the cards stack at full width.
