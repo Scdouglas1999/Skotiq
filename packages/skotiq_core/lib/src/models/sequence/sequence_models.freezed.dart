@@ -15,17 +15,14 @@ T _$identity<T>(T value) => value;
 mixin _$SequenceOverheadConfig {
 
 /// Time for a slew operation (seconds)
- double get slewSecs;/// Time for an autofocus run (seconds)
- double get autofocusSecs;/// Time for a filter wheel change (seconds)
+ double get slewSecs;/// Time for a filter wheel change (seconds)
  double get filterChangeSecs;/// Time for a dither + settle cycle (seconds)
  double get ditherSecs;/// Time for a meridian flip including re-centering (seconds)
  double get meridianFlipSecs;/// Time for guide acquisition and settle (seconds)
  double get guideAcquireSecs;/// Time for a plate solve (seconds)
  double get plateSolveSecs;/// Time for camera cool-down (seconds)
- double get coolingSecs;/// Time for camera warm-up (seconds)
- double get warmingSecs;/// Per-exposure download overhead (seconds)
- double get downloadOverheadPerExposureSecs;/// Time for cover calibrator open/close (seconds)
- double get coverMoveSecs;/// Time for center target operation (plate solve + slew iterations) (seconds)
+ double get coolingSecs;/// Per-exposure download overhead (seconds)
+ double get downloadOverheadPerExposureSecs;/// Time for center target operation (plate solve + slew iterations) (seconds)
  double get centerTargetSecs;
 /// Create a copy of SequenceOverheadConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -37,16 +34,16 @@ $SequenceOverheadConfigCopyWith<SequenceOverheadConfig> get copyWith => _$Sequen
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequenceOverheadConfig&&(identical(other.slewSecs, slewSecs) || other.slewSecs == slewSecs)&&(identical(other.autofocusSecs, autofocusSecs) || other.autofocusSecs == autofocusSecs)&&(identical(other.filterChangeSecs, filterChangeSecs) || other.filterChangeSecs == filterChangeSecs)&&(identical(other.ditherSecs, ditherSecs) || other.ditherSecs == ditherSecs)&&(identical(other.meridianFlipSecs, meridianFlipSecs) || other.meridianFlipSecs == meridianFlipSecs)&&(identical(other.guideAcquireSecs, guideAcquireSecs) || other.guideAcquireSecs == guideAcquireSecs)&&(identical(other.plateSolveSecs, plateSolveSecs) || other.plateSolveSecs == plateSolveSecs)&&(identical(other.coolingSecs, coolingSecs) || other.coolingSecs == coolingSecs)&&(identical(other.warmingSecs, warmingSecs) || other.warmingSecs == warmingSecs)&&(identical(other.downloadOverheadPerExposureSecs, downloadOverheadPerExposureSecs) || other.downloadOverheadPerExposureSecs == downloadOverheadPerExposureSecs)&&(identical(other.coverMoveSecs, coverMoveSecs) || other.coverMoveSecs == coverMoveSecs)&&(identical(other.centerTargetSecs, centerTargetSecs) || other.centerTargetSecs == centerTargetSecs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequenceOverheadConfig&&(identical(other.slewSecs, slewSecs) || other.slewSecs == slewSecs)&&(identical(other.filterChangeSecs, filterChangeSecs) || other.filterChangeSecs == filterChangeSecs)&&(identical(other.ditherSecs, ditherSecs) || other.ditherSecs == ditherSecs)&&(identical(other.meridianFlipSecs, meridianFlipSecs) || other.meridianFlipSecs == meridianFlipSecs)&&(identical(other.guideAcquireSecs, guideAcquireSecs) || other.guideAcquireSecs == guideAcquireSecs)&&(identical(other.plateSolveSecs, plateSolveSecs) || other.plateSolveSecs == plateSolveSecs)&&(identical(other.coolingSecs, coolingSecs) || other.coolingSecs == coolingSecs)&&(identical(other.downloadOverheadPerExposureSecs, downloadOverheadPerExposureSecs) || other.downloadOverheadPerExposureSecs == downloadOverheadPerExposureSecs)&&(identical(other.centerTargetSecs, centerTargetSecs) || other.centerTargetSecs == centerTargetSecs));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,slewSecs,autofocusSecs,filterChangeSecs,ditherSecs,meridianFlipSecs,guideAcquireSecs,plateSolveSecs,coolingSecs,warmingSecs,downloadOverheadPerExposureSecs,coverMoveSecs,centerTargetSecs);
+int get hashCode => Object.hash(runtimeType,slewSecs,filterChangeSecs,ditherSecs,meridianFlipSecs,guideAcquireSecs,plateSolveSecs,coolingSecs,downloadOverheadPerExposureSecs,centerTargetSecs);
 
 @override
 String toString() {
-  return 'SequenceOverheadConfig(slewSecs: $slewSecs, autofocusSecs: $autofocusSecs, filterChangeSecs: $filterChangeSecs, ditherSecs: $ditherSecs, meridianFlipSecs: $meridianFlipSecs, guideAcquireSecs: $guideAcquireSecs, plateSolveSecs: $plateSolveSecs, coolingSecs: $coolingSecs, warmingSecs: $warmingSecs, downloadOverheadPerExposureSecs: $downloadOverheadPerExposureSecs, coverMoveSecs: $coverMoveSecs, centerTargetSecs: $centerTargetSecs)';
+  return 'SequenceOverheadConfig(slewSecs: $slewSecs, filterChangeSecs: $filterChangeSecs, ditherSecs: $ditherSecs, meridianFlipSecs: $meridianFlipSecs, guideAcquireSecs: $guideAcquireSecs, plateSolveSecs: $plateSolveSecs, coolingSecs: $coolingSecs, downloadOverheadPerExposureSecs: $downloadOverheadPerExposureSecs, centerTargetSecs: $centerTargetSecs)';
 }
 
 
@@ -57,7 +54,7 @@ abstract mixin class $SequenceOverheadConfigCopyWith<$Res>  {
   factory $SequenceOverheadConfigCopyWith(SequenceOverheadConfig value, $Res Function(SequenceOverheadConfig) _then) = _$SequenceOverheadConfigCopyWithImpl;
 @useResult
 $Res call({
- double slewSecs, double autofocusSecs, double filterChangeSecs, double ditherSecs, double meridianFlipSecs, double guideAcquireSecs, double plateSolveSecs, double coolingSecs, double warmingSecs, double downloadOverheadPerExposureSecs, double coverMoveSecs, double centerTargetSecs
+ double slewSecs, double filterChangeSecs, double ditherSecs, double meridianFlipSecs, double guideAcquireSecs, double plateSolveSecs, double coolingSecs, double downloadOverheadPerExposureSecs, double centerTargetSecs
 });
 
 
@@ -74,19 +71,16 @@ class _$SequenceOverheadConfigCopyWithImpl<$Res>
 
 /// Create a copy of SequenceOverheadConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? slewSecs = null,Object? autofocusSecs = null,Object? filterChangeSecs = null,Object? ditherSecs = null,Object? meridianFlipSecs = null,Object? guideAcquireSecs = null,Object? plateSolveSecs = null,Object? coolingSecs = null,Object? warmingSecs = null,Object? downloadOverheadPerExposureSecs = null,Object? coverMoveSecs = null,Object? centerTargetSecs = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? slewSecs = null,Object? filterChangeSecs = null,Object? ditherSecs = null,Object? meridianFlipSecs = null,Object? guideAcquireSecs = null,Object? plateSolveSecs = null,Object? coolingSecs = null,Object? downloadOverheadPerExposureSecs = null,Object? centerTargetSecs = null,}) {
   return _then(_self.copyWith(
 slewSecs: null == slewSecs ? _self.slewSecs : slewSecs // ignore: cast_nullable_to_non_nullable
-as double,autofocusSecs: null == autofocusSecs ? _self.autofocusSecs : autofocusSecs // ignore: cast_nullable_to_non_nullable
 as double,filterChangeSecs: null == filterChangeSecs ? _self.filterChangeSecs : filterChangeSecs // ignore: cast_nullable_to_non_nullable
 as double,ditherSecs: null == ditherSecs ? _self.ditherSecs : ditherSecs // ignore: cast_nullable_to_non_nullable
 as double,meridianFlipSecs: null == meridianFlipSecs ? _self.meridianFlipSecs : meridianFlipSecs // ignore: cast_nullable_to_non_nullable
 as double,guideAcquireSecs: null == guideAcquireSecs ? _self.guideAcquireSecs : guideAcquireSecs // ignore: cast_nullable_to_non_nullable
 as double,plateSolveSecs: null == plateSolveSecs ? _self.plateSolveSecs : plateSolveSecs // ignore: cast_nullable_to_non_nullable
 as double,coolingSecs: null == coolingSecs ? _self.coolingSecs : coolingSecs // ignore: cast_nullable_to_non_nullable
-as double,warmingSecs: null == warmingSecs ? _self.warmingSecs : warmingSecs // ignore: cast_nullable_to_non_nullable
 as double,downloadOverheadPerExposureSecs: null == downloadOverheadPerExposureSecs ? _self.downloadOverheadPerExposureSecs : downloadOverheadPerExposureSecs // ignore: cast_nullable_to_non_nullable
-as double,coverMoveSecs: null == coverMoveSecs ? _self.coverMoveSecs : coverMoveSecs // ignore: cast_nullable_to_non_nullable
 as double,centerTargetSecs: null == centerTargetSecs ? _self.centerTargetSecs : centerTargetSecs // ignore: cast_nullable_to_non_nullable
 as double,
   ));
@@ -173,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double slewSecs,  double autofocusSecs,  double filterChangeSecs,  double ditherSecs,  double meridianFlipSecs,  double guideAcquireSecs,  double plateSolveSecs,  double coolingSecs,  double warmingSecs,  double downloadOverheadPerExposureSecs,  double coverMoveSecs,  double centerTargetSecs)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double slewSecs,  double filterChangeSecs,  double ditherSecs,  double meridianFlipSecs,  double guideAcquireSecs,  double plateSolveSecs,  double coolingSecs,  double downloadOverheadPerExposureSecs,  double centerTargetSecs)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SequenceOverheadConfig() when $default != null:
-return $default(_that.slewSecs,_that.autofocusSecs,_that.filterChangeSecs,_that.ditherSecs,_that.meridianFlipSecs,_that.guideAcquireSecs,_that.plateSolveSecs,_that.coolingSecs,_that.warmingSecs,_that.downloadOverheadPerExposureSecs,_that.coverMoveSecs,_that.centerTargetSecs);case _:
+return $default(_that.slewSecs,_that.filterChangeSecs,_that.ditherSecs,_that.meridianFlipSecs,_that.guideAcquireSecs,_that.plateSolveSecs,_that.coolingSecs,_that.downloadOverheadPerExposureSecs,_that.centerTargetSecs);case _:
   return orElse();
 
 }
@@ -194,10 +188,10 @@ return $default(_that.slewSecs,_that.autofocusSecs,_that.filterChangeSecs,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double slewSecs,  double autofocusSecs,  double filterChangeSecs,  double ditherSecs,  double meridianFlipSecs,  double guideAcquireSecs,  double plateSolveSecs,  double coolingSecs,  double warmingSecs,  double downloadOverheadPerExposureSecs,  double coverMoveSecs,  double centerTargetSecs)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double slewSecs,  double filterChangeSecs,  double ditherSecs,  double meridianFlipSecs,  double guideAcquireSecs,  double plateSolveSecs,  double coolingSecs,  double downloadOverheadPerExposureSecs,  double centerTargetSecs)  $default,) {final _that = this;
 switch (_that) {
 case _SequenceOverheadConfig():
-return $default(_that.slewSecs,_that.autofocusSecs,_that.filterChangeSecs,_that.ditherSecs,_that.meridianFlipSecs,_that.guideAcquireSecs,_that.plateSolveSecs,_that.coolingSecs,_that.warmingSecs,_that.downloadOverheadPerExposureSecs,_that.coverMoveSecs,_that.centerTargetSecs);case _:
+return $default(_that.slewSecs,_that.filterChangeSecs,_that.ditherSecs,_that.meridianFlipSecs,_that.guideAcquireSecs,_that.plateSolveSecs,_that.coolingSecs,_that.downloadOverheadPerExposureSecs,_that.centerTargetSecs);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -214,10 +208,10 @@ return $default(_that.slewSecs,_that.autofocusSecs,_that.filterChangeSecs,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double slewSecs,  double autofocusSecs,  double filterChangeSecs,  double ditherSecs,  double meridianFlipSecs,  double guideAcquireSecs,  double plateSolveSecs,  double coolingSecs,  double warmingSecs,  double downloadOverheadPerExposureSecs,  double coverMoveSecs,  double centerTargetSecs)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double slewSecs,  double filterChangeSecs,  double ditherSecs,  double meridianFlipSecs,  double guideAcquireSecs,  double plateSolveSecs,  double coolingSecs,  double downloadOverheadPerExposureSecs,  double centerTargetSecs)?  $default,) {final _that = this;
 switch (_that) {
 case _SequenceOverheadConfig() when $default != null:
-return $default(_that.slewSecs,_that.autofocusSecs,_that.filterChangeSecs,_that.ditherSecs,_that.meridianFlipSecs,_that.guideAcquireSecs,_that.plateSolveSecs,_that.coolingSecs,_that.warmingSecs,_that.downloadOverheadPerExposureSecs,_that.coverMoveSecs,_that.centerTargetSecs);case _:
+return $default(_that.slewSecs,_that.filterChangeSecs,_that.ditherSecs,_that.meridianFlipSecs,_that.guideAcquireSecs,_that.plateSolveSecs,_that.coolingSecs,_that.downloadOverheadPerExposureSecs,_that.centerTargetSecs);case _:
   return null;
 
 }
@@ -229,13 +223,11 @@ return $default(_that.slewSecs,_that.autofocusSecs,_that.filterChangeSecs,_that.
 
 
 class _SequenceOverheadConfig implements SequenceOverheadConfig {
-  const _SequenceOverheadConfig({this.slewSecs = 30.0, this.autofocusSecs = 180.0, this.filterChangeSecs = 10.0, this.ditherSecs = 15.0, this.meridianFlipSecs = 300.0, this.guideAcquireSecs = 30.0, this.plateSolveSecs = 15.0, this.coolingSecs = 600.0, this.warmingSecs = 300.0, this.downloadOverheadPerExposureSecs = 3.0, this.coverMoveSecs = 30.0, this.centerTargetSecs = 45.0});
+  const _SequenceOverheadConfig({this.slewSecs = 30.0, this.filterChangeSecs = 10.0, this.ditherSecs = 15.0, this.meridianFlipSecs = 300.0, this.guideAcquireSecs = 30.0, this.plateSolveSecs = 15.0, this.coolingSecs = 600.0, this.downloadOverheadPerExposureSecs = 3.0, this.centerTargetSecs = 45.0});
   
 
 /// Time for a slew operation (seconds)
 @override@JsonKey() final  double slewSecs;
-/// Time for an autofocus run (seconds)
-@override@JsonKey() final  double autofocusSecs;
 /// Time for a filter wheel change (seconds)
 @override@JsonKey() final  double filterChangeSecs;
 /// Time for a dither + settle cycle (seconds)
@@ -248,12 +240,8 @@ class _SequenceOverheadConfig implements SequenceOverheadConfig {
 @override@JsonKey() final  double plateSolveSecs;
 /// Time for camera cool-down (seconds)
 @override@JsonKey() final  double coolingSecs;
-/// Time for camera warm-up (seconds)
-@override@JsonKey() final  double warmingSecs;
 /// Per-exposure download overhead (seconds)
 @override@JsonKey() final  double downloadOverheadPerExposureSecs;
-/// Time for cover calibrator open/close (seconds)
-@override@JsonKey() final  double coverMoveSecs;
 /// Time for center target operation (plate solve + slew iterations) (seconds)
 @override@JsonKey() final  double centerTargetSecs;
 
@@ -267,16 +255,16 @@ _$SequenceOverheadConfigCopyWith<_SequenceOverheadConfig> get copyWith => __$Seq
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SequenceOverheadConfig&&(identical(other.slewSecs, slewSecs) || other.slewSecs == slewSecs)&&(identical(other.autofocusSecs, autofocusSecs) || other.autofocusSecs == autofocusSecs)&&(identical(other.filterChangeSecs, filterChangeSecs) || other.filterChangeSecs == filterChangeSecs)&&(identical(other.ditherSecs, ditherSecs) || other.ditherSecs == ditherSecs)&&(identical(other.meridianFlipSecs, meridianFlipSecs) || other.meridianFlipSecs == meridianFlipSecs)&&(identical(other.guideAcquireSecs, guideAcquireSecs) || other.guideAcquireSecs == guideAcquireSecs)&&(identical(other.plateSolveSecs, plateSolveSecs) || other.plateSolveSecs == plateSolveSecs)&&(identical(other.coolingSecs, coolingSecs) || other.coolingSecs == coolingSecs)&&(identical(other.warmingSecs, warmingSecs) || other.warmingSecs == warmingSecs)&&(identical(other.downloadOverheadPerExposureSecs, downloadOverheadPerExposureSecs) || other.downloadOverheadPerExposureSecs == downloadOverheadPerExposureSecs)&&(identical(other.coverMoveSecs, coverMoveSecs) || other.coverMoveSecs == coverMoveSecs)&&(identical(other.centerTargetSecs, centerTargetSecs) || other.centerTargetSecs == centerTargetSecs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SequenceOverheadConfig&&(identical(other.slewSecs, slewSecs) || other.slewSecs == slewSecs)&&(identical(other.filterChangeSecs, filterChangeSecs) || other.filterChangeSecs == filterChangeSecs)&&(identical(other.ditherSecs, ditherSecs) || other.ditherSecs == ditherSecs)&&(identical(other.meridianFlipSecs, meridianFlipSecs) || other.meridianFlipSecs == meridianFlipSecs)&&(identical(other.guideAcquireSecs, guideAcquireSecs) || other.guideAcquireSecs == guideAcquireSecs)&&(identical(other.plateSolveSecs, plateSolveSecs) || other.plateSolveSecs == plateSolveSecs)&&(identical(other.coolingSecs, coolingSecs) || other.coolingSecs == coolingSecs)&&(identical(other.downloadOverheadPerExposureSecs, downloadOverheadPerExposureSecs) || other.downloadOverheadPerExposureSecs == downloadOverheadPerExposureSecs)&&(identical(other.centerTargetSecs, centerTargetSecs) || other.centerTargetSecs == centerTargetSecs));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,slewSecs,autofocusSecs,filterChangeSecs,ditherSecs,meridianFlipSecs,guideAcquireSecs,plateSolveSecs,coolingSecs,warmingSecs,downloadOverheadPerExposureSecs,coverMoveSecs,centerTargetSecs);
+int get hashCode => Object.hash(runtimeType,slewSecs,filterChangeSecs,ditherSecs,meridianFlipSecs,guideAcquireSecs,plateSolveSecs,coolingSecs,downloadOverheadPerExposureSecs,centerTargetSecs);
 
 @override
 String toString() {
-  return 'SequenceOverheadConfig(slewSecs: $slewSecs, autofocusSecs: $autofocusSecs, filterChangeSecs: $filterChangeSecs, ditherSecs: $ditherSecs, meridianFlipSecs: $meridianFlipSecs, guideAcquireSecs: $guideAcquireSecs, plateSolveSecs: $plateSolveSecs, coolingSecs: $coolingSecs, warmingSecs: $warmingSecs, downloadOverheadPerExposureSecs: $downloadOverheadPerExposureSecs, coverMoveSecs: $coverMoveSecs, centerTargetSecs: $centerTargetSecs)';
+  return 'SequenceOverheadConfig(slewSecs: $slewSecs, filterChangeSecs: $filterChangeSecs, ditherSecs: $ditherSecs, meridianFlipSecs: $meridianFlipSecs, guideAcquireSecs: $guideAcquireSecs, plateSolveSecs: $plateSolveSecs, coolingSecs: $coolingSecs, downloadOverheadPerExposureSecs: $downloadOverheadPerExposureSecs, centerTargetSecs: $centerTargetSecs)';
 }
 
 
@@ -287,7 +275,7 @@ abstract mixin class _$SequenceOverheadConfigCopyWith<$Res> implements $Sequence
   factory _$SequenceOverheadConfigCopyWith(_SequenceOverheadConfig value, $Res Function(_SequenceOverheadConfig) _then) = __$SequenceOverheadConfigCopyWithImpl;
 @override @useResult
 $Res call({
- double slewSecs, double autofocusSecs, double filterChangeSecs, double ditherSecs, double meridianFlipSecs, double guideAcquireSecs, double plateSolveSecs, double coolingSecs, double warmingSecs, double downloadOverheadPerExposureSecs, double coverMoveSecs, double centerTargetSecs
+ double slewSecs, double filterChangeSecs, double ditherSecs, double meridianFlipSecs, double guideAcquireSecs, double plateSolveSecs, double coolingSecs, double downloadOverheadPerExposureSecs, double centerTargetSecs
 });
 
 
@@ -304,19 +292,16 @@ class __$SequenceOverheadConfigCopyWithImpl<$Res>
 
 /// Create a copy of SequenceOverheadConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? slewSecs = null,Object? autofocusSecs = null,Object? filterChangeSecs = null,Object? ditherSecs = null,Object? meridianFlipSecs = null,Object? guideAcquireSecs = null,Object? plateSolveSecs = null,Object? coolingSecs = null,Object? warmingSecs = null,Object? downloadOverheadPerExposureSecs = null,Object? coverMoveSecs = null,Object? centerTargetSecs = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? slewSecs = null,Object? filterChangeSecs = null,Object? ditherSecs = null,Object? meridianFlipSecs = null,Object? guideAcquireSecs = null,Object? plateSolveSecs = null,Object? coolingSecs = null,Object? downloadOverheadPerExposureSecs = null,Object? centerTargetSecs = null,}) {
   return _then(_SequenceOverheadConfig(
 slewSecs: null == slewSecs ? _self.slewSecs : slewSecs // ignore: cast_nullable_to_non_nullable
-as double,autofocusSecs: null == autofocusSecs ? _self.autofocusSecs : autofocusSecs // ignore: cast_nullable_to_non_nullable
 as double,filterChangeSecs: null == filterChangeSecs ? _self.filterChangeSecs : filterChangeSecs // ignore: cast_nullable_to_non_nullable
 as double,ditherSecs: null == ditherSecs ? _self.ditherSecs : ditherSecs // ignore: cast_nullable_to_non_nullable
 as double,meridianFlipSecs: null == meridianFlipSecs ? _self.meridianFlipSecs : meridianFlipSecs // ignore: cast_nullable_to_non_nullable
 as double,guideAcquireSecs: null == guideAcquireSecs ? _self.guideAcquireSecs : guideAcquireSecs // ignore: cast_nullable_to_non_nullable
 as double,plateSolveSecs: null == plateSolveSecs ? _self.plateSolveSecs : plateSolveSecs // ignore: cast_nullable_to_non_nullable
 as double,coolingSecs: null == coolingSecs ? _self.coolingSecs : coolingSecs // ignore: cast_nullable_to_non_nullable
-as double,warmingSecs: null == warmingSecs ? _self.warmingSecs : warmingSecs // ignore: cast_nullable_to_non_nullable
 as double,downloadOverheadPerExposureSecs: null == downloadOverheadPerExposureSecs ? _self.downloadOverheadPerExposureSecs : downloadOverheadPerExposureSecs // ignore: cast_nullable_to_non_nullable
-as double,coverMoveSecs: null == coverMoveSecs ? _self.coverMoveSecs : coverMoveSecs // ignore: cast_nullable_to_non_nullable
 as double,centerTargetSecs: null == centerTargetSecs ? _self.centerTargetSecs : centerTargetSecs // ignore: cast_nullable_to_non_nullable
 as double,
   ));
@@ -329,8 +314,7 @@ as double,
 mixin _$SequenceEstimate {
 
 /// Estimated total integration time in seconds (pure shutter-open time)
- double get estimatedSecs;/// Estimated total overhead time in seconds (slews, AF, dithers, etc.)
- double get overheadSecs;/// Time for a single iteration (useful for unbounded loops)
+ double get estimatedSecs;/// Time for a single iteration (useful for unbounded loops)
  double get singleIterationSecs;/// Whether the sequence contains unbounded loops (forever, whileDark, etc.)
  bool get isUnbounded;/// For untilTime loops, the target end time
  DateTime? get untilTime;/// For unbounded loops, the condition type
@@ -345,16 +329,16 @@ $SequenceEstimateCopyWith<SequenceEstimate> get copyWith => _$SequenceEstimateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequenceEstimate&&(identical(other.estimatedSecs, estimatedSecs) || other.estimatedSecs == estimatedSecs)&&(identical(other.overheadSecs, overheadSecs) || other.overheadSecs == overheadSecs)&&(identical(other.singleIterationSecs, singleIterationSecs) || other.singleIterationSecs == singleIterationSecs)&&(identical(other.isUnbounded, isUnbounded) || other.isUnbounded == isUnbounded)&&(identical(other.untilTime, untilTime) || other.untilTime == untilTime)&&(identical(other.conditionType, conditionType) || other.conditionType == conditionType));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequenceEstimate&&(identical(other.estimatedSecs, estimatedSecs) || other.estimatedSecs == estimatedSecs)&&(identical(other.singleIterationSecs, singleIterationSecs) || other.singleIterationSecs == singleIterationSecs)&&(identical(other.isUnbounded, isUnbounded) || other.isUnbounded == isUnbounded)&&(identical(other.untilTime, untilTime) || other.untilTime == untilTime)&&(identical(other.conditionType, conditionType) || other.conditionType == conditionType));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,estimatedSecs,overheadSecs,singleIterationSecs,isUnbounded,untilTime,conditionType);
+int get hashCode => Object.hash(runtimeType,estimatedSecs,singleIterationSecs,isUnbounded,untilTime,conditionType);
 
 @override
 String toString() {
-  return 'SequenceEstimate(estimatedSecs: $estimatedSecs, overheadSecs: $overheadSecs, singleIterationSecs: $singleIterationSecs, isUnbounded: $isUnbounded, untilTime: $untilTime, conditionType: $conditionType)';
+  return 'SequenceEstimate(estimatedSecs: $estimatedSecs, singleIterationSecs: $singleIterationSecs, isUnbounded: $isUnbounded, untilTime: $untilTime, conditionType: $conditionType)';
 }
 
 
@@ -365,7 +349,7 @@ abstract mixin class $SequenceEstimateCopyWith<$Res>  {
   factory $SequenceEstimateCopyWith(SequenceEstimate value, $Res Function(SequenceEstimate) _then) = _$SequenceEstimateCopyWithImpl;
 @useResult
 $Res call({
- double estimatedSecs, double overheadSecs, double singleIterationSecs, bool isUnbounded, DateTime? untilTime, LoopConditionType? conditionType
+ double estimatedSecs, double singleIterationSecs, bool isUnbounded, DateTime? untilTime, LoopConditionType? conditionType
 });
 
 
@@ -382,10 +366,9 @@ class _$SequenceEstimateCopyWithImpl<$Res>
 
 /// Create a copy of SequenceEstimate
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? estimatedSecs = null,Object? overheadSecs = null,Object? singleIterationSecs = null,Object? isUnbounded = null,Object? untilTime = freezed,Object? conditionType = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? estimatedSecs = null,Object? singleIterationSecs = null,Object? isUnbounded = null,Object? untilTime = freezed,Object? conditionType = freezed,}) {
   return _then(_self.copyWith(
 estimatedSecs: null == estimatedSecs ? _self.estimatedSecs : estimatedSecs // ignore: cast_nullable_to_non_nullable
-as double,overheadSecs: null == overheadSecs ? _self.overheadSecs : overheadSecs // ignore: cast_nullable_to_non_nullable
 as double,singleIterationSecs: null == singleIterationSecs ? _self.singleIterationSecs : singleIterationSecs // ignore: cast_nullable_to_non_nullable
 as double,isUnbounded: null == isUnbounded ? _self.isUnbounded : isUnbounded // ignore: cast_nullable_to_non_nullable
 as bool,untilTime: freezed == untilTime ? _self.untilTime : untilTime // ignore: cast_nullable_to_non_nullable
@@ -475,10 +458,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double estimatedSecs,  double overheadSecs,  double singleIterationSecs,  bool isUnbounded,  DateTime? untilTime,  LoopConditionType? conditionType)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double estimatedSecs,  double singleIterationSecs,  bool isUnbounded,  DateTime? untilTime,  LoopConditionType? conditionType)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SequenceEstimate() when $default != null:
-return $default(_that.estimatedSecs,_that.overheadSecs,_that.singleIterationSecs,_that.isUnbounded,_that.untilTime,_that.conditionType);case _:
+return $default(_that.estimatedSecs,_that.singleIterationSecs,_that.isUnbounded,_that.untilTime,_that.conditionType);case _:
   return orElse();
 
 }
@@ -496,10 +479,10 @@ return $default(_that.estimatedSecs,_that.overheadSecs,_that.singleIterationSecs
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double estimatedSecs,  double overheadSecs,  double singleIterationSecs,  bool isUnbounded,  DateTime? untilTime,  LoopConditionType? conditionType)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double estimatedSecs,  double singleIterationSecs,  bool isUnbounded,  DateTime? untilTime,  LoopConditionType? conditionType)  $default,) {final _that = this;
 switch (_that) {
 case _SequenceEstimate():
-return $default(_that.estimatedSecs,_that.overheadSecs,_that.singleIterationSecs,_that.isUnbounded,_that.untilTime,_that.conditionType);case _:
+return $default(_that.estimatedSecs,_that.singleIterationSecs,_that.isUnbounded,_that.untilTime,_that.conditionType);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -516,10 +499,10 @@ return $default(_that.estimatedSecs,_that.overheadSecs,_that.singleIterationSecs
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double estimatedSecs,  double overheadSecs,  double singleIterationSecs,  bool isUnbounded,  DateTime? untilTime,  LoopConditionType? conditionType)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double estimatedSecs,  double singleIterationSecs,  bool isUnbounded,  DateTime? untilTime,  LoopConditionType? conditionType)?  $default,) {final _that = this;
 switch (_that) {
 case _SequenceEstimate() when $default != null:
-return $default(_that.estimatedSecs,_that.overheadSecs,_that.singleIterationSecs,_that.isUnbounded,_that.untilTime,_that.conditionType);case _:
+return $default(_that.estimatedSecs,_that.singleIterationSecs,_that.isUnbounded,_that.untilTime,_that.conditionType);case _:
   return null;
 
 }
@@ -531,13 +514,11 @@ return $default(_that.estimatedSecs,_that.overheadSecs,_that.singleIterationSecs
 
 
 class _SequenceEstimate extends SequenceEstimate {
-  const _SequenceEstimate({required this.estimatedSecs, this.overheadSecs = 0.0, required this.singleIterationSecs, required this.isUnbounded, this.untilTime, this.conditionType}): super._();
+  const _SequenceEstimate({required this.estimatedSecs, required this.singleIterationSecs, required this.isUnbounded, this.untilTime, this.conditionType}): super._();
   
 
 /// Estimated total integration time in seconds (pure shutter-open time)
 @override final  double estimatedSecs;
-/// Estimated total overhead time in seconds (slews, AF, dithers, etc.)
-@override@JsonKey() final  double overheadSecs;
 /// Time for a single iteration (useful for unbounded loops)
 @override final  double singleIterationSecs;
 /// Whether the sequence contains unbounded loops (forever, whileDark, etc.)
@@ -557,16 +538,16 @@ _$SequenceEstimateCopyWith<_SequenceEstimate> get copyWith => __$SequenceEstimat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SequenceEstimate&&(identical(other.estimatedSecs, estimatedSecs) || other.estimatedSecs == estimatedSecs)&&(identical(other.overheadSecs, overheadSecs) || other.overheadSecs == overheadSecs)&&(identical(other.singleIterationSecs, singleIterationSecs) || other.singleIterationSecs == singleIterationSecs)&&(identical(other.isUnbounded, isUnbounded) || other.isUnbounded == isUnbounded)&&(identical(other.untilTime, untilTime) || other.untilTime == untilTime)&&(identical(other.conditionType, conditionType) || other.conditionType == conditionType));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SequenceEstimate&&(identical(other.estimatedSecs, estimatedSecs) || other.estimatedSecs == estimatedSecs)&&(identical(other.singleIterationSecs, singleIterationSecs) || other.singleIterationSecs == singleIterationSecs)&&(identical(other.isUnbounded, isUnbounded) || other.isUnbounded == isUnbounded)&&(identical(other.untilTime, untilTime) || other.untilTime == untilTime)&&(identical(other.conditionType, conditionType) || other.conditionType == conditionType));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,estimatedSecs,overheadSecs,singleIterationSecs,isUnbounded,untilTime,conditionType);
+int get hashCode => Object.hash(runtimeType,estimatedSecs,singleIterationSecs,isUnbounded,untilTime,conditionType);
 
 @override
 String toString() {
-  return 'SequenceEstimate(estimatedSecs: $estimatedSecs, overheadSecs: $overheadSecs, singleIterationSecs: $singleIterationSecs, isUnbounded: $isUnbounded, untilTime: $untilTime, conditionType: $conditionType)';
+  return 'SequenceEstimate(estimatedSecs: $estimatedSecs, singleIterationSecs: $singleIterationSecs, isUnbounded: $isUnbounded, untilTime: $untilTime, conditionType: $conditionType)';
 }
 
 
@@ -577,7 +558,7 @@ abstract mixin class _$SequenceEstimateCopyWith<$Res> implements $SequenceEstima
   factory _$SequenceEstimateCopyWith(_SequenceEstimate value, $Res Function(_SequenceEstimate) _then) = __$SequenceEstimateCopyWithImpl;
 @override @useResult
 $Res call({
- double estimatedSecs, double overheadSecs, double singleIterationSecs, bool isUnbounded, DateTime? untilTime, LoopConditionType? conditionType
+ double estimatedSecs, double singleIterationSecs, bool isUnbounded, DateTime? untilTime, LoopConditionType? conditionType
 });
 
 
@@ -594,10 +575,9 @@ class __$SequenceEstimateCopyWithImpl<$Res>
 
 /// Create a copy of SequenceEstimate
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? estimatedSecs = null,Object? overheadSecs = null,Object? singleIterationSecs = null,Object? isUnbounded = null,Object? untilTime = freezed,Object? conditionType = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? estimatedSecs = null,Object? singleIterationSecs = null,Object? isUnbounded = null,Object? untilTime = freezed,Object? conditionType = freezed,}) {
   return _then(_SequenceEstimate(
 estimatedSecs: null == estimatedSecs ? _self.estimatedSecs : estimatedSecs // ignore: cast_nullable_to_non_nullable
-as double,overheadSecs: null == overheadSecs ? _self.overheadSecs : overheadSecs // ignore: cast_nullable_to_non_nullable
 as double,singleIterationSecs: null == singleIterationSecs ? _self.singleIterationSecs : singleIterationSecs // ignore: cast_nullable_to_non_nullable
 as double,isUnbounded: null == isUnbounded ? _self.isUnbounded : isUnbounded // ignore: cast_nullable_to_non_nullable
 as bool,untilTime: freezed == untilTime ? _self.untilTime : untilTime // ignore: cast_nullable_to_non_nullable
