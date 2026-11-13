@@ -20,6 +20,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../utils/darkroom_navigation.dart';
 import '../../widgets/astro_image_viewer.dart';
+import '../../utils/snackbar_helper.dart';
 
 part 'stack_result_screen_parts/_export_seams.dart';
 part 'stack_result_screen_parts/_support_widgets.dart';
@@ -729,11 +730,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
         stampPersistedResult: stampPersistedResult,
       );
       if (!mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'Exported ${p.basename(written)}',
-        severity: SkotiqAlertSeverity.success,
-      );
+      context.showSuccessSnackBar('Exported ${p.basename(written)}');
 
       // The share card always hands the written file to the OS share sheet. On
       // Android/iOS so must PNG/JPEG: there is no save dialog on those
@@ -751,11 +748,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
           await share(written, text: result.targetName ?? 'Stacked result');
         } catch (e) {
           if (!mounted) return;
-          SkotiqToastHelper.show(
-            context: context,
-            message: 'Saved, but sharing failed.',
-            severity: SkotiqAlertSeverity.warning,
-          );
+          context.showWarningSnackBar('Saved, but sharing failed.');
         }
       }
     } catch (e) {
@@ -856,11 +849,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
         text: 'AstroBin acquisition details: ${result.targetName ?? ''}',
       );
       if (!mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'AstroBin sidecar exported',
-        severity: SkotiqAlertSeverity.success,
-      );
+      context.showSuccessSnackBar('AstroBin sidecar exported');
     } catch (e) {
       if (!mounted) return;
       await ErrorDialog.show(

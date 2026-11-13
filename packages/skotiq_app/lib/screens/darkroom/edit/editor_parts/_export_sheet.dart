@@ -1246,11 +1246,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       if (!mounted) return;
       _settle(() => _result = _describeReply(reply, outputPath));
       if (!context.mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'Exported ${p.basename(outputPath)}',
-        severity: SkotiqAlertSeverity.success,
-      );
+      context.showSuccessSnackBar('Exported ${p.basename(outputPath)}');
       // The reveal/share is a hand-off to the OS AFTER the file is written and
       // the success above is already recorded. It gets its OWN try: on a
       // platform whose share sheet throws — some desktop and headless targets
@@ -1274,11 +1270,9 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
           stackTrace: revealStack,
         );
         if (mounted) {
-          SkotiqToastHelper.show(
-            context: context,
-            message: 'Exported ${p.basename(outputPath)}, but it could not be '
-                'revealed or shared on this device.',
-            severity: SkotiqAlertSeverity.warning,
+          context.showWarningSnackBar(
+            'Exported ${p.basename(outputPath)}, but it could not be '
+            'revealed or shared on this device.',
           );
         }
       }
