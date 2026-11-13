@@ -1416,7 +1416,7 @@ class DawnAutopilotService {
       await _recipes.updateSteps(
         id,
         stepsJson,
-        schemaVersion: kRecipeSchemaVersion,
+        schemaVersion: recipeSchemaVersion,
         now: now,
       );
       await _recipes.rename(id, name, now: now);
@@ -1432,7 +1432,7 @@ class DawnAutopilotService {
       stepsJson: stepsJson,
       createdBy: RecipeAuthor.autopilot,
       draftNotes: _recipeNotes(draftNotes),
-      schemaVersion: kRecipeSchemaVersion,
+      schemaVersion: recipeSchemaVersion,
       createdAt: now,
     );
   }

@@ -1216,11 +1216,11 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       });
 
       final reply = await darkroom.renderExport(
-        recipeJson: encodeDarkroomRecipe(
-          recipeId: widget.recipeId,
+        recipeJson: encodeRecipeEnvelope(
+          id: '${widget.recipeId}',
           baseMasterRef: widget.baseMasterPath,
           author: widget.author,
-          steps: widget.steps,
+          steps: [for (final step in widget.steps) step.toJson()],
         ),
         args: {
           'masterPath': widget.baseMasterPath,

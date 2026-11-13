@@ -744,7 +744,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         // the draft account beside it is what carries that one.
         createdBy: RecipeAuthor.user,
         draftNotes: draftNotes,
-        schemaVersion: kDarkroomRecipeSchemaVersion,
+        schemaVersion: recipeSchemaVersion,
       );
       if (!mounted) return;
       final created = await _recipes.getById(id);
@@ -899,13 +899,12 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       final reply = await _darkroom.validate(
         // No row exists yet, so the envelope carries the id the engine uses
         // only to name the recipe back in its own messages.
-        recipeJson: jsonEncode({
-          'id': 'darkroom-import',
-          'schemaVersion': kDarkroomRecipeSchemaVersion,
-          'baseMasterRef': masterPath,
-          'createdBy': RecipeAuthor.user.wire,
-          'steps': [for (final step in steps) step.toJson()],
-        }),
+        recipeJson: encodeRecipeEnvelope(
+          id: 'darkroom-import',
+          baseMasterRef: masterPath,
+          author: RecipeAuthor.user,
+          steps: [for (final step in steps) step.toJson()],
+        ),
         context: const <String, dynamic>{},
       );
       return decodeDarkroomValidation(reply);
@@ -1543,11 +1542,11 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
     if (recipeId == null) return null;
     try {
       final reply = await _darkroom.validate(
-        recipeJson: encodeDarkroomRecipe(
-          recipeId: recipeId,
+        recipeJson: encodeRecipeEnvelope(
+          id: '$recipeId',
           baseMasterRef: state.baseMasterPath,
           author: state.author,
-          steps: steps,
+          steps: [for (final step in steps) step.toJson()],
         ),
         context: const <String, dynamic>{},
       );
@@ -1657,11 +1656,11 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       omittedFromRender: List.unmodifiable(omitted),
     );
 
-    final recipeJson = encodeDarkroomRecipe(
-      recipeId: recipeId,
+    final recipeJson = encodeRecipeEnvelope(
+      id: '$recipeId',
       baseMasterRef: masterPath,
       author: state.author,
-      steps: asked,
+      steps: [for (final step in asked) step.toJson()],
     );
 
     try {
