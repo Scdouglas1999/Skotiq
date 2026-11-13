@@ -122,45 +122,6 @@ crate::load_vendor_sdk! {
     }
 }
 
-/// Full-scale ADU of the delivered pixel container for a Player One sensor of
-/// `bit_depth` bits read out as [`POAImgFormat::Raw16`].
-///
-/// `POACameraProperties.bit_depth` is the **ADC precision**, not the container:
-/// PlayerOneCamera.h documents the field as `int bitDepth; ///< ADC depth of
-/// CMOS sensor`. The delivered sample range is documented separately, on the
-/// output format itself:
-///
-/// ```text
-/// POA_RAW8 = 0,   ///< 8bit raw data, 1 pixel 1 byte, value range[0, 255]
-/// POA_RAW16,      ///< 16bit raw data, 1 pixel 2 bytes, value range[0, 65535]
-/// ```
-///
-/// — `SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/.../include/PlayerOneCamera.h:50-51`,
-/// repeated verbatim in Player One's own C# and Python bindings
-/// (`include/PlayerOneCameraDLL.cs:29-30`, `python/pyPOACamera.py:21-22`). The
-/// sibling entries in that enum (`POA_RGB24`/`POA_MONO8`, "value range[0, 255]")
-/// state literal sample ranges, so `[0, 65535]` is the RAW16 sample range and
-/// not merely the width of the word. Player One exposes no sub-16-bit two-byte
-/// format at all — `POAImgFormat` is only RAW8/RAW16/RGB24/MONO8 — so a 12-bit
-/// sensor's only 16-bit path is RAW16, and its samples fill the 16-bit range.
-///
-/// [`crate::vendor::zwo`] carries the same rule, confirmed against an ASI1600MM
-/// on the bench. This one rests on Player One's SDK documentation rather than a
-/// measured frame.
-///
-/// `bit_depth >= 16` needs no shift. `bit_depth == 0` (or a nonsensical value)
-/// means the SDK never populated the property; fall back to the container's own
-/// ceiling rather than underflowing to 0, which would report "this camera cannot
-/// produce any signal".
-pub(crate) fn raw16_container_max_adu(bit_depth: u32) -> u32 {
-    const CONTAINER_BITS: u32 = 16;
-    const CONTAINER_MAX: u32 = u16::MAX as u32;
-    if bit_depth == 0 || bit_depth >= CONTAINER_BITS {
-        return CONTAINER_MAX;
-    }
-    (((1u32 << bit_depth) - 1) << (CONTAINER_BITS - bit_depth)) & CONTAINER_MAX
-}
-
 /// Check POA error and convert to DriverError with detailed error messages
 pub(crate) fn check_poa_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     match code {

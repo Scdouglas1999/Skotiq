@@ -1,3 +1,4 @@
+import '../../models/imaging/session_status.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -740,7 +741,7 @@ class SequenceExecutor {
           'executor is "$state")',
           source: 'SequenceExecutor',
         );
-        await sessions.endSession(status: 'completed');
+        await sessions.endSession();
       }
       await sessions.startSession(
         targetName: label.name,
@@ -822,7 +823,7 @@ class SequenceExecutor {
     try {
       await _ref
           .read(sessionStateProvider.notifier)
-          .endSession(status: 'failed');
+          .endSession(status: SessionStatus.failed);
     } catch (e) {
       _logger.warning(
         'The start was refused and the session row opened for it could not '
@@ -1381,7 +1382,7 @@ class SequenceExecutor {
     try {
       await _ref
           .read(sessionStateProvider.notifier)
-          .endSession(status: f.runStatus.token);
+          .endSession(status: SessionStatus.endedBy(f.runStatus));
     } catch (e, st) {
       // endSession FAILED after a successful finishRun. Retain a retryable
       // cleanupFailed; a Stop retry re-runs ONLY endSession + the later steps

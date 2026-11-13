@@ -5,51 +5,6 @@
 
 use super::*;
 
-/// convert horizontal coordinates (altitude / azimuth in
-/// degrees) at the observer site to equatorial coordinates (RA in hours,
-/// Dec in degrees) referenced to the current epoch. Used by
-/// `RecoveryAction::SlewToGapAndContinue` to convert the cloud-motion
-/// analyzer's "clear sky direction" into a slew destination.
-///
-/// `latitude` is observer latitude in degrees (+N, -S). `longitude` is
-/// observer longitude in degrees (+E, -W).
-///
-/// References: Meeus, "Astronomical Algorithms", chapter 13 (horizontal
-/// to equatorial transform). Uses the same `julian_day` /
-/// `local_sidereal_time` primitives the rest of the crate uses so a
-/// future ephemeris swap covers every site.
-pub(crate) fn alt_az_to_ra_dec(
-    alt_deg: f64,
-    az_deg: f64,
-    latitude: f64,
-    longitude: f64,
-) -> (f64, f64) {
-    let alt_rad = alt_deg.to_radians();
-    let az_rad = az_deg.to_radians();
-    let lat_rad = latitude.to_radians();
-
-    // Inverse of the standard horizontal-to-equatorial transform:
-    //   sin(dec) = sin(alt) * sin(lat) + cos(alt) * cos(lat) * cos(az)
-    //   tan(H)   = sin(az) / (cos(az) * sin(lat) - tan(alt) * cos(lat))
-    let sin_dec = alt_rad.sin() * lat_rad.sin() + alt_rad.cos() * lat_rad.cos() * az_rad.cos();
-    let dec_rad = sin_dec.asin();
-
-    let y = -az_rad.sin();
-    let x = lat_rad.cos() * alt_rad.tan() - lat_rad.sin() * az_rad.cos();
-    let hour_angle_rad = y.atan2(x);
-    let hour_angle_hours = hour_angle_rad.to_degrees() / 15.0;
-
-    let now = chrono::Utc::now();
-    let jd = crate::meridian::julian_day(&now);
-    let lst_hours = crate::meridian::local_sidereal_time(jd, longitude);
-
-    // RA = LST - HA; normalise to [0, 24).
-    let mut ra_hours = lst_hours - hour_angle_hours;
-    ra_hours = ra_hours.rem_euclid(24.0);
-
-    (ra_hours, dec_rad.to_degrees())
-}
-
 /// The guide error, in guide-camera pixels, inside which guiding counts as
 /// settled after a reacquire. See [`crate::GuiderSettle::REACQUIRE`].
 pub(crate) const REACQUIRE_SETTLE_PIXELS: f64 = crate::GuiderSettle::REACQUIRE.pixels;
@@ -123,7 +78,14 @@ async fn recovery_displacement_arcmin(
         .get_or_insert_with(Default::default)
         .origin
         .get_or_insert(position);
-    Some(crate::slew_arrival::separation_deg(origin, position) * 60.0)
+    Some(
+        crate::scheduling::astronomy::angular_separation(
+            origin.0 * 15.0,
+            origin.1,
+            position.0 * 15.0,
+            position.1,
+        ) * 60.0,
+    )
 }
 
 /// Record a failed attempt, with where the mount pointed, for the run and

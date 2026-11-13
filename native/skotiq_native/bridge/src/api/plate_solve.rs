@@ -499,12 +499,9 @@ pub(crate) async fn gather_solve_hints_for_camera(camera_id: Option<&str>) -> So
     // it: the caller's own, then the profile's imaging camera, then the one
     // camera that is actually connected.
     //
-    // That last rung is not a nicety. `profile.camera_id` is unset on a rig
-    // whose devices were connected from the Equipment screen without being
-    // saved into the profile, and this function used to give up there — so on
-    // 2026-09-15 the owner's every solve was told "pixel pitch unknown" while
-    // the camera it was imaging through was reporting 3.8 um to every other
-    // caller in the app.
+    // That last rung matters: `profile.camera_id` is unset on a rig whose
+    // devices were connected from the Equipment screen without being saved
+    // into the profile, and the connected camera still knows its pixel pitch.
     //
     // Exactly one connected camera, though. Two means guessing which sensor
     // the frame came off, and the pitch of the WRONG sensor is a confidently
@@ -1583,6 +1580,7 @@ mod solve_hint_tests {
             sensor_type: None,
             color_filter: None,
             camera_file: None,
+            readout_mode: None,
         }
     }
 

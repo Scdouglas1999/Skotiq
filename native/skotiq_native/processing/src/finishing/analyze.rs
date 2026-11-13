@@ -681,7 +681,7 @@ fn median(v: &mut [f64]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skotiq_imaging::{add_wcs_headers, PixelType};
+    use skotiq_imaging::PixelType;
     use std::path::PathBuf;
 
     /// A scratch directory that deletes itself when the test ends. Cleanup runs
@@ -1104,7 +1104,7 @@ mod tests {
             .cd_only();
         let mut source = FitsHeader::new();
         source.set_string("IMAGETYP", "MASTER_LIGHT");
-        add_wcs_headers(&mut source, &wcs);
+        wcs.write_to_header(&mut source);
         source.set_int("A_ORDER", 2);
         source.set_float("A_1_1", 4.5e-7);
         source.set_string("OBJECT", "M51");

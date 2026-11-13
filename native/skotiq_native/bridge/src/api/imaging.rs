@@ -49,11 +49,9 @@ use crate::unified_device_ops::create_unified_device_ops;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::ImageData;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
-use tokio::sync::Mutex;
 
 /// Global cancellation token for autofocus
 pub(crate) static AUTOFOCUS_CANCEL_TOKEN: OnceLock<Arc<AtomicBool>> = OnceLock::new();
@@ -1350,7 +1348,7 @@ pub async fn api_save_png_file(
     let image_data = skotiq_imaging::ImageData::from_u16(width, height, 1, &data);
 
     let path = Path::new(&file_path);
-    skotiq_imaging::write_png(path, &image_data)
+    skotiq_imaging::write_raster(path, &image_data, skotiq_imaging::RasterFormat::Png)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to write PNG: {}", e)))?;
 
     tracing::info!("PNG file saved: {}", file_path);
@@ -1377,42 +1375,8 @@ pub async fn api_save_rgba_png_file(
     height: u32,
     rgba: Vec<u8>,
 ) -> Result<(), SkotiqError> {
-    use image::RgbaImage;
-    use std::path::Path;
-
     tracing::info!("Saving RGBA PNG file: {} ({}x{})", file_path, width, height);
-
-    let expected = (width as usize)
-        .checked_mul(height as usize)
-        .and_then(|px| px.checked_mul(4))
-        .ok_or_else(|| {
-            SkotiqError::ImageError(format!(
-                "RGBA PNG dimensions overflow: {}x{}",
-                width, height
-            ))
-        })?;
-    if rgba.len() != expected {
-        return Err(SkotiqError::ImageError(format!(
-            "RGBA PNG buffer length mismatch: got {} bytes, expected {} for {}x{}x4",
-            rgba.len(),
-            expected,
-            width,
-            height
-        )));
-    }
-
-    let image: RgbaImage = RgbaImage::from_raw(width, height, rgba).ok_or_else(|| {
-        SkotiqError::ImageError(format!(
-            "Failed to build {}x{} RGBA image buffer",
-            width, height
-        ))
-    })?;
-
-    let path = Path::new(&file_path);
-    image
-        .save(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to write RGBA PNG: {}", e)))?;
-
+    write_rgba(&file_path, width, height, rgba, skotiq_imaging::RasterFormat::Png)?;
     tracing::info!("RGBA PNG file saved: {}", file_path);
     Ok(())
 }
@@ -1420,12 +1384,9 @@ pub async fn api_save_rgba_png_file(
 /// Save an 8-bit RGBA buffer as a JPEG, flattening alpha onto black.
 ///
 /// Companion to [`api_save_rgba_png_file`] for the lossy export path. JPEG has
-/// no alpha channel, so we explicitly composite each pixel over an opaque black
-/// background (`out = src * alpha / 255`) and encode the resulting RGB. Doing
-/// the flatten here — rather than handing `Rgba8` straight to the encoder,
-/// which would treat the buffer as fully opaque RGB and ignore alpha entirely —
-/// keeps transparent regions rendering as black instead of leaking whatever
-/// stale color bytes happen to sit under a transparent pixel.
+/// no alpha channel, so each pixel is composited over opaque black
+/// (`out = src * alpha / 255`): transparent regions render black instead of
+/// leaking whatever color bytes sit under a transparent pixel.
 ///
 /// Length validation matches [`api_save_rgba_png_file`]: a mismatch is an
 /// upstream bug and is surfaced as [`SkotiqError::ImageError`].
@@ -1436,11 +1397,6 @@ pub async fn api_save_rgba_jpeg_file(
     rgba: Vec<u8>,
     quality: u8,
 ) -> Result<(), SkotiqError> {
-    use image::{ImageEncoder, RgbImage};
-    use std::fs::File;
-    use std::io::BufWriter;
-    use std::path::Path;
-
     tracing::info!(
         "Saving RGBA JPEG file: {} ({}x{}, quality: {})",
         file_path,
@@ -1448,55 +1404,35 @@ pub async fn api_save_rgba_jpeg_file(
         height,
         quality
     );
-
-    let expected = (width as usize)
-        .checked_mul(height as usize)
-        .and_then(|px| px.checked_mul(4))
-        .ok_or_else(|| {
-            SkotiqError::ImageError(format!(
-                "RGBA JPEG dimensions overflow: {}x{}",
-                width, height
-            ))
-        })?;
-    if rgba.len() != expected {
-        return Err(SkotiqError::ImageError(format!(
-            "RGBA JPEG buffer length mismatch: got {} bytes, expected {} for {}x{}x4",
-            rgba.len(),
-            expected,
-            width,
-            height
-        )));
-    }
-
-    // Flatten RGBA onto an opaque black background -> packed RGB8.
-    let pixel_count = (width as usize) * (height as usize);
-    let mut rgb = Vec::with_capacity(pixel_count * 3);
-    for px in rgba.as_chunks::<4>().0.iter() {
-        // `px` is [r, g, b, a]; composite over black: out = src * a / 255.
-        let a = px[3] as u32;
-        rgb.push(((px[0] as u32 * a) / 255) as u8);
-        rgb.push(((px[1] as u32 * a) / 255) as u8);
-        rgb.push(((px[2] as u32 * a) / 255) as u8);
-    }
-
-    let rgb_image: RgbImage = RgbImage::from_raw(width, height, rgb).ok_or_else(|| {
-        SkotiqError::ImageError(format!(
-            "Failed to build {}x{} RGB image buffer",
-            width, height
-        ))
-    })?;
-
-    let path = Path::new(&file_path);
-    let file = File::create(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to create JPEG file: {}", e)))?;
-    let writer = BufWriter::new(file);
-    let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(writer, quality);
-    encoder
-        .write_image(rgb_image.as_raw(), width, height, image::ColorType::Rgb8)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to encode RGBA JPEG: {}", e)))?;
-
+    write_rgba(
+        &file_path,
+        width,
+        height,
+        rgba,
+        skotiq_imaging::RasterFormat::Jpeg { quality },
+    )?;
     tracing::info!("RGBA JPEG file saved: {}", file_path);
     Ok(())
+}
+
+/// An 8-bit RGBA buffer written as `format`.
+fn write_rgba(
+    file_path: &str,
+    width: u32,
+    height: u32,
+    rgba: Vec<u8>,
+    format: skotiq_imaging::RasterFormat,
+) -> Result<(), SkotiqError> {
+    let image = skotiq_imaging::ImageData {
+        width,
+        height,
+        channels: 4,
+        pixel_type: skotiq_imaging::PixelType::U8,
+        data: rgba,
+        range: skotiq_imaging::SampleRange::of(skotiq_imaging::PixelType::U8),
+    };
+    skotiq_imaging::write_raster(std::path::Path::new(file_path), &image, format)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to write {file_path}: {e}")))
 }
 
 #[cfg(test)]
@@ -1873,17 +1809,10 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
     encode_preview_jpeg(&preview, max_size)
 }
 
-/// Calibrate an image file using dark, flat, and/or bias calibration frames.
-///
-/// Loads the light frame and any provided calibration frames from disk,
-/// applies the calibration pipeline, and saves the result to `output_path`.
-///
-/// The calibration order is:
-/// 1. Subtract bias from dark and flat (if bias provided)
-/// 2. Subtract dark from light
-/// 3. Divide light by normalized flat
-///
-/// Any calibration frame path can be empty/None to skip that correction.
+/// Calibrate a light frame file with the masters at the given paths
+/// ([`LightCalibration`](skotiq_processing::post_session::LightCalibration))
+/// and write the result to `output_path`. An absent or empty master path
+/// skips that correction.
 pub fn api_calibrate_image_file(
     light_path: String,
     dark_path: Option<String>,
@@ -1891,62 +1820,26 @@ pub fn api_calibrate_image_file(
     bias_path: Option<String>,
     output_path: String,
 ) -> Result<(), SkotiqError> {
-    use skotiq_imaging::read_image;
     use std::path::Path;
 
-    let light_result = read_image(Path::new(&light_path)).map_err(|e| {
+    let light_result = skotiq_imaging::read_image(Path::new(&light_path)).map_err(|e| {
         SkotiqError::ImageError(format!(
             "Failed to read light frame '{}': {}",
             light_path, e
         ))
     })?;
-
-    let dark = match &dark_path {
-        Some(p) if !p.is_empty() => {
-            let result = read_image(Path::new(p)).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to read dark frame '{}': {}", p, e))
-            })?;
-            Some(result.image)
-        }
-        _ => None,
-    };
-
-    let flat = skotiq_processing::post_session::load_optional_flat(&flat_path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read flat frame: {e}")))?;
-
-    let bias = match &bias_path {
-        Some(p) if !p.is_empty() => {
-            let result = read_image(Path::new(p)).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to read bias frame '{}': {}", p, e))
-            })?;
-            Some(result.image)
-        }
-        _ => None,
-    };
-
-    let calibrated = skotiq_processing::post_session::calibrate_with_flat_state(
-        &light_result.image,
-        dark.as_ref(),
-        flat.as_ref(),
-        bias.as_ref(),
-    )
-    .map_err(|e| SkotiqError::ImageError(format!("Calibration failed: {}", e)))?;
+    let calibrated = calibrate_light(&light_result.image, &dark_path, &flat_path, &bias_path)?;
 
     // A raster name gets a raster; any other name the frame format it names,
     // carrying the light's header with its card order and comments.
     let out = Path::new(&output_path);
-    match image::ImageFormat::from_path(out) {
-        Ok(image::ImageFormat::Tiff) => {
-            skotiq_imaging::write_tiff(out, &calibrated).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated TIFF: {}", e))
+    match skotiq_imaging::RasterFormat::from_path(out) {
+        Some(format) => {
+            skotiq_imaging::write_raster(out, &calibrated, format).map_err(|e| {
+                SkotiqError::ImageError(format!("Failed to write the calibrated image: {e}"))
             })?;
         }
-        Ok(image::ImageFormat::Png) => {
-            skotiq_imaging::write_png(out, &calibrated).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated PNG: {}", e))
-            })?;
-        }
-        _ => {
+        None => {
             let mut header = light_result.header;
             header.set_string("CALSTAT", "calibrated by Skotiq");
             for (card, path) in [
@@ -1981,622 +1874,38 @@ pub fn api_calibrate_image_file(
     Ok(())
 }
 
-/// Calibrate raw pixel data in memory (u16).
-///
-/// Takes pixel data directly rather than file paths. Returns calibrated pixel data.
-/// All frames must have the same dimensions and be single-channel u16.
-#[flutter_rust_bridge::frb(sync)]
+/// Calibrate a single-plane u16 light in memory with the masters at the
+/// given paths, by the same rule as [`api_calibrate_image_file`].
 pub fn api_calibrate_image_data(
     width: u32,
     height: u32,
     light_data: Vec<u16>,
-    dark_data: Option<Vec<u16>>,
-    flat_data: Option<Vec<u16>>,
-    bias_data: Option<Vec<u16>>,
+    dark_path: Option<String>,
+    flat_path: Option<String>,
+    bias_path: Option<String>,
 ) -> Result<Vec<u16>, SkotiqError> {
-    use skotiq_imaging::{calibration, ImageData};
-
     let light = ImageData::from_u16(width, height, 1, &light_data);
-
-    let dark = dark_data.map(|d| ImageData::from_u16(width, height, 1, &d));
-    let flat = flat_data.map(|f| ImageData::from_u16(width, height, 1, &f));
-    let bias = bias_data.map(|b| ImageData::from_u16(width, height, 1, &b));
-
-    let calibrated =
-        calibration::calibrate_frame(&light, dark.as_ref(), flat.as_ref(), bias.as_ref())
-            .map_err(|e| SkotiqError::ImageError(format!("Calibration failed: {}", e)))?;
-
-    calibrated.as_u16().ok_or_else(|| {
-        SkotiqError::ImageError(
-            "Failed to extract u16 pixel data from calibrated image".to_string(),
-        )
-    })
-}
-
-// Live stacking API
-
-/// Live stacking configuration exposed to Dart
-pub struct ApiLiveStackingConfig {
-    pub sigma_clip_enabled: bool,
-    pub sigma_clip_threshold: f64,
-    pub max_match_stars: u32,
-    pub match_radius_px: f64,
-    pub match_flux_tolerance: f64,
-    pub min_matched_pairs: u32,
-    /// Sensor acquisition mode: `"mono"`, `"osc"`, or `"auto"` (case-insensitive),
-    /// defaulting to `"mono"`. The three modes are specified on
-    /// `stacking_api::LiveStackingConfigApi::sensor_mode`.
-    pub sensor_mode: String,
-    /// Explicit Bayer pattern override (`"RGGB"`/`"BGGR"`/`"GRBG"`/`"GBRG"`,
-    /// case-insensitive). When `None`, OSC/auto sessions fall back to the pattern
-    /// the reference frame declares via its FITS `BAYERPAT` geometry. An
-    /// unrecognised string is a hard error.
-    pub bayer_pattern: Option<String>,
-    /// Demosaic quality: `"bilinear"`, `"vng"`, or `"superpixel"`
-    /// (case-insensitive). Defaults to `"bilinear"`. An unrecognised value is a
-    /// hard error rather than a silent best-guess.
-    pub demosaic_quality: String,
-}
-
-impl Default for ApiLiveStackingConfig {
-    fn default() -> Self {
-        // Mirror `LiveStackingConfigApi::default()` so the FRB wrapper and the
-        // underlying bridge config agree on the monochrome baseline.
-        Self {
-            sigma_clip_enabled: true,
-            sigma_clip_threshold: 2.5,
-            max_match_stars: 100,
-            match_radius_px: 50.0,
-            match_flux_tolerance: 0.7,
-            min_matched_pairs: 5,
-            sensor_mode: "mono".to_string(),
-            bayer_pattern: None,
-            demosaic_quality: "bilinear".to_string(),
-        }
-    }
-}
-
-/// Live stacking statistics returned to Dart
-pub struct ApiLiveStackingStats {
-    pub stacked_frame_count: u32,
-    pub total_frames_attempted: u32,
-    pub rejected_alignment_failures: u32,
-    pub avg_matched_pairs: f64,
-    pub avg_alignment_residual: f64,
-    pub total_sigma_rejected_pixels: u64,
-    /// Frames left out for being taken through another filter than the stack's.
-    pub other_filter_frames: u32,
-    /// The filter of the most recent such frame.
-    pub last_other_filter: Option<String>,
-    /// The filter the stack is of; `None` when its reference named none.
-    pub filter: Option<String>,
-}
-
-/// Result from adding a frame to the live stack
-pub struct ApiLiveStackingResult {
-    pub width: u32,
-    pub height: u32,
-    /// Channel count of the stacked result: `1` for a monochrome session, `3`
-    /// for an OSC/colour session. The Dart side uses this to interpret `data` as
-    /// a single luminance plane vs interleaved RGB16.
-    pub channels: u32,
-    pub data: Vec<u16>,
-    pub stats: ApiLiveStackingStats,
-}
-
-pub(crate) fn convert_config(
-    config: ApiLiveStackingConfig,
-) -> crate::stacking_api::LiveStackingConfigApi {
-    crate::stacking_api::LiveStackingConfigApi {
-        sigma_clip_enabled: config.sigma_clip_enabled,
-        sigma_clip_threshold: config.sigma_clip_threshold,
-        max_match_stars: config.max_match_stars,
-        match_radius_px: config.match_radius_px,
-        match_flux_tolerance: config.match_flux_tolerance,
-        min_matched_pairs: config.min_matched_pairs,
-        // OSC fields pass straight through. Validation of the string values
-        // (sensor mode / Bayer pattern / demosaic quality) happens loudly inside
-        // `LiveStackConfig::try_from`, so an invalid value surfaces as an error
-        // to the caller rather than being silently normalised here.
-        sensor_mode: config.sensor_mode,
-        bayer_pattern: config.bayer_pattern,
-        demosaic_quality: config.demosaic_quality,
-    }
-}
-
-pub(crate) fn convert_stats(
-    stats: crate::stacking_api::LiveStackingStatsApi,
-) -> ApiLiveStackingStats {
-    ApiLiveStackingStats {
-        stacked_frame_count: stats.stacked_frame_count,
-        total_frames_attempted: stats.total_frames_attempted,
-        rejected_alignment_failures: stats.rejected_alignment_failures,
-        avg_matched_pairs: stats.avg_matched_pairs,
-        avg_alignment_residual: stats.avg_alignment_residual,
-        total_sigma_rejected_pixels: stats.total_sigma_rejected_pixels,
-        other_filter_frames: stats.other_filter_frames,
-        last_other_filter: stats.last_other_filter,
-        filter: stats.filter,
-    }
-}
-
-pub(crate) fn convert_result(
-    result: crate::stacking_api::LiveStackingAddFrameResult,
-) -> ApiLiveStackingResult {
-    ApiLiveStackingResult {
-        width: result.width,
-        height: result.height,
-        channels: result.channels,
-        data: result.data,
-        stats: convert_stats(result.stats),
-    }
-}
-
-/// Start live stacking with a reference image file.
-///
-/// All subsequent frames will be aligned to this reference.
-pub fn api_stacking_start(
-    reference_image_path: String,
-    config: ApiLiveStackingConfig,
-) -> Result<ApiLiveStackingStats, SkotiqError> {
-    let result = crate::stacking_api::stacking_start(reference_image_path, convert_config(config))
-        .map_err(|e| SkotiqError::ImageError(e))?;
-    Ok(convert_stats(result))
-}
-
-/// Start live stacking from raw pixel data in memory.
-pub fn api_stacking_start_from_data(
-    width: u32,
-    height: u32,
-    data: Vec<u16>,
-    config: ApiLiveStackingConfig,
-) -> Result<ApiLiveStackingStats, SkotiqError> {
-    let result =
-        crate::stacking_api::stacking_start_from_data(width, height, data, convert_config(config))
-            .map_err(|e| SkotiqError::ImageError(e))?;
-    Ok(convert_stats(result))
-}
-
-/// Add a frame to the live stack from a file path.
-///
-/// Returns the current stacked result.
-pub fn api_stacking_add_frame(image_path: String) -> Result<ApiLiveStackingResult, SkotiqError> {
-    let result = crate::stacking_api::stacking_add_frame(image_path)
-        .map_err(|e| SkotiqError::ImageError(e))?;
-    Ok(convert_result(result))
-}
-
-/// Add a frame to the live stack from raw pixel data.
-pub fn api_stacking_add_frame_from_data(
-    width: u32,
-    height: u32,
-    data: Vec<u16>,
-) -> Result<ApiLiveStackingResult, SkotiqError> {
-    let result = crate::stacking_api::stacking_add_frame_from_data(width, height, data)
-        .map_err(|e| SkotiqError::ImageError(e))?;
-    Ok(convert_result(result))
-}
-
-/// What was written when the stacked master was saved.
-pub struct ApiLiveStackingMaster {
-    pub file_path: String,
-    pub stacked_frame_count: u32,
-    /// The master's `EXPTIME`: Σ of the exposures the stacked frames reported.
-    /// `0.0` means no frame reported one (an in-memory stack has no headers to
-    /// read); the FITS card comment says so.
-    pub total_integration_secs: f64,
-    /// The master's `DATE-OBS`: the earliest stacked frame's stamp, or the
-    /// moment the stack started when no frame carried one.
-    pub date_obs: String,
-}
-
-/// Save the accumulated stack as a FITS master.
-///
-/// This is the session's data product — a PNG of the same pixels carries no
-/// header, no WCS and no integration time.
-pub async fn api_stacking_save_master_fits(
-    file_path: String,
-) -> Result<ApiLiveStackingMaster, SkotiqError> {
-    // The write is blocking (and a full-frame master is tens of megabytes), so
-    // it runs off the async executor like the other FITS writers here.
-    let result = tokio::task::spawn_blocking(move || {
-        crate::stacking_api::stacking_save_master_fits(file_path)
-    })
-    .await
-    .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {}", e)))?
-    .map_err(SkotiqError::ImageError)?;
-
-    Ok(ApiLiveStackingMaster {
-        file_path: result.file_path,
-        stacked_frame_count: result.stacked_frame_count,
-        total_integration_secs: result.total_integration_secs,
-        date_obs: result.date_obs,
-    })
-}
-
-/// Get the current stacked result without adding a frame.
-pub fn api_stacking_get_result() -> Result<ApiLiveStackingResult, SkotiqError> {
-    let result =
-        crate::stacking_api::stacking_get_result().map_err(|e| SkotiqError::ImageError(e))?;
-    Ok(convert_result(result))
-}
-
-/// Get the current stacking statistics.
-pub fn api_stacking_get_stats() -> Result<ApiLiveStackingStats, SkotiqError> {
-    let result =
-        crate::stacking_api::stacking_get_stats().map_err(|e| SkotiqError::ImageError(e))?;
-    Ok(convert_stats(result))
-}
-
-/// Reset the live stacker, clearing accumulated data but keeping the reference.
-pub fn api_stacking_reset() -> Result<(), SkotiqError> {
-    crate::stacking_api::stacking_reset().map_err(|e| SkotiqError::ImageError(e))
-}
-
-/// Stop live stacking and release all resources.
-pub fn api_stacking_stop() -> Result<(), SkotiqError> {
-    crate::stacking_api::stacking_stop().map_err(|e| SkotiqError::ImageError(e))
-}
-
-/// Check if live stacking is currently active.
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_stacking_is_active() -> bool {
-    crate::stacking_api::stacking_is_active()
-}
-
-/// Get the current stacked frame count.
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_stacking_frame_count() -> u32 {
-    crate::stacking_api::stacking_frame_count()
-}
-
-// Defect-map / bad-pixel cosmetic correction API
-
-/// Status of a stored defect map for a given camera / sensor / temperature.
-pub struct ApiDefectMapStatus {
-    pub camera_id: String,
-    pub width: u32,
-    pub height: u32,
-    pub temperature_bucket_decicelsius: i16,
-    pub defective_pixel_count: u32,
-    pub last_rebuilt_unix_seconds: i64,
-    pub apply_during_capture: bool,
-    pub stored_on_disk: bool,
-}
-
-pub(crate) fn defect_maps_root() -> std::path::PathBuf {
-    // Why: SKOTIQ_DATA_DIR is the standard per-platform application
-    // data path set by the Flutter shell on launch (see main_headless.dart
-    // and the FFI bridge startup). The temp_dir fallback exists for unit
-    // tests and for headless invocations where the env var hasn't been
-    // populated yet — for those callers the defect maps are session-scoped
-    // and don't need to survive a reboot. Production hosts hit the env-var
-    // branch first.
-    let base = std::env::var_os("SKOTIQ_DATA_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir().join("skotiq"));
-    base.join("defect_maps")
-}
-
-pub(crate) fn sanitize_camera_id(camera_id: &str) -> String {
-    camera_id
-        .chars()
-        .map(|c| match c {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => c,
-            _ => '_',
-        })
-        .collect()
-}
-
-pub(crate) fn defect_map_path(
-    camera_id: &str,
-    width: u32,
-    height: u32,
-    bucket_decicelsius: i16,
-) -> std::path::PathBuf {
-    defect_maps_root().join(format!(
-        "{}_{}x{}_{:+05}.ndm",
-        sanitize_camera_id(camera_id),
-        width,
-        height,
-        bucket_decicelsius
-    ))
-}
-
-/// Tracks whether the user has enabled per-capture defect correction for
-/// each camera_id. The bool is the toggle state; the runtime cache of the
-/// map itself is loaded on demand by the capture pipeline.
-pub(crate) static DEFECT_APPLY_FLAGS: OnceLock<Mutex<HashMap<String, bool>>> = OnceLock::new();
-
-pub(crate) fn defect_apply_flags() -> &'static Mutex<HashMap<String, bool>> {
-    DEFECT_APPLY_FLAGS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-/// Build a defect map for a camera from a set of dark frames provided as
-/// FITS/XISF file paths. Frames must all share dimensions and pixel type.
-///
-/// The resulting map is written to disk under
-/// `$SKOTIQ_DATA_DIR/defect_maps/` keyed by camera id, sensor size and
-/// temperature bucket, and the status is returned.
-pub async fn api_defect_map_build(
-    camera_id: String,
-    dark_frame_paths: Vec<String>,
-    sensor_temperature_celsius: f64,
-) -> Result<ApiDefectMapStatus, SkotiqError> {
-    if camera_id.trim().is_empty() {
-        return Err(SkotiqError::InvalidParameter(
-            "camera_id is empty".to_string(),
-        ));
-    }
-    if dark_frame_paths.len() < skotiq_imaging::defect_map::MIN_CONSISTENCY_FRAMES {
-        return Err(SkotiqError::InvalidParameter(format!(
-            "defect map build requires at least {} dark frames; got {}",
-            skotiq_imaging::defect_map::MIN_CONSISTENCY_FRAMES,
-            dark_frame_paths.len()
-        )));
-    }
-
-    let darks: Vec<ImageData> = tokio::task::spawn_blocking(move || {
-        let mut frames = Vec::with_capacity(dark_frame_paths.len());
-        for path in &dark_frame_paths {
-            let result = skotiq_imaging::read_image(std::path::Path::new(path))
-                .map_err(|e| format!("failed to read {}: {}", path, e))?;
-            frames.push(result.image);
-        }
-        Ok::<_, String>(frames)
-    })
-    .await
-    .map_err(|e| SkotiqError::ImageError(format!("join error reading darks: {}", e)))?
-    .map_err(SkotiqError::ImageError)?;
-
-    let bucket = skotiq_imaging::defect_map::bucket_temperature(sensor_temperature_celsius);
-    let dark_refs: Vec<&ImageData> = darks.iter().collect();
-    let map = skotiq_imaging::defect_map::build_defect_map(&dark_refs, bucket)
-        .map_err(|e| SkotiqError::ImageError(e.to_string()))?;
-
-    let path = defect_map_path(&camera_id, map.width, map.height, bucket);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| {
-            SkotiqError::ImageError(format!(
-                "failed to create defect map directory {}: {}",
-                parent.display(),
-                e
-            ))
-        })?;
-    }
-    map.write_to_file(&path)
-        .map_err(|e| SkotiqError::ImageError(e.to_string()))?;
-
-    let apply_during_capture = {
-        // Why: absence of a flag for this camera id is the canonical "off"
-        // state — apply-during-capture is opt-in and the map is only written
-        // when the user toggles it on for a specific (camera, temperature)
-        // pair. No need to surface this as an error.
-        let flags = defect_apply_flags().lock().await;
-        flags.get(&camera_id).copied().unwrap_or(false)
-    };
-
-    Ok(ApiDefectMapStatus {
-        camera_id,
-        width: map.width,
-        height: map.height,
-        temperature_bucket_decicelsius: bucket,
-        defective_pixel_count: map.defective_count(),
-        last_rebuilt_unix_seconds: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0),
-        apply_during_capture,
-        stored_on_disk: true,
-    })
-}
-
-/// Toggle whether the defect map for this camera is applied to lights
-/// during capture. The map must already exist on disk for the toggle to
-/// take effect at the next capture; this call only updates the user's
-/// preference.
-pub async fn api_defect_map_apply(
-    camera_id: String,
-    apply_during_capture: bool,
-) -> Result<(), SkotiqError> {
-    if camera_id.trim().is_empty() {
-        return Err(SkotiqError::InvalidParameter(
-            "camera_id is empty".to_string(),
-        ));
-    }
-    let mut flags = defect_apply_flags().lock().await;
-    flags.insert(camera_id, apply_during_capture);
-    Ok(())
-}
-
-/// Delete the defect map stored on disk for the given camera, sensor
-/// dimensions and temperature bucket. Also resets the apply-during-
-/// capture flag for that camera.
-pub async fn api_defect_map_clear(
-    camera_id: String,
-    width: u32,
-    height: u32,
-    sensor_temperature_celsius: f64,
-) -> Result<(), SkotiqError> {
-    if camera_id.trim().is_empty() {
-        return Err(SkotiqError::InvalidParameter(
-            "camera_id is empty".to_string(),
-        ));
-    }
-    let bucket = skotiq_imaging::defect_map::bucket_temperature(sensor_temperature_celsius);
-    let path = defect_map_path(&camera_id, width, height, bucket);
-    if path.exists() {
-        std::fs::remove_file(&path).map_err(|e| {
-            SkotiqError::ImageError(format!(
-                "failed to delete defect map {}: {}",
-                path.display(),
-                e
-            ))
-        })?;
-    }
-    let mut flags = defect_apply_flags().lock().await;
-    flags.remove(&camera_id);
-    Ok(())
-}
-
-/// push the active defect-map application state to the
-/// running sequencer.
-///
-/// When `enabled == true`, the bridge loads the `.ndm` file for
-/// `(camera_id, width, height, sensor_temperature_celsius)` from disk
-/// (returning an error if no map exists), wraps it in a
-/// `DefectMapApplyState` along with the configured method + kernel +
-/// save-original flag, and pushes the state via
-/// `executor.update_defect_map(Some(state))`. When `enabled == false`,
-/// `None` is pushed (the sequencer disables per-frame correction).
-///
-/// Method / kernel come from the user's settings (validated here so a
-/// bad combination is rejected at the FFI boundary rather than at
-/// per-frame application time).
-pub async fn api_sequencer_apply_defect_map(
-    camera_id: String,
-    width: u32,
-    height: u32,
-    sensor_temperature_celsius: f64,
-    enabled: bool,
-    method: String,
-    kernel_diameter: u8,
-    save_original: bool,
-) -> Result<(), SkotiqError> {
-    if camera_id.trim().is_empty() {
-        return Err(SkotiqError::InvalidParameter(
-            "camera_id is empty".to_string(),
-        ));
-    }
-
-    if !enabled {
-        // Clear the live state. Also reset the apply flag so a future
-        // `api_defect_map_get_status` call honestly reflects the off
-        // state.
-        {
-            let mut flags = defect_apply_flags().lock().await;
-            flags.insert(camera_id.clone(), false);
-        }
-        crate::api::sequencer::get_sequence_executor()
-            .read()
-            .await
-            .update_defect_map(None)
-            .await;
-        tracing::info!(
-            "Defect map application disabled for camera {} (no map pushed to sequencer)",
-            camera_id
-        );
-        return Ok(());
-    }
-
-    let kernel = skotiq_imaging::defect_map::KernelSize::from_diameter(kernel_diameter)
+    calibrate_light(&light, &dark_path, &flat_path, &bias_path)?
+        .as_u16()
         .ok_or_else(|| {
-            SkotiqError::InvalidParameter(format!(
-                "kernel_diameter must be 3, 5, or 7; got {}",
-                kernel_diameter
-            ))
-        })?;
-    let method_parsed = skotiq_imaging::defect_map::CorrectionMethod::from_wire(&method);
-
-    let bucket = skotiq_imaging::defect_map::bucket_temperature(sensor_temperature_celsius);
-    let path = defect_map_path(&camera_id, width, height, bucket);
-    if !path.exists() {
-        return Err(SkotiqError::InvalidParameter(format!(
-            "No defect map stored for camera={} {}x{} at {} deci-celsius; \
-             build one before enabling apply-during-capture.",
-            camera_id, width, height, bucket,
-        )));
-    }
-    let map = skotiq_imaging::defect_map::DefectMap::read_from_file(&path)
-        .map_err(|e| SkotiqError::ImageError(e.to_string()))?;
-
-    // Mirror the persisted apply flag so `get_status` round-trips the
-    // user's preference correctly.
-    {
-        let mut flags = defect_apply_flags().lock().await;
-        flags.insert(camera_id.clone(), true);
-    }
-
-    let state = skotiq_sequencer::DefectMapApplyState {
-        camera_id: camera_id.clone(),
-        map: std::sync::Arc::new(map),
-        method: method_parsed,
-        kernel,
-        save_original,
-    };
-
-    crate::api::sequencer::get_sequence_executor()
-        .read()
-        .await
-        .update_defect_map(Some(state))
-        .await;
-    tracing::info!(
-        "Defect map application enabled for camera {} ({}x{}, bucket={} dC) method={}, kernel={}, save_original={}",
-        camera_id,
-        width,
-        height,
-        bucket,
-        method,
-        kernel_diameter,
-        save_original,
-    );
-    Ok(())
+            SkotiqError::ImageError(
+                "Failed to extract u16 pixel data from calibrated image".to_string(),
+            )
+        })
 }
 
-/// Look up the status of the stored defect map for a camera at the given
-/// sensor size and temperature. Returns `Ok(None)` if no map is stored
-/// for that combination.
-pub async fn api_defect_map_get_status(
-    camera_id: String,
-    width: u32,
-    height: u32,
-    sensor_temperature_celsius: f64,
-) -> Result<Option<ApiDefectMapStatus>, SkotiqError> {
-    if camera_id.trim().is_empty() {
-        return Err(SkotiqError::InvalidParameter(
-            "camera_id is empty".to_string(),
-        ));
-    }
-    let bucket = skotiq_imaging::defect_map::bucket_temperature(sensor_temperature_celsius);
-    let path = defect_map_path(&camera_id, width, height, bucket);
-    if !path.exists() {
-        return Ok(None);
-    }
-    let map = skotiq_imaging::defect_map::DefectMap::read_from_file(&path)
-        .map_err(|e| SkotiqError::ImageError(e.to_string()))?;
-    let metadata = std::fs::metadata(&path).map_err(|e| {
-        SkotiqError::ImageError(format!(
-            "failed to stat defect map {}: {}",
-            path.display(),
-            e
-        ))
-    })?;
-    let last_rebuilt = metadata
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-
-    let apply_during_capture = {
-        // Why: absence of a flag for this camera id is the canonical "off"
-        // state — apply-during-capture is opt-in and the map is only written
-        // when the user toggles it on for a specific (camera, temperature)
-        // pair. No need to surface this as an error.
-        let flags = defect_apply_flags().lock().await;
-        flags.get(&camera_id).copied().unwrap_or(false)
-    };
-
-    Ok(Some(ApiDefectMapStatus {
-        camera_id,
-        width: map.width,
-        height: map.height,
-        temperature_bucket_decicelsius: map.temperature_bucket_decicelsius,
-        defective_pixel_count: map.defective_count(),
-        last_rebuilt_unix_seconds: last_rebuilt,
-        apply_during_capture,
-        stored_on_disk: true,
-    }))
+fn calibrate_light(
+    light: &ImageData,
+    dark_path: &Option<String>,
+    flat_path: &Option<String>,
+    bias_path: &Option<String>,
+) -> Result<ImageData, SkotiqError> {
+    let masters =
+        skotiq_processing::post_session::LightCalibration::load(dark_path, flat_path, bias_path)
+            .map_err(SkotiqError::ImageError)?;
+    masters
+        .apply(light)
+        .map_err(|e| SkotiqError::ImageError(format!("Calibration failed: {}", e)))
 }
 
 // Image grading: round-trip test for the rich-header save path.
@@ -2612,6 +1921,9 @@ mod auto_stretch_color_tests;
 
 #[cfg(test)]
 mod calibrate_header_carry_over_tests;
+
+#[cfg(test)]
+mod calibrate_rule_tests;
 
 #[cfg(test)]
 mod fits_thumbnail_tests;

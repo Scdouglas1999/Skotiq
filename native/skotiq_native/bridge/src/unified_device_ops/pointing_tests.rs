@@ -52,6 +52,7 @@ fn tiny_frame() -> ImageData {
         sensor_type: Some("Monochrome".to_string()),
         color_filter: None,
         camera_file: None,
+        readout_mode: None,
     }
 }
 

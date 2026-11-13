@@ -18,7 +18,9 @@ bool _isRecentCompletedSession(db.ImagingSession session, DateTime now) {
   final age = now.difference(session.startTime);
   final hasProgress =
       session.successfulExposures > 0 || session.totalIntegrationSecs > 0;
-  return session.status == 'completed' && age.inDays <= 7 && hasProgress;
+  return session.sessionStatus == SessionStatus.completed &&
+      age.inDays <= 7 &&
+      hasProgress;
 }
 
 /// Builds Quick Start contexts from the same host-aware streams used by the
@@ -43,7 +45,9 @@ Future<List<QuickStartContext>> _remoteQuickStartContexts(
   final checkpoint = await checkpointFuture;
 
   final candidates = <db.ImagingSession>[];
-  candidates.addAll(sessions.where((session) => session.status == 'active'));
+  candidates.addAll(
+    sessions.where((session) => session.sessionStatus == SessionStatus.active),
+  );
   final now = DateTime.now();
   for (final session in sessions) {
     if (candidates.length >= limit) break;

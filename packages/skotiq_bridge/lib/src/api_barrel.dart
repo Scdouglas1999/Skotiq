@@ -5,6 +5,7 @@ library;
 
 export 'api/connection.dart';
 export 'api/darkroom/entrypoints.dart';
+export 'api/defect_map.dart';
 export 'api/depthlock.dart';
 export 'api/devices/camera.dart';
 export 'api/devices/cover_calibrator.dart';
@@ -27,6 +28,7 @@ export 'api/heartbeat.dart';
 export 'api/hotplug.dart';
 export 'api/imaging.dart';
 export 'api/init.dart';
+export 'api/live_stacking.dart';
 export 'api/mosaic.dart';
 export 'api/mount_guard.dart';
 export 'api/phd2.dart';

@@ -202,104 +202,31 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
     }
   }
 
-  /// Enable or disable defect-map application during capture.
-  ///
-  /// Persists the user preference AND, when the caller supplies the
-  /// camera dimensions + temperature, pushes the live state into the
-  /// running sequencer so per-frame correction starts (or stops) at
-  /// the next exposure. Callers that don't have the dimensions yet
-  /// (e.g. a settings-screen-level toggle with no camera connected)
-  /// can omit those parameters; the sequencer is then updated on the
-  /// next camera connect via [pushCurrentSettingsToSequencer].
+  /// Turn correction of [cameraId]'s lights during capture on (with the map
+  /// stored for this sensor size and temperature) or off. It applies from the
+  /// next exposure, including in a running sequence.
   Future<void> setApplyDuringCapture({
     required String cameraId,
     required bool apply,
-    int? width,
-    int? height,
-    double? sensorTemperatureCelsius,
+    required int width,
+    required int height,
+    required double sensorTemperatureCelsius,
   }) async {
     final generation = ++_applyGeneration;
     final authorityGeneration = _authorityGeneration;
     final authority = ref.read(backendProvider);
     try {
-      final canPush =
-          width != null && height != null && sensorTemperatureCelsius != null;
       final settings = ref.read(defectMapSettingsProvider);
-      if (apply && canPush) {
-        final status = await _service.getStatus(
-          cameraId: cameraId,
-          width: width,
-          height: height,
-          sensorTemperatureCelsius: sensorTemperatureCelsius,
-        );
-        if (status?.storedOnDisk != true) {
-          throw StateError(
-            'No defect map exists for the current camera, sensor size, and '
-            'temperature bucket.',
-          );
-        }
-
-        // Enabling is two-phase: validate first, persist the preference, then
-        // load the exact map into the runtime. If the live load fails, roll the
-        // preference back so a later map build cannot unexpectedly activate a
-        // toggle the operator saw fail.
-        await _service.apply(cameraId: cameraId, applyDuringCapture: true);
-        try {
-          await _service.applyToSequencer(
-            cameraId: cameraId,
-            width: width,
-            height: height,
-            sensorTemperatureCelsius: sensorTemperatureCelsius,
-            enabled: true,
-            method: settings.method,
-            kernel: settings.kernel,
-            saveOriginal: settings.saveOriginal,
-          );
-        } catch (error, stackTrace) {
-          try {
-            await _service.apply(cameraId: cameraId, applyDuringCapture: false);
-          } catch (rollbackError, rollbackStack) {
-            Log.error(
-              'Could not roll back defect-map preference: $rollbackError',
-              source: 'DefectMap',
-              error: rollbackError,
-              stackTrace: rollbackStack,
-            );
-          }
-          try {
-            await _service.applyToSequencer(
-              cameraId: cameraId,
-              width: width,
-              height: height,
-              sensorTemperatureCelsius: sensorTemperatureCelsius,
-              enabled: false,
-              method: settings.method,
-              kernel: settings.kernel,
-              saveOriginal: settings.saveOriginal,
-            );
-          } catch (_) {
-            // The original runtime-load error remains the actionable failure.
-          }
-          Error.throwWithStackTrace(error, stackTrace);
-        }
-      } else if (!apply && canPush) {
-        // Disable the live runtime first. If persistence subsequently fails,
-        // correction is still safely off for the current run and the visible
-        // preference remains on so the operator can retry.
-        await _service.applyToSequencer(
-          cameraId: cameraId,
-          width: width,
-          height: height,
-          sensorTemperatureCelsius: sensorTemperatureCelsius,
-          enabled: false,
-          method: settings.method,
-          kernel: settings.kernel,
-          saveOriginal: settings.saveOriginal,
-        );
-        await _service.apply(cameraId: cameraId, applyDuringCapture: false);
-      } else {
-        await _service.apply(cameraId: cameraId, applyDuringCapture: apply);
-      }
+      await _service.applyToSequencer(
+        cameraId: cameraId,
+        width: width,
+        height: height,
+        sensorTemperatureCelsius: sensorTemperatureCelsius,
+        enabled: apply,
+        method: settings.method,
+        kernel: settings.kernel,
+        saveOriginal: settings.saveOriginal,
+      );
       if (!_isCurrent(authorityGeneration, authority) ||
           generation != _applyGeneration) {
         return;

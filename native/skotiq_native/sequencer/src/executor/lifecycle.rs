@@ -117,7 +117,7 @@ impl SequenceExecutor {
     /// sequence is a no-op (the channel send is dropped silently by the
     /// command loop's `Pause` arm).
     pub async fn pause(&self) -> Result<(), String> {
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::Pause)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -129,13 +129,7 @@ impl SequenceExecutor {
     /// Resume from a `Paused` state. The executor task wakes via the shared
     /// `resume_notify` and the node tree picks up at the next walk step.
     pub async fn resume(&self) -> Result<(), String> {
-        if let Some(tx) = &self.command_tx {
-            tx.send(ExecutorCommand::Resume)
-                .await
-                .map_err(|e| e.to_string())?;
-        }
-        self.emit_manual_intervention("resume", serde_json::json!({}));
-        Ok(())
+        self.handle().resume().await
     }
 
     /// Whether a run is under way: started and not yet at its end. Such a run
@@ -154,7 +148,7 @@ impl SequenceExecutor {
     /// the channel command so the active instruction enters its hardware
     /// cancellation path immediately, then waits for the supervised executor
     /// task to finish that cleanup before confirming termination. Only after
-    /// that acknowledgment is the local `command_tx` dropped.
+    /// that acknowledgment is the run's command sender dropped.
     pub async fn stop(&mut self) -> Result<(), String> {
         self.stop_with_origin(StopOrigin::Operator).await
     }
@@ -180,7 +174,7 @@ impl SequenceExecutor {
         // shutdown steps finish, so the state is turned here as well.
         self.run_state.begin_stopping();
 
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             let _ = tx.send(ExecutorCommand::Stop).await;
         }
 
@@ -192,6 +186,7 @@ impl SequenceExecutor {
             // weather abort.
             StopOrigin::Operator => {
                 let row = self
+                    .handle()
                     .manual_intervention_row("stop", serde_json::json!({}))
                     .with_stop(origin.run_stop());
                 let _ = self.decision_tx.send(row);
@@ -206,7 +201,7 @@ impl SequenceExecutor {
 
         RunStopping {
             completion: self.run_completion_rx.clone(),
-            commands: self.command_tx.take(),
+            commands: self.commands.take(),
         }
     }
 
@@ -222,35 +217,7 @@ impl SequenceExecutor {
     /// `runtime_config.rs` emit their own `RuntimeConfigUpdated` event
     /// instead.
     pub(super) fn emit_manual_intervention(&self, action: &str, details: serde_json::Value) {
-        if !self.decision_logging_enabled() {
-            return;
-        }
-        let _ = self
-            .decision_tx
-            .send(self.manual_intervention_row(action, details));
-    }
-
-    fn manual_intervention_row(&self, action: &str, details: serde_json::Value) -> DecisionEvent {
-        let summary = format!("Operator: {}", action);
-        let mut full = details;
-        if let serde_json::Value::Object(ref mut m) = full {
-            m.insert(
-                "action".to_string(),
-                serde_json::Value::String(action.to_string()),
-            );
-        } else {
-            full = serde_json::json!({ "action": action, "data": full });
-        }
-        DecisionEvent {
-            timestamp: chrono::Utc::now(),
-            category: DecisionCategory::ManualIntervention,
-            summary,
-            details: full,
-            node_id: None,
-            sequence_run_id: self.active_sequence_run_id(),
-            notice: None,
-            stop: None,
-        }
+        self.handle().emit_manual_intervention(action, details);
     }
 
     /// Replay Debug — emit a [`crate::decision::DecisionCategory::SystemEvent`]
@@ -301,7 +268,7 @@ impl SequenceExecutor {
         message: Option<String>,
         structured_detail_json: Option<String>,
     ) -> Result<(), String> {
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::PluginNodeFinished {
                 node_id,
                 success,
@@ -319,7 +286,7 @@ impl SequenceExecutor {
     /// Skip the running step: the instruction in progress (an exposure is
     /// aborted) ends as Skipped and the run continues with the next step.
     pub async fn skip(&self) -> Result<(), String> {
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::Skip)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -337,7 +304,7 @@ impl SequenceExecutor {
         // Direct atomic write so even an executor without an active
         // command channel still observes the request (e.g. tests).
         self.recovery_signals.request_try_now();
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::RecoveryTryNow)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -351,7 +318,7 @@ impl SequenceExecutor {
     /// executor is not in `Recovering`.
     pub async fn recovery_abort(&self) -> Result<(), String> {
         self.recovery_signals.request_abort();
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::RecoveryAbort)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -369,7 +336,7 @@ impl SequenceExecutor {
     /// otherwise be dropped without the caller knowing.
     pub async fn skip_to_node(&self, node_id: NodeId) -> Result<(), String> {
         let node_id_for_decision = node_id.clone();
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::SkipToNode(node_id))
                 .await
                 .map_err(|e| e.to_string())?;

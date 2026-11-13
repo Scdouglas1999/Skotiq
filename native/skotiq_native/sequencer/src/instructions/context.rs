@@ -443,11 +443,17 @@ impl RunShared {
 
     /// The shared state of work that runs outside a sequence run (an
     /// Imaging-tab capture, polar alignment, a test): no trigger state, no
-    /// channels, one attempt per device call, nothing graded yet.
+    /// channels, one attempt per device call, nothing graded yet. The site is
+    /// the device layer's; a run replaces it with its settings' at each step.
     pub fn new(device_ops: SharedDeviceOps) -> Self {
+        let site = device_ops.get_observer_location();
         Self {
             device_ops,
-            rig: RunRig::default(),
+            rig: RunRig {
+                latitude: site.map(|(latitude, _)| latitude),
+                longitude: site.map(|(_, longitude)| longitude),
+                ..RunRig::default()
+            },
             trigger_state: None,
             event_tx: None,
             recovery_request_tx: None,

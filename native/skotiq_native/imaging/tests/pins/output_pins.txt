@@ -258,7 +258,7 @@ live_stack/rgb.stack 86a8e7ebf1677edb
 live_stack/rgb.stats 01ec91b7dcf90787
 mosaic/coverage 0f144f30ff5036f5
 mosaic/master 05632cea313a938d
-mosaic/wcs_stats 62042729d272320d
+mosaic/wcs_stats 513df50417bd332b
 no_stars_L.fits/detect_stars 09612b07b5ecb5a5
 no_stars_L.fits/detect_stars_for_selection 09612b07b5ecb5a5
 no_stars_L.fits/detect_stars_with_stats ba2ebcdc2f1dba92
@@ -407,7 +407,7 @@ trailed_round_G.fits/registrable_star_count 0000000000000009
 trailed_round_G.fits/star_crops ae699bddf754d1b2
 trailed_round_G.fits/stats de4418e44d3a2f27
 trailed_round_G.fits/stf 47178af7118d0e2a
-wcs/from_pointing.cd_only cae8185c755d5360
+wcs/from_pointing.cd_only 6212cf0caf6486ee
 wcs/header.sip_wcs 9f2bb167e8264163
 wcs/info.header 79b24bca4986f678
 wcs/pixel_scale e3a0a953adc9412e

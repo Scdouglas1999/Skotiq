@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../services/logging_service.dart';
 import '../../../services/science/science_processing_service.dart';
 import '../../../models/sequence/run_frame_assessment.dart';
@@ -43,8 +44,8 @@ class RunFrameScience {
   }
 
   /// Whether a frame of [frameType] gets science processing.
-  static bool appliesTo(String? frameType, String filePath) =>
-      filePath.isNotEmpty && (frameType ?? 'light').toLowerCase() == 'light';
+  static bool appliesTo(FrameType frameType, String filePath) =>
+      filePath.isNotEmpty && frameType == FrameType.light;
 
   /// Start waiting for the frame watch's assessment of the frame at [path].
   /// Call when the frame is registered, before its row insert, so an

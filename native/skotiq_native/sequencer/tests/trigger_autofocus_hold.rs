@@ -573,7 +573,7 @@ async fn no_light_starts_after_a_trigger_autofocus_leaves_the_guider_dead() {
         NodeType::TakeExposure(skotiq_sequencer::ExposureConfig {
             count: 500,
             duration_secs: 1.0,
-            frame_type: "light".to_string(),
+            frame_type: skotiq_sequencer::FrameType::Light,
             ..Default::default()
         }),
     )

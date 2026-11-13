@@ -2,49 +2,19 @@
 //! vendor SDK does (see `qhy_fake_sdk/libqhyccd.rs` for what that model rests
 //! on).
 //!
-//! `qhy_driver_against_the_fake_sdk` builds the fake with rustc and runs the
-//! `sdk_contract` tests in a child process that finds it on
-//! `LD_LIBRARY_PATH`. They run one at a time because the SDK is process-wide.
+//! `qhy_driver_against_the_fake_sdk` builds the fake and runs the
+//! `sdk_contract` tests in a child process that finds it on `LD_LIBRARY_PATH`.
+//! They run one at a time because the SDK is process-wide.
 
 #![cfg(target_os = "linux")]
 
-use std::path::PathBuf;
-use std::process::Command;
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 #[test]
 fn qhy_driver_against_the_fake_sdk() {
-    let out = std::env::temp_dir().join(format!("skotiq-qhy-fake-{}", std::process::id()));
-    std::fs::create_dir_all(&out).expect("create fake SDK dir");
-    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/qhy_fake_sdk/libqhyccd.rs");
-    let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".to_string());
-    let built = Command::new(rustc)
-        .args(["--crate-type", "cdylib", "--edition", "2021", "-O", "-A", "warnings"])
-        .arg(&source)
-        .arg("-o")
-        .arg(out.join("libqhyccd.so"))
-        .output()
-        .expect("run rustc for the fake QHY SDK");
-    assert!(
-        built.status.success(),
-        "fake QHY SDK build failed:\n{}",
-        String::from_utf8_lossy(&built.stderr)
-    );
-    let run = Command::new(std::env::current_exe().expect("test binary"))
-        .args(["--ignored", "--test-threads", "1", "sdk_contract::"])
-        .env("LD_LIBRARY_PATH", &out)
-        .output()
-        .expect("run the QHY contract tests");
-    let _ = std::fs::remove_dir_all(&out);
-    let report = format!(
-        "{}{}",
-        String::from_utf8_lossy(&run.stdout),
-        String::from_utf8_lossy(&run.stderr)
-    );
-    assert!(run.status.success(), "QHY contract tests failed:\n{report}");
-    assert!(
-        !report.contains("running 0 tests"),
-        "no QHY contract test ran:\n{report}"
-    );
+    harness::FakeSdk::build("qhy_contract", &[harness::QHY_CONTRACT])
+        .run_ignored("sdk_contract::", &[]);
 }
 
 mod sdk_contract {

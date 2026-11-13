@@ -71,7 +71,7 @@ class NightAutofocusSection extends ConsumerWidget {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
     final running = vm.status == NightAutofocusStatus.running;
-    final (String? note, MetricTone? tone) = switch (vm.status) {
+    final (String? note, MetricGridTone? tone) = switch (vm.status) {
       NightAutofocusStatus.running => (
           vm.point != null && vm.totalPoints != null
               ? l10n.text(
@@ -82,15 +82,15 @@ class NightAutofocusSection extends ConsumerWidget {
                   },
                 )
               : l10n.text('nightPanelAfRunning'),
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       NightAutofocusStatus.done => (
           l10n.text('nightPanelAfDone'),
-          MetricTone.good,
+          MetricGridTone.good,
         ),
       NightAutofocusStatus.failed => (
           l10n.text('nightPanelAfFailed'),
-          MetricTone.bad,
+          MetricGridTone.bad,
         ),
       NightAutofocusStatus.idle => (null, null),
     };
@@ -144,7 +144,7 @@ class NightAutofocusSection extends ConsumerWidget {
             ),
           ),
           if (vm.bestPosition != null || vm.fitQuality != null)
-            NightPanelNote(_fitNote(l10n), tone: MetricTone.good),
+            NightPanelNote(_fitNote(l10n), tone: MetricGridTone.good),
           _PointsTable(
             points: points,
             starCounts: vm.starCounts,
@@ -416,7 +416,7 @@ class _NightFocuserSectionState extends ConsumerState<NightFocuserSection> {
       trailing: !vm.focuserConnected
           ? l10n.text('nightPanelFocuserNotConnected')
           : (trailing.isEmpty ? null : trailing.join(' · ')),
-      trailingTone: vm.focuserConnected ? null : MetricTone.warning,
+      trailingTone: vm.focuserConnected ? null : MetricGridTone.warning,
       children: <Widget>[
         MergeSemantics(
           child: Row(
@@ -539,7 +539,7 @@ class NightTempCompSection extends StatelessWidget {
     return NightPanelSection(
       title: title,
       trailing: l10n.text('nightPanelOn'),
-      trailingTone: MetricTone.good,
+      trailingTone: MetricGridTone.good,
       children: <Widget>[
         MetricGrid(
           columns: 3,

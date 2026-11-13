@@ -115,6 +115,7 @@ fn load_frame(path: &str) -> Result<ImageData, String> {
         sensor_type: None,
         color_filter: None,
         camera_file: None,
+        readout_mode: None,
     })
 }
 

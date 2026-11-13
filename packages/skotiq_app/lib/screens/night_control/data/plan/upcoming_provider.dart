@@ -11,6 +11,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import '../session/session_events_provider.dart';
 import '../tonight_night.dart';
@@ -37,7 +38,7 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
       : UpcomingItemVm(
           kind: UpcomingKind.meridianFlip,
           at: flipAt,
-          tone: MetricTone.warning,
+          tone: MetricGridTone.warning,
         );
 
   if (!phase.isRunLive) {

@@ -108,7 +108,9 @@ pub(crate) async fn hold_before_meridian(
 
     let minutes_to_flip = threshold_min - entry_ha_min;
     let flip_at = chrono::Local::now()
-        + chrono::Duration::seconds((minutes_to_flip * 60.0 / crate::meridian::SIDEREAL_PER_SOLAR).round() as i64);
+        + chrono::Duration::seconds(
+            (minutes_to_flip * 60.0 / crate::meridian::SIDEREAL_PER_SOLAR).round() as i64,
+        );
     let message = format!(
         "Stopped tracking {}; the flip runs when {target} is {threshold_min:.0} min past it \
          (at about {}).",
@@ -121,7 +123,9 @@ pub(crate) async fn hold_before_meridian(
     // Its own bound, not the flip gate's 30 minutes: the hold is as long as the
     // operator made it, and only an hour angle that never arrives overruns it.
     let bound = Duration::from_secs_f64(
-        (minutes_to_flip.max(0.0) / crate::meridian::SIDEREAL_PER_SOLAR + OVERRUN_ALLOWANCE_MINUTES) * 60.0,
+        (minutes_to_flip.max(0.0) / crate::meridian::SIDEREAL_PER_SOLAR
+            + OVERRUN_ALLOWANCE_MINUTES)
+            * 60.0,
     );
     let started = tokio::time::Instant::now();
     loop {

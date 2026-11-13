@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/sequencer_wire.dart';
@@ -165,7 +166,7 @@ void main() {
 
     pumpRun37(executor);
     await settle();
-    await session.endSession(status: 'aborted');
+    await session.endSession(status: SessionStatus.aborted);
     await settle();
 
     final stats = container.read(liveSequenceStatsProvider)!;
@@ -227,7 +228,7 @@ void main() {
       }
     }
     await settle();
-    await session.endSession(status: 'aborted');
+    await session.endSession(status: SessionStatus.aborted);
     await settle();
 
     final stats = container.read(liveSequenceStatsProvider)!;

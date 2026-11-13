@@ -35,7 +35,7 @@ fn darks(count: u32) -> ExposureConfig {
     ExposureConfig {
         count,
         duration_secs: 0.0,
-        frame_type: "dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         ..ExposureConfig::default()
     }
 }

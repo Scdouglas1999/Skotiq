@@ -400,13 +400,12 @@ class RunEventHandler {
     if (filterName != null) {
       progressNotifier.updateProgress(currentFilter: filterName);
     }
+    // The run's line is the step's own text, which the plain progress event
+    // carrying the same update sets.
     progressNotifier.updateNodeStructuredProgress(
       event.nodeId,
       event.progressPercent,
       event.detail,
-    );
-    progressNotifier.updateProgress(
-      message: '${event.instruction}: ${event.detailKind}',
     );
   }
 

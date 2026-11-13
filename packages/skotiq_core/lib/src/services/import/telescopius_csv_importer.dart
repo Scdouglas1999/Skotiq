@@ -1,4 +1,5 @@
 import '../../models/import/canonical_sequence_node.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show mosaicPanelName;
 import '../../models/import/import_result.dart';
 import '../../utils/coordinate_parser.dart';
 import 'csv_parser.dart';
@@ -246,7 +247,7 @@ class TelescopiusCsvImporter {
       panels.add(
         CanonicalSequenceNode(
           kind: CanonicalKind.targetHeader,
-          name: '$designation (Panel ${panelIndex + 1}/$total)',
+          name: '$designation (${mosaicPanelName(panelIndex)}/$total)',
           sourceType: 'TelescopiusMosaicPanel',
           attributes: {
             'targetName': designation,

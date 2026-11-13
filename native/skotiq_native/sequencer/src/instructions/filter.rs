@@ -113,14 +113,8 @@ async fn execute_filter_change_holding_train(
         .caused_by(&e);
     }
     if config.filter_index.is_some() {
-        if let Some(cb) = progress_callback {
-            cb(100.0, format!("Filter {}", position));
-        }
         InstructionResult::success_with_message(format!("Changed to filter position: {}", position))
     } else {
-        if let Some(cb) = progress_callback {
-            cb(100.0, format!("Filter: {}", config.filter_name));
-        }
         InstructionResult::success_with_message(format!(
             "Changed to filter: {} (pos {})",
             config.filter_name, position

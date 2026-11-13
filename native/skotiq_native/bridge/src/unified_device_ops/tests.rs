@@ -26,6 +26,8 @@ struct InstantCompleteCamera {
     /// Whether the camera has gain and offset controls; its frames report
     /// gain 0 and offset 0 either way, as the FLI and Atik CCD drivers do.
     controls_gain: bool,
+    /// The read mode its frames say they were read out in.
+    readout_mode: Option<String>,
 }
 
 impl InstantCompleteCamera {
@@ -38,6 +40,7 @@ impl InstantCompleteCamera {
             connected: true,
             completes: true,
             controls_gain: false,
+            readout_mode: None,
         }
     }
 
@@ -132,7 +135,7 @@ impl CameraDriver for InstantCompleteCamera {
                 temperature: None,
                 timestamp: chrono::Utc::now(),
                 subframe: None,
-                readout_mode: None,
+                readout_mode: self.readout_mode.clone(),
                 vendor_data: VendorFeatures::default(),
                 camera_file: None,
             },
@@ -357,6 +360,52 @@ async fn a_camera_without_gain_control_writes_no_gain_or_offset_card() {
         );
         let row = skotiq_sequencer::scheduling::FrameCaptureMetadata::from(&ctx);
         assert_eq!((row.gain, row.offset), expected, "{device_id}");
+    }
+}
+
+/// A frame records the read mode its camera read it out in, whether a run
+/// saves it or the operator saves the last capture, so darks taken in two
+/// modes can be told apart.
+#[tokio::test]
+async fn a_frame_records_the_read_mode_it_was_read_out_in() {
+    let mgr = get_device_manager();
+    let device_id = "native:test_camera_read_mode".to_string();
+    mgr.register_device(
+        DeviceInfo {
+            id: device_id.clone(),
+            name: "Test Camera".to_string(),
+            device_type: DeviceType::Camera,
+            driver_type: DriverType::Native,
+            description: "Test camera".to_string(),
+            driver_version: "test".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Test Camera".to_string(),
+        },
+        false,
+    )
+    .await;
+    mgr.hold_vendor_camera(
+        &device_id,
+        Box::new(InstantCompleteCamera {
+            readout_mode: Some("High Gain Mode 16BIT".to_string()),
+            ..InstantCompleteCamera::new(device_id.clone(), Arc::new(AtomicUsize::new(0)))
+        }),
+    );
+
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
+    let image = ops
+        .camera_start_exposure(skotiq_sequencer::ExposureRequest::new(&device_id, 0.5))
+        .await;
+    let last = crate::last_frame::raw(&device_id).await;
+    cleanup_test_camera(mgr, &device_id).await;
+    let image = image.expect("exposure");
+    let saved_by_hand = last.expect("the frame is kept").into_image_data();
+
+    let ctx = skotiq_sequencer::scheduling::FrameContext::default();
+    for frame in [&image, &saved_by_hand] {
+        let header = build_rich_header(frame, &ctx, None).fits_header();
+        assert_eq!(header.get_string("READOUTM"), Some("High Gain Mode 16BIT"));
     }
 }
 

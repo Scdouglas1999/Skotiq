@@ -188,7 +188,7 @@ void main() {
                     12 - m * 1.94,
                   ),
               ],
-              tone: SeriesTone.secondary,
+              tone: SeriesChartTone.secondary,
             ),
           ],
           from: NightFixtures.at(18, 22),
@@ -381,12 +381,12 @@ void main() {
           SeriesLineVm(
             id: NightSeriesId.guideRa,
             points: ra,
-            tone: SeriesTone.primary,
+            tone: SeriesChartTone.primary,
           ),
           SeriesLineVm(
             id: NightSeriesId.guideDec,
             points: dec,
-            tone: SeriesTone.tertiary,
+            tone: SeriesChartTone.tertiary,
           ),
         ],
         from: start,

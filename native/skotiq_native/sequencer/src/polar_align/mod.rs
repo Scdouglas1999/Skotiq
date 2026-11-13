@@ -433,19 +433,12 @@ where
         &mut self,
         ctx: &InstructionContext,
     ) -> WizardStepOutcome<PolarStep> {
-        let (observer_latitude, observer_longitude) = match (
-            ctx.run.rig.latitude,
-            ctx.run.rig.longitude,
-        ) {
-            (Some(lat), Some(lon)) => (lat, lon),
-            _ => match ctx.run.device_ops.get_observer_location() {
-                Some(loc) => loc,
-                None => {
-                    return WizardStepOutcome::Failed(
-                        "Polar alignment requires observer latitude/longitude to calculate azimuth and altitude error".to_string(),
-                    );
-                }
-            },
+        let (Some(observer_latitude), Some(observer_longitude)) =
+            (ctx.run.rig.latitude, ctx.run.rig.longitude)
+        else {
+            return WizardStepOutcome::Failed(
+                "Polar alignment requires observer latitude/longitude to calculate azimuth and altitude error".to_string(),
+            );
         };
 
         let Some(mount_axis) = math::fit_mount_axis(

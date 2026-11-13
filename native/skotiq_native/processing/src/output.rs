@@ -3,7 +3,7 @@
 
 use skotiq_imaging::{
     apply_stretch, apply_stretch_rgb_per_channel, auto_stretch_rgb_with_mode, auto_stretch_stf,
-    ImageData, PixelType, RgbStretchMode,
+    write_raster, ImageData, PixelType, RasterFormat, RgbStretchMode, SampleRange,
 };
 use std::path::Path;
 
@@ -11,7 +11,7 @@ use std::path::Path;
 ///
 /// F32 masters are first rescaled into U16 (preserving relative tone) so the
 /// existing STF auto-stretch + `apply_stretch` path applies; the result is an
-/// 8-bit (mono) or interleaved-RGB PNG written via the `image` crate.
+/// 8-bit (mono) or interleaved-RGB PNG.
 pub(crate) fn write_preview_png(master: &ImageData, path: &Path) -> Result<(), String> {
     write_preview_png_with_mode(master, path, RgbStretchMode::Linked)
 }
@@ -31,26 +31,28 @@ pub(crate) fn write_preview_png_with_mode(
     let height = u16_master.height;
     let channels = u16_master.channels;
 
-    if channels == 1 {
+    let eight = if channels == 1 {
         let params = auto_stretch_stf(&u16_master);
-        let eight = apply_stretch(&u16_master, &params);
-        let img = image::GrayImage::from_raw(width, height, eight)
-            .ok_or_else(|| "failed to build preview buffer".to_string())?;
-        img.save(path)
-            .map_err(|e| format!("failed to write preview PNG: {e}"))
+        apply_stretch(&u16_master, &params)
     } else if channels == 3 {
         let rgb = u16_master
             .as_u16()
             .ok_or_else(|| "RGB preview requires u16 master".to_string())?;
         let (r, g, b) = auto_stretch_rgb_with_mode(&rgb, width, height, mode);
-        let eight = apply_stretch_rgb_per_channel(&rgb, width, height, &r, &g, &b);
-        let img: image::RgbImage = image::ImageBuffer::from_raw(width, height, eight)
-            .ok_or_else(|| "failed to build RGB preview buffer".to_string())?;
-        img.save(path)
-            .map_err(|e| format!("failed to write preview PNG: {e}"))
+        apply_stretch_rgb_per_channel(&rgb, width, height, &r, &g, &b)
     } else {
-        Err(format!("unsupported channel count {channels} for preview"))
-    }
+        return Err(format!("unsupported channel count {channels} for preview"));
+    };
+    let preview = ImageData {
+        width,
+        height,
+        channels,
+        pixel_type: PixelType::U8,
+        data: eight,
+        range: SampleRange::of(PixelType::U8),
+    };
+    write_raster(path, &preview, RasterFormat::Png)
+        .map_err(|e| format!("failed to write preview PNG: {e}"))
 }
 
 /// Convert any master into a U16 image for the auto-stretch preview path.

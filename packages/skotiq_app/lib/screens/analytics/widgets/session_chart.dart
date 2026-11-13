@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/database.dart' show DbCapturedImage;
+import 'package:skotiq_core/models.dart';
 
 import '../../../widgets/adaptive_chart_container.dart';
 
@@ -346,7 +347,7 @@ class _ChartSummary extends StatelessWidget {
 /// real but it is not part of the night the rest of the card describes.
 List<DbCapturedImage> sessionChartFrames(List<DbCapturedImage> images) => images
     .where(
-        (image) => image.isAccepted && image.frameType.toLowerCase() == 'light')
+        (image) => image.isAccepted && image.isLight)
     .toList(growable: false);
 
 class HfrChart extends StatelessWidget {

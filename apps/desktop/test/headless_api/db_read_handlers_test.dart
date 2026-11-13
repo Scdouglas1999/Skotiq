@@ -754,7 +754,7 @@ void main() {
           capturedAt: DateTime.utc(2026, 5, 25, 23, 0),
           targetId: null,
           sessionId: null,
-          frameType: 'light',
+          frameType: FrameType.light,
           filter: 'L',
           gain: 100,
           offset: 10,

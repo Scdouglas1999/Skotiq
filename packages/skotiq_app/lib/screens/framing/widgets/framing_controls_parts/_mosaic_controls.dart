@@ -52,7 +52,7 @@ class FramingStartCornerSelector extends StatelessWidget {
 /// matches the panels shown on the canvas.
 class FramingExportMosaicButton extends ConsumerStatefulWidget {
   final SkotiqColors colors;
-  final List<FramingMosaicPanel> panels;
+  final List<MosaicPanel> panels;
   final String targetName;
 
   const FramingExportMosaicButton({

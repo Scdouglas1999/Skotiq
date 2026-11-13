@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-// FramingMosaicConfig / FramingMosaicPanel are exported from the public barrel.
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -420,7 +420,7 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
 /// shows beneath them.
 class FramingMosaicGridPainter extends CustomPainter {
   final FramingMosaicConfig config;
-  final List<FramingMosaicPanel> panels;
+  final List<MosaicPanel> panels;
   final double fovWidth;
   final double fovHeight;
   final double zoom;
@@ -494,7 +494,7 @@ class FramingMosaicGridPainter extends CustomPainter {
       bool first = true;
 
       for (final panel in panels) {
-        final panelX = startX + panel.column * stepX;
+        final panelX = startX + panel.col * stepX;
         final panelY = startY + panel.row * stepY;
 
         if (first) {
@@ -510,7 +510,7 @@ class FramingMosaicGridPainter extends CustomPainter {
 
     for (int i = 0; i < panels.length; i++) {
       final panel = panels[i];
-      final panelX = startX + panel.column * stepX;
+      final panelX = startX + panel.col * stepX;
       final panelY = startY + panel.row * stepY;
       final isSelected = i == selectedPanelIndex;
 
@@ -538,7 +538,7 @@ class FramingMosaicGridPainter extends CustomPainter {
       if (showPanelNumbers) {
         final textPainter = TextPainter(
           text: TextSpan(
-            text: '${panel.index + 1}',
+            text: '${panel.number}',
             style: SkotiqTypography.label.copyWith(
               color: isSelected ? colors.primary : colors.warning,
               fontWeight: FontWeight.bold,
@@ -577,7 +577,7 @@ class FramingMosaicGridPainter extends CustomPainter {
 
     if (panels.isNotEmpty) {
       final firstPanel = panels.first;
-      final startX2 = startX + firstPanel.column * stepX;
+      final startX2 = startX + firstPanel.col * stepX;
       final startY2 = startY + firstPanel.row * stepY;
 
       final startPaint = Paint()

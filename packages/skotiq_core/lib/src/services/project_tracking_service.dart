@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import '../database/database.dart' as db;
 import '../models/equipment/filter_names.dart';
 import '../models/scheduler/integration_goal.dart';
@@ -148,9 +149,7 @@ Set<int> targetSessionIds(
   required Iterable<db.ImagingSession> sessions,
 }) => {
   for (final frame in frames)
-    if (frame.targetId == targetId &&
-        frame.frameType.toLowerCase() == 'light' &&
-        frame.sessionId != null)
+    if (frame.targetId == targetId && frame.isLight && frame.sessionId != null)
       frame.sessionId!,
   for (final session in sessions)
     if (session.targetId == targetId) session.id,
@@ -225,7 +224,7 @@ class TargetGoal {
 }
 
 bool _isAcceptedLight(db.DbCapturedImage frame) =>
-    frame.frameType.toLowerCase() == 'light' && frame.isAccepted;
+    frame.isLight && frame.isAccepted;
 
 /// Multi-night progress of one target, from its frames and its goals.
 class ProjectProgress {
@@ -298,7 +297,7 @@ class ProjectTrackingService {
       final filters = acceptedLightsByFilter(targetFrames);
       DateTime? lastImagedAt;
       for (final frame in targetFrames) {
-        if (frame.frameType.toLowerCase() != 'light') continue;
+        if (!frame.isLight) continue;
         if (lastImagedAt == null || frame.capturedAt.isAfter(lastImagedAt)) {
           lastImagedAt = frame.capturedAt;
         }

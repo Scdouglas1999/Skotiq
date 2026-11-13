@@ -1,33 +1,11 @@
 //! Header cards an exported master carries so PixInsight and other tools can
 //! use it without re-entering the optics or re-solving the field.
 
-use skotiq_imaging::{read_frame_header, FitsHeader, FitsValue};
+use skotiq_imaging::{
+    copy_header_cards, is_instrument_keyword, read_frame_header, replace_astrometry_headers,
+    FitsHeader,
+};
 use std::path::Path;
-
-/// Acquisition and optics cards copied from a sub of the master's own filter.
-const OPTICS_CARDS: &[&str] = &[
-    "TELESCOP", "INSTRUME", "FOCALLEN", "APTDIA", "APTAREA", "XPIXSZ", "YPIXSZ", "PIXSIZE",
-    "XBINNING", "YBINNING", "GAIN", "EGAIN", "OFFSET", "CCD-TEMP", "SET-TEMP", "SITELAT",
-    "SITELONG", "SITEELEV", "OBJCTRA", "OBJCTDEC", "RA", "DEC", "DATE-OBS", "OBSERVER",
-];
-
-/// Linear WCS cards, valid for every master on the reference grid.
-const WCS_CARDS: &[&str] = &[
-    "CTYPE1", "CTYPE2", "CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CD1_1", "CD1_2", "CD2_1", "CD2_2",
-    "CDELT1", "CDELT2", "CROTA1", "CROTA2", "PC1_1", "PC1_2", "PC2_1", "PC2_2", "CUNIT1", "CUNIT2",
-    "EQUINOX", "RADESYS", "LONPOLE", "LATPOLE",
-];
-
-fn copy_card(to: &mut FitsHeader, from: &FitsHeader, key: &str) -> bool {
-    match from.get(key) {
-        Some(FitsValue::String(v)) => to.set_string(key, v),
-        Some(FitsValue::Integer(v)) => to.set_int(key, *v),
-        Some(FitsValue::Float(v)) => to.set_float(key, *v),
-        Some(FitsValue::Boolean(v)) => to.set_bool(key, *v),
-        _ => return false,
-    }
-    true
-}
 
 /// The typed header of `path` in any format the app reads, or `None` for a
 /// file that is no frame or cannot be read.
@@ -38,11 +16,14 @@ pub(crate) fn fits_header_of(path: &str) -> Option<FitsHeader> {
         .flatten()
 }
 
-/// Copy the optics and site cards of `source` onto `header`.
+/// Copy onto `header` the cards of `source` that stay true of a master or
+/// composite made from it: the instrument and site, where the field is, and
+/// when its first frame was taken.
 pub(crate) fn copy_optics_cards(header: &mut FitsHeader, source: &FitsHeader) {
-    for key in OPTICS_CARDS {
-        copy_card(header, source, key);
-    }
+    copy_header_cards(header, source, |key| {
+        is_instrument_keyword(key)
+            || matches!(key, "OBJCTRA" | "OBJCTDEC" | "RA" | "DEC" | "DATE-OBS")
+    });
 }
 
 /// Whether `header` holds a celestial WCS.
@@ -52,28 +33,6 @@ pub(crate) fn has_wcs(header: &FitsHeader) -> bool {
         .is_some_and(|t| t.contains("RA"))
         && header.get_float("CRVAL1").is_some()
         && header.get_float("CRVAL2").is_some()
-}
-
-/// Copy the WCS of `source`, including any SIP distortion terms.
-pub(crate) fn copy_wcs(header: &mut FitsHeader, source: &FitsHeader) {
-    for key in WCS_CARDS {
-        copy_card(header, source, key);
-    }
-    let sip: Vec<String> = source
-        .keywords
-        .keys()
-        .filter(|k| {
-            let mut parts = k.splitn(2, '_');
-            matches!(parts.next(), Some("A" | "B" | "AP" | "BP"))
-                && parts.next().is_some_and(|rest| {
-                    rest == "ORDER" || rest.split('_').all(|n| n.parse::<u32>().is_ok())
-                })
-        })
-        .cloned()
-        .collect();
-    for key in sip {
-        copy_card(header, source, &key);
-    }
 }
 
 pub(crate) struct WcsAttachment {
@@ -94,7 +53,7 @@ pub(crate) fn attach_wcs(
     size: (u32, u32),
 ) -> Option<WcsAttachment> {
     if let Some(grid) = fits_header_of(grid_path).filter(has_wcs) {
-        copy_wcs(header, &grid);
+        replace_astrometry_headers(header, &grid);
         return Some(WcsAttachment {
             description: format!("WCS of the grid reference {}", grid_path.trim()),
             inherited: true,
@@ -102,7 +61,7 @@ pub(crate) fn attach_wcs(
     }
     let sidecar = Path::new(grid_path.trim()).with_extension("wcs");
     if let Some(solve) = read_frame_header(&sidecar).ok().filter(has_wcs) {
-        copy_wcs(header, &solve);
+        replace_astrometry_headers(header, &solve);
         return Some(WcsAttachment {
             description: format!("WCS from {}", sidecar.display()),
             inherited: true,
@@ -125,4 +84,53 @@ pub(crate) fn attach_wcs(
         description: "ASTAP solve of the integrated master".to_string(),
         inherited: false,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A master on a solved reference's grid takes the reference's whole
+    /// solution, reference system and projection parameters included, and
+    /// none of an earlier one.
+    #[test]
+    fn a_master_takes_the_whole_solution_of_its_reference() {
+        let mut reference = FitsHeader::new();
+        reference.set_int("WCSAXES", 2);
+        reference.set_string("CTYPE1", "RA---TAN");
+        reference.set_string("CTYPE2", "DEC--TAN");
+        reference.set_string("RADECSYS", "FK5");
+        for (key, value) in [
+            ("CRVAL1", 10.0),
+            ("CRVAL2", 41.0),
+            ("CRPIX1", 2072.5),
+            ("CRPIX2", 1411.5),
+            ("CD1_1", -2.8e-4),
+            ("CD1_2", 0.0),
+            ("CD2_1", 0.0),
+            ("CD2_2", 2.8e-4),
+            ("PV1_1", 0.0),
+        ] {
+            reference.set_float(key, value);
+        }
+        reference.set_string("TELESCOP", "Esprit 100");
+        reference.set_float("XPIXSZ", 3.76);
+        reference.set_float("AIRMASS", 1.2);
+        reference.set_float("EXPOSURE", 300.0);
+
+        let mut master = FitsHeader::new();
+        master.set_float("PC1_1", 1.0);
+        master.set_float("A_2_0", 1e-6);
+        master.set_float("EXPTIME", 7200.0);
+        copy_optics_cards(&mut master, &reference);
+        replace_astrometry_headers(&mut master, &reference);
+
+        for key in ["WCSAXES", "RADECSYS", "PV1_1", "CD1_1", "TELESCOP", "XPIXSZ"] {
+            assert!(master.get(key).is_some(), "{key}");
+        }
+        for key in ["PC1_1", "A_2_0", "AIRMASS", "EXPOSURE"] {
+            assert!(master.get(key).is_none(), "{key}");
+        }
+        assert_eq!(master.get_float("EXPTIME"), Some(7200.0));
+    }
 }

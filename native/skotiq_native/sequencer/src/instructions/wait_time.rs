@@ -18,7 +18,7 @@ pub async fn execute_wait_time(
             // any positive value.
             let total_wait_secs = u64::try_from(until - now).unwrap_or(0);
             let wait_until_str = chrono::DateTime::from_timestamp(until, 0)
-                .map(|dt| dt.format("%H:%M:%S").to_string())
+                .map(|dt| dt.format("%H:%M:%S UTC").to_string())
                 // Why: `from_timestamp` only fails for out-of-range
                 // i64 seconds (year ±5_400_000); user input here is bounded by the UI
                 // datetime picker. Raw epoch seconds as the display fallback preserves
@@ -66,10 +66,7 @@ pub async fn execute_wait_time(
         tracing::info!("Waiting for {:?} twilight", twilight);
 
         // Calculate twilight time based on observer location
-        let observer_location = match (ctx.run.rig.latitude, ctx.run.rig.longitude) {
-            (Some(lat), Some(lon)) => Some((lat, lon)),
-            _ => ctx.run.device_ops.get_observer_location(),
-        };
+        let observer_location = ctx.run.rig.latitude.zip(ctx.run.rig.longitude);
         let (lat, lon) = match observer_location {
             Some(loc) => loc,
             None => {

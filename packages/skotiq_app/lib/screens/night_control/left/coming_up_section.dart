@@ -14,6 +14,7 @@ import '../data/plan/upcoming_provider.dart';
 import '../night_control_contracts.dart';
 import 'left_section_frame.dart';
 import 'night_time_format.dart';
+import '../night_tone_color.dart';
 
 class NightComingUpSection extends ConsumerWidget {
   const NightComingUpSection({super.key});

@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import '../../../database/database.dart';
 import '../../../models/science/science_models.dart';
+import '../../../services/science/period_analysis_service.dart'
+    show PeriodFinding;
 
 /// Science products a linked imaging host derives from its frames:
 /// photometry, transforms, reports and their settings.
@@ -23,6 +25,14 @@ abstract interface class HostScience {
   });
 
   Future<Uint8List> generateObservationReport(int sessionId);
+
+  /// The Science tab's report of [sessionId] as Markdown, with [period], the
+  /// search this client ran on screen.
+  Future<String> scienceReport(int sessionId, {PeriodFinding? period});
+
+  /// The session the host's Science tab opens on (`scienceDefaultSessionId`),
+  /// or null when no session has light frames.
+  Future<int?> scienceDefaultSession();
 
   Future<Map<String, dynamic>> generateSessionLineRatios(int sessionId);
 

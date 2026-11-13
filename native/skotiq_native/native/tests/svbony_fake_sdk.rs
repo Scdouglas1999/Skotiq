@@ -6,69 +6,34 @@
 
 #![cfg(target_os = "linux")]
 
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
+
 use skotiq_device::{
     BayerPattern, CameraDriver, DeviceDriver, DriverError, ExposureParams, FrameType, ImageData,
     SubFrame,
 };
 use skotiq_native::vendor::svbony::SvbonyCamera;
 use std::ffi::{c_int, c_long};
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-const FAKE_SOURCE: &str = include_str!("fake_sdk/svbony.rs");
 const LIBRARY: &str = "libSVBCameraSDK.so";
 
-fn fake_sdk_dir() -> &'static Path {
-    static DIR: OnceLock<PathBuf> = OnceLock::new();
-    DIR.get_or_init(|| {
-        let dir = std::env::temp_dir().join(format!("skotiq-svbony-fake-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("create fake SDK dir");
-        let source = dir.join("svbony_fake.rs");
-        std::fs::write(&source, FAKE_SOURCE).expect("write fake SDK source");
-        let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".to_string());
-        let output = Command::new(rustc)
-            .args([
-                "--crate-type",
-                "cdylib",
-                "--edition",
-                "2021",
-                "-A",
-                "warnings",
-            ])
-            .arg(&source)
-            .arg("-o")
-            .arg(dir.join(LIBRARY))
-            .output()
-            .expect("run rustc for the fake SVBony SDK");
-        assert!(
-            output.status.success(),
-            "fake SVBony SDK did not build:\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        dir
-    })
+fn fake_sdk() -> &'static harness::FakeSdk {
+    static FAKE: OnceLock<harness::FakeSdk> = OnceLock::new();
+    FAKE.get_or_init(|| harness::FakeSdk::build("svbony", &[harness::SVBONY]))
 }
 
 fn run_scenario(name: &str, env: &[(&str, &str)]) {
-    let dir = fake_sdk_dir();
-    let output = Command::new(std::env::current_exe().expect("test binary path"))
-        .args(["--ignored", "--exact", "--test-threads", "1", "--nocapture"])
-        .arg(format!("scenario::{}", name))
-        .env("LD_LIBRARY_PATH", dir)
-        .env("SVBONY_FAKE_SDK_DIR", dir)
-        .envs(env.iter().copied())
-        .output()
-        .expect("run scenario");
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        output.status.success() && stdout.contains("1 passed"),
-        "scenario {} failed:\n{}\n{}",
-        name,
-        stdout,
-        String::from_utf8_lossy(&output.stderr)
-    );
+    let fake = fake_sdk();
+    let dir = fake.dir().to_str().expect("a UTF-8 temp path");
+    let env: Vec<(&str, &str)> = [("SVBONY_FAKE_SDK_DIR", dir)]
+        .into_iter()
+        .chain(env.iter().copied())
+        .collect();
+    fake.run_one(&format!("scenario::{name}"), &env);
 }
 
 #[test]

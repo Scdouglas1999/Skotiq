@@ -428,20 +428,6 @@ Future<bool> addFramedTargetToSequencer({
   }
 }
 
-/// The drawn mosaic's panels, in the capture order the canvas numbers them,
-/// as the mosaic service takes them. Both ways of sending a framed mosaic to
-/// the sequencer build their targets from these.
-List<MosaicPanel> framingCapturePanels(FramingState framingState) => [
-      for (final panel in framingState.mosaicPanels)
-        MosaicPanel(
-          raHours: panel.centerRaHours,
-          decDegrees: panel.centerDecDegrees,
-          panelIndex: panel.index,
-          row: panel.row,
-          col: panel.column,
-        ),
-    ];
-
 /// Construct the mosaic name that the framing → sequencer handoff uses for
 /// a given target. Exposed for tests + diagnostic UIs.
 String framingMosaicNameFor(FramingTarget target) {
@@ -471,7 +457,7 @@ Future<bool> _addFramedMosaicToSequencer({
   final mosaicName = framingMosaicNameFor(target);
   final nodes = const MosaicService().sequenceForPanels(
     mosaicName: mosaicName,
-    panels: framingCapturePanels(framingState),
+    panels: framingState.mosaicPanels,
     rotation: rotationDegrees ?? framingState.rotation,
     exposure: smartNightMosaicExposureSettings(exposureContext),
     options: MosaicSequenceOptions(

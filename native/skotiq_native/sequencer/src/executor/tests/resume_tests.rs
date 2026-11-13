@@ -76,7 +76,7 @@ fn app_built_plan(loop_passes: u32) -> SequenceDefinition {
         node_type: NodeType::TakeExposure(crate::ExposureConfig {
             duration_secs: SUB_SECS,
             count: FRAMES,
-            frame_type: "Dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         }),
         enabled: true,

@@ -14,7 +14,7 @@ pub(super) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
     for node in sequence.nodes.iter().filter(|n| n.enabled) {
         match &node.node_type {
             NodeType::TakeExposure(config) => {
-                if !is_calibration_frame_type(&config.frame_type) {
+                if !config.frame_type.is_calibration() {
                     return false;
                 }
                 calibration_frames = true;
@@ -44,13 +44,6 @@ pub(super) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
     calibration_frames
 }
 
-pub(super) fn is_calibration_frame_type(frame_type: &str) -> bool {
-    matches!(
-        frame_type.trim().to_ascii_lowercase().as_str(),
-        "dark" | "bias" | "flat" | "darkflat"
-    )
-}
-
 /// Whether a fired trigger may act in a calibration-only run.
 pub(super) fn acts_in_calibration_run(origin: TriggerOrigin) -> bool {
     origin.is_recovery_node()
@@ -75,7 +68,7 @@ mod tests {
 
     fn exposure(frame_type: &str) -> NodeType {
         NodeType::TakeExposure(ExposureConfig {
-            frame_type: frame_type.into(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             ..Default::default()
         })
     }

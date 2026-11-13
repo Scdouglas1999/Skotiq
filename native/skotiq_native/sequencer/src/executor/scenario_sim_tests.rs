@@ -2967,7 +2967,7 @@ async fn start_capture_run(
         node_type: NodeType::TakeExposure(ExposureConfig {
             count: frames,
             duration_secs: 0.0,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..ExposureConfig::default()
         }),
         enabled: true,
@@ -3548,7 +3548,7 @@ async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_trigg
             node_type: NodeType::TakeExposure(ExposureConfig {
                 count: 6,
                 duration_secs: 0.0,
-                frame_type: "dark".to_string(),
+                frame_type: crate::FrameType::Dark,
                 dither_every: Some(1),
                 ..ExposureConfig::default()
             }),
@@ -3724,7 +3724,7 @@ async fn a_mount_that_will_not_move_at_all_is_reported() {
     ops.stuck_at_limit.store(true, Ordering::SeqCst);
     ops.axis_frozen.store(true, Ordering::SeqCst);
     let shared: SharedDeviceOps = ops.clone();
-    let outcome = crate::limit_backoff::back_off_limit(&*shared, "mount-1").await;
+    let outcome = crate::limit_backoff::back_off_limit(&*shared, "mount-1", None).await;
     assert!(outcome.is_err(), "{outcome:?}");
 }
 

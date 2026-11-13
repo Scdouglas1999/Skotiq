@@ -20,6 +20,7 @@
 // rows, which come from longer-lived sources, stayed.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import 'package:skotiq_core/providers.dart'
     show cameraStateProvider, eventHistoryProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, mountStateProvider, rotatorStateProvider;
@@ -104,12 +105,12 @@ class NightLogFeedRecorder extends Notifier<List<sk_events.SkotiqEvent>> {
   }
 }
 
-MetricTone _toneOf(RunDashboardEventSeverity severity) => switch (severity) {
+MetricGridTone _toneOf(RunDashboardEventSeverity severity) => switch (severity) {
       RunDashboardEventSeverity.critical ||
       RunDashboardEventSeverity.error =>
-        MetricTone.bad,
-      RunDashboardEventSeverity.warning => MetricTone.warning,
-      RunDashboardEventSeverity.info => MetricTone.neutral,
+        MetricGridTone.bad,
+      RunDashboardEventSeverity.warning => MetricGridTone.warning,
+      RunDashboardEventSeverity.info => MetricGridTone.neutral,
     };
 
 /// Connected devices' names by device id. Device events carry only the id;
@@ -186,7 +187,7 @@ final nightLogProvider = Provider<List<NightLogEntryVm>>((ref) {
                 : '',
           },
         ),
-        tone: rejected ? MetricTone.bad : MetricTone.neutral,
+        tone: rejected ? MetricGridTone.bad : MetricGridTone.neutral,
       ),
     );
   }

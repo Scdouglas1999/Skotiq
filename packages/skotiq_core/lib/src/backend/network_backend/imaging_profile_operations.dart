@@ -416,9 +416,8 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Push the selected map and correction strategy into the host's live
-  /// sequencer runtime. This is distinct from the persisted per-camera apply
-  /// flag and must run on the process that owns the executor.
+  /// Turn the host's correction of a camera's lights with the map stored for
+  /// this size and temperature on (with this strategy) or off.
   Future<void> applyDefectMapToSequencer({
     required String cameraId,
     required int width,
@@ -456,18 +455,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       lastRebuiltUnixSeconds: (status['lastRebuiltUnixSeconds'] as num).toInt(),
       applyDuringCapture: status['applyDuringCapture'] as bool,
       storedOnDisk: status['storedOnDisk'] as bool,
-    );
-  }
-
-  /// Toggle whether the host applies the stored defect map to lights at
-  /// capture time. Delegates to `POST /api/calibration/defect-maps/apply`.
-  Future<void> applyDefectMap({
-    required String cameraId,
-    required bool applyDuringCapture,
-  }) async {
-    await _post(
-      CalibrationApi.applyDefectMap,
-      body: {'cameraId': cameraId, 'applyDuringCapture': applyDuringCapture},
     );
   }
 
@@ -1027,7 +1014,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         binningX: binX,
         binningY: binY,
         filter: filter,
-        frameType: _parseFrameType(
+        frameType: _recordedFrameType(
           _requiredImageString(row, frameTypeKey, context),
         ),
       ),
@@ -1115,26 +1102,9 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     return _requiredImageString(row, key, context);
   }
 
-  FrameType _parseFrameType(String str) {
-    switch (str.toLowerCase()) {
-      case 'light':
-        return FrameType.light;
-      case 'dark':
-        return FrameType.dark;
-      case 'flat':
-        return FrameType.flat;
-      case 'bias':
-        return FrameType.bias;
-      case 'darkflat':
-      case 'dark_flat':
-      case 'dark-flat':
-        return FrameType.darkFlat;
-      case 'snapshot':
-        return FrameType.snapshot;
-      default:
-        throw FormatException('Unknown captured-image frame type: $str');
-    }
-  }
+  FrameType _recordedFrameType(String record) =>
+      FrameType.fromRecord(record) ??
+      (throw FormatException('Unknown captured-image frame type: $record'));
 
   ImageFileFormat _parseImageFormat(String str) =>
       ImageFileFormat.fromRecord(str) ??

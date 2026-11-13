@@ -196,7 +196,7 @@ class _ChartTitle extends StatelessWidget {
           style: SkotiqTypography.labelStrongSm
               .copyWith(color: colors.textSecondary),
         ),
-        key(Container(color: passFilterColor(lane, colors)), 'measured'),
+        key(Container(color: FilterColors.forName(lane, colors: colors)), 'measured'),
         key(
           Row(
             children: <Widget>[

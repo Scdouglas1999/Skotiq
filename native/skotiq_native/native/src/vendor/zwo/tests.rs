@@ -29,25 +29,6 @@ fn frame_buffer_stats_of_an_empty_buffer_is_none() {
     assert_eq!(FrameBufferStats::of(&[]), None);
 }
 
-// Pixel-container full scale (no hardware required)
-
-/// The container ceiling must be reported in the units the pixels arrive in.
-/// `(1 << bit_depth) - 1` is the ADC range and is 16x/4x too small for the
-/// 12/14-bit sensors that make up most of the ZWO line.
-#[test]
-fn raw16_container_max_adu_accounts_for_left_justification() {
-    // 12-bit ASI1600MM/ASI183/ASI294: 4095 << 4.
-    assert_eq!(raw16_container_max_adu(12), 65520);
-    // 14-bit ASI2600/ASI6200: 16383 << 2.
-    assert_eq!(raw16_container_max_adu(14), 65532);
-    // 10-bit: 1023 << 6.
-    assert_eq!(raw16_container_max_adu(10), 65472);
-    // 8-bit sensor read out in Raw16: 255 << 8.
-    assert_eq!(raw16_container_max_adu(8), 65280);
-    // A true 16-bit sensor needs no shift.
-    assert_eq!(raw16_container_max_adu(16), 65535);
-}
-
 // Reported model (no hardware required)
 
 /// Fill an `ASICameraInfo` as the SDK would, with just the fields the model
@@ -81,7 +62,7 @@ fn name_reports_the_model_once_camera_info_is_loaded() {
     );
 
     camera.camera_info = Some(camera_info_named("ZWO ASI1600MM-Cool", 1));
-    camera.model_name = camera.camera_name();
+    camera.core.name = camera.camera_name();
 
     assert_eq!(camera.name(), "ZWO ASI1600MM-Cool");
     assert_ne!(
@@ -89,49 +70,6 @@ fn name_reports_the_model_once_camera_info_is_loaded() {
         camera.id(),
         "the model must not be the positional device id"
     );
-}
-
-/// Every reported ceiling must be reachable inside a u16 and be an exact
-/// multiple of the left-shift step, which is what makes frame statistics from
-/// these cameras land on multiples of 16 (12-bit) or 4 (14-bit).
-#[test]
-fn raw16_container_max_adu_is_a_reachable_u16_sample() {
-    for bit_depth in 1..=16u32 {
-        let max = raw16_container_max_adu(bit_depth);
-        assert!(
-            max <= u16::MAX as u32,
-            "bit_depth {bit_depth} produced {max}, outside the u16 container"
-        );
-        let step = 1u32 << (16 - bit_depth.min(16));
-        assert_eq!(
-            max % step,
-            0,
-            "bit_depth {bit_depth}: {max} is not a multiple of the {step}-ADU sample step"
-        );
-    }
-}
-
-/// A bit depth the SDK never populated must not collapse the range to 0 —
-/// that would publish "this camera cannot produce any signal" and make every
-/// percent-of-full-scale target 0.
-#[test]
-fn raw16_container_max_adu_unknown_bit_depth_falls_back_to_container() {
-    assert_eq!(raw16_container_max_adu(0), 65535);
-    assert_eq!(raw16_container_max_adu(32), 65535);
-}
-
-/// The saturation threshold the imaging pipeline ships (65024 = 4064 << 4)
-/// must sit just under, not above, the 12-bit container ceiling — otherwise
-/// saturation could never be detected on the most common astro sensor class.
-#[test]
-fn raw16_container_max_adu_agrees_with_pipeline_saturation_threshold() {
-    let twelve_bit_ceiling = raw16_container_max_adu(12);
-    assert!(
-        65024 < twelve_bit_ceiling,
-        "pipeline threshold 65024 must be below the 12-bit ceiling {twelve_bit_ceiling}"
-    );
-    // The live ASI1600MM clips at 4094 << 4; that must still be flagged.
-    assert!(65024 <= 65504 && 65504 <= twelve_bit_ceiling);
 }
 
 // Connected-device registry (no hardware required)
@@ -294,24 +232,6 @@ fn efw_discovery_skip_returns_cached_metadata() {
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .remove(&id);
-}
-
-#[test]
-fn zwo_cached_setting_updates_after_success_only() {
-    let mut cached = 10;
-
-    commit_zwo_cached_setting(&mut cached, 42, Ok(())).unwrap();
-    assert_eq!(cached, 42);
-
-    let err = commit_zwo_cached_setting(
-        &mut cached,
-        99,
-        Err(DriverError::SdkError("rejected".to_string())),
-    )
-    .unwrap_err();
-
-    assert!(matches!(err, DriverError::SdkError(_)));
-    assert_eq!(cached, 42);
 }
 
 #[test]

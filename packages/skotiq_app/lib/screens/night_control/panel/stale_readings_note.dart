@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import '../../../localization/skotiq_localizations.dart';
-import '../night_control_contracts.dart';
 import 'panel_widgets.dart';
 
 /// The stale-readings note for the [type] slot's [deviceId], or nothing.
@@ -31,7 +31,7 @@ class NightStaleReadingsNote extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: NightPanelNote(
         nightStaleReadingsText(SkotiqLocalizations.of(context), stale),
-        tone: MetricTone.warning,
+        tone: MetricGridTone.warning,
       ),
     );
   }

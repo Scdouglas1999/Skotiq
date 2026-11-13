@@ -40,7 +40,8 @@ pub(in super::super) async fn slew_to_gap(
         return ActionFlow::Finished;
     };
 
-    let (ra_hours, dec_deg) = alt_az_to_ra_dec(alt_deg, az_deg, lat, lon);
+    let (ra_hours, dec_deg) =
+        crate::meridian::alt_az_to_ra_dec(alt_deg, az_deg, lat, lon, chrono::Utc::now());
     tracing::info!(
         "[CLOUD] SlewToGapAndContinue: clear sky at alt={:.1}°, az={:.1}° -> RA={:.4}h, Dec={:.4}°",
         alt_deg,

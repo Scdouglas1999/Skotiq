@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
+import '../night_tone_color.dart';
 import '../../../utils/snackbar_helper.dart';
 
 /// Insets of a panel section, as on the boards (10 px top and bottom, 12 px
@@ -102,7 +103,7 @@ class NightPanelSection extends StatelessWidget {
   final String? trailing;
 
   /// Colors [trailing]; null is muted.
-  final MetricTone? trailingTone;
+  final MetricGridTone? trailingTone;
 
   /// Read instead of [trailing] when the note alone would be unclear.
   final String? trailingSemantics;
@@ -198,7 +199,7 @@ class NightPanelNote extends StatelessWidget {
   const NightPanelNote(this.text, {super.key, this.tone, this.maxLines = 3});
 
   final String text;
-  final MetricTone? tone;
+  final MetricGridTone? tone;
 
   /// Null for text that must be read whole (an error).
   final int? maxLines;
@@ -560,20 +561,6 @@ Future<void> nightPanelAttempt(
   }
 }
 
-Color nightToneColor(MetricTone tone, SkotiqColors colors) => switch (tone) {
-      MetricTone.neutral => colors.textPrimary,
-      MetricTone.good => colors.success,
-      MetricTone.warning => colors.warning,
-      MetricTone.bad => colors.error,
-    };
-
-MetricGridTone nightGridTone(MetricTone tone) => switch (tone) {
-      MetricTone.neutral => MetricGridTone.neutral,
-      MetricTone.good => MetricGridTone.good,
-      MetricTone.warning => MetricGridTone.warning,
-      MetricTone.bad => MetricGridTone.bad,
-    };
-
 List<MetricGridItem> nightMetricItems(
   List<MetricVm> metrics,
   SkotiqLocalizations l10n,
@@ -584,17 +571,8 @@ List<MetricGridItem> nightMetricItems(
           label: m.label.resolve(l10n),
           value: m.value,
           delta: m.delta,
-          deltaTone: nightGridTone(m.deltaTone),
-          valueTone: nightGridTone(m.valueTone),
+          deltaTone: m.deltaTone,
+          valueTone: m.valueTone,
         ),
     ];
-
-SeriesChartTone nightChartTone(SeriesTone tone) => switch (tone) {
-      SeriesTone.primary => SeriesChartTone.primary,
-      SeriesTone.secondary => SeriesChartTone.secondary,
-      SeriesTone.tertiary => SeriesChartTone.tertiary,
-      SeriesTone.muted => SeriesChartTone.muted,
-      SeriesTone.warning => SeriesChartTone.warning,
-      SeriesTone.error => SeriesChartTone.error,
-    };
 

@@ -4,8 +4,8 @@
 //! # Why this module exists
 //!
 //! A wide-field mosaic is captured as an N×M grid of overlapping panels, each
-//! integrated to its own master with its own plate-solved WCS (the `WcsInfo`
-//! CD-matrix that rides on every `integrated_masters` row). This is the only
+//! integrated to its own master with its own plate-solved WCS (the CD-matrix
+//! [`SipWcs`] that rides on every `integrated_masters` row). This is the only
 //! place in the imaging crate that puts spatially-offset panels onto a shared
 //! output frame: [`registration`](crate::registration) warps a frame onto the
 //! *reference's exact pixel grid* (so it cannot grow a canvas), and
@@ -18,7 +18,7 @@
 //!
 //! 1. **TAN projection** ([`SipWcs`]) — exact spherical gnomonic
 //!    (RA---TAN / DEC--TAN) forward (pixel→world) and inverse (world→pixel)
-//!    from each panel's [`WcsInfo`] CD matrix. This is the FITS-standard projection,
+//!    from each panel's CD matrix. This is the FITS-standard projection,
 //!    not the small-angle linearisation `wcs_overlay.dart` uses for screen grids;
 //!    a mosaic spans degrees and must not accumulate small-angle error across the
 //!    canvas. Round-trips to < 1e-6 px (see tests).
@@ -62,7 +62,7 @@ use crate::normalization::{
 use crate::numeric::solve_dense;
 use crate::resample::Interpolator;
 use crate::robust_stats::median_in_place;
-use crate::{ImageData, SipWcs, WcsInfo};
+use crate::{ImageData, SipWcs};
 
 /// Hard upper bound on the output canvas in pixels (per channel-plane). At
 /// ~400 megapixels a single F32 plane is 1.6 GB; beyond this the caller almost
@@ -84,7 +84,7 @@ pub struct MosaicPanel {
     /// Linear panel master (typically `F32`).
     pub image: ImageData,
     /// Solved CD-matrix WCS for this panel.
-    pub wcs: WcsInfo,
+    pub wcs: SipWcs,
 }
 
 /// Seam-blending strategy across panel overlaps.
@@ -155,7 +155,7 @@ pub struct MosaicOutput {
     /// panel covered the pixel; ~`n` in an n-panel overlap (None blend) or the
     /// summed feather weight (Feather blend).
     pub coverage: ImageData,
-    pub wcs: WcsInfo,
+    pub wcs: SipWcs,
     pub stats: MosaicStitchStats,
 }
 
@@ -195,8 +195,8 @@ fn normalize_deg(d: f64) -> f64 {
 }
 
 /// The projection of a panel or canvas WCS; a singular CD matrix has none.
-fn projection(wcs: &WcsInfo) -> Result<SipWcs, MosaicError> {
-    Some(SipWcs::from(wcs))
+fn projection(wcs: &SipWcs) -> Result<SipWcs, MosaicError> {
+    Some(wcs.clone())
         .filter(SipWcs::is_invertible)
         .ok_or(MosaicError::DegenerateWcs)
 }
@@ -302,7 +302,7 @@ impl DecodedPanel {
 fn build_output_wcs(
     panels: &[DecodedPanel],
     cfg: &MosaicStitchConfig,
-) -> Result<(WcsInfo, SipWcs, u32, u32), MosaicError> {
+) -> Result<(SipWcs, SipWcs, u32, u32), MosaicError> {
     // Reference projection centre: median CRVAL.
     // RA is taken relative to the first panel to handle the 0h/24h wrap, then
     // re-wrapped; Dec is a plain median.
@@ -327,16 +327,7 @@ fn build_output_wcs(
 
     // Output CD matrix: axis-aligned (no rotation), standard RA-flips-left sign.
     // CRPIX is provisional (1,1); we finalise it after projecting the corners.
-    let mut out_wcs = WcsInfo {
-        crval1: center_ra,
-        crval2: center_dec,
-        crpix1: 1.0,
-        crpix2: 1.0,
-        cd1_1: -scale_deg,
-        cd1_2: 0.0,
-        cd2_1: 0.0,
-        cd2_2: scale_deg,
-    };
+    let mut out_wcs = SipWcs::tan_only(center_ra, center_dec, 1.0, 1.0, -scale_deg, 0.0, 0.0, scale_deg);
     let proj0 = projection(&out_wcs)?;
 
     // Project every panel corner onto the provisional output plane.
@@ -910,21 +901,12 @@ mod tests {
     use super::*;
     use crate::PixelType;
 
-    /// Build a WcsInfo for an axis-aligned tangent plane at `(ra, dec)` with the
+    /// Build a SipWcs for an axis-aligned tangent plane at `(ra, dec)` with the
     /// given pixel scale (arcsec/px) and image size. CRPIX is the centre
     /// (1-based). No rotation. RA flips left (standard sky convention).
-    fn make_wcs(ra: f64, dec: f64, scale_arcsec: f64, w: u32, h: u32) -> WcsInfo {
+    fn make_wcs(ra: f64, dec: f64, scale_arcsec: f64, w: u32, h: u32) -> SipWcs {
         let scale_deg = scale_arcsec / 3600.0;
-        WcsInfo {
-            crval1: ra,
-            crval2: dec,
-            crpix1: w as f64 / 2.0 + 0.5,
-            crpix2: h as f64 / 2.0 + 0.5,
-            cd1_1: -scale_deg,
-            cd1_2: 0.0,
-            cd2_1: 0.0,
-            cd2_2: scale_deg,
-        }
+        SipWcs::tan_only(ra, dec, w as f64 / 2.0 + 0.5, h as f64 / 2.0 + 0.5, -scale_deg, 0.0, 0.0, scale_deg)
     }
 
     /// Sample a smooth synthetic sky brightness at `(ra, dec)` — a slowly-varying
@@ -940,7 +922,7 @@ mod tests {
 
     /// Build a panel master by sampling `sky_field` through a given WCS.
     fn synth_panel(
-        wcs: &WcsInfo,
+        wcs: &SipWcs,
         w: u32,
         h: u32,
         ra0: f64,
@@ -948,7 +930,7 @@ mod tests {
         gain: f64,
         offset: f64,
     ) -> MosaicPanel {
-        let proj = SipWcs::from(wcs);
+        let proj = wcs.clone();
         let mut data = vec![0.0f32; (w * h) as usize];
         for y in 0..h {
             for x in 0..w {
@@ -968,7 +950,7 @@ mod tests {
     #[test]
     fn tan_round_trip_is_subpixel() {
         let wcs = make_wcs(187.5, 12.3, 2.0, 1000, 800);
-        let proj = SipWcs::from(&wcs);
+        let proj = wcs.clone();
         // Sweep a grid of pixels; world→pixel→world→pixel must close to < 1e-6.
         for &(x, y) in &[
             (0.0, 0.0),
@@ -991,7 +973,7 @@ mod tests {
     fn tan_center_pixel_maps_to_crval() {
         // The 0-based reference pixel is (crpix - 1).
         let wcs = make_wcs(45.0, -30.0, 1.5, 600, 600);
-        let proj = SipWcs::from(&wcs);
+        let proj = wcs.clone();
         let cx = wcs.crpix1 - 1.0;
         let cy = wcs.crpix2 - 1.0;
         let (ra, dec) = proj.pixel_to_world(cx, cy);
@@ -1006,7 +988,7 @@ mod tests {
         // sign flips RA to the left, so +x ⇒ −RA.
         let scale = 3.0; // arcsec/px
         let wcs = make_wcs(100.0, 0.0, scale, 200, 200);
-        let proj = SipWcs::from(&wcs);
+        let proj = wcs.clone();
         let cx = wcs.crpix1 - 1.0;
         let cy = wcs.crpix2 - 1.0;
         let (ra, _dec) = proj.pixel_to_world(cx + 1.0, cy);
@@ -1106,8 +1088,8 @@ mod tests {
         let oh = out.stats.out_height as usize;
         // Compare the interior (avoid the feathered border) against the original
         // by re-projecting through the output WCS.
-        let out_proj = SipWcs::from(&out.wcs);
-        let in_proj = SipWcs::from(&wcs);
+        let out_proj = out.wcs.clone();
+        let in_proj = wcs.clone();
         let mut max_rel = 0.0f64;
         let mut checked = 0;
         for oy in (20..oh - 20).step_by(7) {
@@ -1202,7 +1184,7 @@ mod tests {
 
         // Seam invisible: in the overlap, the stitched value must match the
         // sky field (both panels sampled the same field, hard-averaged).
-        let out_proj = SipWcs::from(&out.wcs);
+        let out_proj = out.wcs.clone();
         let stitched = out.master.as_f32().unwrap();
         let mut max_diff = 0.0f64;
         let mut n = 0;
@@ -1240,7 +1222,7 @@ mod tests {
         let a = synth_panel(&wcs_a, w, h, ra0, dec0, 1.0, 0.0);
         let b = synth_panel(&wcs_b, w, h, ra0, dec0, 1.7, 400.0);
 
-        let out_proj_test = |out: &MosaicOutput| SipWcs::from(&out.wcs);
+        let out_proj_test = |out: &MosaicOutput| out.wcs.clone();
 
         // With normalization OFF, the overlap shows a seam (A and B disagree).
         let cfg_off = MosaicStitchConfig {
@@ -1344,7 +1326,7 @@ mod tests {
         let oh = out.stats.out_height as usize;
         let cov = out.coverage.as_f32().unwrap();
         // There must be covered pixels near each panel centre.
-        let out_proj = SipWcs::from(&out.wcs);
+        let out_proj = out.wcs.clone();
         for (ra, dec) in [(ra_a, dec0), (ra_b, dec0)] {
             let (ox, oy) = out_proj.world_to_pixel(ra, dec).unwrap();
             let oxi = ox.round() as usize;
@@ -1402,7 +1384,7 @@ mod tests {
         let oh = out.stats.out_height as usize;
         let cov = out.coverage.as_f32().unwrap();
         let stitched = out.master.as_f32().unwrap();
-        let proj = SipWcs::from(&out.wcs);
+        let proj = out.wcs.clone();
 
         // Check the residual in *every* 2-panel overlap against the truth
         // field. B–C, at the far end of the chain, is the strictest: with
@@ -1454,7 +1436,7 @@ mod tests {
         // Build panel A's buffer directly so we can poke a NaN into its centre —
         // a pixel that is firmly covered (and lands inside the A∩B overlap, so
         // the resampler's support window is exercised there too).
-        let proj_a = SipWcs::from(&wcs_a);
+        let proj_a = wcs_a.clone();
         let mut data_a = vec![0.0f32; (w * h) as usize];
         for y in 0..h {
             for x in 0..w {

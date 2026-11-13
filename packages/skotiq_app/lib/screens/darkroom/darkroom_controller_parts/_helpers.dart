@@ -66,31 +66,6 @@ const Map<String, String> kDarkroomThreeChannelOps = {
   'chroma_denoise': 'a color image with 3 channels',
 };
 
-/// Wire schema version of the recipe envelope this build writes. It matches the
-/// recipe engine's `RECIPE_SCHEMA_VERSION`; an envelope at any other version is
-/// refused by the engine rather than reinterpreted.
-const int kDarkroomRecipeSchemaVersion = 1;
-
-/// The recipe envelope the Darkroom entry points take.
-///
-/// `steps_json` in the database stores the step array alone — the envelope's
-/// schema version lives in the row's own column — so the envelope is rebuilt
-/// here for every call rather than stored twice.
-String encodeDarkroomRecipe({
-  required int recipeId,
-  required String baseMasterRef,
-  required RecipeAuthor author,
-  required List<DarkroomStep> steps,
-}) {
-  return jsonEncode({
-    'id': '$recipeId',
-    'schemaVersion': kDarkroomRecipeSchemaVersion,
-    'baseMasterRef': baseMasterRef,
-    'createdBy': author.wire,
-    'steps': [for (final step in steps) step.toJson()],
-  });
-}
-
 /// Decode a stored `recipes.steps_json` payload.
 ///
 /// Throws [DarkroomRecipeFormatException] when the payload is not a step array;

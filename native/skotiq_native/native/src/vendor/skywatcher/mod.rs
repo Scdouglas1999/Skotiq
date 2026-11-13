@@ -1096,8 +1096,13 @@ impl MountDriver for SkyWatcherMount {
         true
     }
 
-    async fn can_set_tracking_rate(&self) -> bool {
-        true
+    async fn tracking_rates(&self) -> Vec<TrackingRate> {
+        vec![
+            TrackingRate::Sidereal,
+            TrackingRate::Lunar,
+            TrackingRate::Solar,
+            TrackingRate::King,
+        ]
     }
 
     async fn get_side_of_pier(&self) -> Result<PierSide, DriverError> {

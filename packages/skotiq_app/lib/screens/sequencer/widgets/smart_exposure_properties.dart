@@ -443,8 +443,8 @@ class _PlanRow extends ConsumerWidget {
               gainField: (_) => NodeNumberInput(
                 colors: colors,
                 value: (plan.gain ?? 0).toDouble(),
-                min: 0,
-                max: 1000,
+                min: ExposureFieldLimits.gain.min.toDouble(),
+                max: ExposureFieldLimits.gain.max.toDouble(),
                 onChanged: (v) => onChanged(plan.copyWith(gain: v.toInt())),
               ),
             ),
@@ -457,8 +457,8 @@ class _PlanRow extends ConsumerWidget {
             child: NodeNumberInput(
               colors: colors,
               value: (plan.offset ?? 0).toDouble(),
-              min: 0,
-              max: 1000,
+              min: ExposureFieldLimits.offset.min.toDouble(),
+              max: ExposureFieldLimits.offset.max.toDouble(),
               onChanged: (v) => onChanged(plan.copyWith(offset: v.toInt())),
             ),
           )
@@ -533,7 +533,7 @@ class _PlanRow extends ConsumerWidget {
                         colors: colors,
                         value: plan.count.toDouble(),
                         min: 0,
-                        max: 9999,
+                        max: ExposureFieldLimits.frameCount.max.toDouble(),
                         onChanged: (v) =>
                             onChanged(plan.copyWith(count: v.toInt())),
                       ),
@@ -545,8 +545,8 @@ class _PlanRow extends ConsumerWidget {
                   colors: colors,
                   value: plan.durationSecs,
                   suffix: 's',
-                  min: 0.001,
-                  max: 3600,
+                  min: ExposureFieldLimits.durationSecs.min,
+                  max: ExposureFieldLimits.durationSecs.max,
                   decimals: 1,
                   onChanged: (v) => onChanged(plan.copyWith(durationSecs: v)),
                 ),
@@ -598,8 +598,8 @@ class _PlanRow extends ConsumerWidget {
                   colors: colors,
                   value: (plan.ditherEvery ?? 0).toDouble(),
                   suffix: ' frames',
-                  min: 0,
-                  max: 100,
+                  min: ExposureFieldLimits.ditherEvery.min.toDouble(),
+                  max: ExposureFieldLimits.ditherEvery.max.toDouble(),
                   onChanged: (v) {
                     final n = v.toInt();
                     onChanged(plan.copyWith(ditherEvery: n == 0 ? null : n));

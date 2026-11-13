@@ -515,7 +515,7 @@ fn to_f32(image: &ImageData) -> ImageData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skotiq_imaging::{add_wcs_headers, read_frame};
+    use skotiq_imaging::read_frame;
     use std::path::PathBuf;
 
     /// A scratch directory that deletes itself when the test ends. Cleanup runs
@@ -802,9 +802,7 @@ mod tests {
     fn write_solved_master(path: &Path, image: &ImageData) -> FitsHeader {
         let mut h = FitsHeader::new();
         h.set_string("IMAGETYP", "MASTER_LIGHT");
-        add_wcs_headers(
-            &mut h,
-            &skotiq_imaging::SipWcs::from_pointing(
+        skotiq_imaging::SipWcs::from_pointing(
                 83.822,
                 -5.391,
                 12.0,
@@ -812,8 +810,7 @@ mod tests {
                 image.width,
                 image.height,
             )
-            .cd_only(),
-        );
+            .cd_only().write_to_header(&mut h);
         h.set_string("CTYPE1", "RA---TAN-SIP");
         h.set_string("CTYPE2", "DEC--TAN-SIP");
         h.set_int("A_ORDER", 2);

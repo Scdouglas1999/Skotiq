@@ -516,7 +516,7 @@ pub fn api_depthlock_remove_goal(
 }
 
 /// Describe a candidate reference frame: its geometry from the header (when
-/// it carries an undistorted TAN solution) and its acquisition settings.
+/// it carries a TAN solution) and its acquisition settings.
 pub async fn api_depthlock_inspect_reference(
     path: String,
 ) -> Result<ApiDepthReferenceInfo, SkotiqError> {

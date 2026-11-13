@@ -9,8 +9,8 @@ use async_trait::async_trait;
 use skotiq_device::ascom::telescope::{unix_seconds_of_utc_date, utc_date, wait_for_pulse_end};
 use skotiq_device::ascom::DriveRate;
 use skotiq_device::{
-    DeviceDriver, DriverError, GuideDirection, MountClock, MountDriver, MountReadings,
-    MountSiteAbilities, MountSiteInfo, PierSide, TrackingRate, Vendor,
+    DeviceDriver, DriverError, GuideDirection, MountClock, MountDescription, MountDriver,
+    MountReadings, MountSiteAbilities, MountSiteInfo, PierSide, TrackingRate, Vendor,
 };
 use std::sync::Arc;
 use tokio::time::Instant;
@@ -212,15 +212,35 @@ impl MountDriver for AlpacaMount {
         self.telescope.tracking().await.map_err(own)
     }
 
-    /// Skotiq does not change an Alpaca mount's drive rate.
-    async fn set_tracking_rate(&mut self, _rate: TrackingRate) -> Result<(), DriverError> {
-        Err(DriverError::NotSupported)
+    /// `DriveRates` has no custom rate: a custom rate is set as offsets.
+    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
+        let rate = match rate {
+            TrackingRate::Sidereal => DriveRate::Sidereal,
+            TrackingRate::Lunar => DriveRate::Lunar,
+            TrackingRate::Solar => DriveRate::Solar,
+            TrackingRate::King => DriveRate::King,
+            TrackingRate::Custom => return Err(DriverError::NotSupported),
+        };
+        self.telescope.set_tracking_rate(rate).await.map_err(own)
     }
 
-    /// The rate is part of [`MountDriver::status`]; on its own it is not
-    /// offered, as setting it is not.
     async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError> {
-        Err(DriverError::NotSupported)
+        self.telescope
+            .tracking_rate()
+            .await
+            .map(tracking_rate)
+            .map_err(own)
+    }
+
+    /// `TrackingRates` lists the rates `TrackingRate` takes.
+    async fn tracking_rates(&self) -> Vec<TrackingRate> {
+        self.telescope
+            .tracking_rates()
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(tracking_rate)
+            .collect()
     }
 
     async fn can_slew(&self) -> bool {
@@ -233,15 +253,6 @@ impl MountDriver for AlpacaMount {
 
     async fn can_pulse_guide(&self) -> bool {
         self.telescope.can_pulse_guide().await.unwrap_or(false)
-    }
-
-    /// `TrackingRates` lists the rates the mount can be set to.
-    async fn can_set_tracking_rate(&self) -> bool {
-        self.telescope
-            .tracking_rates()
-            .await
-            .map(|rates| !rates.is_empty())
-            .unwrap_or(false)
     }
 
     async fn get_side_of_pier(&self) -> Result<PierSide, DriverError> {
@@ -289,7 +300,7 @@ impl MountDriver for AlpacaMount {
                 (false, false, false, false)
             }
         };
-        let can_set_tracking_rate = self.can_set_tracking_rate().await;
+        let can_set_tracking_rate = !self.tracking_rates().await.is_empty();
         let tracking_rate = reading(mount.tracking_rate().await).map(tracking_rate);
 
         Ok(MountReadings {
@@ -367,6 +378,33 @@ impl MountDriver for AlpacaMount {
 
     async fn can_find_home(&self) -> Result<bool, DriverError> {
         self.telescope.can_find_home().await.map_err(own)
+    }
+
+    /// Every `CanXxx` member is optional: a server answers `NotImplemented`
+    /// for a feature the mount lacks, so an unanswered one reads as absent.
+    /// ASCOM has no pulse length limits and no axis count.
+    async fn describe(&self) -> MountDescription {
+        let mount = &self.telescope;
+        MountDescription {
+            can_slew: mount.can_slew().await.unwrap_or(false),
+            can_slew_async: mount.can_slew_async().await.unwrap_or(false),
+            can_sync: mount.can_sync().await.unwrap_or(false),
+            can_park: mount.can_park().await.unwrap_or(false),
+            can_unpark: mount.can_unpark().await.unwrap_or(false),
+            can_set_park: mount.can_set_park().await.unwrap_or(false),
+            can_find_home: mount.can_find_home().await.unwrap_or(false),
+            can_pulse_guide: mount.can_pulse_guide().await.unwrap_or(false),
+            can_set_tracking: mount.can_set_tracking().await.unwrap_or(false),
+            tracking_rates: self.tracking_rates().await,
+            // An unreadable AlignmentMode is not taken for equatorial.
+            is_equatorial: mount
+                .alignment_mode()
+                .await
+                .is_ok_and(|mode| crate::AlignmentMode::from(mode).is_equatorial()),
+            can_abort_slew: true,
+            axis_count: 2,
+            ..MountDescription::default()
+        }
     }
 
     async fn find_home(&mut self) -> Result<(), DriverError> {

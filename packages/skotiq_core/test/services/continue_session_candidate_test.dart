@@ -3,7 +3,6 @@
 // checkpoint kept) the night before: any interrupted session won over every
 // other run, and a stopped run was never a candidate.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
@@ -31,7 +30,7 @@ void main() {
   final now = DateTime(2026, 11, 8, 16, 4);
   final oldTest = _session(
     7,
-    kInterruptedSessionStatus,
+    SessionStatus.interrupted.token,
     DateTime(2026, 11, 3, 18, 12),
   );
   final lastNight = _session(
@@ -71,14 +70,14 @@ void main() {
     expect(pick([oldTest]), isNull, reason: 'five days old and empty');
     final weekOld = _session(
       5,
-      kInterruptedSessionStatus,
+      SessionStatus.interrupted.token,
       DateTime(2026, 10, 30, 20),
       frames: 40,
     );
     expect(pick([weekOld]), isNull);
     final tonightEmpty = _session(
       71,
-      kInterruptedSessionStatus,
+      SessionStatus.interrupted.token,
       DateTime(2026, 11, 8, 2),
     );
     expect(pick([tonightEmpty])?.id, 71, reason: 'its setup is still worth it');

@@ -19,6 +19,7 @@ import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import 'session_test_support.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 SkotiqEvent _guideStep(DateTime at, Map<String, dynamic> data) => SkotiqEvent(
       timestamp: at.millisecondsSinceEpoch,
@@ -882,7 +883,7 @@ void main() {
 
       expect(log, hasLength(2));
       expect(log.first.message.key, 'nightSessionLogFrameRejected');
-      expect(log.first.tone, MetricTone.bad);
+      expect(log.first.tone, MetricGridTone.bad);
       expect(log.first.message.params['n'], '2');
       expect(log.last.message.params, <String, String>{
         'n': '1',

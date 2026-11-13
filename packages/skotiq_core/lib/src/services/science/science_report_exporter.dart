@@ -1,3 +1,5 @@
+import '../../models/imaging/imaging_models.dart' show FrameType;
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -26,8 +28,10 @@ import '../../utils/skotiq_data_directory.dart';
 ///   * Per-filter integration breakdown
 ///   * Any moving-object candidates flagged tonight
 ///
-/// The file lands in the platform "documents" directory under
-/// `Skotiq/science-reports/<sessionId>-<timestamp>.md`. We never
+/// The file lands in the exports folder ([resolveSkotiqExportsDirectory]) as
+/// `science_report_session_<sessionId>_<timestamp>.md`, on the machine that
+/// asked for it: a linked client asks its host for the text and saves it here
+/// the same way. We never
 /// silently truncate; if a section has no data, it's emitted explicitly
 /// (e.g. "No photometric calibration produced this session.") so the
 /// recipient can tell the difference between "we ran nothing" and "we
@@ -61,10 +65,7 @@ class ScienceReportExporter {
   /// [period] is the period search the operator ran on the Science tab. It is
   /// UI state, not a stored product, so the caller passes it; null prints
   /// "Not run for this session".
-  Future<String> buildMarkdown(
-    int sessionId, {
-    PeriodAnalysisResult? period,
-  }) async {
+  Future<String> buildMarkdown(int sessionId, {PeriodFinding? period}) async {
     final session = await _sessionsDao.getSessionById(sessionId);
     if (session == null) {
       throw StateError('Session $sessionId not found');
@@ -112,32 +113,30 @@ class ScienceReportExporter {
     return b.toString();
   }
 
-  /// Write the report to a file under the platform documents directory.
-  /// Returns the absolute path the user can hand off to share / open. The
-  /// returned [File] is always flushed to disk so external apps can open
-  /// it immediately.
-  Future<File> exportToDisk(
+  /// Write the report to the exports folder and return the file.
+  Future<File> exportToDisk(int sessionId, {PeriodFinding? period}) async =>
+      save(await buildMarkdown(sessionId, period: period), sessionId);
+
+  /// Write [markdown], the report of [sessionId], into the exports folder.
+  /// The returned [File] is flushed, so another app can open it at once.
+  static Future<File> save(
+    String markdown,
     int sessionId, {
-    PeriodAnalysisResult? period,
+    Future<Directory> Function() exports = resolveSkotiqExportsDirectory,
   }) async {
-    final markdown = await buildMarkdown(sessionId, period: period);
-    final dir = await _ensureReportsDirectory();
+    // Filesystem-safe on Windows and macOS.
     final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(
       RegExp(r'[:.]'),
       '-',
-    ); // Filesystem-safe across Windows / macOS.
-    final file = File(p.join(dir.path, 'session-$sessionId-$stamp.md'));
+    );
+    final file = File(
+      p.join(
+        (await exports()).path,
+        'science_report_session_${sessionId}_$stamp.md',
+      ),
+    );
     await file.writeAsString(markdown, flush: true);
     return file;
-  }
-
-  Future<Directory> _ensureReportsDirectory() async {
-    final base = await resolveSkotiqDocumentsDirectory();
-    final dir = Directory(p.join(base.path, 'Skotiq', 'science-reports'));
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return dir;
   }
 
   /// One convention for every instant the report prints: UTC, with the Z.
@@ -164,9 +163,7 @@ class ScienceReportExporter {
   }
 
   String _frameCounts(List<DbCapturedImage> images) {
-    final lights = images
-        .where((i) => i.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
+    final lights = images.where((i) => i.isLight).toList(growable: false);
     final accepted = lights.where((i) => i.isAccepted).length;
     final integrationSeconds = lights
         .where((i) => i.isAccepted)
@@ -177,15 +174,15 @@ class ScienceReportExporter {
         '| Frame type | Total | Accepted | Plate-solved |\n'
         '| --- | ---: | ---: | ---: |\n'
         '| Light | ${lights.length} | $accepted | $solved |\n'
-        '| Dark | ${_countOf(images, "dark")} | — | — |\n'
-        '| Flat | ${_countOf(images, "flat")} | — | — |\n'
-        '| Bias | ${_countOf(images, "bias")} | — | — |\n'
+        '| Dark | ${_countOf(images, FrameType.dark)} | — | — |\n'
+        '| Flat | ${_countOf(images, FrameType.flat)} | — | — |\n'
+        '| Bias | ${_countOf(images, FrameType.bias)} | — | — |\n'
         '\n'
         '**Accepted integration time:** ${DurationFormat.of(Duration(seconds: integrationSeconds.round()))}.';
   }
 
-  int _countOf(List<DbCapturedImage> images, String type) =>
-      images.where((i) => i.frameType.toLowerCase() == type).length;
+  int _countOf(List<DbCapturedImage> images, FrameType type) =>
+      images.where((i) => i.recordedFrameType == type).length;
 
   String _photometrySnapshot(
     List<FramePhotometricCalibrationRow> calibrations,
@@ -289,29 +286,30 @@ class ScienceReportExporter {
   }
 
   /// The period search the operator ran, or an explicit statement that none was.
-  String _periodAnalysis(PeriodAnalysisResult? period) {
+  String _periodAnalysis(PeriodFinding? period) {
     if (period == null) {
       return '## Period analysis\n'
           'Not run for this session.';
     }
-    final ls = period.lombScargle;
-    final bls = period.bls;
-    final constrained = ls.isPeriodConstrained
-        ? '${ls.observedCycles.toStringAsFixed(1)} cycles observed'
-        : 'UNCONSTRAINED — only ${ls.observedCycles.toStringAsFixed(1)} cycles '
+    final cycles = period.observedCycles.toStringAsFixed(1);
+    final constrained = period.isPeriodConstrained
+        ? '$cycles cycles observed'
+        : 'UNCONSTRAINED — only $cycles cycles '
               'fit in the baseline, so this is a lower bound, not a measurement';
     return '## Period analysis\n'
-        '- **Lomb-Scargle best period:** ${ls.bestPeriod.toStringAsFixed(6)} d '
-        '(peak power ${ls.peakPower.toStringAsFixed(3)}, '
-        'FAP ${ls.falseAlarmProbability.toStringAsExponential(2)})\n'
-        '- **Baseline / coverage:** ${ls.timeBaseline.toStringAsFixed(4)} d, '
+        '- **Lomb-Scargle best period:** '
+        '${period.lombScarglePeriodDays.toStringAsFixed(6)} d '
+        '(peak power ${period.peakPower.toStringAsFixed(3)}, '
+        'FAP ${period.falseAlarmProbability.toStringAsExponential(2)})\n'
+        '- **Baseline / coverage:** ${period.baselineDays.toStringAsFixed(4)} d, '
         '$constrained\n'
-        '- **Searched range:** ${ls.searchedMinPeriod.toStringAsFixed(4)} – '
-        '${ls.searchedMaxPeriod.toStringAsFixed(4)} d\n'
-        '- **BLS best period:** ${bls.bestPeriod.toStringAsFixed(6)} d '
-        '(depth ${bls.transitDepth.toStringAsFixed(4)} mag, duration '
-        '${bls.transitDuration.toStringAsFixed(4)} d, '
-        'SDE ${bls.signalDetectionEfficiency.toStringAsFixed(2)})\n';
+        '- **Searched range:** '
+        '${period.searchedMinPeriodDays.toStringAsFixed(4)} – '
+        '${period.searchedMaxPeriodDays.toStringAsFixed(4)} d\n'
+        '- **BLS best period:** ${period.blsPeriodDays.toStringAsFixed(6)} d '
+        '(depth ${period.transitDepthMag.toStringAsFixed(4)} mag, duration '
+        '${period.transitDurationDays.toStringAsFixed(4)} d, '
+        'SDE ${period.signalDetectionEfficiency.toStringAsFixed(2)})\n';
   }
 
   String _transparencySnapshot(List<TransparencySampleRow> samples) {
@@ -368,7 +366,7 @@ class ScienceReportExporter {
   String _filterBreakdown(List<DbCapturedImage> images) {
     final perFilter = <String, ({int frames, double seconds})>{};
     for (final image in images) {
-      if (image.frameType.toLowerCase() != 'light' || !image.isAccepted) {
+      if (!image.isLight || !image.isAccepted) {
         continue;
       }
       final filter = (image.filter ?? '').isEmpty

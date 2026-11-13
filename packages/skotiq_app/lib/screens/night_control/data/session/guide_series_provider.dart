@@ -21,6 +21,7 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/bridge_events.dart' as sk_events;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show SeriesChartTone;
 
 import '../../../../utils/guide_distance.dart';
 import '../../night_control_contracts.dart';
@@ -342,12 +343,12 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
         SeriesLineVm(
           id: NightSeriesId.guideRa,
           points: <SeriesPoint>[],
-          tone: SeriesTone.primary,
+          tone: SeriesChartTone.primary,
         ),
         SeriesLineVm(
           id: NightSeriesId.guideDec,
           points: <SeriesPoint>[],
-          tone: SeriesTone.tertiary,
+          tone: SeriesChartTone.tertiary,
         ),
       ],
     );
@@ -372,14 +373,14 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
         points: <SeriesPoint>[
           for (final s in samples) SeriesPoint(s.t, shown(s.raPx)),
         ],
-        tone: SeriesTone.primary,
+        tone: SeriesChartTone.primary,
       ),
       SeriesLineVm(
         id: NightSeriesId.guideDec,
         points: <SeriesPoint>[
           for (final s in samples) SeriesPoint(s.t, shown(s.decPx)),
         ],
-        tone: SeriesTone.tertiary,
+        tone: SeriesChartTone.tertiary,
       ),
     ],
     markers: <SeriesMarker>[

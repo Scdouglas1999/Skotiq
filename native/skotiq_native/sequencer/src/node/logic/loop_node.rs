@@ -5,28 +5,8 @@ use crate::node::logic::sequential::execute_children_sequential;
 use crate::node::progress::ProgressUpdate;
 use crate::node::runtime::RuntimeNode;
 use crate::node::Node;
-use crate::scheduling::astronomy::object_alt_az;
 use crate::scheduling::HorizonProfile;
 use crate::{LoopCondition, LoopConfig, NodeStatus};
-
-/// Current `(altitude_deg, azimuth_deg)` of the active target from the
-/// execution context, or `None` when target coordinates or the observer
-/// location are unset.
-///
-/// `ExecutionContext::calculate_altitude` only returns altitude; the
-/// per-azimuth horizon mask needs azimuth too, so this consults
-/// [`object_alt_az`] (the same astronomy used by the scheduler) for both.
-/// `target_ra` is stored in **hours**, so it is converted to degrees (×15)
-/// for `object_alt_az`, which — like the Dart `objectAltAz` — expects RA in
-/// degrees.
-fn current_alt_az(context: &ExecutionContext) -> Option<(f64, f64)> {
-    let ra_hours = context.target_ra?;
-    let dec_deg = context.target_dec?;
-    let lat = context.run.rig.latitude?;
-    let lon = context.run.rig.longitude?;
-    let now = chrono::Utc::now();
-    Some(object_alt_az(ra_hours * 15.0, dec_deg, &now, lat, lon))
-}
 
 /// Effective altitude floor for an altitude loop condition.
 ///
@@ -125,7 +105,7 @@ pub async fn execute_loop(
                 if config.condition_value.is_none() && config.horizon_profile.is_none() {
                     false
                 } else {
-                    let Some((current_alt, current_az)) = current_alt_az(context) else {
+                    let Some((current_alt, current_az)) = context.target_alt_az() else {
                         tracing::error!(
                             "Loop condition AltitudeBelow requires target coordinates and observer location"
                         );
@@ -145,7 +125,7 @@ pub async fn execute_loop(
                 if config.condition_value.is_none() && config.horizon_profile.is_none() {
                     false
                 } else {
-                    let Some((current_alt, current_az)) = current_alt_az(context) else {
+                    let Some((current_alt, current_az)) = context.target_alt_az() else {
                         tracing::error!(
                             "Loop condition AltitudeAbove requires target coordinates and observer location"
                         );
@@ -323,19 +303,19 @@ mod tests {
     #[test]
     fn current_alt_az_none_without_coords() {
         let ctx = ExecutionContext::new_for_test("root".to_string());
-        assert!(current_alt_az(&ctx).is_none());
+        assert!(ctx.target_alt_az().is_none());
 
         // Missing observer location alone is still None.
         let mut partial = ExecutionContext::new_for_test("root".to_string());
         partial.target_ra = Some(5.59);
         partial.target_dec = Some(-5.39);
-        assert!(current_alt_az(&partial).is_none());
+        assert!(partial.target_alt_az().is_none());
     }
 
     #[test]
     fn current_alt_az_returns_finite_pair_with_coords() {
         let ctx = ctx_with_target(5.59, -5.39, 40.7, -74.0);
-        let (alt, az) = current_alt_az(&ctx).expect("coords present");
+        let (alt, az) = ctx.target_alt_az().expect("coords present");
         assert!(alt.is_finite() && (-90.0..=90.0).contains(&alt));
         assert!(az.is_finite() && (0.0..360.0).contains(&az));
     }
@@ -347,7 +327,7 @@ mod tests {
         // no horizon profile is configured. They use the same sin(alt) formula;
         // any LST-source drift must stay sub-degree.
         let ctx = ctx_with_target(5.59, -5.39, 40.7, -74.0);
-        let (alt, _az) = current_alt_az(&ctx).unwrap();
+        let (alt, _az) = ctx.target_alt_az().unwrap();
         let ctx_alt = ctx.calculate_altitude().unwrap();
         assert!(
             (alt - ctx_alt).abs() < 0.1,

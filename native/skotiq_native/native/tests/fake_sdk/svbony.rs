@@ -1,6 +1,7 @@
 // A software-only SVBCameraSDK for the SVBony driver's tests, compiled with
 // `rustc --crate-type cdylib` (tests/svbony_fake_sdk.rs on Linux, the Windows
-// contract in tests/native_driver_tests.rs, tests/fake_sdk_linux/build_fakes.py).
+// contract in tests/native_driver_tests.rs, the camera sessions in
+// tests/camera_session.rs).
 //
 // It answers like SVBCameraSDK.h describes and like the INDI and NINA drivers
 // rely on: the camera list has to be read before a camera opens, a camera in

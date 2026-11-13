@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
@@ -44,10 +45,7 @@ final constellationServiceProvider = Provider<ConstellationService>((ref) {
           .read(imagesDaoProvider)
           .getImagesForTarget(targetId);
       return images
-          .where(
-            (i) =>
-                i.frameType == 'light' && i.isAccepted && i.filePath.isNotEmpty,
-          )
+          .where((i) => i.isLight && i.isAccepted && i.filePath.isNotEmpty)
           .map(
             (i) => RawSubframe(
               filePath: i.filePath,

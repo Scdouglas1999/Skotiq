@@ -559,7 +559,7 @@ class _Legend extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         for (final f in filters)
-          item(swatch(darkroomFilterColor(f, colors)), f),
+          item(swatch(FilterColors.forName(f, colors: colors)), f),
         if (hasPause)
           item(
             SizedBox(

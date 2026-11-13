@@ -315,21 +315,12 @@ class _ChartBody extends StatelessWidget {
 // Mapping the view models onto the kit chart
 // ---------------------------------------------------------------------------
 
-SeriesChartTone _tone(SeriesTone tone) => switch (tone) {
-      SeriesTone.primary => SeriesChartTone.primary,
-      SeriesTone.secondary => SeriesChartTone.secondary,
-      SeriesTone.tertiary => SeriesChartTone.tertiary,
-      SeriesTone.muted => SeriesChartTone.muted,
-      SeriesTone.warning => SeriesChartTone.warning,
-      SeriesTone.error => SeriesChartTone.error,
-    };
-
 SeriesChartLine _line(SeriesLineVm line, {double? minY, double? maxY}) =>
     SeriesChartLine(
       points: <(DateTime, double?)>[
         for (final point in line.points) (point.t, point.y),
       ],
-      tone: _tone(line.tone),
+      tone: line.tone,
       axis: line.secondaryAxis ? SeriesChartAxis.right : SeriesChartAxis.left,
       dashed: line.dashed,
       stepped: line.stepped,
@@ -401,7 +392,7 @@ Widget _legend(
                 : _SwatchKind.line,
         swatchColor: line == null
             ? null
-            : SeriesChart.colorFor(_tone(line.tone), colors),
+            : SeriesChart.colorFor(line.tone, colors),
         rank: line == null && !keep.contains(item.label.key) ? 2 : 0,
       ),
     );
@@ -828,7 +819,7 @@ class _GuideChart extends ConsumerWidget {
     lines.add(
       SeriesChartLine(
         points: points,
-        tone: _tone(line.tone),
+        tone: line.tone,
         minY: -span,
         maxY: span,
       ),

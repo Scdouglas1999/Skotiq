@@ -18,31 +18,6 @@ const DEG2RAD: f64 = std::f64::consts::PI / 180.0;
 const RAD2DEG: f64 = 180.0 / std::f64::consts::PI;
 const EPSILON: f64 = 1e-12;
 
-/// Convert equatorial RA/Dec to horizontal Alt/Az using the given latitude
-/// and LST. Returns `(altitude_deg, azimuth_deg)`.
-pub fn equatorial_to_horizontal(
-    ra_deg: f64,
-    dec_deg: f64,
-    latitude_deg: f64,
-    lst_hours: f64,
-) -> (f64, f64) {
-    let ha = (lst_hours * 15.0 - ra_deg) * DEG2RAD;
-    let dec = dec_deg * DEG2RAD;
-    let lat = latitude_deg * DEG2RAD;
-
-    let sin_alt = dec.sin() * lat.sin() + dec.cos() * lat.cos() * ha.cos();
-    let alt = sin_alt.clamp(-1.0, 1.0).asin();
-
-    let y = -ha.sin() * dec.cos();
-    let x = dec.sin() * lat.cos() - dec.cos() * lat.sin() * ha.cos();
-    let mut az = y.atan2(x);
-    if az < 0.0 {
-        az += 2.0 * std::f64::consts::PI;
-    }
-
-    (alt * RAD2DEG, az * RAD2DEG)
-}
-
 /// `objectAltAz` — RA in DEGREES (consistent with Dart). Returns
 /// `(altitude_deg, azimuth_deg)`.
 pub fn object_alt_az(
@@ -52,8 +27,7 @@ pub fn object_alt_az(
     latitude_deg: f64,
     longitude_deg: f64,
 ) -> (f64, f64) {
-    let lst = local_sidereal_time(julian_day(dt), longitude_deg);
-    equatorial_to_horizontal(ra_deg, dec_deg, latitude_deg, lst)
+    crate::meridian::calculate_alt_az(ra_deg / 15.0, dec_deg, latitude_deg, longitude_deg, *dt)
 }
 
 /// Airmass at a true altitude, for target scoring.
@@ -78,15 +52,15 @@ pub fn airmass(altitude_deg: f64) -> f64 {
     skotiq_imaging::calculate_airmass(altitude_deg).unwrap_or(f64::INFINITY)
 }
 
-/// Angular separation between two sky positions (degrees).
+/// Great-circle angle between two sky positions, degrees: RA (or azimuth) and
+/// Dec (or altitude) in degrees. The haversine form keeps small angles exact,
+/// which a centering offset of arcseconds needs.
 pub fn angular_separation(ra1_deg: f64, dec1_deg: f64, ra2_deg: f64, dec2_deg: f64) -> f64 {
-    let ra1 = ra1_deg * DEG2RAD;
-    let dec1 = dec1_deg * DEG2RAD;
-    let ra2 = ra2_deg * DEG2RAD;
-    let dec2 = dec2_deg * DEG2RAD;
-
-    let cos_sep = dec1.sin() * dec2.sin() + dec1.cos() * dec2.cos() * (ra1 - ra2).cos();
-    cos_sep.clamp(-1.0, 1.0).acos() * RAD2DEG
+    let (ra1, dec1) = (ra1_deg * DEG2RAD, dec1_deg * DEG2RAD);
+    let (ra2, dec2) = (ra2_deg * DEG2RAD, dec2_deg * DEG2RAD);
+    let h = ((dec2 - dec1) / 2.0).sin().powi(2)
+        + dec1.cos() * dec2.cos() * ((ra2 - ra1) / 2.0).sin().powi(2);
+    2.0 * h.sqrt().min(1.0).asin() * RAD2DEG
 }
 
 /// Rise/transit/set times + transit altitude for a target.

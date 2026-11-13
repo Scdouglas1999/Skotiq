@@ -32,7 +32,7 @@ async fn attach_sim_mount(device_id: &str) {
         unique_id: None,
         display_name: "Simulated Mount".to_string(),
     };
-    get_device_manager().register_device(info, false).await;
+    crate::simulator::register_connected(get_device_manager(), info).await;
     crate::simulator::mount::cancel_sim_slew().await;
     let mut mount = get_sim_mount().write().await;
     mount.status.connected = true;
@@ -45,6 +45,11 @@ async fn attach_sim_mount(device_id: &str) {
 fn target_context(mount_id: &str, target: (f64, f64)) -> InstructionContext {
     let mut run = skotiq_sequencer::instructions::RunShared::new(create_unified_device_ops());
     run.rig.mount_id = Some(mount_id.to_string());
+    // These tests are about where the mount lands, not about daylight: with no
+    // site the slew's daylight gate stands aside, whatever site another test
+    // left in the device layer.
+    run.rig.latitude = None;
+    run.rig.longitude = None;
     InstructionContext {
         node_id: "frame-test-slew".to_string(),
         target_ra: Some(target.0),
@@ -158,9 +163,7 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     let mount_id = "sim_mount_frame_fits";
     attach_sim_mount(mount_id).await;
     let camera_id = "sim_camera_frame_fits";
-    get_device_manager()
-        .register_device(
-            DeviceInfo {
+    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
                 id: camera_id.to_string(),
                 name: "Simulated Camera".to_string(),
                 device_type: DeviceType::Camera,
@@ -170,10 +173,7 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
                 serial_number: None,
                 unique_id: None,
                 display_name: "Simulated Camera".to_string(),
-            },
-            false,
-        )
-        .await;
+            }).await;
     crate::simulator::camera::get_sim_camera()
         .write()
         .await
@@ -364,9 +364,7 @@ fn card_format(card: &str) -> String {
 }
 
 async fn attach_sim_device(device_id: &str, device_type: DeviceType, name: &str) {
-    get_device_manager()
-        .register_device(
-            DeviceInfo {
+    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
                 id: device_id.to_string(),
                 name: name.to_string(),
                 device_type,
@@ -376,10 +374,7 @@ async fn attach_sim_device(device_id: &str, device_type: DeviceType, name: &str)
                 serial_number: None,
                 unique_id: None,
                 display_name: name.to_string(),
-            },
-            false,
-        )
-        .await;
+            }).await;
 }
 
 /// The owner's rule: a frame saved from the Imaging screen and a frame saved

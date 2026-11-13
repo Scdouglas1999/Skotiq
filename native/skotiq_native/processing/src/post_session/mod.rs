@@ -1,16 +1,13 @@
 //! Post-session (offline / batch) image-processing pipeline.
 //!
-//! This module exposes the committed native batch-integration pipeline
-//! (`skotiq_imaging::{registration, frame_weighting, normalization,
-//! integration, master_accumulation, calibration_masters}`) to Dart through a
-//! **minimal, JSON-in / JSON-out** boundary.
+//! The batch-integration pipeline over `skotiq_imaging::{registration,
+//! frame_weighting, normalization, integration, master_accumulation,
+//! calibration_masters}`.
 //!
-//! Why JSON and not typed FFI structs: regenerating `flutter_rust_bridge`
-//! bindings is heavyweight (needs LLVM + MSVC + WinKit, see
-//! `docs/FRB_TROUBLESHOOTING.md`). Every knob added later — new rejection
-//! algorithm, new resampler, drizzle params — then rides inside the JSON payload
-//! and never triggers another regen. This is the same trick the live stacker
-//! uses for node config (per project memory). The boundary is exactly six
+//! Each entry point takes and returns JSON, so a setting added later (a new
+//! rejection algorithm, resampler or drizzle parameter) rides inside the
+//! payload and needs no binding regeneration (that needs LLVM + MSVC + WinKit,
+//! see `docs/FRB_TROUBLESHOOTING.md`). The entry points are six
 //! `String -> Result<String, String>` functions:
 //!
 //! * [`integrate_session`] — one-shot batch integration → linear FITS master.
@@ -31,7 +28,7 @@
 
 use crate::post_session::report::{report, PassReport};
 
-pub use helpers::{calibrate_with_flat_state, load_optional_flat, FlatMaster};
+pub use helpers::LightCalibration;
 
 mod args;
 mod calibration_master;
@@ -43,6 +40,8 @@ pub(crate) mod delivery;
 pub mod entrypoints;
 pub(crate) mod helpers;
 mod integrate;
+#[cfg(test)]
+mod light_calibration_tests;
 mod master_cards;
 pub(crate) mod masters;
 mod multi_night;

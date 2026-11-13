@@ -274,6 +274,10 @@ class NodeNumberInput extends StatefulWidget {
   /// the text is muted and the field is marked "profile".
   final bool isProfileDefault;
 
+  /// Take focus with the text selected on first build, so a field opened
+  /// for one edit can be typed over at once.
+  final bool autofocus;
+
   const NodeNumberInput({
     super.key,
     required this.colors,
@@ -287,6 +291,7 @@ class NodeNumberInput extends StatefulWidget {
     this.parse,
     this.hintText,
     this.isProfileDefault = false,
+    this.autofocus = false,
   });
 
   @override
@@ -309,6 +314,16 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
     _controller = TextEditingController(text: _formatValue(widget.value));
     _focusNode = FocusNode();
     _focusNode.addListener(_onFocusChange);
+    if (widget.autofocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _focusNode.requestFocus();
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
+      });
+    }
   }
 
   String _formatValue(double value) => formatNodeNumber(value, widget.decimals);

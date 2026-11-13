@@ -284,7 +284,7 @@ class RunFrameRecorder {
         binningX: capture.binX,
         binningY: capture.binY,
         filter: filter,
-        frameType: _frameTypeOf(capture.frameType.toLowerCase()),
+        frameType: FrameType.fromImageType(capture.frameType) ?? FrameType.light,
       );
     }
     final sequence = _ref.read(currentSequenceProvider);
@@ -299,18 +299,9 @@ class RunFrameRecorder {
       binningX: attribution.binX,
       binningY: attribution.binY,
       filter: filter,
-      frameType: _frameTypeOf(attribution.frameType),
+      frameType: attribution.frameType,
     );
   }
-
-  static FrameType _frameTypeOf(String? lowercase) => switch (lowercase) {
-    'dark' => FrameType.dark,
-    'flat' => FrameType.flat,
-    'bias' => FrameType.bias,
-    'darkflat' => FrameType.darkFlat,
-    'snapshot' => FrameType.snapshot,
-    _ => FrameType.light,
-  };
 
   /// Fetch the camera's last image and publish it as the live preview.
   /// Fire-and-forget: a failed preview never affects the run.
@@ -423,8 +414,9 @@ class RunFrameRecorder {
     // Captured before the await: the insert outlives the handler, and reading
     // a provider from a disposed container throws.
     final logger = _logger;
-    final frameType = capture.frameType.toLowerCase();
-    final darkLibrary = frameType == 'dark' || frameType == 'bias'
+    final frameType = _recordedFrameType(capture.frameType, attribution);
+    final darkLibrary =
+        frameType == FrameType.dark || frameType == FrameType.bias
         ? _ref.read(darkLibraryServiceProvider)
         : null;
     // A linked client has no access to the host's files; the host processes
@@ -468,7 +460,6 @@ class RunFrameRecorder {
           runtimeGrade: grade,
           rejectionReason: rejectionReason,
           filter: filter,
-          // FITS IMAGETYP, in the images DB's lowercase spelling.
           frameType: frameType,
           gain: capture.gain,
           gainKind: capture.gainIsIso ? GainKind.iso : GainKind.gain,
@@ -511,7 +502,7 @@ class RunFrameRecorder {
             await darkLibrary.addDarkFrame(
               filePath: filePath,
               exposureTime: exposureSecs,
-              frameType: frameType,
+              frameType: frameType.record,
               temperature: capture.sensorTempC,
               gain: capture.gain,
               offset: capture.offset,
@@ -520,7 +511,7 @@ class RunFrameRecorder {
             );
           } catch (e) {
             logger.warning(
-              'Recorded $frameType frame $filePath but could not add it to the '
+              'Recorded ${frameType.record} frame $filePath but could not add it to the '
               'dark library: $e',
               source: 'SequenceExecutor',
             );
@@ -594,3 +585,9 @@ class _CountedFrame {
   final double exposureSecs;
   final bool accepted;
 }
+
+/// The type of a frame the executor reported: what its capture record says
+/// (the `IMAGETYP` spelling), else the producing node's.
+FrameType _recordedFrameType(String? captured, FrameAttribution attribution) =>
+    (captured == null ? null : FrameType.fromImageType(captured)) ??
+    attribution.frameType;

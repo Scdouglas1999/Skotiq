@@ -52,7 +52,9 @@ impl GuideRecoveryStall {
         let mut spread: f64 = 0.0;
         for (i, a) in pointings.iter().enumerate() {
             for b in &pointings[i + 1..] {
-                spread = spread.max(horizontal_separation_deg(*a, *b));
+                spread = spread.max(crate::scheduling::astronomy::angular_separation(
+                    a.1, a.0, b.1, b.0,
+                ));
             }
         }
         Some(spread)
@@ -66,14 +68,6 @@ impl GuideRecoveryStall {
                 .pointing_spread_deg()
                 .is_some_and(|spread| spread <= max_spread_deg)
     }
-}
-
-/// Great-circle angle between two (altitude, azimuth) pointings, degrees.
-fn horizontal_separation_deg(a: (f64, f64), b: (f64, f64)) -> f64 {
-    let (alt1, az1) = (a.0.to_radians(), a.1.to_radians());
-    let (alt2, az2) = (b.0.to_radians(), b.1.to_radians());
-    let cos = alt1.sin() * alt2.sin() + alt1.cos() * alt2.cos() * (az2 - az1).cos();
-    cos.clamp(-1.0, 1.0).acos().to_degrees()
 }
 
 #[cfg(test)]

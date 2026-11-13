@@ -65,7 +65,7 @@ void apiDepthlockRemoveGoal({
 );
 
 /// Describe a candidate reference frame: its geometry from the header (when
-/// it carries an undistorted TAN solution) and its acquisition settings.
+/// it carries a TAN solution) and its acquisition settings.
 Future<ApiDepthReferenceInfo> apiDepthlockInspectReference({
   required String path,
 }) => RustLib.instance.api.crateApiDepthlockApiDepthlockInspectReference(

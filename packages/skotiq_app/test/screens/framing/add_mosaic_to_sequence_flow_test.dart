@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/add_target_to_sequence_flow.dart';
 import 'package:skotiq_core/models.dart';
@@ -30,42 +31,38 @@ FramingTarget _target() => const FramingTarget(
     );
 
 /// A 2x2 grid in capture order, matching what `_recalculateMosaicPanels` emits.
-List<FramingMosaicPanel> _grid2x2() => const [
-      FramingMosaicPanel(
+List<MosaicPanel> _grid2x2() => const [
+      MosaicPanel(
         index: 0,
-        column: 0,
+        col: 0,
         row: 0,
-        centerRaHours: 5.55,
-        centerDecDegrees: -5.14,
-        name: 'Panel 1 (0,0)',
+        raHours: 5.55,
+        decDegrees: -5.14,
       ),
-      FramingMosaicPanel(
+      MosaicPanel(
         index: 1,
-        column: 1,
+        col: 1,
         row: 0,
-        centerRaHours: 5.62,
-        centerDecDegrees: -5.14,
-        name: 'Panel 2 (1,0)',
+        raHours: 5.62,
+        decDegrees: -5.14,
       ),
-      FramingMosaicPanel(
+      MosaicPanel(
         index: 2,
-        column: 1,
+        col: 1,
         row: 1,
-        centerRaHours: 5.62,
-        centerDecDegrees: -5.64,
-        name: 'Panel 3 (1,1)',
+        raHours: 5.62,
+        decDegrees: -5.64,
       ),
-      FramingMosaicPanel(
+      MosaicPanel(
         index: 3,
-        column: 0,
+        col: 0,
         row: 1,
-        centerRaHours: 5.55,
-        centerDecDegrees: -5.64,
-        name: 'Panel 4 (0,1)',
+        raHours: 5.55,
+        decDegrees: -5.64,
       ),
     ];
 
-FramingState _mosaic(List<FramingMosaicPanel> panels, {double rotation = 0}) =>
+FramingState _mosaic(List<MosaicPanel> panels, {double rotation = 0}) =>
     FramingState(
       mosaicEnabled: true,
       mosaicPanels: panels,
@@ -117,7 +114,7 @@ void main() {
         expect(info!.mosaicName, 'M42 Mosaic');
         expect(info.panelIndex, _grid2x2()[i].index);
         expect(info.row, _grid2x2()[i].row);
-        expect(info.column, _grid2x2()[i].column);
+        expect(info.column, _grid2x2()[i].col);
         expect(info.totalPanels, 4);
       }
     });

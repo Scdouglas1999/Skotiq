@@ -178,22 +178,6 @@ class RunDashboardFilterTotals {
   bool get isEmpty => integrationSecs.isEmpty && goalSecs.isEmpty;
 }
 
-class RunDashboardSessionIntegration {
-  /// Filter -> accepted (isAccepted == true) light-frame seconds.
-  final Map<String, double> acceptedSecs;
-
-  /// Filter -> all light-frame seconds (accepted + rejected).
-  final Map<String, double> totalSecs;
-
-  const RunDashboardSessionIntegration({
-    required this.acceptedSecs,
-    required this.totalSecs,
-  });
-
-  static const empty =
-      RunDashboardSessionIntegration(acceptedSecs: {}, totalSecs: {});
-}
-
 Map<String, double> _computeGoalSecs(Sequence? sequence) {
   if (sequence == null) return const {};
   final out = <String, double>{};
@@ -201,7 +185,7 @@ Map<String, double> _computeGoalSecs(Sequence? sequence) {
     if (node.frameType != FrameType.light) continue;
     if (!node.isEnabled) continue;
     final filter = (node.filter == null || node.filter!.isEmpty)
-        ? 'Unfiltered'
+        ? IntegrationByFilter.unfiltered
         : node.filter!;
     out[filter] = (out[filter] ?? 0.0) + node.totalDurationSecs;
   }
@@ -213,28 +197,12 @@ Map<String, double> _computeGoalSecs(Sequence? sequence) {
 /// rejected). A single DB scan produces both so the dashboard can show "usable
 /// vs spent" without a second query.
 final runDashboardSessionIntegrationProvider =
-    FutureProvider.family<RunDashboardSessionIntegration, int>(
+    FutureProvider.family<IntegrationByFilter, int>(
         (ref, sessionId) async {
   // A linked client's session rows are the host's; the dashboard's refresh
   // ticks re-read this provider so the totals stay current.
-  final images =
-      await ref.watch(imagingRecordsProvider).getImagesForSession(sessionId);
-  final accepted = <String, double>{};
-  final total = <String, double>{};
-  for (final img in images) {
-    if (img.frameType != 'light') continue;
-    final filter = (img.filter == null || img.filter!.isEmpty)
-        ? 'Unfiltered'
-        : img.filter!;
-    total[filter] = (total[filter] ?? 0.0) + img.exposureDuration;
-    if (img.isAccepted) {
-      accepted[filter] = (accepted[filter] ?? 0.0) + img.exposureDuration;
-    }
-  }
-  return RunDashboardSessionIntegration(
-    acceptedSecs: accepted,
-    totalSecs: total,
-  );
+  return IntegrationByFilter.of(
+      await ref.watch(imagingRecordsProvider).getImagesForSession(sessionId));
 });
 
 /// Combined per-filter totals + goals for the active sequence/session.
@@ -280,7 +248,7 @@ final runDashboardFilterTotalsProvider =
   final integration = ref
           .watch(runDashboardSessionIntegrationProvider(sessionId))
           .valueOrNull ??
-      RunDashboardSessionIntegration.empty;
+      IntegrationByFilter.empty;
 
   return RunDashboardFilterTotals(
     integrationSecs: integration.acceptedSecs,
@@ -290,50 +258,6 @@ final runDashboardFilterTotalsProvider =
     inFlightElapsedSecs: inFlightElapsed,
   );
 });
-
-/// Per-target integration budget progress for the
-/// active TargetHeader. `null` when the active target has no budget
-/// configured (so the dashboard hides the panel).
-class RunDashboardBudgetProgress {
-  final String targetId;
-
-  /// Resolved per-filter cap (seconds), keyed by filter name. Computed
-  /// from the budget config — same math as
-  /// `IntegrationBudget::resolved_filter_cap` on the Rust side.
-  final Map<String, double> resolvedCapSecs;
-
-  /// Total budget cap (seconds). `0.0` when no total cap is set.
-  final double totalSecs;
-
-  /// Completed per-filter integration (seconds), pulled from the
-  /// database's accepted-frame totals for the active session.
-  final Map<String, double> completedSecs;
-
-  /// True iff the budget is met (every per-filter cap reached OR
-  /// total reached). Computed locally for UI; the Rust runtime is the
-  /// authoritative source.
-  final bool budgetMet;
-
-  const RunDashboardBudgetProgress({
-    required this.targetId,
-    required this.resolvedCapSecs,
-    required this.totalSecs,
-    required this.completedSecs,
-    required this.budgetMet,
-  });
-
-  double get completedTotalSecs =>
-      completedSecs.values.fold(0.0, (a, b) => a + b);
-
-  double get fraction {
-    if (totalSecs > 0) {
-      return (completedTotalSecs / totalSecs).clamp(0.0, 1.0);
-    }
-    final capSum = resolvedCapSecs.values.fold<double>(0, (a, b) => a + b);
-    if (capSum <= 0) return 0;
-    return (completedTotalSecs / capSum).clamp(0.0, 1.0);
-  }
-}
 
 enum RunDashboardEventSeverity { info, warning, error, critical }
 

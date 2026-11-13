@@ -228,7 +228,7 @@ pub async fn dither(
             guard.settle_deadline = None;
             guard.settle_timeout_deadline = None;
             guard.settling = false;
-            return Err(SkotiqError::OperationFailed(format!(
+            return Err(SkotiqError::Timeout(format!(
                 "Built-in guider dither did not settle within {:.0}s",
                 timeout_secs + 10.0
             )));

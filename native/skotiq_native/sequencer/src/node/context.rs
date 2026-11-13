@@ -890,76 +890,33 @@ impl ExecutionContext {
         *self.completed_integration_secs.read().await
     }
 
-    /// Calculate current altitude of target based on RA/Dec and observer location
-    pub fn calculate_altitude(&self) -> Option<f64> {
-        let ra_hours = self.target_ra?;
-        let dec_degrees = self.target_dec?;
-        let lat = self.run.rig.latitude?;
-        let lon = self.run.rig.longitude?;
-
-        let now = chrono::Utc::now();
-        let jd = crate::meridian::julian_day(&now);
-        let lst = crate::meridian::local_sidereal_time(jd, lon);
-
-        let ha = lst - ra_hours;
-        let ha_rad = (ha * 15.0).to_radians(); // RA is stored in hours; 1 h = 15°
-        let dec_rad = dec_degrees.to_radians();
-        let lat_rad = lat.to_radians();
-
-        // Standard astronomy formula: sin(alt) = sin(lat)·sin(dec) + cos(lat)·cos(dec)·cos(HA)
-        let sin_alt = lat_rad.sin() * dec_rad.sin() + lat_rad.cos() * dec_rad.cos() * ha_rad.cos();
-        Some(sin_alt.asin().to_degrees())
+    /// The active target's altitude and azimuth now, in degrees (azimuth from
+    /// north through east).
+    pub fn target_alt_az(&self) -> Option<(f64, f64)> {
+        Some(crate::meridian::calculate_alt_az(
+            self.target_ra?,
+            self.target_dec?,
+            self.run.rig.latitude?,
+            self.run.rig.longitude?,
+            self.clock.now_utc(),
+        ))
     }
 
-    /// Calculate separation between target and moon in degrees
+    /// The active target's altitude now, in degrees.
+    pub fn calculate_altitude(&self) -> Option<f64> {
+        self.target_alt_az().map(|(altitude, _)| altitude)
+    }
+
+    /// The angle between the active target and the Moon now, in degrees.
     pub fn calculate_moon_separation(&self) -> Option<f64> {
-        let target_ra = self.target_ra?;
-        let target_dec = self.target_dec?;
-
-        // Low-precision lunar ephemeris adequate for moon-avoidance: the
-        // ConditionalCheck::MoonSeparationAbove threshold is typically tens of
-        // degrees, so the ~0.1° error this approximation incurs is irrelevant
-        // and avoids pulling in a full ephemeris dependency.
-        let now = chrono::Utc::now();
-        let jd = crate::meridian::julian_day(&now);
-        let days = jd - 2451545.0;
-
-        // Mean longitude, mean anomaly, ascending-node longitude (Meeus low-precision).
-        let moon_longitude = (218.32 + 13.176396 * days) % 360.0;
-        let moon_anomaly = (134.9 + 13.064993 * days) % 360.0;
-        let moon_node = (93.3 + 13.229350 * days) % 360.0;
-
-        // Two largest periodic terms only (evection + variation analogues).
-        let ecl_lon = moon_longitude + 6.29 * moon_anomaly.to_radians().sin()
-            - 1.27 * (2.0 * moon_node.to_radians() - moon_anomaly.to_radians()).sin();
-        let ecl_lat = 5.13 * moon_node.to_radians().sin();
-
-        let obliquity = 23.439f64;
-        let ecl_lon_rad = ecl_lon.to_radians();
-        let ecl_lat_rad = ecl_lat.to_radians();
-        let obl_rad = obliquity.to_radians();
-
-        let moon_ra = ((ecl_lon_rad.sin() * obl_rad.cos() - ecl_lat_rad.tan() * obl_rad.sin())
-            .atan2(ecl_lon_rad.cos()))
-        .to_degrees()
-            / 15.0; // Convert to hours
-        let moon_dec = (ecl_lat_rad.sin() * obl_rad.cos()
-            + ecl_lat_rad.cos() * obl_rad.sin() * ecl_lon_rad.sin())
-        .asin()
-        .to_degrees();
-
-        // Spherical law of cosines: cos(sep) = sin(d1)sin(d2) + cos(d1)cos(d2)cos(Δra).
-        // Adequate for moon avoidance — haversine's small-angle precision is
-        // unnecessary at the tens-of-degrees thresholds users configure.
-        let target_ra_rad = (target_ra * 15.0).to_radians();
-        let target_dec_rad = target_dec.to_radians();
-        let moon_ra_rad = (moon_ra * 15.0).to_radians();
-        let moon_dec_rad = moon_dec.to_radians();
-
-        let cos_sep = target_dec_rad.sin() * moon_dec_rad.sin()
-            + target_dec_rad.cos() * moon_dec_rad.cos() * (target_ra_rad - moon_ra_rad).cos();
-
-        Some(cos_sep.acos().to_degrees())
+        let (moon_ra_deg, moon_dec) =
+            crate::scheduling::ephemeris::moon_equatorial(&self.clock.now_utc());
+        Some(crate::scheduling::astronomy::angular_separation(
+            self.target_ra? * 15.0,
+            self.target_dec?,
+            moon_ra_deg,
+            moon_dec,
+        ))
     }
 
     /// Check if it's currently dark (astronomical twilight has ended)

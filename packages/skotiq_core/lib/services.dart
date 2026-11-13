@@ -199,6 +199,8 @@ export 'src/services/science/astrometric_residuals.dart';
 export 'src/services/science/nearest_neighbour_matching.dart';
 export 'src/services/science/science_backend.dart';
 export 'src/services/science/default_science_backend.dart';
+export 'src/services/science/narrowband_frames.dart';
+export 'src/services/science/science_default_session.dart';
 export 'src/services/science/science_processing_service.dart';
 export 'src/services/science/science_reprocess_service.dart';
 export 'src/services/science/science_status.dart';

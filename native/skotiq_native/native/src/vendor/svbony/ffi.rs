@@ -184,20 +184,11 @@ impl SvbImgType {
 ///
 /// An 8-bit format is a genuine 8-bit container (the SDK takes the high bits),
 /// so its ceiling is 255 regardless of sensor bit depth.
-///
-/// `bit_depth == 0` or `>= 16` means either an unpopulated property or a
-/// genuinely 16-bit ADC; both take the container's own ceiling rather than
-/// underflowing to 0, which would report "this camera cannot produce any signal".
 pub(crate) fn container_max_adu(image_type: SvbImgType, bit_depth: u32) -> u32 {
-    const CONTAINER_BITS: u32 = 16;
-    const CONTAINER_MAX: u32 = u16::MAX as u32;
     if image_type.bytes_per_sample() == 1 {
         return u32::from(u8::MAX);
     }
-    if bit_depth == 0 || bit_depth >= CONTAINER_BITS {
-        return CONTAINER_MAX;
-    }
-    (((1u32 << bit_depth) - 1) << (CONTAINER_BITS - bit_depth)) & CONTAINER_MAX
+    crate::camera_core::raw16_container_max_adu(bit_depth)
 }
 
 /// SVB_CAMERA_MODE values Skotiq uses.

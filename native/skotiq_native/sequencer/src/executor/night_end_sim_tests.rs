@@ -891,6 +891,20 @@ fn owners_plan(imaging_secs: f64) -> SequenceDefinition {
     sequence
 }
 
+/// An executor whose run settings place it at [`SITE`].
+async fn executor_at_site() -> super::SequenceExecutor {
+    let executor = super::SequenceExecutor::new();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(SITE.0);
+            config.longitude = Some(SITE.1);
+        })
+        .await
+        .expect("the site is accepted");
+    executor
+}
+
 fn rig_at_site() -> Arc<ScriptedDeviceOps> {
     let ops = Arc::new(ScriptedDeviceOps::new());
     *ops.observer_location.lock().unwrap() = Some(SITE);
@@ -922,7 +936,7 @@ fn moved_after_park(calls: &[String]) -> Vec<String> {
 async fn a_flip_step_after_the_plans_park_leaves_the_mount_parked() {
     let ops = rig_at_site();
     let executor = start_night(
-        super::SequenceExecutor::new(),
+        executor_at_site().await,
         ops.clone(),
         wizard_plan(0.5),
     )
@@ -948,7 +962,7 @@ async fn a_flip_step_after_the_plans_park_leaves_the_mount_parked() {
 async fn dawn_runs_the_shutdown_inside_a_wizard_plan() {
     let ops = rig_at_site();
     let mut executor = start_night(
-        super::SequenceExecutor::new(),
+        executor_at_site().await,
         ops.clone(),
         wizard_plan(600.0),
     )
@@ -1006,7 +1020,7 @@ async fn dawn_runs_the_shutdown_of_a_plan_that_ends_with_a_watcher() {
 async fn the_owners_plan_ends_its_target_without_a_second_flip() {
     let ops = rig_at_site();
     let executor = start_night(
-        super::SequenceExecutor::new(),
+        executor_at_site().await,
         ops.clone(),
         owners_plan(0.5),
     )
@@ -1035,7 +1049,7 @@ async fn the_owners_plan_ends_its_target_without_a_second_flip() {
 async fn the_owners_plan_at_dawn_parks_and_warms() {
     let ops = rig_at_site();
     let mut executor = start_night(
-        super::SequenceExecutor::new(),
+        executor_at_site().await,
         ops.clone(),
         owners_plan(600.0),
     )
@@ -1111,7 +1125,7 @@ async fn skip_step_skips_only_the_running_step() {
             n.children.insert(1, "second".into());
         }
     }
-    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    let executor = start_night(executor_at_site().await, ops.clone(), plan).await;
     wait_for_state(&executor, Duration::from_secs(5), |s| {
         s == super::ExecutorState::Running
     })

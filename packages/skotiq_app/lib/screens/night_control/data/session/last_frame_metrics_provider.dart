@@ -23,6 +23,7 @@ import '../../night_control_contracts.dart';
 import 'session_format.dart';
 import 'session_frames_provider.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 /// Which way is better for a metric.
 enum _Better { lower, higher, neither }
@@ -46,15 +47,15 @@ MetricVm _metric(
   final text = '${nightFixed(value, decimals)}$unit';
   if (median == null) return MetricVm(label: label, value: text);
   final delta = value - median;
-  var tone = MetricTone.neutral;
+  var tone = MetricGridTone.neutral;
   final scale = median.abs();
   if (better != _Better.neither && scale > 0) {
     final improving = better == _Better.lower ? delta < 0 : delta > 0;
     final share = delta.abs() / scale;
     if (improving && share >= _improvementShare) {
-      tone = MetricTone.good;
+      tone = MetricGridTone.good;
     } else if (!improving && share >= _worseningShare) {
-      tone = MetricTone.warning;
+      tone = MetricGridTone.warning;
     }
   }
   return MetricVm(

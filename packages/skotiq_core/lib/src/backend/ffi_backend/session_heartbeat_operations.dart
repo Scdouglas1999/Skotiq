@@ -26,7 +26,7 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
             binningX: dbImg.binX,
             binningY: dbImg.binY,
             filter: dbImg.filter,
-            frameType: _frameTypeFromString(dbImg.frameType),
+            frameType: dbImg.recordedFrameType ?? FrameType.light,
           ),
           stats: dbImg.hfr != null || dbImg.starCount != null
               ? ImageStats(
@@ -160,23 +160,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
       }
     } catch (e) {
       throw _toSkotiqError(e, 'Failed to download image');
-    }
-  }
-
-  FrameType _frameTypeFromString(String str) {
-    switch (str.toLowerCase()) {
-      case 'light':
-        return FrameType.light;
-      case 'dark':
-        return FrameType.dark;
-      case 'flat':
-        return FrameType.flat;
-      case 'bias':
-        return FrameType.bias;
-      case 'darkflat':
-        return FrameType.darkFlat;
-      default:
-        return FrameType.light;
     }
   }
 

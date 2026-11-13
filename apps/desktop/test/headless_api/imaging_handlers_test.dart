@@ -392,7 +392,7 @@ void main() {
               'deviceId': 'camera-1',
               'filePath': filePath,
               'headerData': {
-                'frameType': 'FLAT',
+                'frameType': 'Flat',
                 'filter': 'L',
                 'exposureTime': 1.5,
                 'captureTimestamp': '2026-07-13T01:00:00Z',
@@ -417,7 +417,7 @@ void main() {
               'deviceId': 'camera-1',
               'filePath': '${root.path}/2026-07-13/L/light-1.fits',
               'headerData': {
-                'frameType': 'LIGHT',
+                'frameType': 'Light',
                 'exposureTime': 30.0,
                 'captureTimestamp': '2026-07-13T01:00:00Z',
               },
@@ -454,7 +454,7 @@ void main() {
                 'deviceId': 'camera-1',
                 'scratchName': 'liveview_camera_1.fits',
                 'headerData': {
-                  'frameType': 'LIGHT',
+                  'frameType': 'Light',
                   'exposureTime': 2.0,
                   'captureTimestamp': '2026-07-13T01:00:00Z',
                 },
@@ -588,7 +588,7 @@ void main() {
               'deviceId': 'camera-1',
               'filePath': filePath,
               'headerData': {
-                'frameType': 'FLAT',
+                'frameType': 'Flat',
                 'exposureTime': 1.5,
                 'captureTimestamp': '2026-07-13T01:00:00Z',
               },

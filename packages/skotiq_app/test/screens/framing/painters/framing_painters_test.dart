@@ -12,6 +12,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/painters/framing_painters.dart';
 import 'package:skotiq_core/models.dart';
@@ -53,14 +54,13 @@ const _plateScale = FramingPlateScale(
 const _colors = SkotiqColors.dark;
 
 /// A single panel at the mosaic origin, used for the 1x1 mosaic geometry tests.
-const _singlePanel = <FramingMosaicPanel>[
-  FramingMosaicPanel(
+const _singlePanel = <MosaicPanel>[
+  MosaicPanel(
     index: 0,
-    column: 0,
+    col: 0,
     row: 0,
-    centerRaHours: 0.0,
-    centerDecDegrees: 0.0,
-    name: 'Panel 1 (0,0)',
+    raHours: 0.0,
+    decDegrees: 0.0,
   ),
 ];
 

@@ -15,55 +15,87 @@ pub struct IndiFrame {
     pub pixels: Vec<u16>,
 }
 
-/// Parse the integer value out of a fixed-format 80-byte FITS header card.
+/// The pixels of a BLOB. `sensor` is the size of a BLOB that carries only
+/// pixels (`FORMAT_NATIVE`).
 ///
-/// FITS mandates `KEYWORD = value / comment` with the value right-justified in
-/// bytes 10..30, so splitting on `=` and taking everything before any `/` is
-/// sufficient: no full FITS parser is needed for NAXIS1 and NAXIS2. `None` for
-/// a malformed card, so the caller falls back rather than trusting a guess.
-fn fits_card_u32(card: &[u8]) -> Option<u32> {
-    let text = std::str::from_utf8(card).ok()?;
-    let after_eq = text.split_once('=')?.1;
-    let value = after_eq.split('/').next()?.trim();
-    value.parse::<u32>().ok()
+/// A FITS or XISF BLOB is read by the app's frame reader, so its own header
+/// decides the geometry, the sample type and the scaling: INDI writes 16-bit
+/// frames as cfitsio's unsigned shorts, signed samples with `BZERO = 32768`,
+/// and `CCD_INFO` is the full unbinned sensor (at bin 2 the CCD simulator's
+/// says 1280x1024 while its BLOB is 640x512). Samples come out as 16-bit
+/// levels, as every camera's frames do (an 8-bit sample `v` is `257 v`).
+///
+/// A BLOB the server compressed with zlib (`.fits.z`, `.bin.z`) is inflated
+/// first. A native BLOB is the sensor's samples, little-endian, 8 or 16 bits
+/// by its length; a short one stays short so the size check downstream
+/// catches it.
+pub fn decode_frame(data: &[u8], sensor: (u32, u32)) -> IndiResult<IndiFrame> {
+    let inflated = inflate(data);
+    let data = inflated.as_deref().unwrap_or(data);
+    match skotiq_imaging::read_frame_bytes(data) {
+        Ok((image, _)) => frame_of(&image),
+        Err(skotiq_imaging::FrameIoError::UnknownFormat(_)) => Ok(native_frame(data, sensor)),
+        Err(e) => Err(IndiError::BlobFormatError {
+            format: format_name(data).to_string(),
+            message: format!("The camera's frame could not be read: {e}"),
+        }),
+    }
 }
 
-/// The pixels of a BLOB. `sensor` is the size to assume for a BLOB that does
-/// not say its own.
-///
-/// A FITS BLOB carries the frame's true geometry in NAXIS1 and NAXIS2, and
-/// those win: `CCD_INFO` is the full unbinned sensor, so at bin 2 the CCD
-/// simulator's `CCD_INFO` says 1280x1024 while its BLOB is 640x512. Only the
-/// FITS block padding past width x height is dropped; a short buffer stays
-/// short so the size check downstream still catches it.
-pub fn decode_frame(data: &[u8], sensor: (u32, u32)) -> IndiFrame {
-    let mut fits_size = None;
-    let mut pixels: Vec<u16> = if data.starts_with(b"SIMPLE") {
-        let mut offset = 0usize;
-        let (mut naxis1, mut naxis2) = (None, None);
-        for card in data.chunks(80) {
-            offset += 80;
-            if card.starts_with(b"NAXIS1") {
-                naxis1 = fits_card_u32(card);
-            } else if card.starts_with(b"NAXIS2") {
-                naxis2 = fits_card_u32(card);
-            }
-            if card.starts_with(b"END") {
-                offset = offset.div_ceil(2880) * 2880;
-                break;
-            }
-        }
-        if let (Some(width), Some(height)) = (naxis1, naxis2) {
-            if width > 0 && height > 0 {
-                fits_size = Some((width, height));
-            }
-        }
-        data[offset.min(data.len())..]
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|pair| u16::from_be_bytes(*pair))
-            .collect()
+fn format_name(data: &[u8]) -> &'static str {
+    if data.starts_with(b"SIMPLE") {
+        "FITS"
+    } else if data.starts_with(skotiq_imaging::xisf::XISF_SIGNATURE) {
+        "XISF"
+    } else {
+        "native"
+    }
+}
+
+/// The inflated bytes of a zlib stream, or `None` when `data` is not one.
+/// A stream whose Adler-32 checks out is not a native frame's pixels by
+/// chance.
+fn inflate(data: &[u8]) -> Option<Vec<u8>> {
+    let header = u16::from_be_bytes([*data.first()?, *data.get(1)?]);
+    if data[0] & 0x0F != 8 || header % 31 != 0 {
+        return None;
+    }
+    let mut out = Vec::new();
+    std::io::Read::read_to_end(&mut flate2::read::ZlibDecoder::new(data), &mut out).ok()?;
+    Some(out)
+}
+
+fn frame_of(image: &skotiq_imaging::ImageData) -> IndiResult<IndiFrame> {
+    let refused = |message: String| IndiError::BlobFormatError {
+        format: "FITS".to_string(),
+        message,
+    };
+    if image.is_empty() {
+        // fpack's tile compression (`.fits.fz`) leaves the primary image empty.
+        return Err(refused(
+            "The camera sent a frame with no image in it. If its INDI compression is on, \
+             turn it off: Skotiq reads uncompressed and zlib-compressed frames."
+                .to_string(),
+        ));
+    }
+    if image.channels != 1 {
+        return Err(refused(format!(
+            "The camera sent a {}-plane color frame; Skotiq reads one-plane (mono or Bayer) \
+             frames from INDI cameras.",
+            image.channels
+        )));
+    }
+    Ok(IndiFrame {
+        width: image.width,
+        height: image.height,
+        pixels: image.adu_levels(),
+    })
+}
+
+fn native_frame(data: &[u8], (width, height): (u32, u32)) -> IndiFrame {
+    let count = (width as usize) * (height as usize);
+    let mut pixels: Vec<u16> = if data.len() == count {
+        data.iter().map(|&v| u16::from(v) * 257).collect()
     } else {
         data.as_chunks::<2>()
             .0
@@ -71,8 +103,7 @@ pub fn decode_frame(data: &[u8], sensor: (u32, u32)) -> IndiFrame {
             .map(|pair| u16::from_le_bytes(*pair))
             .collect()
     };
-    let (width, height) = fits_size.unwrap_or(sensor);
-    pixels.truncate((width as usize) * (height as usize));
+    pixels.truncate(count);
     IndiFrame {
         width,
         height,
@@ -158,63 +189,149 @@ impl IndiCamera {
 mod tests {
     use super::*;
 
-    /// The two cards are the 80-byte headers of a BLOB captured off
-    /// `indi_simulator_ccd` at 2x2 binning, where CCD_INFO advertised the
-    /// unbinned 1280x1024 while the frame was 640x512.
-    #[test]
-    fn naxis_cards_of_a_real_blob_are_read() {
-        let naxis1 =
-            b"NAXIS1  =                  640 / length of data axis 1                          ";
-        let naxis2 =
-            b"NAXIS2  =                  512 / length of data axis 2                          ";
-        assert_eq!(fits_card_u32(naxis1), Some(640));
-        assert_eq!(fits_card_u32(naxis2), Some(512));
-        assert_eq!(fits_card_u32(b"NAXIS1  =                 4144"), Some(4144));
-    }
-
-    #[test]
-    fn a_card_that_cannot_be_trusted_is_refused() {
-        for card in [
-            &b"COMMENT no equals sign here"[..],
-            b"NAXIS1  =                    T / bad",
-            b"NAXIS1  =                 6.40 / float",
-            b"NAXIS1  =                   -1 / negative",
-        ] {
-            assert_eq!(fits_card_u32(card), None);
-        }
-    }
-
     fn card(text: &str) -> Vec<u8> {
         format!("{text:<80}").into_bytes()
     }
 
-    #[test]
-    fn a_fits_frame_has_its_own_size_and_big_endian_pixels() {
+    /// A FITS file as cfitsio lays one out: the cards, padding to 2880, the
+    /// big-endian samples, padding.
+    fn fits(bitpix: i32, size: (u32, u32), extra: &[&str], samples: &[u8]) -> Vec<u8> {
         let mut blob = Vec::new();
         for text in [
-            "SIMPLE  =                    T",
-            "BITPIX  =                   16",
-            "NAXIS   =                    2",
-            "NAXIS1  =                    2 / length of data axis 1",
-            "NAXIS2  =                    1 / length of data axis 2",
-            "END",
-        ] {
+            "SIMPLE  =                    T".to_string(),
+            format!("BITPIX  = {bitpix:>20}"),
+            "NAXIS   =                    2".to_string(),
+            format!("NAXIS1  = {:>20} / length of data axis 1", size.0),
+            format!("NAXIS2  = {:>20} / length of data axis 2", size.1),
+        ]
+        .iter()
+        .map(String::as_str)
+        .chain(extra.iter().copied())
+        .chain(["END"])
+        {
             blob.extend(card(text));
         }
-        blob.resize(2880, b' ');
-        blob.extend([0x01, 0x02, 0x03, 0x04]);
-        blob.resize(2880 * 2, 0);
-        let frame = decode_frame(&blob, (1280, 1024));
-        assert_eq!((frame.width, frame.height), (2, 1));
-        assert_eq!(frame.pixels, vec![0x0102, 0x0304]);
+        blob.resize(blob.len().div_ceil(2880) * 2880, b' ');
+        blob.extend(samples);
+        blob.resize(blob.len().div_ceil(2880) * 2880, 0);
+        blob
+    }
+
+    /// INDI writes 16-bit frames as `USHORT_IMG`: cfitsio stores `v - 32768`
+    /// as a signed short and says `BZERO = 32768`.
+    fn indi_u16(size: (u32, u32), levels: &[u16]) -> Vec<u8> {
+        let samples: Vec<u8> = levels
+            .iter()
+            .flat_map(|&v| ((i32::from(v) - 32768) as i16).to_be_bytes())
+            .collect();
+        fits(
+            16,
+            size,
+            &[
+                "BZERO   =                32768 / offset data range to that of unsigned short",
+                "BSCALE  =                    1 / default scaling factor",
+            ],
+            &samples,
+        )
     }
 
     #[test]
-    fn a_raw_frame_takes_the_sensor_size_and_little_endian_pixels() {
-        let frame = decode_frame(&[1, 0, 2, 0, 3, 0, 4, 0], (2, 2));
+    fn an_indi_16_bit_frame_reads_its_own_levels() {
+        let levels = [0, 5, 1000, 32768, 65535, 9];
+        let frame = decode_frame(&indi_u16((3, 2), &levels), (1280, 1024)).unwrap();
+        assert_eq!((frame.width, frame.height), (3, 2), "the BLOB's own size wins");
+        assert_eq!(frame.pixels, levels);
+    }
+
+    #[test]
+    fn an_8_and_a_32_bit_frame_come_out_as_16_bit_levels() {
+        let frame = decode_frame(&fits(8, (2, 1), &[], &[0, 255]), (2, 1)).unwrap();
+        assert_eq!(frame.pixels, [0, 65535]);
+
+        // ULONG_IMG: signed longs with BZERO 2^31.
+        let samples: Vec<u8> = [0u32, u32::MAX, 1 << 31]
+            .iter()
+            .flat_map(|&v| ((i64::from(v) - (1 << 31)) as i32).to_be_bytes())
+            .collect();
+        let frame = decode_frame(
+            &fits(32, (3, 1), &["BZERO   =           2147483648"], &samples),
+            (3, 1),
+        )
+        .unwrap();
+        assert_eq!(frame.pixels, [0, 65535, 32768]);
+    }
+
+    #[test]
+    fn a_zlib_compressed_frame_reads_like_the_plain_one() {
+        use std::io::Write;
+        let plain = indi_u16((2, 2), &[10, 20, 30, 40]);
+        let mut encoder =
+            flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::best());
+        encoder.write_all(&plain).unwrap();
+        let compressed = encoder.finish().unwrap();
+        assert_eq!(
+            decode_frame(&compressed, (9, 9)).unwrap(),
+            decode_frame(&plain, (9, 9)).unwrap()
+        );
+    }
+
+    #[test]
+    fn an_xisf_frame_is_read() {
+        let dir = std::env::temp_dir().join(format!("indi-xisf-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("frame.xisf");
+        let image = skotiq_imaging::ImageData::from_u16(2, 2, 1, &[1, 2, 3, 60000]);
+        skotiq_imaging::write_frame(&path, &image, &skotiq_imaging::FitsHeader::new()).unwrap();
+        let blob = std::fs::read(&path).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+        let frame = decode_frame(&blob, (9, 9)).unwrap();
         assert_eq!((frame.width, frame.height), (2, 2));
-        assert_eq!(frame.pixels, vec![1, 2, 3, 4]);
-        let short = decode_frame(&[1, 0], (2, 2));
-        assert_eq!(short.pixels.len(), 1, "a short buffer stays short");
+        assert_eq!(frame.pixels, [1, 2, 3, 60000]);
+    }
+
+    #[test]
+    fn frames_that_cannot_be_shown_are_refused_with_the_reason() {
+        // fpack leaves the primary image empty and the tiles in an extension.
+        let mut fpacked = Vec::new();
+        for text in [
+            "SIMPLE  =                    T",
+            "BITPIX  =                    8",
+            "NAXIS   =                    0",
+            "EXTEND  =                    T",
+            "END",
+        ] {
+            fpacked.extend(card(text));
+        }
+        fpacked.resize(2880, b' ');
+        let refused = decode_frame(&fpacked, (2, 2)).unwrap_err().to_string();
+        assert!(refused.contains("compression"), "{refused}");
+
+        let mut cube = Vec::new();
+        for text in [
+            "SIMPLE  =                    T",
+            "BITPIX  =                   16",
+            "NAXIS   =                    3",
+            "NAXIS1  =                    1",
+            "NAXIS2  =                    1",
+            "NAXIS3  =                    3",
+            "END",
+        ] {
+            cube.extend(card(text));
+        }
+        cube.resize(2880, b' ');
+        cube.resize(2 * 2880, 0);
+        let refused = decode_frame(&cube, (1, 1)).unwrap_err().to_string();
+        assert!(refused.contains("3-plane"), "{refused}");
+    }
+
+    #[test]
+    fn a_native_frame_takes_the_sensor_size() {
+        let frame = decode_frame(&[1, 0, 2, 0, 3, 0, 4, 0], (2, 2)).unwrap();
+        assert_eq!((frame.width, frame.height), (2, 2));
+        assert_eq!(frame.pixels, [1, 2, 3, 4]);
+        let eight_bit = decode_frame(&[0, 1, 2, 255], (2, 2)).unwrap();
+        assert_eq!(eight_bit.pixels, [0, 257, 514, 65535]);
+        let short = decode_frame(&[1, 0, 2, 0, 3, 0], (2, 2)).unwrap();
+        assert_eq!(short.pixels.len(), 3, "a short buffer stays short");
     }
 }

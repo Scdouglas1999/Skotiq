@@ -333,8 +333,11 @@ number anyway. It needs:
   normalised to unit mean, and at least 8 frames behind each master. The
   presentation-oriented clipping calibration used for previews cannot be used
   here, because it discards the signed values the measurement depends on.
-- **A plate-solved reference** with an undistorted TAN solution and
-  approximately square, orthogonal pixels. SIP distortion is not supported.
+- **A plate-solved reference** with a TAN solution (a frame Skotiq solved
+  qualifies) and approximately square, orthogonal pixels. The goal keeps the
+  solution's linear part: a box drawn on the reference is measured on exactly
+  those pixels in every later frame, and SIP distortion terms only shift
+  where on the sky the box is said to lie, by about a pixel at the corners.
 - **One setup per goal**: the same camera, filter, exposure, gain, offset and
   binning, with sensor temperature inside the goal's tolerance. Frames that do
   not match are refused, with the reason recorded.
