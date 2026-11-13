@@ -7,7 +7,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Settings card for **live MPC orbital-element refresh** — fetching fresh
 /// minor-planet (MPCORB) and comet (CometEls) elements on a schedule.

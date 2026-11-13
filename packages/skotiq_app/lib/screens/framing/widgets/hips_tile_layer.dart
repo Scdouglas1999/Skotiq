@@ -55,7 +55,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
-import '../painters/hips_tile_layer_painter.dart';
+import '../../../widgets/hips/hips_tile_layer_painter.dart';
 
 /// The Flutter-side GPU HiPS framing tile layer widget.
 ///

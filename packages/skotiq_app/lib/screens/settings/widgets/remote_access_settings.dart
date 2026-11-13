@@ -14,7 +14,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../link_rig/linked_rig_panel.dart';
+import '../../connection/linked_rig_panel.dart';
 import '../pairing_screen.dart' show pairingProvider;
 import 'admin_only.dart';
 import 'settings_widgets.dart';

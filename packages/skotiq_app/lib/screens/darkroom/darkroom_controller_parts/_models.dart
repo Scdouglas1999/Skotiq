@@ -1,54 +1,5 @@
 part of '../darkroom_controller.dart';
 
-/// What the `/darkroom` route was asked to open.
-///
-/// Both ids are nullable and both may be absent: a deep link that names neither
-/// (or names one that is not an integer) resolves to [DarkroomScope.empty],
-/// which the screen renders as an empty state rather than crashing on a bad
-/// link. It is the family key, so it carries value equality.
-@immutable
-class DarkroomScope {
-  /// `recipes.id` to open, or null when the link named a master instead.
-  final int? recipeId;
-
-  /// `integrated_masters.id` whose recipes are offered, or null.
-  final int? masterId;
-
-  /// The run id of a pass to show, or null.
-  final String? passRunId;
-
-  const DarkroomScope({this.recipeId, this.masterId, this.passRunId});
-
-  /// A pass, live or recorded.
-  const DarkroomScope.pass(String runId) : this(passRunId: runId);
-
-  const DarkroomScope.recipe(int id) : this(recipeId: id);
-
-  /// A master opened by row id; its newest recipe is loaded, and when it has
-  /// none the screen offers to create one.
-  const DarkroomScope.master(int id) : this(masterId: id);
-
-  /// The link named nothing this screen can open.
-  const DarkroomScope.empty() : this();
-
-  bool get isEmpty => recipeId == null && masterId == null && passRunId == null;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DarkroomScope &&
-          other.recipeId == recipeId &&
-          other.masterId == masterId &&
-          other.passRunId == passRunId;
-
-  @override
-  int get hashCode => Object.hash(recipeId, masterId, passRunId);
-
-  @override
-  String toString() =>
-      'DarkroomScope(recipe=$recipeId, master=$masterId, pass=$passRunId)';
-}
-
 /// One operation invocation in the edited recipe.
 ///
 /// The field names are the recipe engine's own wire keys (`opId`, `opVersion`,

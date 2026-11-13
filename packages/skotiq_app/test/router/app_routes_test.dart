@@ -6,11 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/router/app_routes.dart';
-import 'package:skotiq_app/screens/analytics/analytics_route.dart';
-import 'package:skotiq_app/screens/darkroom/darkroom_route.dart';
-import 'package:skotiq_app/screens/planner/planner_route.dart';
-import 'package:skotiq_app/screens/sequencer/sequencer_route.dart';
-import 'package:skotiq_app/screens/settings/settings_sections.dart';
+import 'package:skotiq_app/router/analytics_route.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
+import 'package:skotiq_app/router/planner_route.dart';
+import 'package:skotiq_app/router/sequencer_route.dart';
+import 'package:skotiq_app/router/settings_sections.dart';
 import 'package:skotiq_core/models.dart'
     show AppScreen, buildReadinessReport, darkroomActivityRoute, darkroomFramingRoute, darkroomTargetRoute, kNextUseSteps;
 

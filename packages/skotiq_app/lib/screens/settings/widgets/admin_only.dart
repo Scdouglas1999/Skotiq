@@ -6,7 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../link_rig/link_rig_dialog.dart';
+import '../../connection/link_rig_dialog.dart';
 
 /// What a linked client says where the imaging host lets only a link with
 /// admin access act: credentials, the programs it runs, backups, plugins,

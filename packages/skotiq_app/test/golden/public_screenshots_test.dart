@@ -17,7 +17,7 @@ import 'package:skotiq_app/screens/flat_wizard/flat_wizard_screen.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';

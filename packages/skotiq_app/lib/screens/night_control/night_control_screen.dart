@@ -10,8 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
 
-import '../sequencer/widgets/run_dashboard/critical_event_banner.dart';
-import '../sequencer/widgets/run_dashboard/recovery_banner.dart';
+import 'critical_event_banner.dart';
+import '../../widgets/run_status/recovery_banner.dart';
 import 'center/night_center.dart';
 import 'end_of_night_cap_banner.dart';
 import 'header/night_header_bar.dart';

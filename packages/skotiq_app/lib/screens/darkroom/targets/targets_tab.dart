@@ -6,7 +6,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
-import '../darkroom_route.dart';
+import '../../../router/darkroom_route.dart';
 import 'darkroom_image.dart';
 import 'darkroom_status_chip.dart';
 import 'darkroom_targets_model.dart';

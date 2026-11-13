@@ -20,7 +20,7 @@ import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../night_control_contracts.dart';
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import '../../../../services/run_dashboard_providers.dart';
 import '../panel_widgets.dart';
 import 'recent_solves_provider.dart';
 import 'solve_sections.dart';

@@ -8,8 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/widgets/command_palette/command_palette.dart';
-import 'package:skotiq_app/widgets/command_palette/command_sources.dart';
+import 'package:skotiq_app/screens/shell/command_palette/command_palette.dart';
+import 'package:skotiq_app/screens/shell/command_palette/command_sources.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 

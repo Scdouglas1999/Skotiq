@@ -14,7 +14,7 @@ import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'admin_only.dart';
 import 'settings_widgets.dart';
-import '../settings_sections.dart';
+import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
 
 /// Manage the connected appliance's plate-solve / star catalogs over the

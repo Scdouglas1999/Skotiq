@@ -54,7 +54,7 @@ import 'package:skotiq_core/providers.dart' show pluginEnablementProvider;
 import 'package:skotiq_core/backend.dart' show HostDataDispatch;
 import 'package:skotiq_core/providers.dart' show backendProvider;
 
-import 'settings_sections.dart';
+import '../../router/settings_sections.dart';
 import 'widgets/settings_widgets.dart';
 import '../../router/app_routes.dart';
 

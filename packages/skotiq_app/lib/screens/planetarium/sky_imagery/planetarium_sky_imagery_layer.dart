@@ -49,8 +49,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../../framing/painters/hips_tile_layer_painter.dart';
-import '../../framing/widgets/hips_attribution_badge.dart';
+import '../../../widgets/hips/hips_tile_layer_painter.dart';
+import '../../../widgets/hips/hips_attribution_badge.dart';
 import 'planetarium_sky_geometry.dart';
 import 'planetarium_sky_imagery_providers.dart';
 

@@ -16,7 +16,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/session_review/widgets/master_overlay_view.dart';
+import 'package:skotiq_app/widgets/master_preview/master_overlay_view.dart';
 import 'package:skotiq_core/models.dart';
 
 void main() {

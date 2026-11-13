@@ -12,11 +12,11 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../scheduler/widgets/integration_goals_editor.dart';
+import '../../planner/widgets/integration_goals_editor.dart';
 import 'analytics_empty_state.dart';
 import 'campaign_rollup_dialog.dart';
 import '../../../router/app_routes.dart';
-import '../../planner/planner_route.dart';
+import '../../../router/planner_route.dart';
 
 part 'project_tracking_panel_parts/_headers.dart';
 part 'project_tracking_panel_parts/_project_card.dart';

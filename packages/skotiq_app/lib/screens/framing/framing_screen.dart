@@ -10,7 +10,7 @@ import 'package:skotiq_core/settings.dart';
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'package:skotiq_app/utils/plan_tonight_sequencer_helper.dart';
-import 'add_target_to_sequence_flow.dart';
+import '../../widgets/add_target_to_sequence_flow.dart';
 import 'framing_altaz.dart';
 import 'framing_hips_layer_wiring.dart';
 import 'framing_search_provider.dart';

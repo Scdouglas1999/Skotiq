@@ -1,0 +1,942 @@
+import 'dart:async';
+
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
+
+import 'adaptive_chart_container.dart';
+
+class AltitudeChart extends ConsumerStatefulWidget {
+  final double raHours;
+  final double decDegrees;
+  final String? targetName;
+
+  /// Test seam for the wall clock. Production always uses [DateTime.now];
+  /// the astronomy here needs the true instant, so it deliberately does NOT
+  /// go through `clockProvider` (that clock returns the operator's *chosen*
+  /// timezone rendering, which would skew rise/transit/set math).
+  final DateTime Function()? nowOverride;
+
+  /// The Framing column's form: no title or Alt/Airmass chips (the section
+  /// above already reads them out), a shorter plot, and rise/transit/set as
+  /// one row of readouts instead of chips.
+  final bool compact;
+
+  const AltitudeChart({
+    super.key,
+    required this.raHours,
+    required this.decDegrees,
+    this.targetName,
+    this.nowOverride,
+    this.compact = false,
+  });
+
+  DateTime nowValue() => nowOverride?.call() ?? DateTime.now();
+
+  @override
+  ConsumerState<AltitudeChart> createState() => _AltitudeChartState();
+}
+
+class _AltitudeChartState extends ConsumerState<AltitudeChart> {
+  List<FlSpot> _altitudeData = [];
+  List<FlSpot> _airmassData = [];
+  TwilightTimes? _twilight;
+  ObjectVisibility? _visibility;
+  DateTime _startTime = DateTime.now();
+  DateTime _endTime = DateTime.now();
+
+  /// The target's altitude right now, or null when it is NOT KNOWN — no
+  /// observing site is configured, so there is no basis for an altitude at all.
+  ///
+  /// Deliberately nullable rather than a `0` sentinel. As a plain double it
+  /// stayed at its `0` initial value whenever [_calculateData] bailed out for a
+  /// missing site, and the chip below rendered a hard red "Alt: 0.0°" — a
+  /// specific claim that the target is on the horizon — immediately above the
+  /// "Set location in Settings" panel that admits the app has no location.
+  double? _currentAltitude;
+
+  /// The clock every HH:MM face in this widget renders through. Assigned from
+  /// [clockProvider] at the top of [build]; see the note there.
+  Clock _clock = const SystemClock();
+  double _currentAirmass = 0;
+  bool _showAirmass = false;
+
+  /// Wall clock for the present-tense readouts.
+  ///
+  /// [_calculateData] runs on mount and on a ra/dec (or settings) change only,
+  /// so without a tick the chips labelled "Alt:" and "Airmass:" — present
+  /// tense, no timestamp — keep stating whatever the sky looked like when the
+  /// card first built.
+  ///
+  /// Only the "now" quantities are recomputed on the tick. The night curve and
+  /// the twilight window are properties of the night, not of the minute, so
+  /// re-solving them on every candidate card every minute would be wasted work.
+  Timer? _nowTicker;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateData();
+    // One minute: the fastest a target's altitude moves is ~0.25°/min at the
+    // horizon, so the 0.1° the chip prints can never be more than a rounding
+    // step behind.
+    _nowTicker = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _refreshCurrentPosition(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nowTicker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(AltitudeChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.raHours != widget.raHours ||
+        oldWidget.decDegrees != widget.decDegrees) {
+      _calculateData();
+    }
+  }
+
+  /// Re-solve the target's altitude/airmass for the current instant.
+  void _refreshCurrentPosition() {
+    if (!mounted) return;
+    final settings = ref.read(appSettingsProvider).valueOrNull;
+    if (settings == null) return;
+
+    final lat = settings.latitude;
+    final lon = settings.longitude;
+    // No observing site: the chips already say an em dash and there is nothing to
+    // refresh them to.
+    if (!settings.hasObserverLocation) return;
+
+    final now = widget.nowValue();
+    // Left open past the end of the plotted night: the whole solve is stale,
+    // not just the marker, so redo it rather than moving a dot around a window
+    // that has finished.
+    if (now.isAfter(_endTime)) {
+      _calculateData();
+      return;
+    }
+
+    final (alt, _) = AstronomyCalculations.objectAltAz(
+      raDeg: widget.raHours * 15.0,
+      decDeg: widget.decDegrees,
+      dt: now,
+      latitudeDeg: lat,
+      longitudeDeg: lon,
+    );
+    setState(() {
+      _currentAltitude = alt;
+      _currentAirmass = alt > 0 ? AstronomyCalculations.airmass(alt) : 0;
+    });
+  }
+
+  void _calculateData() {
+    final settingsAsync = ref.read(appSettingsProvider);
+    final settings = settingsAsync.valueOrNull;
+    if (settings == null) return;
+
+    final lat = settings.latitude;
+    final lon = settings.longitude;
+
+    if (!settings.hasObserverLocation) {
+      setState(() {
+        _altitudeData = [];
+        _airmassData = [];
+        // No site => no altitude. Clear it rather than leaving a stale (or
+        // initial-zero) value that the chip would present as fact.
+        _currentAltitude = null;
+        _currentAirmass = 0;
+        _visibility = null;
+        _twilight = null;
+      });
+      return;
+    }
+
+    final now = widget.nowValue();
+    final raDeg = widget.raHours * 15.0;
+    final decDeg = widget.decDegrees;
+
+    // Which night to plot. `calculateTwilightTimes(date:)` returns a
+    // sunset-tonight → sunrise-tomorrow window, so anchoring purely on the
+    // calendar date describes the NEXT night once the clock passes midnight —
+    // while the user is still imaging the current one. Mirror
+    // `twilightTimesProvider`: keep the previous date's window for as long as
+    // it is still running.
+    TwilightTimes twilightFor(DateTime date) =>
+        AstronomyCalculations.calculateTwilightTimes(
+          date: date,
+          latitudeDeg: lat,
+          longitudeDeg: lon,
+        );
+
+    final todayTwilight = twilightFor(now);
+    _twilight = todayTwilight;
+    final tonightStart = todayTwilight.sunset?.subtract(
+      const Duration(hours: 1),
+    );
+    final todaySunrise = todayTwilight.sunrise;
+    if (tonightStart != null &&
+        todaySunrise != null &&
+        now.isBefore(tonightStart)) {
+      // A twilight solve costs ~1.3 ms and this widget is built once per
+      // planner candidate card, so estimate before paying for a second one.
+      // `sunrise` is TOMORROW morning's, so the previous night's window ended
+      // about 23 h earlier; sunrise drifts only a couple of minutes a day, and
+      // the slack covers that. Past that estimate there is no running night to
+      // switch to and the calendar-date window is already the right one.
+      final approximatePreviousEnd = todaySunrise.subtract(
+        const Duration(hours: 23) - const Duration(minutes: 15),
+      );
+      if (now.isBefore(approximatePreviousEnd)) {
+        final previousTwilight = twilightFor(
+          now.subtract(const Duration(days: 1)),
+        );
+        final previousEnd = previousTwilight.sunrise?.add(
+          const Duration(hours: 1),
+        );
+        if (previousEnd != null && previousEnd.isAfter(now)) {
+          _twilight = previousTwilight;
+        }
+      }
+    }
+
+    // Determine time range - prefer sunset to sunrise, fallback to 12 hours
+    if (_twilight?.sunset != null && _twilight?.sunrise != null) {
+      _startTime = _twilight!.sunset!.subtract(const Duration(hours: 1));
+      _endTime = _twilight!.sunrise!.add(const Duration(hours: 1));
+    } else {
+      _startTime = now.subtract(const Duration(hours: 2));
+      _endTime = now.add(const Duration(hours: 10));
+    }
+
+    // Calculate visibility info for the night this chart is PLOTTING.
+    //
+    // `date` selects a noon-to-noon search window, so passing the raw `now`
+    // described a different night than the curve above whenever the clock was
+    // on the other side of local noon from the plotted window — and the
+    // planner scorer anchors on `nightDateOf` of its own night. One card then
+    // printed the warning's rise time and this footer's rise time a sidereal
+    // day apart for the same event. Anchoring both on the same rule makes that
+    // structurally impossible.
+    final plottedNightMid = _startTime.add(
+      Duration(
+        milliseconds: _endTime.difference(_startTime).inMilliseconds ~/ 2,
+      ),
+    );
+    _visibility = AstronomyCalculations.calculateObjectVisibility(
+      raDeg: raDeg,
+      decDeg: decDeg,
+      date: AstronomyCalculations.nightDateOf(plottedNightMid),
+      latitudeDeg: lat,
+      longitudeDeg: lon,
+      minAltitude: 0,
+    );
+
+    // Calculate altitude at 10-minute intervals
+    final altitudePoints = <FlSpot>[];
+    final airmassPoints = <FlSpot>[];
+    var time = _startTime;
+    const interval = Duration(minutes: 10);
+
+    while (time.isBefore(_endTime) || time.isAtSameMomentAs(_endTime)) {
+      final x = time.difference(_startTime).inMinutes.toDouble();
+      final (alt, _) = AstronomyCalculations.objectAltAz(
+        raDeg: raDeg,
+        decDeg: decDeg,
+        dt: time,
+        latitudeDeg: lat,
+        longitudeDeg: lon,
+      );
+
+      altitudePoints.add(FlSpot(x, alt.clamp(-10, 90)));
+
+      // Calculate airmass (only meaningful above horizon)
+      if (alt > 0) {
+        final airmass = AstronomyCalculations.airmass(alt);
+        airmassPoints.add(FlSpot(x, airmass.clamp(1, 5)));
+      }
+
+      time = time.add(interval);
+    }
+
+    final (currentAlt, _) = AstronomyCalculations.objectAltAz(
+      raDeg: raDeg,
+      decDeg: decDeg,
+      dt: now,
+      latitudeDeg: lat,
+      longitudeDeg: lon,
+    );
+    _currentAltitude = currentAlt;
+    _currentAirmass =
+        currentAlt > 0 ? AstronomyCalculations.airmass(currentAlt) : 0;
+
+    setState(() {
+      _altitudeData = altitudePoints;
+      _airmassData = airmassPoints;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+
+    // Recompute when location settings resolve after this widget mounts,
+    // otherwise the chart stays stuck on the "Set location" warning.
+    ref.listen(appSettingsProvider, (prev, next) {
+      if (next.hasValue) _calculateData();
+    });
+
+    // Captured here, in build, rather than read inside the formatter: the axis
+    // and tooltip label callbacks run during the chart's layout, where
+    // `ref.watch` is illegal, and `ref.read` would leave the faces on whatever
+    // clock existed before `appSettingsProvider` resolved — i.e. host-local
+    // forever, which is the defect this replaced.
+    _clock = ref.watch(clockProvider);
+
+    if (widget.compact) return _buildCompact(colors);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(LucideIcons.trendingUp, size: 14, color: colors.textMuted),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Altitude',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SkotiqTypography.eyebrow
+                    .copyWith(color: colors.textPrimary),
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => setState(() => _showAirmass = !_showAirmass),
+              child: Row(
+                children: [
+                  Icon(
+                    _showAirmass ? LucideIcons.checkSquare : SkotiqIcons.stop,
+                    size: 12,
+                    color: colors.textMuted,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Airmass',
+                    style: SkotiqTypography.caption
+                        .copyWith(color: colors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        _buildCurrentValues(colors),
+        const SizedBox(height: 8),
+
+        if (_altitudeData.isEmpty)
+          _buildNoLocationWarning(colors)
+        else
+          _buildChart(colors),
+
+        const SizedBox(height: 8),
+
+        if (_visibility != null) _buildVisibilityInfo(colors),
+      ],
+    );
+  }
+
+  /// [AltitudeChart.compact]: a quiet caption row with the airmass toggle,
+  /// the plot, then rise / transit / set as readouts.
+  Widget _buildCompact(SkotiqColors colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _showAirmass ? 'AIRMASS TONIGHT' : 'ALTITUDE TONIGHT',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SkotiqTypography.readoutLabel
+                    .copyWith(color: colors.textMuted),
+              ),
+            ),
+            _airmassToggle(colors),
+          ],
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        if (_altitudeData.isEmpty)
+          _buildNoLocationWarning(colors, height: 96)
+        else
+          _buildChart(colors, preferredHeight: 112),
+        if (_visibility != null) ...[
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          _buildVisibilityGrid(colors),
+        ],
+      ],
+    );
+  }
+
+  Widget _airmassToggle(SkotiqColors colors) {
+    return Semantics(
+      button: true,
+      toggled: _showAirmass,
+      label: 'Show airmass',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: () => setState(() => _showAirmass = !_showAirmass),
+        borderRadius: SkotiqTokens.borderRadiusInline4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: SkotiqTokens.spaceXs,
+            vertical: 2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _showAirmass ? LucideIcons.checkSquare : LucideIcons.square,
+                size: SkotiqTokens.iconXs,
+                color: _showAirmass ? colors.primary : colors.textMuted,
+              ),
+              const SizedBox(width: SkotiqTokens.spaceXs),
+              Text(
+                'Airmass',
+                style: SkotiqTypography.captionSm.copyWith(
+                  color: _showAirmass ? colors.textPrimary : colors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Rise / Transit / Set / Transit alt as one row of readouts.
+  Widget _buildVisibilityGrid(SkotiqColors colors) {
+    final v = _visibility!;
+    if (v.riseTime == null && v.transitTime == null && v.setTime == null) {
+      final circumpolar = v.transitAltitude != null && v.transitAltitude! > 0;
+      return Text(
+        circumpolar
+            ? 'Circumpolar - always visible'
+            : 'Never rises at this location',
+        style: SkotiqTypography.captionSm.copyWith(
+          color: circumpolar ? colors.success : colors.error,
+        ),
+      );
+    }
+    return Tooltip(
+      // Same wording as the full chart's chip: this is the altitude at
+      // culmination, whenever that falls, not the best altitude in the dark.
+      message: 'Transit alt is the altitude at culmination, whenever that '
+          'falls - including in daylight.',
+      child: MetricGrid(
+        columns: 4,
+        semanticLabel: 'Visibility tonight',
+        items: [
+          MetricGridItem(
+            label: 'Rise',
+            value: v.riseTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.riseTime!.toUtc())),
+          ),
+          MetricGridItem(
+            label: 'Transit',
+            value: v.transitTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.transitTime!.toUtc())),
+          ),
+          MetricGridItem(
+            label: 'Set',
+            value: v.setTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.setTime!.toUtc())),
+          ),
+          MetricGridItem(
+            label: 'Transit alt',
+            value: v.transitAltitude == null
+                ? null
+                : '${v.transitAltitude!.toStringAsFixed(0)}°',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurrentValues(SkotiqColors colors) {
+    final altitude = _currentAltitude;
+    // Unknown altitude: show the same em dash the Coordinates card uses, with no
+    // severity colouring. A red "0.0°" here read as "your target is on the
+    // horizon", which the app cannot know without an observing site.
+    // Wrap, not Row: these chips size to their own content, so in a narrow
+    // framing rail (or a phone in landscape) a fixed Row had no way to yield and
+    // overflowed by ~5 px. Wrapping to a second line costs nothing here and
+    // cannot clip, whereas ellipsizing a value chip would hide the number that
+    // is the entire point of it.
+    if (altitude == null) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _buildValueChip(colors, 'Alt', kReadoutUnknown, colors.textMuted),
+          _buildValueChip(colors, 'Airmass', kReadoutUnknown, colors.textMuted),
+        ],
+      );
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildValueChip(
+          colors,
+          'Alt',
+          '${altitude.toStringAsFixed(1)}°',
+          altitude > 30
+              ? colors.success
+              : altitude > 0
+                  ? colors.warning
+                  : colors.error,
+        ),
+        if (altitude > 0)
+          _buildValueChip(
+            colors,
+            'Airmass',
+            _currentAirmass.toStringAsFixed(2),
+            _currentAirmass < 1.5
+                ? colors.success
+                : _currentAirmass < 2.0
+                    ? colors.warning
+                    : colors.error,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildValueChip(
+      SkotiqColors colors, String label, String value, Color valueColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.well,
+        borderRadius: SkotiqTokens.borderRadiusInline4,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label: ',
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+          ),
+          Text(
+            value,
+            style: SkotiqTypography.caption
+                .copyWith(color: valueColor, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoLocationWarning(SkotiqColors colors, {double height = 120}) {
+    return AdaptiveChartContainer.fixed(
+      height: height,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.well,
+          borderRadius: SkotiqTokens.borderRadiusInline8,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(SkotiqIcons.location, size: 24, color: colors.textMuted),
+              const SizedBox(height: 8),
+              Text(
+                'Set location in Settings',
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The hour-label step for a plot [width] px wide: each HH:MM label needs
+  /// about [_minLabelSpacing] px, so a narrow column labels every 3, 4 or 6
+  /// hours instead of printing two-hourly labels on top of each other.
+  static const double _minLabelSpacing = 44;
+
+  static double _timeLabelInterval(double width, double totalMinutes) {
+    for (final minutes in const [120.0, 180.0, 240.0, 360.0]) {
+      final labels = totalMinutes / minutes;
+      if (labels <= 0 || width / labels >= _minLabelSpacing) return minutes;
+    }
+    return 480;
+  }
+
+  Widget _buildChart(SkotiqColors colors, {double preferredHeight = 140}) {
+    final siteMinimumAltitude = ref.watch(siteMinimumAltitudeDegProvider);
+    final now = widget.nowValue();
+    final nowX = now.difference(_startTime).inMinutes.toDouble();
+    final totalMinutes = _endTime.difference(_startTime).inMinutes.toDouble();
+
+    return AdaptiveChartContainer(
+      preferredHeight: preferredHeight,
+      child: LayoutBuilder(
+        builder: (context, constraints) => _lineChart(
+          colors,
+          siteMinimumAltitude: siteMinimumAltitude,
+          nowX: nowX,
+          totalMinutes: totalMinutes,
+          // The left axis reserves 28 px of the width.
+          labelInterval: _timeLabelInterval(
+            constraints.maxWidth - 28,
+            totalMinutes,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _lineChart(
+    SkotiqColors colors, {
+    required double siteMinimumAltitude,
+    required double nowX,
+    required double totalMinutes,
+    required double labelInterval,
+  }) {
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: totalMinutes,
+        minY: _showAirmass ? 1 : -10,
+        maxY: _showAirmass ? 5 : 90,
+        clipData: const FlClipData.all(),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: true,
+          horizontalInterval: _showAirmass ? 1 : 30,
+          verticalInterval: 60, // Every hour
+          getDrawingHorizontalLine: (value) {
+            // The site minimum is drawn as an explicit HorizontalLine below
+            // (it is rarely a multiple of the 30° grid step), so the grid
+            // does not imply 30 is special.
+            return FlLine(
+              color: colors.border.withValues(alpha: 0.3),
+              strokeWidth: 0.5,
+            );
+          },
+          getDrawingVerticalLine: (value) {
+            return FlLine(
+              color: colors.border.withValues(alpha: 0.3),
+              strokeWidth: 0.5,
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: _showAirmass ? 1 : 30,
+              getTitlesWidget: (value, meta) {
+                if (_showAirmass) {
+                  if (value == 1 || value == 2 || value == 3 || value == 4) {
+                    return Text(
+                      value.toInt().toString(),
+                      style: SkotiqTypography.caption
+                          .copyWith(color: colors.textMuted),
+                    );
+                  }
+                } else {
+                  if (value == 0 || value == 30 || value == 60 || value == 90) {
+                    return Text(
+                      '${value.toInt()}°',
+                      style: SkotiqTypography.caption
+                          .copyWith(color: colors.textMuted),
+                    );
+                  }
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 20,
+              interval: labelInterval,
+              getTitlesWidget: (value, meta) {
+                // fl_chart also labels the axis ends; an end that is off
+                // the step printed over its neighbour.
+                if (value % labelInterval != 0) {
+                  return const SizedBox.shrink();
+                }
+                final time = _startTime.add(Duration(minutes: value.toInt()));
+                return Text(
+                  ClockFormat.hm(_clock.fromUtc(time.toUtc())),
+                  style: SkotiqTypography.caption
+                      .copyWith(color: colors.textMuted),
+                );
+              },
+            ),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+        ),
+        lineBarsData: [
+          if (!_showAirmass)
+            LineChartBarData(
+              spots: _altitudeData,
+              isCurved: true,
+              curveSmoothness: 0.2,
+              color: colors.primary,
+              barWidth: 2,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colors.primary.withValues(alpha: 0.3),
+                    colors.primary.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          if (_showAirmass && _airmassData.isNotEmpty)
+            LineChartBarData(
+              spots: _airmassData,
+              isCurved: true,
+              curveSmoothness: 0.2,
+              color: colors.warning,
+              barWidth: 2,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+            ),
+        ],
+        extraLinesData: ExtraLinesData(
+          verticalLines: [
+            // Current time indicator — ONLY when now actually falls inside
+            // the plotted window, which is tonight's sunset→sunrise. Clamping
+            // it to the edge would pin a confident "Now" line at an altitude
+            // the target reaches hours later, contradicting the "Alt:"
+            // readout above it. With no marker the axis times still say what
+            // window is plotted, and the Alt chip remains the truth about now.
+            if (nowX >= 0 && nowX <= totalMinutes)
+              VerticalLine(
+                x: nowX,
+                color: colors.error,
+                strokeWidth: 1,
+                dashArray: [4, 2],
+                label: VerticalLineLabel(
+                  show: true,
+                  alignment: Alignment.topRight,
+                  style: SkotiqTypography.caption.copyWith(color: colors.error),
+                  labelResolver: (_) => 'Now',
+                ),
+              ),
+            if (_twilight?.astronomicalDusk != null)
+              _twilightLine(
+                _twilight!.astronomicalDusk!,
+                colors.textMuted.withValues(alpha: 0.5),
+                totalMinutes,
+              ),
+            if (_twilight?.astronomicalDawn != null)
+              _twilightLine(
+                _twilight!.astronomicalDawn!,
+                colors.textMuted.withValues(alpha: 0.5),
+                totalMinutes,
+              ),
+          ],
+          horizontalLines: [
+            if (!_showAirmass)
+              HorizontalLine(
+                y: 0,
+                color: colors.error.withValues(alpha: 0.5),
+                strokeWidth: 1,
+              ),
+            // The SITE's minimum imaging altitude, not a hard-coded 30°.
+            // This chart drew 30 while the scheduler was gating on its own
+            // configured value, so the dashed line the operator reads as
+            // "below this I cannot image" disagreed with the engine that
+            // decides it.
+            if (!_showAirmass)
+              HorizontalLine(
+                y: siteMinimumAltitude,
+                color: colors.warning.withValues(alpha: 0.5),
+                strokeWidth: 1,
+                dashArray: [4, 4],
+              ),
+          ],
+        ),
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => colors.surface,
+            tooltipBorder: BorderSide(color: colors.border),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final time = _startTime.add(Duration(minutes: spot.x.toInt()));
+                final timeStr = ClockFormat.hm(_clock.fromUtc(time.toUtc()));
+                if (_showAirmass) {
+                  return LineTooltipItem(
+                    '$timeStr\nAirmass: ${spot.y.toStringAsFixed(2)}',
+                    SkotiqTypography.caption
+                        .copyWith(color: colors.textPrimary),
+                  );
+                }
+                return LineTooltipItem(
+                  '$timeStr\nAlt: ${spot.y.toStringAsFixed(1)}°',
+                  SkotiqTypography.caption.copyWith(color: colors.textPrimary),
+                );
+              }).toList();
+            },
+          ),
+        ),
+      ),
+      // No swap animation: fl_chart's default 150 ms morph paints the previous
+      // target's curve first, and the plot must match the rise/transit/set
+      // readouts beside it on every frame.
+      duration: Duration.zero,
+    );
+  }
+
+  VerticalLine _twilightLine(DateTime time, Color color, double maxX) {
+    final x = time.difference(_startTime).inMinutes.toDouble();
+    return VerticalLine(
+      x: x.clamp(0, maxX),
+      color: color,
+      strokeWidth: 1,
+      dashArray: [2, 4],
+    );
+  }
+
+  Widget _buildVisibilityInfo(SkotiqColors colors) {
+    final items = <Widget>[];
+
+    if (_visibility!.riseTime != null) {
+      items.add(_buildTimeChip(
+        colors,
+        'Rise',
+        ClockFormat.hm(_clock.fromUtc(_visibility!.riseTime!.toUtc())),
+        SkotiqIcons.sunrise,
+      ));
+    }
+
+    if (_visibility!.transitTime != null) {
+      items.add(_buildTimeChip(
+        colors,
+        'Transit',
+        ClockFormat.hm(_clock.fromUtc(_visibility!.transitTime!.toUtc())),
+        SkotiqIcons.arrowUp,
+      ));
+    }
+
+    if (_visibility!.setTime != null) {
+      items.add(_buildTimeChip(
+        colors,
+        'Set',
+        ClockFormat.hm(_clock.fromUtc(_visibility!.setTime!.toUtc())),
+        SkotiqIcons.sunset,
+      ));
+    }
+
+    if (_visibility!.transitAltitude != null) {
+      // Named "Transit alt", not "Max Alt": this is the altitude at
+      // culmination, which happens whenever it happens - often in daylight.
+      // The planner cards' "Peak" chip is a different quantity (the highest
+      // altitude while the sky is actually dark), and calling this one "Max
+      // Alt" made two correct numbers look like a contradiction.
+      items.add(_buildTimeChip(
+        colors,
+        'Transit alt',
+        '${_visibility!.transitAltitude!.toStringAsFixed(1)}°',
+        SkotiqIcons.chevronUp,
+        tooltip: 'Altitude at transit (culmination), whenever that falls - '
+            'including in daylight. The planner\'s "Peak in dark" chip is the '
+            'highest altitude while the sky is astronomically dark tonight.',
+      ));
+    }
+
+    if (items.isEmpty) {
+      // Check if circumpolar or never rises
+      if (_visibility!.transitAltitude != null &&
+          _visibility!.transitAltitude! > 0) {
+        return Text(
+          'Circumpolar - always visible',
+          style: SkotiqTypography.caption.copyWith(color: colors.success),
+        );
+      } else {
+        return Text(
+          'Never rises at this location',
+          style: SkotiqTypography.caption.copyWith(color: colors.error),
+        );
+      }
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: items,
+    );
+  }
+
+  Widget _buildTimeChip(
+    SkotiqColors colors,
+    String label,
+    String value,
+    IconData icon, {
+    String? tooltip,
+  }) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: colors.well,
+        borderRadius: SkotiqTokens.borderRadiusInline4,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: colors.textMuted),
+          const SizedBox(width: 4),
+          Text(
+            '$label: ',
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+          ),
+          Text(
+            value,
+            style: SkotiqTypography.caption.copyWith(
+                color: colors.textPrimary, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+    if (tooltip == null) return chip;
+    return Tooltip(message: tooltip, child: chip);
+  }
+}

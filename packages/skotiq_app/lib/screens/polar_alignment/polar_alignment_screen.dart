@@ -19,7 +19,7 @@ import 'polar_alignment_body_layout.dart';
 import 'polar_alignment_error_format.dart';
 import 'widgets/all_sky_target_reticle.dart';
 import 'widgets/polar_alignment_segmented_button.dart';
-import '../settings/settings_sections.dart';
+import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
 // File split: the PolarAlignmentScreen state keeps lifecycle and alignment
 // actions. Panel builders, helper widgets, and painters live in focused library

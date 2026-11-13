@@ -23,7 +23,7 @@ import '../../night_control/panel/camera/camera_panel_vm.dart'
     show NightCoolerState, nightCoolerState;
 import 'panel_widgets.dart';
 import '../../../router/app_routes.dart';
-import '../../analytics/analytics_route.dart';
+import '../../../router/analytics_route.dart';
 
 final parkMountOnEndProvider = StateProvider<bool>((ref) => false);
 

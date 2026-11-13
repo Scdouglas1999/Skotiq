@@ -17,7 +17,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
+import '../../../../services/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
 import '../../night_control_contracts.dart';
 import 'session_format.dart';

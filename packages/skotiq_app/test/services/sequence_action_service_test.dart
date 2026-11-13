@@ -16,7 +16,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/services/sequence_action_service.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';

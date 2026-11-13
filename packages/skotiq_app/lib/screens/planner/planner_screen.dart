@@ -15,11 +15,11 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../framing/framing_screen.dart';
 import '../planetarium/planetarium_screen.dart';
-import '../planetarium/show_in_sky.dart';
-import '../accessible_dropdown.dart';
-import '../your_sky/your_sky_screen.dart';
-import '../constellation/constellation_screen.dart';
-import '../collaborative_sky/collaborative_sky_screen.dart';
+import '../../router/show_in_sky.dart';
+import '../../widgets/accessible_dropdown.dart';
+import '../discover/your_sky/your_sky_screen.dart';
+import '../discover/constellation/constellation_screen.dart';
+import '../discover/collaborative_sky/collaborative_sky_screen.dart';
 import '../../localization/skotiq_localizations.dart';
 import '../../tours/tour_target.dart';
 import '../../utils/authority_bound_dialog.dart';
@@ -34,11 +34,11 @@ import 'widgets/progress_tab_content.dart';
 import 'widgets/projects_tab_content.dart';
 import 'widgets/scheduler_tab_content.dart';
 import 'widgets/week_forecast_strip.dart';
-import 'planner_route.dart';
-import '../settings/settings_sections.dart';
+import '../../router/planner_route.dart';
+import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
 
-export 'planner_route.dart' show PlannerTab, DiscoverView;
+export '../../router/planner_route.dart' show PlannerTab, DiscoverView;
 // File split: the rest of this library lives in `planner_screen_parts/`.
 // Each part is `part of '../planner_screen.dart';` and contains a cohesive
 // group of private widgets / helpers. Imports are owned here so part files

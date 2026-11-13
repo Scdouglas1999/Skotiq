@@ -15,8 +15,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/device_format_utils.dart';
 import '../../../utils/device_type_ui.dart';
-import '../../../widgets/operation_status_bar.dart';
-import '../../settings/settings_sections.dart';
+import 'operation_status_bar.dart';
+import '../../../router/settings_sections.dart';
 import '../../../utils/guide_distance.dart';
 import '../../../router/app_routes.dart';
 

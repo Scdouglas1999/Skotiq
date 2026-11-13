@@ -11,7 +11,7 @@ import '../../../services/sequence_action_service.dart';
 import '../../../tours/tour_target.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'preflight_validation_dialog.dart';
-import 'run_dashboard/sequence_status_visuals.dart';
+import '../../../widgets/run_status/sequence_status_visuals.dart';
 
 /// Compact playback control bar for mobile devices.
 /// Shows playback controls and current status in a single horizontal row.

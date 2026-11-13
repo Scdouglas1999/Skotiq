@@ -5,7 +5,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../analytics/analytics_route.dart';
+import '../../router/analytics_route.dart';
 import '../analytics/widgets/science_analytics_tab.dart';
 import '../analytics/widgets/science_export_hub.dart';
 import '../first_light/first_light_view.dart';

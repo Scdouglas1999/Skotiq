@@ -3,7 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/models.dart';
 
-import '../../../widgets/annotation_overlay/annotation_type_colors.dart';
+import '../../../widgets/annotation_type_colors.dart';
 
 class AnnotationObjectListItem extends StatelessWidget {
   final CelestialObjectAnnotation object;

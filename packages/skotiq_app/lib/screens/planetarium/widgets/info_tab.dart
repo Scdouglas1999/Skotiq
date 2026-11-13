@@ -14,12 +14,12 @@ import 'package:skotiq_core/providers.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../framing/add_target_to_sequence_flow.dart';
+import '../../../widgets/add_target_to_sequence_flow.dart';
 import '../providers/sequenced_object_ids_provider.dart';
 import 'fov_presets_panel.dart';
 import 'sidebar_shared_widgets.dart';
 import '../../../router/app_routes.dart';
-import '../../planner/planner_route.dart';
+import '../../../router/planner_route.dart';
 
 class InfoTab extends ConsumerWidget {
   final SkotiqColors colors;

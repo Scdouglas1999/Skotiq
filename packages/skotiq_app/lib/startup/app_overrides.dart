@@ -2,9 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../screens/onboarding/steps/capture_dir_step.dart';
-import '../services/plugin_enablement_wiring.dart';
-import '../services/plugin_node_dispatcher_wiring.dart';
-import '../services/plugin_node_palette_wiring.dart';
+import 'plugin_enablement_wiring.dart';
+import 'plugin_node_dispatcher_wiring.dart';
+import 'plugin_node_palette_wiring.dart';
 
 /// The provider overrides every Skotiq process starts with, whatever its
 /// role: the desktop window, the daemon and the phone app.

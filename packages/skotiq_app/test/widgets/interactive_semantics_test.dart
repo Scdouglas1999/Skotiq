@@ -6,7 +6,7 @@
 
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/widgets/filter_wheel_selector.dart';
+import 'package:skotiq_app/screens/imaging/widgets/filter_wheel_selector.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 

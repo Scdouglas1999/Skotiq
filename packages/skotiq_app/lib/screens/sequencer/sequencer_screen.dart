@@ -12,13 +12,13 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../../models/command_action_result.dart';
+import '../../services/command_action_result.dart';
 import '../../services/sequence_action_service.dart';
 import '../../utils/count_label.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/animated_tab_bar_view.dart';
+import 'widgets/animated_tab_bar_view.dart';
 import '../../tours/tour_target.dart';
-import 'run_status_presentation.dart';
+import '../../widgets/run_status/run_status_presentation.dart';
 import 'widgets/batch_operations_toolbar.dart';
 import 'widgets/delete_node_confirmation.dart';
 import 'widgets/palette_copy.dart';
@@ -43,11 +43,11 @@ import 'widgets/target_queue_panel.dart';
 import 'tabs/history_tab.dart';
 import 'tabs/sequence_library_tab.dart';
 import 'tabs/templates_tab.dart';
-import 'sequencer_route.dart';
+import '../../router/sequencer_route.dart';
 import '../../utils/guide_distance.dart';
 import 'widgets/tree_insert.dart';
 
-export 'sequencer_route.dart' show SequencerTab;
+export '../../router/sequencer_route.dart' show SequencerTab;
 
 part 'sequencer_screen_parts/tab_bar.dart';
 part 'sequencer_screen_parts/builder_layout.dart';

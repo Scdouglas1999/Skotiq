@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/app.dart';
 import 'package:skotiq_app/router/app_router.dart';
-import 'package:skotiq_app/services/location_sync_service.dart';
+import 'package:skotiq_app/startup/location_sync_service.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';

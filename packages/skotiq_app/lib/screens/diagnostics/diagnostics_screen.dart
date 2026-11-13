@@ -9,7 +9,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../accessible_dropdown.dart';
+import '../../widgets/accessible_dropdown.dart';
 import '../analytics/quick_capture_selection.dart';
 import '../analytics/widgets/analytics_empty_state.dart';
 import 'diagnostics_screen/psf_field_map_view.dart';

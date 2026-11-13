@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/errors.dart';
@@ -10,20 +9,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../tours/tour_target.dart';
 import '../../../widgets/sensitivity_field.dart';
+import '../../../services/manual_capture_controller.dart';
 import '../../../utils/snackbar_helper.dart';
-import 'imaging_view_prefs.dart';
 import 'measured_width.dart';
 import 'stretch_controls.dart';
-
-/// Whether Loop keeps the frames it captures.
-///
-/// Loop is a live-view mode, so saving defaults off. A choice to save is
-/// remembered across restarts: forgetting it lost the next night's frames
-/// without a word.
-final loopSavesFramesProvider =
-    StateNotifierProvider<PersistedBoolNotifier, bool>(
-  (ref) => PersistedBoolNotifier('imaging.loopSavesFrames'),
-);
 
 /// Identifies the capture bar's "Save loop frames" toggle for tests.
 const loopSaveFramesToggleKey = Key('imaging.loopSaveFramesToggle');

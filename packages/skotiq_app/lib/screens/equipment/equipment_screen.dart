@@ -16,7 +16,7 @@ import 'widgets/equipment_readiness_panel.dart';
 import 'widgets/profile_scan_notice.dart';
 import 'widgets/switch_control_card.dart';
 import 'dialogs/profile_editor_dialog.dart';
-import 'equipment_route.dart';
+import '../../router/equipment_route.dart';
 import 'tabs/settings_tab.dart';
 import 'profile_actions.dart';
 import 'utils/connect_all_summary.dart';
@@ -27,7 +27,7 @@ import '../../localization/skotiq_localizations.dart';
 import '../../utils/device_type_ui.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../tours/tour_target.dart';
-import '../sequencer/widgets/run_dashboard/recovery_banner.dart';
+import '../../widgets/run_status/recovery_banner.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 
 export 'profile_actions.dart'

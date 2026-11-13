@@ -13,7 +13,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../../models/command_action_result.dart';
+import '../../../../services/command_action_result.dart';
 import '../../../../services/mount_command_service.dart';
 import '../../../../utils/confirm_dialog.dart';
 import '../../actions/manual_action_gating.dart';
@@ -21,7 +21,7 @@ import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import 'night_mount_tab.dart';
 import '../panel_widgets.dart';
-import '../../../settings/settings_sections.dart';
+import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 
 /// Where Limits… goes: the sequencer settings, which hold the meridian flip.

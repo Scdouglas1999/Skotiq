@@ -8,7 +8,7 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../settings/delivery_settings.dart';
-import '../../settings/settings_sections.dart';
+import '../../../router/settings_sections.dart';
 import 'activity_panel.dart';
 import '../../../router/app_routes.dart';
 

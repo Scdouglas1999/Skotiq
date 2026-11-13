@@ -1,4 +1,4 @@
-import 'widgets/mount/mount_site_reconciliation_card.dart';
+import 'startup/mount_site_reconciliation_card.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,15 +8,15 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_app/widgets/quick_start_checker.dart';
-import 'package:skotiq_app/widgets/update/update_manager_widget.dart';
-import 'package:skotiq_app/widgets/your_sky_off_notice.dart';
+import 'package:skotiq_app/startup/quick_start_checker.dart';
+import 'package:skotiq_app/startup/update/update_manager_widget.dart';
+import 'package:skotiq_app/startup/your_sky_off_notice.dart';
 import 'package:skotiq_app/widgets/red_night_filter.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
-import 'package:skotiq_app/startup/startup_surface_queue.dart';
-import 'package:skotiq_app/widgets/database_recovery_launcher.dart';
-import 'package:skotiq_app/widgets/equipment_onboarding_launcher.dart';
-import 'package:skotiq_app/widgets/night_end_toasts.dart';
+import 'package:skotiq_app/utils/startup_surface_queue.dart';
+import 'package:skotiq_app/startup/database_recovery_launcher.dart';
+import 'package:skotiq_app/startup/equipment_onboarding_launcher.dart';
+import 'package:skotiq_app/startup/night_end_toasts.dart';
 
 class SkotiqApp extends ConsumerWidget {
   final bool isDesktop;

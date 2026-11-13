@@ -7,7 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
-import 'package:skotiq_app/widgets/phd2/guide_target_display.dart';
+import 'package:skotiq_app/screens/guiding/widgets/guide_target_display.dart';
 
 import '../../harness/harness.dart';
 

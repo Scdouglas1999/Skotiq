@@ -7,7 +7,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Sort options for the Progress tab. Persisted via [_progressSortProvider]
 /// so a user's preference survives flipping back and forth between tabs.

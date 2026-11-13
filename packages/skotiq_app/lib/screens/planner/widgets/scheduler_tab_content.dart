@@ -12,11 +12,11 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../scheduler/widgets/integration_goals_editor.dart';
-import '../../scheduler/widgets/target_constraints_editor.dart';
-import '../../scheduler/widgets/target_score_row.dart';
+import 'integration_goals_editor.dart';
+import 'target_constraints_editor.dart';
+import 'target_score_row.dart';
 import '../../../router/app_routes.dart';
-import '../planner_route.dart';
+import '../../../router/planner_route.dart';
 
 /// Dynamic scheduler body used by the Planner's Scheduler tab.
 part 'scheduler_tab_content/decision_panel.dart';

@@ -5,7 +5,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../darkroom_route.dart' show DarkroomRouteScope;
+import '../../../router/darkroom_route.dart' show DarkroomRouteScope;
 import '../pass_view/darkroom_pass_page.dart';
 import 'automation_settings_panel.dart';
 import 'night_end_history.dart';

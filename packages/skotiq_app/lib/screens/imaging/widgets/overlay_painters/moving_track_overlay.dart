@@ -1,4 +1,4 @@
-part of '../overlay_painters.dart';
+part of '../../../../widgets/image_preview/overlay_painters.dart';
 
 class ProjectedMovingTrack {
   final double imageX;

@@ -5,7 +5,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import 'sidebar_shared_widgets.dart';
 import '../../../services/equipment_fov_binding.dart';
 
