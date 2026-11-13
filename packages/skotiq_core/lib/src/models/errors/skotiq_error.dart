@@ -4,6 +4,8 @@
 /// providing structured error information across FFI and network boundaries.
 library;
 
+import '../../errors/error_text_kind.dart';
+
 /// Backend error category classifications.
 ///
 /// These categories match the Rust `SkotiqError::error_category()` values.
@@ -131,75 +133,41 @@ class SkotiqError implements Exception {
     'error_code': errorCode,
   };
 
-  /// Parse error from a string message (for backward compatibility)
-  ///
-  /// This attempts to extract structure from legacy string-based errors.
-  /// Prefer using [fromJson] when structured error data is available.
+  /// An error that carries no category of its own (a Dart exception, a plain
+  /// native or host message), classified from its text. The one reading of
+  /// error text: `DeviceError.fromException` and the FFI backend's fallback
+  /// both come here. Prefer [fromJson] when structured data is available.
   factory SkotiqError.fromString(String message) {
-    // Try to detect category from common patterns
-    final lowerMessage = message.toLowerCase();
-
-    BackendErrorCategory category = BackendErrorCategory.unknown;
-    bool isRecoverable = false;
-    bool shouldReconnect = false;
-    bool isTimeout = false;
-    String? deviceId;
-
-    if (lowerMessage.contains('timeout') ||
-        lowerMessage.contains('timed out')) {
-      category = BackendErrorCategory.timeout;
-      isTimeout = true;
-      isRecoverable = true;
-    }
-    else if (lowerMessage.contains('not connected') ||
-        lowerMessage.contains('connection failed') ||
-        lowerMessage.contains('disconnected')) {
-      category = BackendErrorCategory.connection;
-      shouldReconnect = true;
-      isRecoverable = true;
-    }
-    else if (lowerMessage.contains('hardware') ||
-        lowerMessage.contains('communication error')) {
-      category = BackendErrorCategory.hardware;
-      isRecoverable = true;
-    }
-    else if (lowerMessage.contains('busy')) {
-      category = BackendErrorCategory.busy;
-      isRecoverable = true;
-    }
-    else if (lowerMessage.contains('invalid') ||
-        lowerMessage.contains('out of range')) {
-      category = BackendErrorCategory.validation;
-    }
-    else if (lowerMessage.contains('not supported') ||
-        lowerMessage.contains('unsupported')) {
-      category = BackendErrorCategory.unsupported;
-    }
-    else if (lowerMessage.contains('exposure') ||
-        lowerMessage.contains('camera') ||
-        lowerMessage.contains('image')) {
-      category = BackendErrorCategory.imaging;
-    }
-    else if (lowerMessage.contains('ascom') ||
-        lowerMessage.contains('alpaca') ||
-        lowerMessage.contains('indi')) {
-      category = BackendErrorCategory.driver;
-    }
-
-    // Try to extract device ID from common patterns (simplified regex)
-    final deviceRegex = RegExp(r'device:\s*(\S+)', caseSensitive: false);
-    final deviceMatch = deviceRegex.firstMatch(message);
-    if (deviceMatch != null) {
-      deviceId = deviceMatch.group(1);
-    }
-
+    final (category, recoverable, reconnect) = switch (classifyErrorText(
+      message,
+    )) {
+      ErrorTextKind.timeout => (BackendErrorCategory.timeout, true, false),
+      ErrorTextKind.connection => (BackendErrorCategory.connection, true, true),
+      ErrorTextKind.notFound => (BackendErrorCategory.connection, false, false),
+      ErrorTextKind.permission => (BackendErrorCategory.system, false, false),
+      ErrorTextKind.busy => (BackendErrorCategory.busy, true, false),
+      ErrorTextKind.hardware => (BackendErrorCategory.hardware, true, false),
+      ErrorTextKind.invalid => (BackendErrorCategory.validation, false, false),
+      ErrorTextKind.unsupported => (
+        BackendErrorCategory.unsupported,
+        false,
+        false,
+      ),
+      ErrorTextKind.imaging => (BackendErrorCategory.imaging, false, false),
+      ErrorTextKind.driver => (BackendErrorCategory.driver, false, false),
+      ErrorTextKind.unknown => (BackendErrorCategory.unknown, false, false),
+    };
+    final deviceMatch = RegExp(
+      r'device:\s*(\S+)',
+      caseSensitive: false,
+    ).firstMatch(message);
     return SkotiqError(
       category: category,
       message: message,
-      isRecoverable: isRecoverable,
-      shouldReconnect: shouldReconnect,
-      isTimeout: isTimeout,
-      deviceId: deviceId,
+      isRecoverable: recoverable,
+      shouldReconnect: reconnect,
+      isTimeout: category == BackendErrorCategory.timeout,
+      deviceId: deviceMatch?.group(1),
     );
   }
 
