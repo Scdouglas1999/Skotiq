@@ -282,11 +282,12 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
             unit: '°C',
             label: 'Sensor',
           ),
-          _DeviceMetric(
-            value: state.coolerPower?.toStringAsFixed(0),
-            unit: '%',
-            label: 'Cooler',
-          ),
+          if (_cameraCanCool(state.deviceId))
+            _DeviceMetric(
+              value: state.coolerPower?.toStringAsFixed(0),
+              unit: '%',
+              label: 'Cooler',
+            ),
           _DeviceMetric(
             value: state.isExposing ? 'Exposing' : 'Idle',
             label: 'State',
