@@ -341,6 +341,19 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
     Ok(())
 }
 
+/// Why no master was built.
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum MasterBuildError {
+    /// The frames cannot make one master: too few, unreadable, not a single
+    /// plane, disagreeing on how they were taken, or leaking light. Nothing
+    /// was written; other frames would do.
+    #[error("{0}")]
+    Refused(String),
+    /// The master could not be combined or written.
+    #[error("{0}")]
+    Failed(String),
+}
+
 /// Build a dark or bias master from `paths` and write it to `output`.
 ///
 /// Fails without writing anything when the frames disagree on size, exposure,
@@ -350,28 +363,31 @@ pub fn build_streamed_master(
     paths: &[PathBuf],
     output: &Path,
     config: &StreamedMasterConfig,
-) -> Result<StreamedMasterResult, String> {
+) -> Result<StreamedMasterResult, MasterBuildError> {
+    use MasterBuildError::{Failed, Refused};
     if paths.len() < 2 {
-        return Err(format!(
+        return Err(Refused(format!(
             "a master needs at least 2 frames; {} given",
             paths.len()
-        ));
+        )));
     }
     let output_dir = output.parent().unwrap_or(Path::new(""));
     if !output_dir.as_os_str().is_empty() {
         std::fs::create_dir_all(output_dir)
-            .map_err(|e| format!("creating {}: {e}", output_dir.display()))?;
+            .map_err(|e| Failed(format!("creating {}: {e}", output_dir.display())))?;
     }
     let mut sources: Vec<BandSource> = paths
         .iter()
         .map(|p| BandSource::open(p))
-        .collect::<Result<_, _>>()?;
-    check_agreement(&sources)?;
+        .collect::<Result<_, _>>()
+        .map_err(Refused)?;
+    check_agreement(&sources).map_err(Refused)?;
 
     let frame_levels: Vec<FrameLevel> = sources
         .iter_mut()
         .map(measure_level)
-        .collect::<Result<_, _>>()?;
+        .collect::<Result<_, _>>()
+        .map_err(Refused)?;
     let levels: Vec<f64> = frame_levels.iter().map(|l| l.level).collect();
     let leak = assess_light_leak(&levels, &config.leak);
     let leaking_frames: Vec<PathBuf> = leak
@@ -388,14 +404,14 @@ pub fn build_streamed_master(
     // When most of the group brightened, the opening frames are suspect too:
     // the light was already climbing when the baseline was taken.
     if kept.len() < 2 || leaking_frames.len() * 2 > paths.len() {
-        return Err(format!(
+        return Err(Refused(format!(
             "light leak: {} of {} frames read more than {:.1} ADU above the first frames \
              ({:.1} ADU); no master was written",
             leaking_frames.len(),
             paths.len(),
             leak.threshold,
             leak.baseline
-        ));
+        )));
     }
 
     let width = kept[0].width as usize;
@@ -420,7 +436,7 @@ pub fn build_streamed_master(
     while row < height {
         let rows = band_rows.min(height - row);
         for (band, source) in bands.iter_mut().zip(kept.iter_mut()) {
-            source.read_rows(row, rows, band)?;
+            source.read_rows(row, rows, band).map_err(Refused)?;
         }
         let frames: Vec<IntegrationFrame<'_>> = bands
             .iter()
@@ -438,7 +454,7 @@ pub fn build_streamed_master(
             &integration,
             Reject::MAX_ITERATIONS,
         )
-        .map_err(|e| format!("combining rows {row}..{}: {e}", row + rows))?;
+        .map_err(|e| Failed(format!("combining rows {row}..{}: {e}", row + rows)))?;
         considered += columns.stats.total_samples;
         rejected += columns.stats.total_rejected;
         for &v in &columns.master {
@@ -524,9 +540,9 @@ pub fn build_streamed_master(
     drop(master);
     let partial = output.with_extension("partial.fits");
     write_fits(&partial, &image, &header)
-        .map_err(|e| format!("writing {}: {e}", partial.display()))?;
+        .map_err(|e| Failed(format!("writing {}: {e}", partial.display())))?;
     std::fs::rename(&partial, output)
-        .map_err(|e| format!("moving master into {}: {e}", output.display()))?;
+        .map_err(|e| Failed(format!("moving master into {}: {e}", output.display())))?;
 
     Ok(StreamedMasterResult {
         output_path: output.to_path_buf(),
@@ -705,7 +721,7 @@ mod tests {
         let mut wrong = xisf.clone();
         wrong.push(write_frame(dir.path(), "long.xisf", &frames[0], w, h, &[("EXPTIME", 300.0)]));
         let refused = build_streamed_master(&wrong, &dir.path().join("Masters/no.fits"), &config);
-        assert!(refused.unwrap_err().contains("exposed"));
+        assert!(matches!(refused, Err(MasterBuildError::Refused(m)) if m.contains("exposed")));
 
         let left: Vec<_> = std::fs::read_dir(dir.path().join("Masters"))
             .unwrap()
@@ -800,7 +816,7 @@ mod tests {
             &StreamedMasterConfig::new(StreamedMasterKind::Dark),
         )
         .unwrap_err();
-        assert!(err.contains("light leak"), "{err}");
+        assert!(matches!(&err, MasterBuildError::Refused(m) if m.contains("light leak")), "{err}");
         assert!(!out.exists());
     }
 
@@ -817,7 +833,7 @@ mod tests {
             &StreamedMasterConfig::new(StreamedMasterKind::Dark),
         )
         .unwrap_err();
-        assert!(err.contains("exposed"), "{err}");
+        assert!(matches!(&err, MasterBuildError::Refused(m) if m.contains("exposed")), "{err}");
     }
 
     /// A QHY camera's darks taken in two read modes differ in read noise and
@@ -839,7 +855,7 @@ mod tests {
             &config,
         )
         .unwrap_err();
-        assert!(err.contains("read out in mode"), "{err}");
+        assert!(matches!(&err, MasterBuildError::Refused(m) if m.contains("read out in mode")), "{err}");
 
         let same = in_mode("c.fits", 3, "Photographic DSO 16BIT");
         let out = dir.path().join("one.fits");
