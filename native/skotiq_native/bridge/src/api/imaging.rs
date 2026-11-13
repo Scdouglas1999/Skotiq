@@ -1949,7 +1949,7 @@ pub fn api_calibrate_image_file(
         _ => None,
     };
 
-    let flat = crate::api::post_session::helpers::load_optional_flat(&flat_path)
+    let flat = skotiq_processing::post_session::load_optional_flat(&flat_path)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to read flat frame: {e}")))?;
 
     let bias = match &bias_path {
@@ -1962,7 +1962,7 @@ pub fn api_calibrate_image_file(
         _ => None,
     };
 
-    let calibrated = crate::api::post_session::helpers::calibrate_with_flat_state(
+    let calibrated = skotiq_processing::post_session::calibrate_with_flat_state(
         &light_result.image,
         dark.as_ref(),
         flat.as_ref(),

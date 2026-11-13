@@ -72,7 +72,6 @@ mod frame_header;
 mod guider;
 mod hotplug;
 mod last_frame;
-mod run_cancel;
 mod simulator;
 pub mod stacking_api;
 pub mod state;
