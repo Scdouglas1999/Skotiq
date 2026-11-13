@@ -422,6 +422,102 @@ Future<void> main() async {
   }, exitCode: 0);
 
   await check(
+    'a shared widget importing a screen fails, by relative or package URI',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_app/lib/widgets/slew_button.dart',
+        "import '../screens/imaging/centering_dialog.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_app/lib/services/capture_controller.dart',
+        "import 'package:skotiq_app/screens/imaging/widgets/capture_bar.dart'\n"
+            '    show loopSavesFramesProvider;\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[app-shared]',
+      'slew_button.dart:1: imports screens/imaging/centering_dialog.dart',
+      'capture_controller.dart:1: imports '
+          'screens/imaging/widgets/capture_bar.dart',
+      'is used by two or more features and imports no screen',
+    ],
+  );
+
+  await check(
+    'the route table, a tour and a shared library with a part in a screen '
+    'folder fail when they reach up',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_app/lib/router/app_routes.dart',
+        "import '../screens/planner/planner_route.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_app/lib/tours/first_night_entry.dart',
+        "import '../router/app_router.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_app/lib/utils/startup_context.dart',
+        "import '../startup/startup_surface_queue.dart';\n"
+            "export '../app.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_app/lib/widgets/image_preview/overlay_painters.dart',
+        "part '../../screens/imaging/widgets/overlay_painters/grid.dart';\n",
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      'app_routes.dart:1: imports screens/planner/planner_route.dart',
+      'first_night_entry.dart:1: imports router/app_router.dart',
+      'startup_context.dart:1: imports startup/startup_surface_queue.dart',
+      'startup_context.dart:2: imports app.dart',
+      'overlay_painters.dart:1: imports '
+          'screens/imaging/widgets/overlay_painters/grid.dart',
+    ],
+  );
+
+  await check('screens, the router and start-up importing screens, and shared '
+      'folders importing each other pass', (root) async {
+    await _write(
+      root,
+      'packages/skotiq_app/lib/screens/imaging/imaging_screen.dart',
+      "import '../../widgets/centering_dialog.dart';\n"
+          "import '../guiding/guiding_screen.dart';\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/lib/router/app_router.dart',
+      "import '../screens/imaging/imaging_screen.dart';\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/lib/startup/always_on_services.dart',
+      "import '../screens/imaging/imaging_screen.dart';\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/lib/widgets/centering_dialog.dart',
+      "import '../router/app_routes.dart';\n"
+          "import '../utils/snackbar_helper.dart';\n"
+          "import 'package:skotiq_app/services/mount_command_service.dart';\n"
+          "part 'centering_dialog/image_canvas.dart';\n"
+          '// Not `import ../screens/imaging/imaging_screen.dart`.\n',
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/lib/widgets/centering_dialog/image_canvas.dart',
+      "part of '../centering_dialog.dart';\n",
+    );
+  }, exitCode: 0);
+
+  await check(
     'importing the union barrel fails, and so does bringing it back',
     (root) async {
       await _write(
