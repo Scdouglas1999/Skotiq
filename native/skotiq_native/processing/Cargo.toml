@@ -1,0 +1,23 @@
+[package]
+name = "skotiq_processing"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+authors.workspace = true
+publish.workspace = true
+description = "Processing of frames on disk: post-session integration and masters, the Darkroom recipe service, finishing tools, mosaics, the sky atlas and difference imaging"
+
+[dependencies]
+skotiq_imaging = { path = "../imaging" }
+skotiq_platesolve = { path = "../platesolve" }
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+base64.workspace = true
+image.workspace = true
+rayon = "1.10"
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3.8"

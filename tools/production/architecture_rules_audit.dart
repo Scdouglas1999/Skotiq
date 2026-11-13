@@ -192,6 +192,7 @@ const _rustCrates = <String, Set<String>>{
   'skotiq_phd2': {},
   'skotiq_updater': {},
   'skotiq_platesolve': {'skotiq_imaging'},
+  'skotiq_processing': {'skotiq_imaging', 'skotiq_platesolve'},
   'skotiq_alpaca': {'skotiq_device'},
   'skotiq_ascom': {'skotiq_device'},
   'skotiq_indi': {'skotiq_device'},
@@ -206,6 +207,7 @@ const _rustCrates = <String, Set<String>>{
     'skotiq_native',
     'skotiq_phd2',
     'skotiq_platesolve',
+    'skotiq_processing',
     'skotiq_sequencer',
   },
 };

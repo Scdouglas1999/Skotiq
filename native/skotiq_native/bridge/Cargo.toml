@@ -16,7 +16,6 @@ async-trait.workspace = true
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sha2 = "0.10"
 thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
@@ -43,6 +42,7 @@ skotiq_sequencer = { path = "../sequencer" }
 skotiq_imaging = { path = "../imaging" }
 skotiq_phd2 = { path = "../phd2" }
 skotiq_platesolve = { path = "../platesolve" }
+skotiq_processing = { path = "../processing" }
 skotiq_alpaca = { path = "../alpaca" }
 skotiq_native = { path = "../native" }
 skotiq_indi = { path = "../indi" }
