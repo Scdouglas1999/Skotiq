@@ -104,11 +104,11 @@ export 'src/services/sync/sync_target.dart';
 export 'src/services/sync/webdav_sync_target.dart';
 export 'src/services/sync/s3_sync_target.dart';
 export 'src/services/sync/sync_service.dart';
-export 'src/services/endpoint_sanitizer.dart';
 // Plugin management (upload/enable/disable/uninstall)
 export 'src/services/plugin_management_service.dart';
 export 'src/services/notification_service.dart';
 export 'src/services/push_notification_service.dart';
+export 'src/services/notification/event_classifier.dart';
 export 'src/services/notification/notification_presentation.dart';
 export 'src/services/notification/notification_router.dart';
 export 'src/services/notification/notification_signature.dart';

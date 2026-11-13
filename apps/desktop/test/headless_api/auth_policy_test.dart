@@ -460,11 +460,14 @@ void main() {
       );
       final message = body['message'] as String;
 
-      // The leading clause is the wire contract paired clients match on.
-      expect(message, startsWith('Token scope is not permitted'));
       expect(message, contains('holds view on sequencer'));
       expect(message, contains('control is required'));
-      expect(body['error'], 'Access denied');
+      // Paired clients tell a scope refusal from a rejected token by code.
+      expect(body['code'], ApiErrorBody.insufficientScope);
+      expect(
+        ApiErrorBody.tryParse(body, httpStatus: 403)?.code,
+        ApiErrorBody.insufficientScope,
+      );
     });
 
     test('an admin-only route reports admin as the requirement', () {

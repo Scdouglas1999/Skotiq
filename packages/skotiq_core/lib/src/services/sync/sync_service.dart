@@ -36,7 +36,7 @@ import 'package:path/path.dart' as p;
 
 import '../../database/daos/settings_dao.dart';
 import '../backup_service.dart';
-import '../endpoint_sanitizer.dart';
+import '../../utils/endpoint_sanitizer.dart';
 import '../logging_service.dart';
 import '../notification/secrets_store.dart';
 import 's3_sync_target.dart';

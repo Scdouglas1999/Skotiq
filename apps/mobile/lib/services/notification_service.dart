@@ -1,4 +1,3 @@
-import 'package:skotiq_astro/format.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -177,7 +176,6 @@ String? routeForNotificationPayload(String payload) {
     case 'guiding_lost':
       return AppRoute.guiding.path;
     case 'safety':
-    case 'mount_parked':
       return AppRoute.weather.path;
     case 'equipment_disconnected':
       return AppRoute.equipment.path;
@@ -275,7 +273,6 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _autofocusFailedId = 108;
   static const int _equipmentDisconnectedId = 109;
   static const int _targetCompletedId = 110;
-  static const int _mountParkedId = 111;
   // job-failure notifications. Distinct IDs so a plate-solve
   // failure during a center-on-target sequence doesn't replace the
   // higher-level centering failure (the user wants to see both).
@@ -676,14 +673,13 @@ class MobileNotificationService implements MobileNotificationSink {
   }
 
   @override
-  Future<void> notifyLowDiskSpace(double remainingGB) async {
+  Future<void> notifyLowDiskSpace(String message) async {
     if (!enableWarningNotifications) return;
 
     await _notifications.show(
       _lowDiskSpaceId,
       'Low Disk Space',
-      'Only ${ByteFormat.size((remainingGB * ByteFormat.bytesPerGiga).round())} '
-          'remaining. Consider freeing up space.',
+      message,
       _warningDetails,
       payload: 'low_disk_space',
     );
@@ -717,25 +713,13 @@ class MobileNotificationService implements MobileNotificationSink {
   Future<void> notifySafety({
     required String title,
     required String body,
-    String? eventType,
   }) async {
     await _notifications.show(
       _safetyId,
       title,
       body,
       _criticalAlarmDetails,
-      payload: eventType == 'mount_parked' ? 'mount_parked' : 'safety',
-    );
-  }
-
-  @override
-  Future<void> notifyMountParked(String reason) async {
-    await _notifications.show(
-      _mountParkedId,
-      'Mount Parked',
-      'Mount has been parked: $reason',
-      _criticalDetails,
-      payload: 'mount_parked',
+      payload: 'safety',
     );
   }
 

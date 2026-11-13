@@ -73,12 +73,11 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
 
   /// Compute panel positions for the visual planner.
   ///
-  /// Delegates to the planetarium's `MosaicPlanner.generateRectangularMosaic`
-  /// for the actual spherical geometry — that ensures the on-screen
-  /// preview matches the framing-view's mosaic overlay (the
-  /// planetarium uses the same planner to render its own mosaic
-  /// preview). The wizard then maps those panels into the local
-  /// `_PanelPosition` shape and overlays the user's enable/disable
+  /// The spherical geometry is `skotiq_astro`'s
+  /// `MosaicPlanner.generateRectangularMosaic`, whose panel centers
+  /// `MosaicService` shares (`mosaicPanelCenters`), so the preview shows the
+  /// panels the sequence is built with. The wizard maps those panels into the
+  /// local `_PanelPosition` shape and overlays the user's enable/disable
   /// toggles.
   ///
   /// The geometry is memoised on its inputs; the disabled-state overlay is a

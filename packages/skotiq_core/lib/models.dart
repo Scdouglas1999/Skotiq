@@ -149,7 +149,6 @@ export 'src/models/backend/platform_capabilities.dart';
 export 'src/models/backend/remote_api_compatibility.dart';
 export 'src/models/backend/backend_connection_state.dart';
 export 'src/models/backend/remote_catalog_models.dart';
-export 'src/models/backend/remote_science_bundle.dart';
 export 'src/models/backend/remote_session_status.dart';
 export 'src/models/backend/remote_stacked_result.dart';
 export 'src/models/backend/remote_update_models.dart';

@@ -1,4 +1,4 @@
-import '../../services/endpoint_sanitizer.dart';
+import '../../utils/endpoint_sanitizer.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 
 /// Client-side mirror of `GET /api/system/version`. Carries the
