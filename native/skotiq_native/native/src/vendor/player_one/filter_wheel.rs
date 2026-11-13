@@ -66,6 +66,9 @@ pub struct PlayerOneFilterWheel {
     pub(crate) name: String,
     pub(crate) connected: bool,
     pub(crate) filter_count: i32,
+    /// `PWProperties.SN` of the open wheel; `None` before connect and for a
+    /// unit that reports none.
+    pub(crate) serial_number: Option<String>,
 }
 
 impl std::fmt::Debug for PlayerOneFilterWheel {
@@ -87,6 +90,7 @@ impl PlayerOneFilterWheel {
             name: format!("Player One PW {}", handle),
             connected: false,
             filter_count: 0,
+            serial_number: None,
         }
     }
 }
@@ -103,6 +107,10 @@ impl DeviceDriver for PlayerOneFilterWheel {
 
     fn vendor(&self) -> Vendor {
         Vendor::PlayerOne
+    }
+
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
     }
 
     fn is_connected(&self) -> bool {
@@ -131,7 +139,7 @@ impl DeviceDriver for PlayerOneFilterWheel {
         // SAFETY: PWProperties is repr(C) POD and props is a valid out-pointer.
         let mut props: PWProperties = unsafe { std::mem::zeroed() };
         // SAFETY: handle has just been opened.
-        check_poa_pw_error(
+        check_open_poa_pw_error(
             // SAFETY: handle just opened, props valid.
             unsafe { (sdk.get_pw_properties_by_handle)(self.handle, &mut props) },
             "get filter wheel properties",
@@ -146,6 +154,7 @@ impl DeviceDriver for PlayerOneFilterWheel {
 
         self.name = pw_cstr(&props.name);
         self.filter_count = props.position_count;
+        self.serial_number = Some(pw_cstr(&props.sn)).filter(|sn| !sn.is_empty());
         cleanup_guard.defuse();
         drop(sdk);
         self.connected = true;
@@ -181,7 +190,7 @@ impl DeviceDriver for PlayerOneFilterWheel {
 
         let sdk = PoaPwSdk::lock().await?;
         // SAFETY: handle is open because connected is true.
-        check_poa_pw_error(unsafe { (sdk.close_pw)(self.handle) }, "close filter wheel")?;
+        check_open_poa_pw_error(unsafe { (sdk.close_pw)(self.handle) }, "close filter wheel")?;
         self.connected = false;
         Ok(())
     }
@@ -203,7 +212,7 @@ impl FilterWheelDriver for PlayerOneFilterWheel {
 
         let sdk = PoaPwSdk::lock().await?;
         // SAFETY: handle is open and position is bounds-checked.
-        check_poa_pw_error(
+        check_open_poa_pw_error(
             unsafe { (sdk.goto_position)(self.handle, position) },
             "goto filter position",
         )
@@ -223,7 +232,7 @@ impl FilterWheelDriver for PlayerOneFilterWheel {
         if result == PW_ERROR_IS_MOVING {
             return Ok(-1);
         }
-        check_poa_pw_error(result, "get current filter position")?;
+        check_open_poa_pw_error(result, "get current filter position")?;
         Ok(position)
     }
 
@@ -235,7 +244,7 @@ impl FilterWheelDriver for PlayerOneFilterWheel {
         let sdk = PoaPwSdk::lock().await?;
         let mut state: c_int = 0;
         // SAFETY: handle is open and state is a valid out-pointer.
-        check_poa_pw_error(
+        check_open_poa_pw_error(
             // SAFETY: handle open, out-pointer valid.
             unsafe { (sdk.get_pw_state)(self.handle, &mut state) },
             "get filter wheel state",
@@ -300,7 +309,7 @@ impl FilterWheelDriver for PlayerOneFilterWheel {
         // SAFETY: handle is open; position bounds checked; CString is
         // NUL-terminated, `length` bytes long, and lives for the call. A length
         // of 0 clears the alias (PlayerOnePW.h).
-        check_poa_pw_error(
+        check_open_poa_pw_error(
             unsafe { (sdk.set_filter_alias)(self.handle, position, c_name.as_ptr(), length) },
             "set filter alias",
         )

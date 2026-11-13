@@ -10,7 +10,7 @@ use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::camera::VendorCamera;
 use crate::device_manager::rig::filter_wheel::VendorFilterWheel;
 use crate::device_manager::rig::focuser::VendorFocuser;
-use crate::device_manager::rig::mount::VendorMount;
+use crate::device_manager::rig::mount::DriverMount;
 use crate::device_manager::DeviceManager;
 #[allow(unused_imports)] // Trait methods on `dyn Native*` handles require these in scope.
 use skotiq_device::{CameraDriver, DeviceDriver, LongExposureNoiseReduction, MountDriver};
@@ -126,7 +126,7 @@ impl DeviceManager {
                 mount.connect().await.map_err(|e| e.to_string())?;
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Mount(Arc::new(VendorMount::new(&info.id, mount))),
+                    DeviceHandle::Mount(Arc::new(DriverMount::vendor(&info.id, mount))),
                 );
                 tracing::info!("Connected to native mount: {}", info.name);
             }

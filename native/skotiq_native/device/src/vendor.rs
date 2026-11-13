@@ -16,6 +16,8 @@ pub enum Vendor {
     GPhoto2,
     /// A device reached through an ASCOM driver; the maker is not known.
     Ascom,
+    /// A device reached through an INDI driver; the maker is not known.
+    Indi,
     SkyWatcher,
     IOptron,
     Meade,
@@ -36,6 +38,7 @@ impl Vendor {
             Vendor::Fujifilm => "Fujifilm",
             Vendor::GPhoto2 => "gPhoto2",
             Vendor::Ascom => "ASCOM",
+            Vendor::Indi => "INDI",
             Vendor::SkyWatcher => "Sky-Watcher",
             Vendor::IOptron => "iOptron",
             Vendor::Meade => "Meade",

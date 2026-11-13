@@ -43,14 +43,14 @@ impl DeviceDriver for PlayerOneCamera {
 
         // SAFETY: camera was just successfully opened above so POAInitCamera is the required next call per PlayerOneCamera.h; takes the camera ID by value.
         let result = unsafe { (sdk.init_camera)(self.camera_id) };
-        check_poa_error(result, "InitCamera")?;
+        check_open_poa_error(result, "InitCamera")?;
 
         self.load_camera_info(&sdk)?;
 
         // SAFETY: camera was opened and initialized successfully above; POASetImageFormat takes the camera ID and a POAImgFormat discriminant (Raw16=1) by value.
         let result =
             unsafe { (sdk.set_image_format)(self.camera_id, POAImgFormat::Raw16 as c_int) };
-        check_poa_error(result, "SetImageFormat")?;
+        check_open_poa_error(result, "SetImageFormat")?;
 
         // Bin 1, whole sensor, checked: the driver reports the geometry it reads
         // back (get_binning, and BIN/XBINNING on every frame), so a camera that
@@ -115,7 +115,7 @@ impl DeviceDriver for PlayerOneCamera {
             let sdk = PoaSdk::lock().await?;
             // SAFETY: we only enter this branch when connected, so the camera was previously opened via POAOpenCamera; POACloseCamera pairs with it.
             let result = unsafe { (sdk.close_camera)(self.camera_id) };
-            check_poa_error(result, "CloseCamera")?;
+            check_open_poa_error(result, "CloseCamera")?;
             self.core.connected = false;
             tracing::info!("Disconnected from {}", self.camera_name());
         }
@@ -137,7 +137,7 @@ impl CameraDriver for PlayerOneCamera {
         let mut camera_state: c_int = 0;
         // SAFETY: the connection was checked above so the camera ID is open; `&mut camera_state` is a valid stack out-pointer to a POD c_int.
         let result = unsafe { (sdk.get_camera_state)(self.camera_id, &mut camera_state) };
-        check_poa_error(result, "GetCameraState")?;
+        check_open_poa_error(result, "GetCameraState")?;
 
         // POACameraState (PlayerOneCamera.h): 0=STATE_CLOSED, 1=STATE_OPENED
         // (opened, NOT exposing = idle/ready), 2=STATE_EXPOSING. The previous
@@ -240,7 +240,7 @@ impl CameraDriver for PlayerOneCamera {
         let mut camera_state: c_int = 0;
         // SAFETY: the connection was checked above; `&mut camera_state` is a valid out-pointer.
         let result = unsafe { (sdk.get_camera_state)(self.camera_id, &mut camera_state) };
-        check_poa_error(result, "GetCameraState")?;
+        check_open_poa_error(result, "GetCameraState")?;
         if camera_state == POA_STATE_EXPOSING {
             tracing::warn!(
                 "Player One {}: stopping the exposure still running before the next one",
@@ -248,7 +248,7 @@ impl CameraDriver for PlayerOneCamera {
             );
             // SAFETY: the camera is open; POAStopExposure takes the id by value.
             let result = unsafe { (sdk.stop_exposure)(self.camera_id) };
-            check_poa_error(result, "StopExposure")?;
+            check_open_poa_error(result, "StopExposure")?;
         }
 
         self.apply_geometry(&sdk, bin, params.subframe.as_ref())?;
@@ -275,7 +275,7 @@ impl CameraDriver for PlayerOneCamera {
         // camera keeps exposing after the frame and refuses the next start.
         // SAFETY: the connection was checked at entry; POAStartExposure takes the camera ID and the POABool by value.
         let result = unsafe { (sdk.start_exposure)(self.camera_id, POA_TRUE) };
-        check_poa_error(result, "StartExposure")?;
+        check_open_poa_error(result, "StartExposure")?;
 
         self.core.exposure_duration = seconds;
 
@@ -290,7 +290,7 @@ impl CameraDriver for PlayerOneCamera {
 
         // SAFETY: the connection was checked at entry; POAStopExposure takes the camera ID by value.
         let result = unsafe { (sdk.stop_exposure)(self.camera_id) };
-        check_poa_error(result, "StopExposure")?;
+        check_open_poa_error(result, "StopExposure")?;
 
         tracing::info!("Aborted exposure");
         Ok(())
@@ -304,7 +304,7 @@ impl CameraDriver for PlayerOneCamera {
         let mut is_ready: POABool = POA_FALSE;
         // SAFETY: the connection was checked at entry; `&mut is_ready` is a valid stack out-pointer to a POD c_int.
         let result = unsafe { (sdk.image_ready)(self.camera_id, &mut is_ready) };
-        check_poa_error(result, "POAImageReady")?;
+        check_open_poa_error(result, "POAImageReady")?;
 
         Ok(is_ready == POA_TRUE)
     }
@@ -318,7 +318,7 @@ impl CameraDriver for PlayerOneCamera {
         let mut height: c_int = 0;
         // SAFETY: the connection was checked at entry; both `&mut width` and `&mut height` are valid stack out-pointers to POD c_int values.
         let result = unsafe { (sdk.get_image_size)(self.camera_id, &mut width, &mut height) };
-        check_poa_error(result, "GetImageSize")?;
+        check_open_poa_error(result, "GetImageSize")?;
 
         // Calculate buffer size (Raw16 = 2 bytes per pixel) with overflow protection
         let bytes_per_pixel = if matches!(self.image_format, POAImgFormat::Raw16) {
@@ -343,7 +343,7 @@ impl CameraDriver for PlayerOneCamera {
                 30000,
             )
         };
-        check_poa_error(result, "GetImageData")?;
+        check_open_poa_error(result, "GetImageData")?;
 
         // Why: 8-bit -> 16-bit promotion (u8 -> u16 is always lossless; * 256 stays
         // within u16 because the max product is 255 * 256 = 65280 < u16::MAX).
@@ -488,7 +488,11 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
-        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&self.core.device_id) {
+        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(
+            &Vendor::PlayerOne,
+            DeviceKind::Camera,
+            &self.core.name,
+        ) {
             tracing::debug!(
                 "Applying temperature RequiresDelayMs quirk: sleeping {}ms before reading {}",
                 delay_ms,
@@ -581,7 +585,7 @@ impl CameraDriver for PlayerOneCamera {
         else {
             return Err(DriverError::NotSupported);
         };
-        check_poa_error(
+        check_open_poa_error(
             // SAFETY: the camera is open; POASetSensorMode takes the id and index by value
             // and answers POA_ERROR_INVALID_ARGU for an index out of range.
             unsafe { set_mode(self.camera_id, mode.index) },

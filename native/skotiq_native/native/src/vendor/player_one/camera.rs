@@ -200,7 +200,7 @@ impl PlayerOneCamera {
         let mut info: POACameraProperties = unsafe { std::mem::zeroed() };
         // SAFETY: `self.camera_id` is the open camera; `&mut info` is a valid stack out-pointer to a `#[repr(C)]` POACameraProperties; POAGetCameraPropertiesByID writes only into the out-pointer.
         let result = unsafe { (sdk.get_camera_properties_by_id)(self.camera_id, &mut info) };
-        check_poa_error(result, "GetCameraProperties")?;
+        check_open_poa_error(result, "GetCameraProperties")?;
 
         self.core.capabilities = player_one_capabilities(&info);
         self.core.sensor_info = player_one_sensor_info(&info);
@@ -272,34 +272,34 @@ impl PlayerOneCamera {
         // Bin first: it rescales the ROI and its start (PlayerOneCamera.h,
         // POASetImageBin). Then the size, which re-centers the ROI in SDK 3.10.1
         // (POACamera::SetImgSize), and the start last.
-        check_poa_error(
+        check_open_poa_error(
             // SAFETY: the camera is open; all three calls take the id and ints by value.
             unsafe { (sdk.set_image_bin)(self.camera_id, bin) },
             "SetImageBin",
         )?;
-        check_poa_error(
+        check_open_poa_error(
             // SAFETY: as above.
             unsafe { (sdk.set_image_size)(self.camera_id, wanted.width, wanted.height) },
             "SetImageSize",
         )?;
-        check_poa_error(
+        check_open_poa_error(
             // SAFETY: as above.
             unsafe { (sdk.set_image_start_pos)(self.camera_id, wanted.x, wanted.y) },
             "SetImageStartPos",
         )?;
 
         let (mut applied_bin, mut x, mut y, mut width, mut height) = (0, 0, 0, 0, 0);
-        check_poa_error(
+        check_open_poa_error(
             // SAFETY: the camera is open; every out-pointer is a valid stack c_int.
             unsafe { (sdk.get_image_bin)(self.camera_id, &mut applied_bin) },
             "GetImageBin",
         )?;
-        check_poa_error(
+        check_open_poa_error(
             // SAFETY: as above.
             unsafe { (sdk.get_image_start_pos)(self.camera_id, &mut x, &mut y) },
             "GetImageStartPos",
         )?;
-        check_poa_error(
+        check_open_poa_error(
             // SAFETY: as above.
             unsafe { (sdk.get_image_size)(self.camera_id, &mut width, &mut height) },
             "GetImageSize",
@@ -353,7 +353,7 @@ impl PlayerOneCamera {
         if result == POA_ERROR_INVALID_CONFIG {
             return Err(DriverError::NotSupported);
         }
-        check_poa_error(result, "POAGetConfigAttributesByConfigID")?;
+        check_open_poa_error(result, "POAGetConfigAttributesByConfigID")?;
         Ok(attributes)
     }
 
@@ -481,7 +481,7 @@ impl PlayerOneCamera {
             )
         };
         if result != POA_ERROR_INVALID_CONFIG {
-            check_poa_error(result, "POASetConfig(POA_EXP)").map_err(refused)?;
+            check_open_poa_error(result, "POASetConfig(POA_EXP)").map_err(refused)?;
             return Ok(match self.get_control_float(sdk, POAConfig::POA_EXP) {
                 Ok(held) => held,
                 Err(e) => {
@@ -532,7 +532,7 @@ impl PlayerOneCamera {
             return Ok(Vec::new());
         };
         let mut count: c_int = 0;
-        check_poa_error(
+        check_open_poa_error(
             // SAFETY: the camera is open; `&mut count` is a valid out-pointer.
             unsafe { get_count(self.camera_id, &mut count) },
             "GetSensorModeCount",
@@ -541,7 +541,7 @@ impl PlayerOneCamera {
         for index in 0..count {
             // SAFETY: POASensorModeInfo is two char arrays; zeroed is a valid out buffer.
             let mut info: POASensorModeInfo = unsafe { std::mem::zeroed() };
-            check_poa_error(
+            check_open_poa_error(
                 // SAFETY: the camera is open; `index` is in [0, count); `&mut info` is a valid out-pointer.
                 unsafe { get_info(self.camera_id, index, &mut info) },
                 "GetSensorModeInfo",
@@ -588,7 +588,7 @@ impl PlayerOneCamera {
         // SAFETY: `self.camera_id` was assigned at construction and is the camera ID parameter passed to POAGetConfig; `&mut value` and `&mut is_auto` are valid stack out-pointers to POD `#[repr(C)]` types.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
-        check_poa_error(result, "POAGetConfig")?;
+        check_open_poa_error(result, "POAGetConfig")?;
         // SAFETY: POAConfigValue is a `#[repr(C)]` union; we asked the SDK for an integer control via this typed wrapper (callers use this only for VAL_INT controls per PlayerOneCamera.h), so reading `int_value` matches the variant written by the SDK above.
         Ok(unsafe { value.int_value })
     }
@@ -604,7 +604,7 @@ impl PlayerOneCamera {
         // SAFETY: out-pointers are valid stack POD references.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
-        check_poa_error(result, "POAGetConfig")?;
+        check_open_poa_error(result, "POAGetConfig")?;
         // SAFETY: integer variant of the POAConfigValue union — only called for VAL_INT controls (POA_GAIN/OFFSET/COOLER_POWER/etc.) per PlayerOneCamera.h, matching the union variant the SDK wrote.
         Ok(unsafe { value.int_value })
     }
@@ -620,7 +620,7 @@ impl PlayerOneCamera {
         // SAFETY: out-pointers `&mut value` and `&mut is_auto` are valid stack POD references; called only for VAL_FLOAT controls (POA_TEMPERATURE/POA_EGAIN) per PlayerOneCamera.h.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
-        check_poa_error(result, "POAGetConfig")?;
+        check_open_poa_error(result, "POAGetConfig")?;
         // SAFETY: float variant of POAConfigValue — only called for VAL_FLOAT controls (POA_TEMPERATURE/POA_EGAIN), matching the union variant the SDK wrote.
         Ok(unsafe { value.float_value })
     }
@@ -636,7 +636,7 @@ impl PlayerOneCamera {
         // SAFETY: out-pointers are valid stack POD references.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
-        check_poa_error(result, "POAGetConfig")?;
+        check_open_poa_error(result, "POAGetConfig")?;
         // SAFETY: float variant of POAConfigValue — only used for VAL_FLOAT controls (POA_TEMPERATURE/POA_EGAIN), matching the variant the SDK wrote.
         Ok(unsafe { value.float_value })
     }
@@ -652,7 +652,7 @@ impl PlayerOneCamera {
         // SAFETY: out-pointers are valid stack POD references.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
-        check_poa_error(result, "POAGetConfig")?;
+        check_open_poa_error(result, "POAGetConfig")?;
         // SAFETY: bool variant of POAConfigValue — only used for VAL_BOOL controls (POA_COOLER/POA_HEATER/etc.) per PlayerOneCamera.h, matching the variant the SDK wrote.
         Ok(unsafe { value.bool_value } != POA_FALSE)
     }
@@ -675,7 +675,7 @@ impl PlayerOneCamera {
                 if auto { POA_TRUE } else { POA_FALSE },
             )
         };
-        check_poa_error(result, "POASetConfig")
+        check_open_poa_error(result, "POASetConfig")
     }
 
     /// Set an integer control value under a lock the caller already holds.
@@ -696,7 +696,7 @@ impl PlayerOneCamera {
                 if auto { POA_TRUE } else { POA_FALSE },
             )
         };
-        check_poa_error(result, "POASetConfig")
+        check_open_poa_error(result, "POASetConfig")
     }
 
     /// Set a boolean control value under a lock the caller already holds.
@@ -719,6 +719,6 @@ impl PlayerOneCamera {
                 if auto { POA_TRUE } else { POA_FALSE },
             )
         };
-        check_poa_error(result, "POASetConfig")
+        check_open_poa_error(result, "POASetConfig")
     }
 }

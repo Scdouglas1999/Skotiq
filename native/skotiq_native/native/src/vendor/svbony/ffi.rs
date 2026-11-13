@@ -55,20 +55,20 @@ impl SvbError {
         }
     }
 
-    /// The error for a failed call; `action` says what was being done
-    /// ("set the readout region").
+    /// The error for a failed call on a camera that `connect` opened;
+    /// `action` says what was being done ("set the readout region").
     pub(crate) fn to_native_error(self, action: &str) -> DriverError {
         match self {
             SvbError::Success => DriverError::SdkError(format!(
                 "SVBony: could not {} (the SDK reported success as a failure)",
                 action
             )),
-            SvbError::InvalidIndex | SvbError::InvalidId => DriverError::InvalidDevice(format!(
-                "SVBony: could not {}: the camera is not in the SDK's camera list (unplugged or listed under another number)",
-                action
-            )),
+            // The SDK drops a camera that leaves the bus from its list, and
+            // every later call on its ID answers one of the first two.
+            SvbError::InvalidIndex | SvbError::InvalidId | SvbError::CameraRemoved => {
+                DriverError::Disconnected
+            }
             SvbError::CameraClosed => DriverError::NotConnected,
-            SvbError::CameraRemoved => DriverError::Disconnected,
             SvbError::Timeout => {
                 DriverError::Timeout(format!("SVBony: could not {}: the camera did not answer", action))
             }
@@ -327,4 +327,33 @@ pub(crate) struct SvbControlCaps {
     pub(crate) is_writable: c_int,
     pub(crate) control_type: c_int,
     pub(crate) unused: [c_char; 32],
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// SVB_ERROR_INVALID_INDEX and SVB_ERROR_INVALID_ID on an open camera
+    /// were a generic device error, so a USB drop never started the
+    /// reconnect.
+    #[test]
+    fn an_id_the_sdk_dropped_reads_as_disconnected() {
+        for error in [
+            SvbError::InvalidIndex,
+            SvbError::InvalidId,
+            SvbError::CameraRemoved,
+        ] {
+            assert!(
+                matches!(
+                    error.to_native_error("read the temperature"),
+                    DriverError::Disconnected
+                ),
+                "{error:?}"
+            );
+        }
+        assert!(matches!(
+            SvbError::CameraClosed.to_native_error("read the temperature"),
+            DriverError::NotConnected
+        ));
+    }
 }

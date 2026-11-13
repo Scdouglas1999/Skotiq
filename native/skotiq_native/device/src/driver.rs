@@ -3,9 +3,8 @@
 //! One connected device is one value behind one of these traits, whichever
 //! protocol reaches it (vendor SDK, serial, ASCOM COM, Alpaca, INDI, simulator).
 //!
-//! The camera, mount, focuser and filter wheel traits are implemented by the
-//! vendor drivers and by the bridge's ASCOM wrappers. They take `&mut self`
-//! for commands because the vendor drivers keep state between calls.
+//! The camera, mount, focuser and filter wheel traits take `&mut self` for
+//! commands because the vendor drivers keep state between calls.
 //!
 //! The accessory traits (dome, rotator, switch, weather, safety monitor, cover
 //! calibrator) take `&self` throughout: every backend behind them (Alpaca,
@@ -232,15 +231,50 @@ pub trait CameraDriver: DeviceDriver {
     }
 }
 
-/// Native mount/telescope device interface
+/// A mount.
+///
+/// The methods are of two sorts. The first are single exchanges with the
+/// mount (a goto, a coordinate read). The second are whole operations
+/// (`status`, `heartbeat`, `site_abilities`, `can_park`) with a default body
+/// made of the first sort, in the order a serial mount is asked. A protocol
+/// that answers an operation with its own set of requests (Alpaca, INDI)
+/// overrides it.
+///
+/// Commands take `&mut self` because a serial driver keeps state between
+/// calls. A client of a server that keeps the state (Alpaca, INDI)
+/// implements the trait on a value that is cheap to clone, and every clone
+/// is the same mount.
 #[async_trait]
 pub trait MountDriver: DeviceDriver {
-    /// Slew to coordinates (RA in hours, Dec in degrees)
+    /// Whether the mount still answers. `Ok(false)`: it says it is not
+    /// connected. `Err`: the probe failed.
+    ///
+    /// The default reads the coordinates, which always crosses the wire: a
+    /// serial driver answers some states from memory, and a mount that had
+    /// gone silent would still pass.
+    async fn heartbeat(&self) -> Result<bool, DriverError> {
+        if !self.is_connected() {
+            return Ok(false);
+        }
+        self.get_coordinates().await.map(|_| true)
+    }
+
+    /// Starts a goto (RA in hours, Dec in degrees) and returns once the
+    /// mount has taken the command.
     async fn slew_to_coordinates(
         &mut self,
         ra_hours: f64,
         dec_degrees: f64,
     ) -> Result<(), DriverError>;
+
+    /// Starts a goto to an altitude and azimuth in degrees.
+    async fn slew_to_alt_az(
+        &mut self,
+        _altitude_deg: f64,
+        _azimuth_deg: f64,
+    ) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
+    }
 
     async fn get_coordinates(&self) -> Result<(f64, f64), DriverError>;
 
@@ -258,14 +292,31 @@ pub trait MountDriver: DeviceDriver {
 
     async fn is_parked(&self) -> Result<bool, DriverError>;
 
-    /// Pulse guide (for autoguiding)
+    /// Whether the mount can park. The default asks for the park state: a
+    /// protocol without one answers `NotSupported`.
+    async fn can_park(&self) -> Result<bool, DriverError> {
+        match self.is_parked().await {
+            Ok(_) => Ok(true),
+            Err(DriverError::NotSupported) => Ok(false),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Sends a guide pulse and returns when it is over.
     async fn pulse_guide(
         &mut self,
         direction: GuideDirection,
         duration_ms: u32,
     ) -> Result<(), DriverError>;
 
+    /// Stops a goto.
     async fn abort_slew(&mut self) -> Result<(), DriverError>;
+
+    /// Moves an axis (0: RA or azimuth, 1: Dec or altitude) at `rate`
+    /// degrees per second until it is sent rate 0.
+    async fn move_axis(&mut self, _axis: i32, _rate: f64) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
+    }
 
     async fn set_tracking(&mut self, enabled: bool) -> Result<(), DriverError>;
 
@@ -275,13 +326,13 @@ pub trait MountDriver: DeviceDriver {
 
     async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError>;
 
-    fn can_slew(&self) -> bool;
+    async fn can_slew(&self) -> bool;
 
-    fn can_sync(&self) -> bool;
+    async fn can_sync(&self) -> bool;
 
-    fn can_pulse_guide(&self) -> bool;
+    async fn can_pulse_guide(&self) -> bool;
 
-    fn can_set_tracking_rate(&self) -> bool;
+    async fn can_set_tracking_rate(&self) -> bool;
 
     async fn get_side_of_pier(&self) -> Result<PierSide, DriverError>;
 
@@ -289,6 +340,54 @@ pub trait MountDriver: DeviceDriver {
 
     /// Get local sidereal time
     async fn get_sidereal_time(&self) -> Result<f64, DriverError>;
+
+    /// Everything a status poll shows, in one operation.
+    ///
+    /// The coordinates, tracking and slewing are required: a failure of one
+    /// fails the read. A park state the protocol does not have is `None`;
+    /// any other failure of it fails the read. The rest are optional.
+    async fn status(&self) -> Result<MountReadings, DriverError> {
+        let (right_ascension, declination) = self.get_coordinates().await?;
+        let tracking = self.get_tracking().await?;
+        let slewing = self.is_slewing().await?;
+        let parked = match self.is_parked().await {
+            Ok(parked) => Some(parked),
+            Err(DriverError::NotSupported) => None,
+            Err(e) => return Err(e),
+        };
+        let side_of_pier = self.get_side_of_pier().await;
+        let (altitude, azimuth) = match self.get_alt_az().await {
+            Ok((altitude, azimuth)) => (Ok(altitude), Ok(azimuth)),
+            Err(e) => {
+                let again = match &e {
+                    DriverError::NotSupported => DriverError::NotSupported,
+                    other => DriverError::Backend(other.to_string().into()),
+                };
+                (Err(e), Err(again))
+            }
+        };
+        let sidereal_time = self.get_sidereal_time().await;
+        let at_home = self.at_home().await;
+        let tracking_rate = self.get_tracking_rate().await;
+        Ok(MountReadings {
+            right_ascension,
+            declination,
+            tracking,
+            slewing,
+            parked,
+            at_home,
+            side_of_pier,
+            altitude,
+            azimuth,
+            sidereal_time,
+            tracking_rate,
+            can_park: parked.is_some(),
+            can_slew: self.can_slew().await,
+            can_sync: self.can_sync().await,
+            can_pulse_guide: self.can_pulse_guide().await,
+            can_set_tracking_rate: self.can_set_tracking_rate().await,
+        })
+    }
 
     /// Read the site the mount is configured for.
     ///
@@ -314,14 +413,27 @@ pub trait MountDriver: DeviceDriver {
         Err(DriverError::NotSupported)
     }
 
-    /// Whether this mount has a home command [`MountDriver::find_home`] can
-    /// send.
+    /// Which of site and clock the mount can be read and written.
     ///
-    /// Answered from the protocol, not by probing the hardware: a mount either
-    /// speaks a home command or it does not. Defaults to `false` alongside the
-    /// `NotSupported` default of `find_home`, so the two can never disagree.
-    fn can_find_home(&self) -> bool {
-        false
+    /// The default probes: a serial protocol without the site commands
+    /// answers `NotSupported` by not implementing them, and one that has
+    /// them can write what it can read.
+    async fn site_abilities(&self) -> Result<MountSiteAbilities, DriverError> {
+        let can_read_site = !matches!(self.get_site().await, Err(DriverError::NotSupported));
+        let can_read_time = !matches!(self.get_clock().await, Err(DriverError::NotSupported));
+        Ok(MountSiteAbilities {
+            can_read_site,
+            can_write_site: can_read_site,
+            can_read_time,
+            can_write_time: can_read_time,
+        })
+    }
+
+    /// Whether this mount has a home command [`MountDriver::find_home`] can
+    /// send. Defaults to `false` alongside the `NotSupported` default of
+    /// `find_home`, so the two can never disagree.
+    async fn can_find_home(&self) -> Result<bool, DriverError> {
+        Ok(false)
     }
 
     /// Send the mount to its mechanical home position.
@@ -342,10 +454,10 @@ pub trait MountDriver: DeviceDriver {
     }
 
     /// Whether [`MountDriver::set_park`] can store the current position as
-    /// the park position. Answered from the protocol, and defaults to `false`
-    /// alongside the `NotSupported` default of `set_park`.
-    fn can_set_park(&self) -> bool {
-        false
+    /// the park position. Defaults to `false` alongside the `NotSupported`
+    /// default of `set_park`.
+    async fn can_set_park(&self) -> Result<bool, DriverError> {
+        Ok(false)
     }
 
     /// Store the mount's current position as its park position.
@@ -369,6 +481,13 @@ pub trait FocuserDriver: DeviceDriver {
     async fn get_position(&self) -> Result<i32, DriverError>;
 
     async fn is_moving(&self) -> Result<bool, DriverError>;
+
+    /// Whether [`FocuserDriver::halt`] can stop a move under way. `false`
+    /// for a focuser with no stop command, whose `halt` answers
+    /// `NotSupported`.
+    fn can_halt(&self) -> bool {
+        true
+    }
 
     async fn halt(&mut self) -> Result<(), DriverError>;
 

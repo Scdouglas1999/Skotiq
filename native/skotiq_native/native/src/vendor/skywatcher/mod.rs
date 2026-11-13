@@ -1084,19 +1084,19 @@ impl MountDriver for SkyWatcherMount {
         Ok(self.lock().rate)
     }
 
-    fn can_slew(&self) -> bool {
+    async fn can_slew(&self) -> bool {
         true
     }
 
-    fn can_sync(&self) -> bool {
+    async fn can_sync(&self) -> bool {
         true
     }
 
-    fn can_pulse_guide(&self) -> bool {
+    async fn can_pulse_guide(&self) -> bool {
         true
     }
 
-    fn can_set_tracking_rate(&self) -> bool {
+    async fn can_set_tracking_rate(&self) -> bool {
         true
     }
 
@@ -1122,8 +1122,8 @@ impl MountDriver for SkyWatcherMount {
         Ok(self.sky(&controller)?.lst_hours)
     }
 
-    fn can_find_home(&self) -> bool {
-        true
+    async fn can_find_home(&self) -> Result<bool, DriverError> {
+        Ok(true)
     }
 
     /// Sends the mount to the power-on position without parking it.

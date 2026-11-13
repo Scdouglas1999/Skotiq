@@ -283,3 +283,40 @@ async fn a_moved_camera_is_still_refused_without_an_expectation() {
     let _ = manager.disconnect_device(SIM_IMAGING_CAMERA_ID).await;
     reset_sim_camera_bus();
 }
+
+/// Only a camera's handle used to answer what it is, so two filter wheels (or
+/// focusers, or mounts) trading ids on a replug were never compared.
+#[tokio::test]
+async fn a_vendor_filter_wheel_behind_its_handle_reports_model_and_serial() {
+    use crate::device_manager::handle::DeviceHandle;
+    use crate::device_manager::rig::filter_wheel::VendorFilterWheel;
+
+    let manager = build_device_manager();
+    let info = DeviceInfo {
+        id: "native:zwo_efw:0".to_string(),
+        name: "ZWO EFW 0".to_string(),
+        device_type: DeviceType::FilterWheel,
+        driver_type: DriverType::Native,
+        description: "Native zwo driver".to_string(),
+        driver_version: "Native".to_string(),
+        serial_number: None,
+        unique_id: None,
+        display_name: "ZWO EFW 0".to_string(),
+    };
+    manager.register_device(info.clone(), false).await;
+    manager.handles.insert(
+        &info.id,
+        DeviceHandle::FilterWheel(Arc::new(VendorFilterWheel::new(
+            &info.id,
+            Box::new(FakeIdentityDevice {
+                id: info.id.clone(),
+                model: "EFW".to_string(),
+                serial: Some("0E0F0A01".to_string()),
+            }),
+        ))),
+    );
+
+    let identity = manager.probe_device_identity(&info).await;
+    assert_eq!(identity.model.as_deref(), Some("EFW"));
+    assert_eq!(identity.serial_number.as_deref(), Some("0E0F0A01"));
+}

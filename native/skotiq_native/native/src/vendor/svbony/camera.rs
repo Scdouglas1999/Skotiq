@@ -457,8 +457,11 @@ impl DeviceDriver for SvbonyCamera {
         // Control reads right after configuring can return stale firmware
         // values; the settle runs without the SDK lock.
         drop(sdk);
-        let quirk_lookup_id = format!("native:svbony:{}", self.core.name);
-        if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(&quirk_lookup_id) {
+        if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(
+            &Vendor::Svbony,
+            skotiq_device::DeviceKind::Camera,
+            &self.core.name,
+        ) {
             tracing::debug!(
                 "Applying DelayAfterConnect quirk: sleeping {}ms before reading controls from {}",
                 delay_ms,

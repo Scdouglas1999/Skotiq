@@ -1,27 +1,24 @@
 //! The mount behind its handle, once per protocol.
 //!
-//! Each method is the protocol's own sequence of driver calls for one mount
-//! operation, in the order and under the locks it always ran with: what the
-//! mount is sent, and what else can reach it meanwhile, is decided here and
-//! pinned by the recorded traces in `device_manager/tests/golden`. The
+//! A serial mount, an Alpaca telescope and an INDI telescope are a
+//! `skotiq_device::MountDriver` behind [`DriverMount`]; an ASCOM COM
+//! telescope and the simulator answer here themselves. What the mount is
+//! sent for each operation is pinned by the recorded traces in
+//! `device_manager/tests/golden`. The
 //! checks, motion-guard bookkeeping, frame conversion and events around an
 //! operation are the device manager's (`ops/mount`).
 //!
 //! Coordinates are in the mount's own frame; the caller converts.
 
-mod alpaca;
 #[cfg(windows)]
 mod com;
-mod indi;
+mod driver;
 mod sim;
-mod vendor;
 
-pub(crate) use alpaca::AlpacaMount;
 #[cfg(windows)]
 pub(crate) use com::ComMount;
-pub(crate) use indi::IndiMountHandle;
+pub(crate) use driver::DriverMount;
 pub(crate) use sim::SimMount;
-pub(crate) use vendor::VendorMount;
 
 use super::RigDriver;
 use crate::device::{MountSite, MountSiteCapabilities, MountStatus, MountTimeInfo};
@@ -29,8 +26,6 @@ use crate::device_capabilities::DeviceCapabilities;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
-use std::time::Duration;
-use tokio::time::Instant;
 
 #[async_trait]
 pub(crate) trait Mount: RigDriver {
@@ -103,57 +98,14 @@ pub(crate) trait Mount: RigDriver {
     async fn release(&self) {}
 }
 
-/// How long past its nominal end an ASCOM guide pulse may still read as
-/// running before the wait for it gives up.
-const PULSE_END_GRACE: Duration = Duration::from_secs(2);
-const PULSE_END_POLL: Duration = Duration::from_millis(50);
-
-/// Waits until an ASCOM guide pulse the driver accepted at `started` is over.
-///
-/// An ITelescopeV4 driver returns from `PulseGuide` at once and reports the
-/// pulse through `IsPulseGuiding`; older drivers often return when the pulse
-/// ends. Either way `mount_pulse_guide` hands control back once the mount has
-/// stopped correcting, so the next pulse or guide frame does not overlap this
-/// one (NINA's direct guider waits the same way). A driver that cannot report
-/// `IsPulseGuiding` is taken to be done when the pulse's length has passed.
-pub(super) async fn wait_for_ascom_pulse_end<F, Fut, E>(
-    device_id: &str,
-    started: Instant,
-    duration_ms: u32,
-    mut is_pulse_guiding: F,
-) -> Result<(), DeviceOpError>
-where
-    F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Result<bool, E>>,
-    E: std::fmt::Display,
-{
-    let nominal_end = started + Duration::from_millis(u64::from(duration_ms));
-    tokio::time::sleep_until(nominal_end).await;
-    let deadline = nominal_end + PULSE_END_GRACE;
-    loop {
-        match is_pulse_guiding().await {
-            Ok(false) => return Ok(()),
-            Ok(true) if Instant::now() >= deadline => {
-                return Err(DeviceOpError::Timeout {
-                    device_id: Some(device_id.to_string()),
-                    detail: format!(
-                        "the mount still reports a guide pulse {:.1} s after a {} ms pulse \
-                         should have ended",
-                        PULSE_END_GRACE.as_secs_f64(),
-                        duration_ms
-                    ),
-                })
-            }
-            Ok(true) => tokio::time::sleep(PULSE_END_POLL).await,
-            Err(error) => {
-                tracing::debug!(
-                    "mount_pulse_guide: {} cannot report IsPulseGuiding ({}); the pulse's \
-                     length was the wait",
-                    device_id,
-                    error
-                );
-                return Ok(());
-            }
-        }
+/// A failed guide pulse. A pulse that outlasted its wait is a timeout of
+/// this mount, in the wait's own sentence.
+pub(super) fn pulse_error(device_id: &str, error: skotiq_device::DriverError) -> DeviceOpError {
+    match error {
+        skotiq_device::DriverError::Timeout(detail) => DeviceOpError::Timeout {
+            device_id: Some(device_id.to_string()),
+            detail,
+        },
+        other => DeviceOpError::from(other),
     }
 }

@@ -9,7 +9,7 @@ use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::ascom::{AscomFilterWheel, AscomFocuser};
 use crate::device_manager::rig::camera::AlpacaCameraHandle;
-use crate::device_manager::rig::mount::AlpacaMount;
+use crate::device_manager::rig::mount::DriverMount;
 use crate::device_manager::DeviceManager;
 use std::sync::Arc;
 
@@ -51,7 +51,10 @@ impl DeviceManager {
                     .await;
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Mount(Arc::new(AlpacaMount::new(&info.id, telescope))),
+                    DeviceHandle::Mount(Arc::new(DriverMount::alpaca(
+                        &info.id,
+                        skotiq_alpaca::AlpacaMount::new(telescope),
+                    ))),
                 );
             }
             DeviceType::Focuser => {

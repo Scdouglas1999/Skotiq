@@ -1,6 +1,8 @@
 use super::*;
 #[cfg(windows)]
 use crate::device::DeviceType;
+#[cfg(windows)]
+use skotiq_device::ascom::AscomDeviceType;
 
 #[cfg(windows)]
 pub(crate) fn normalize_ascom_capability_device_type(value: &str) -> Option<DeviceType> {
@@ -8,22 +10,17 @@ pub(crate) fn normalize_ascom_capability_device_type(value: &str) -> Option<Devi
         .trim()
         .to_ascii_lowercase()
         .replace([' ', '-', '_'], "");
-    match normalized.as_str() {
-        "camera" | "icamera" | "icamerav2" | "icamerav3" | "icamerav4" => Some(DeviceType::Camera),
-        "telescope" | "mount" | "itelescope" | "itelescopev2" | "itelescopev3" => {
-            Some(DeviceType::Mount)
-        }
-        "focuser" | "ifocuser" | "ifocuserv2" | "ifocuserv3" => Some(DeviceType::Focuser),
-        "filterwheel" | "ifilterwheel" | "ifilterwheelv2" => Some(DeviceType::FilterWheel),
-        "rotator" | "irotator" | "irotatorv2" | "irotatorv3" => Some(DeviceType::Rotator),
-        "dome" | "idome" | "idomev2" => Some(DeviceType::Dome),
-        "safetymonitor" | "isafetymonitor" | "isafetymonitorv1" => Some(DeviceType::SafetyMonitor),
-        "observingconditions" | "weather" | "iobservingconditions" => Some(DeviceType::Weather),
-        "switch" | "iswitch" | "iswitchv2" => Some(DeviceType::Switch),
-        "covercalibrator" | "icovercalibrator" | "icovercalibratorv1" => {
-            Some(DeviceType::CoverCalibrator)
-        }
-        _ => None,
+    // A driver may answer with the interface name (`ICameraV3`) or with
+    // Skotiq's word for the kind.
+    let name = normalized
+        .strip_prefix('i')
+        .unwrap_or(&normalized)
+        .trim_end_matches(|c: char| c.is_ascii_digit())
+        .trim_end_matches('v');
+    match name {
+        "mount" => Some(DeviceType::Mount),
+        "weather" => Some(DeviceType::Weather),
+        name => AscomDeviceType::from_name(name).map(|t| DeviceType::from(t.kind())),
     }
 }
 
@@ -42,8 +39,8 @@ pub(crate) fn classify_ascom_capability_device_type(prog_id: &str) -> Result<Dev
 
     // Only a camera or a mount is read here (see `read_capabilities`).
     for (device_type, registry_type) in [
-        (DeviceType::Camera, skotiq_ascom::AscomDeviceType::Camera),
-        (DeviceType::Mount, skotiq_ascom::AscomDeviceType::Telescope),
+        (DeviceType::Camera, AscomDeviceType::Camera),
+        (DeviceType::Mount, AscomDeviceType::Telescope),
     ] {
         if skotiq_ascom::discover_devices(registry_type)
             .iter()

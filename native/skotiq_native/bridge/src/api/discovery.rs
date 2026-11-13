@@ -31,7 +31,7 @@ pub async fn api_discover_alpaca_at_address(
     host: String,
     port: u16,
 ) -> Result<Vec<DeviceInfo>, SkotiqError> {
-    use skotiq_alpaca::{get_configured_devices, AlpacaDeviceType};
+    use skotiq_alpaca::get_configured_devices;
 
     tracing::debug!("Discovering Alpaca devices at {}:{}", host, port);
 
@@ -44,18 +44,7 @@ pub async fn api_discover_alpaca_at_address(
 
     let mut devices = Vec::new();
     for alpaca_dev in alpaca_devices {
-        let device_type = match alpaca_dev.device_type {
-            AlpacaDeviceType::Camera => DeviceType::Camera,
-            AlpacaDeviceType::Telescope => DeviceType::Mount,
-            AlpacaDeviceType::Focuser => DeviceType::Focuser,
-            AlpacaDeviceType::FilterWheel => DeviceType::FilterWheel,
-            AlpacaDeviceType::Rotator => DeviceType::Rotator,
-            AlpacaDeviceType::Dome => DeviceType::Dome,
-            AlpacaDeviceType::SafetyMonitor => DeviceType::SafetyMonitor,
-            AlpacaDeviceType::ObservingConditions => DeviceType::Weather,
-            AlpacaDeviceType::Switch => DeviceType::Switch,
-            AlpacaDeviceType::CoverCalibrator => DeviceType::CoverCalibrator,
-        };
+        let device_type = DeviceType::from(alpaca_dev.device_type.kind());
 
         // Generate display name using unique_id for disambiguation
         let unique_id = if alpaca_dev.unique_id.is_empty() {
@@ -398,22 +387,13 @@ fn ascom_device_is_hidden(prog_id_lower: &str, name_lower: &str) -> bool {
 
 #[cfg(windows)]
 async fn scan_ascom_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, String> {
-    use skotiq_ascom::{discover_devices as ascom_discover, AscomDeviceType};
+    use skotiq_ascom::discover_devices as ascom_discover;
+    use skotiq_device::ascom::AscomDeviceType;
 
-    let ascom_type = match device_type {
-        DeviceType::Camera => AscomDeviceType::Camera,
-        DeviceType::Mount => AscomDeviceType::Telescope,
-        DeviceType::Focuser => AscomDeviceType::Focuser,
-        DeviceType::FilterWheel => AscomDeviceType::FilterWheel,
-        DeviceType::Rotator => AscomDeviceType::Rotator,
-        DeviceType::Dome => AscomDeviceType::Dome,
-        DeviceType::Weather => AscomDeviceType::ObservingConditions,
-        DeviceType::SafetyMonitor => AscomDeviceType::SafetyMonitor,
-        DeviceType::CoverCalibrator => AscomDeviceType::CoverCalibrator,
-        DeviceType::Switch => AscomDeviceType::Switch,
-        // ASCOM does not expose a "Guider" interface; the built-in guider and
-        // PHD2 are surfaced under DriverType::Native instead.
-        DeviceType::Guider => return Ok(Vec::new()),
+    // ASCOM has no guider interface; the built-in guider and PHD2 are
+    // native devices.
+    let Some(ascom_type) = AscomDeviceType::of_kind(device_type.into()) else {
+        return Ok(Vec::new());
     };
 
     let ascom_devs = ascom_discover(ascom_type);
@@ -481,23 +461,6 @@ pub(crate) async fn forget_alpaca_sweep() {
     *alpaca_sweep_cache().lock().await = None;
 }
 
-/// Maps an Alpaca device type to Skotiq's [`DeviceType`].
-fn alpaca_device_type(t: skotiq_alpaca::AlpacaDeviceType) -> DeviceType {
-    use skotiq_alpaca::AlpacaDeviceType;
-    match t {
-        AlpacaDeviceType::Camera => DeviceType::Camera,
-        AlpacaDeviceType::Telescope => DeviceType::Mount,
-        AlpacaDeviceType::Focuser => DeviceType::Focuser,
-        AlpacaDeviceType::FilterWheel => DeviceType::FilterWheel,
-        AlpacaDeviceType::Rotator => DeviceType::Rotator,
-        AlpacaDeviceType::Dome => DeviceType::Dome,
-        AlpacaDeviceType::SafetyMonitor => DeviceType::SafetyMonitor,
-        AlpacaDeviceType::ObservingConditions => DeviceType::Weather,
-        AlpacaDeviceType::CoverCalibrator => DeviceType::CoverCalibrator,
-        AlpacaDeviceType::Switch => DeviceType::Switch,
-    }
-}
-
 /// Build a `DeviceInfo` from an Alpaca discovery record (shared by the full
 /// sweep so every type maps identically).
 fn alpaca_device_info(
@@ -536,7 +499,7 @@ async fn run_alpaca_sweep() -> Vec<(DeviceType, DeviceInfo)> {
         .await
         .iter()
         .map(|dev| {
-            let dt = alpaca_device_type(dev.device_type);
+            let dt = DeviceType::from(dev.device_type.kind());
             (dt, alpaca_device_info(dev, dt))
         })
         .collect()
