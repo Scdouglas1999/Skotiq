@@ -139,9 +139,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       // appear under the new connection. A remote host keeps stacking when a
       // companion disconnects, but a local stack owns a process-wide native
       // singleton and must be released before the replacement host can use it.
-      final localService = authority.remoteHost != null
-          ? null
-          : _sessionService;
+      final localService = _sessionService;
       final starting = _startInFlight;
       _invalidateSession();
       state = LiveStackingState(config: state.config);
@@ -310,7 +308,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 
   Future<void> _pollRemoteResult(int generation, SkotiqBackend backend) async {
-    final remote = backend.remoteHost?.liveStack;
+    final remote = _remoteSessionBackend;
     if (remote == null ||
         _remotePollInFlight ||
         !_isCurrentSession(generation, backend) ||
@@ -371,7 +369,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (remote == null ||
         authority == null ||
         state.status != LiveStackingStatus.running ||
-        !identical(remote, authority.remoteHost?.liveStack) ||
+        !identical(remote, _ref.read(linkedHostLiveStackProvider)) ||
         _ref.backendScopeOver(authority).isStale) {
       return;
     }

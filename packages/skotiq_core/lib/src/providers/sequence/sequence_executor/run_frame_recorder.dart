@@ -1,9 +1,9 @@
+import '../../backend_provider.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../backend/remote_host.dart';
 import '../../../backend/frame_capture_metadata.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../database_provider.dart' show campaignsDaoProvider;
@@ -438,7 +438,7 @@ class RunFrameRecorder {
     // A linked client has no access to the host's files; the host processes
     // its own frames.
     final scienceAssessment =
-        _backend.remoteHost == null &&
+        !_ref.read(isRemoteModeProvider) &&
             RunFrameScience.appliesTo(frameType, filePath)
         ? _science.expectAssessment(filePath, exposureSecs)
         : null;

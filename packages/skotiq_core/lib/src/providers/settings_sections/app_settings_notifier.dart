@@ -198,7 +198,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     required SkotiqBackend backend,
     required int generation,
   }) async {
-    final host = backend.remoteHost;
+    final host = ref.read(linkedHostRigSettingsProvider);
     if (host == null ||
         generation != _backendGeneration ||
         ref.backendScopeOver(backend).isStale) {
@@ -232,7 +232,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final commandId = _generateLocalCommandId();
     _registerOwnCommandId(commandId);
     try {
-      await host.rigSettings.updateSettingsPatchWithCommandId(
+      await host.updateSettingsPatchWithCommandId(
         patch,
         commandId: commandId,
       );
@@ -393,7 +393,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       });
     }
 
-    if (backend.remoteHost != null) {
+    if (ref.read(isRemoteModeProvider)) {
       // Subscribe BEFORE the GET so an event that lands between the
       // POST acknowledgment and the GET's response can be re-applied
       // when the future resolves.
@@ -505,7 +505,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         await _writeHostStoreRows({key: value}, backend, generation);
         return;
       }
-      if (backend.remoteHost != null && !isDeviceLocalDisplay) {
+      if (ref.read(isRemoteModeProvider) && !isDeviceLocalDisplay) {
         final current = _requireLoadedSettings('saving $key');
         final updated = _applySettingsMap(current, {key: value});
         await _writeRemoteSettings(
@@ -536,7 +536,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       // remote-write concern and would wrongly reject host-only keys
       // (`start_minimized`, `database_path`, `horizon_profile_json`, ...).
     });
-    if (backend.remoteHost != null && !isDeviceLocalDisplay) {
+    if (ref.read(isRemoteModeProvider) && !isDeviceLocalDisplay) {
       _trackPendingRemoteWrite([key], write);
     }
     return write;
@@ -629,7 +629,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // `setImageOutputPath`).
       },
     );
-    if (backend.remoteHost != null) {
+    if (ref.read(isRemoteModeProvider)) {
       _trackPendingRemoteWrite(settings.keys, write);
     }
     return write;

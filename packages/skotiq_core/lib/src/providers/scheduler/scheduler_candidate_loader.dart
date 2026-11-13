@@ -93,10 +93,12 @@ class SchedulerCandidateLoader {
     // INNER JOIN would return no rows ("nothing eligible"). Source everything
     // from the host instead. goalService is already host-aware (above), so the
     // per-goal counts in the shared assembly loop are correct too.
-    final host = backend.remoteHost;
-    if (host != null) {
+    final hostTargets = ref.read(linkedHostImagingRecordsProvider);
+    final hostPlanning = ref.read(linkedHostPlanningProvider);
+    if (hostTargets != null && hostPlanning != null) {
       return _loadRemote(
-        host: host,
+        hostTargets: hostTargets,
+        remote: hostPlanning,
         goalService: goalService,
         projectId: projectId,
         availableFilters: availableFilters,
@@ -161,7 +163,8 @@ class SchedulerCandidateLoader {
   /// the autopilot preview gates with the SAME constraints/horizons/scope the
   /// operator configured on the master — not an un-gated, always-eligible set.
   Future<List<SchedulerCandidate>> _loadRemote({
-    required RemoteHost host,
+    required HostImagingRecords hostTargets,
+    required HostPlanningData remote,
     required IntegrationGoalService goalService,
     int? projectId,
     required List<String> availableFilters,
@@ -169,8 +172,7 @@ class SchedulerCandidateLoader {
     required void Function() requireAuthority,
   }) async {
     // Host catalog rows, indexed by id.
-    final rawTargets = await host.imagingRecords.getAllTargets();
-    final remote = host.planning;
+    final rawTargets = await hostTargets.getAllTargets();
     requireAuthority();
     final byId = <int, _LoaderTarget>{};
     for (final json in rawTargets) {

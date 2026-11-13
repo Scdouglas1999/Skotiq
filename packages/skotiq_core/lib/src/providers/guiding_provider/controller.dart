@@ -142,7 +142,7 @@ class Phd2Controller {
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
   /// True on a companion, whose guider is the imaging host's.
-  bool get _hostOwnsGuider => backend.remoteHost != null;
+  bool get _hostOwnsGuider => ref.read(isRemoteModeProvider);
 
   /// Whether a UI-issued guiding command is currently in flight. Surfaced so
   /// controls can stay busy/disabled until the command is accepted or fails.

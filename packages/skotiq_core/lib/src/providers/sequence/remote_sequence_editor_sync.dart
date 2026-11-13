@@ -5,7 +5,6 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../services/remote_sequence_editor_sync_lifecycle.dart';
@@ -225,7 +224,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
   late final RemoteSequencePreSwapFlush preSwapFlush;
   preSwapFlush = (outgoingBackend, {required requireSuccess}) async {
-    if (isDisposed || outgoingBackend.remoteHost == null) return;
+    if (isDisposed || !ref.read(isRemoteModeProvider)) return;
     if (ref.backendScopeOver(outgoingBackend).isStale) return;
     await flushPending(reason: 'backend_swap', drainLatest: true);
     if (requireSuccess &&
@@ -253,7 +252,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
       writeThroughTimer = null;
       syncState.reset();
     }
-    if (next.remoteHost == null) {
+    if (!ref.read(isRemoteModeProvider)) {
       debounce?.cancel();
       debounce = null;
     }

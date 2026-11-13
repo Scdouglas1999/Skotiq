@@ -1,3 +1,4 @@
+import '../models/backend/event_types.dart';
 import 'linked_host.dart';
 import 'async_scope.dart';
 import '../errors/error_text.dart';
@@ -620,11 +621,14 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
   Future<void>? _remoteLoad;
   final Completer<void> _loadedCompleter = Completer<void>();
 
-  DefectMapSettingsNotifier(this._ref, {RemoteHost? host})
-    : _remote = host?.calibrationFrames,
-      super(const DefectMapSettings(isLoading: true)) {
-    if (host != null) {
-      _remoteEventSub = host.events.listen(
+  DefectMapSettingsNotifier(
+    this._ref, {
+    HostCalibrationFrames? remote,
+    Stream<SkotiqEvent> Function()? hostEvents,
+  }) : _remote = remote,
+       super(const DefectMapSettings(isLoading: true)) {
+    if (hostEvents != null) {
+      _remoteEventSub = hostEvents().listen(
         (event) {
           if (event.eventType != hostStateChangedEventType ||
               event.data['entityType'] != HostMutationEntity.settings ||
@@ -770,8 +774,11 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
 
 final defectMapSettingsProvider =
     StateNotifierProvider<DefectMapSettingsNotifier, DefectMapSettings>((ref) {
-      final backend = ref.watch(backendProvider);
-      return DefectMapSettingsNotifier(ref, host: backend.remoteHost);
+      return DefectMapSettingsNotifier(
+        ref,
+        remote: ref.watch(linkedHostCalibrationFramesProvider),
+        hostEvents: ref.watch(linkedHostEventsProvider),
+      );
     });
 
 /// Seed the live sequencer's defect-correction state from the authoritative
