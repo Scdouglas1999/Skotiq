@@ -427,7 +427,7 @@ impl CoverState {
     }
 
     /// Convert to ASCOM/Alpaca integer value
-    pub fn to_i32(&self) -> i32 {
+    pub fn to_i32(self) -> i32 {
         match self {
             CoverState::NotPresent => 0,
             CoverState::Closed => 1,
@@ -471,7 +471,7 @@ impl CalibratorState {
     }
 
     /// Convert to ASCOM/Alpaca integer value
-    pub fn to_i32(&self) -> i32 {
+    pub fn to_i32(self) -> i32 {
         match self {
             CalibratorState::NotPresent => 0,
             CalibratorState::Off => 1,
