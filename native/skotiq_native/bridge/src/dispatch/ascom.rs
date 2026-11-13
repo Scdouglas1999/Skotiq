@@ -2,25 +2,19 @@
 //!
 //! Methods in this module are additional impl blocks on `DeviceManager` and
 //! provide ASCOM-only logic for `connect_*` and `perform_*_health_check`. They are invoked from the dispatcher methods in
-//! `crate::device_manager`. No behavior or signature has changed relative to the
-//! previous monolithic `devices.rs`.
+//! `crate::device_manager`.
 
-use crate::device::*;
-#[cfg(windows)]
-use crate::device_manager::handle::DeviceHandle;
+use crate::device::DeviceInfo;
 use crate::device_manager::DeviceManager;
-// The ASCOM camera and mount wrappers implement `connect` through this trait.
+// `DeviceDriver`: the ASCOM camera and mount wrappers implement `connect`
+// through it. Interactive driver dialogs are decided next to the STA worker
+// that also closes a rogue modal (headless never shows one).
 #[cfg(windows)]
-use skotiq_device::DeviceDriver;
-#[cfg(windows)]
-use std::sync::Arc;
+use {
+    crate::ascom_wrapper::sta_worker::interactive_dialogs_allowed, crate::device::DeviceType,
+    crate::device_manager::handle::DeviceHandle, skotiq_device::DeviceDriver, std::sync::Arc,
+};
 
-/// Whether interactive driver dialogs may be shown during connect. The decision
-/// (headless ⇒ never) lives next to the STA worker that also force-closes any
-/// rogue modal, so the gate and its enforcement stay in one place — B1: the
-/// ASCOM connect must never block the appliance on an undismissable dialog.
-#[cfg(windows)]
-use crate::ascom_wrapper::sta_worker::interactive_dialogs_allowed;
 impl DeviceManager {
     #[cfg(windows)]
     pub(crate) async fn connect_ascom(&self, info: &DeviceInfo) -> Result<(), String> {

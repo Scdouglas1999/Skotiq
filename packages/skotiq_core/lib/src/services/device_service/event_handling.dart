@@ -206,12 +206,14 @@ extension _DeviceServiceEventHandling on DeviceService {
 
       // Mount Slew Events
       case 'MountSlewStarted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(true);
         break;
 
       // Sent once the mount has arrived. It carries the commanded target, not
       // a reading, so the position stays whatever the mount last reported.
       case 'MountSlewCompleted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         // Smart notification - only show if not on imaging/planetarium screens
         _ref
@@ -229,19 +231,23 @@ extension _DeviceServiceEventHandling on DeviceService {
 
       // Mount Tracking Events
       case 'MountTrackingStarted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setTracking(true);
         break;
 
       case 'MountTrackingStopped':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setTracking(false);
         break;
 
       // Mount Park Events
       case 'MountParkStarted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(true);
         break;
 
       case 'MountParkCompleted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         _ref.read(mountStateProvider.notifier).setParked(true);
         _ref.read(mountStateProvider.notifier).setTracking(false);
@@ -255,6 +261,7 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       case 'MountUnparked':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setParked(false);
         _ref
             .read(smartNotificationServiceProvider)
@@ -276,15 +283,6 @@ extension _DeviceServiceEventHandling on DeviceService {
         if (applyDeviceStateEvent(_ref.container, event.eventType, data)) {
           _focuserMoveSettleWatch?.cancel();
           _focuserMoveSettleWatch = null;
-        }
-        break;
-
-      case 'FocuserTemperatureChanged':
-        final temperature = (data['temperature'] as num?)?.toDouble();
-        if (temperature != null) {
-          _ref
-              .read(focuserStateProvider.notifier)
-              .updateTemperature(temperature);
         }
         break;
 
@@ -385,6 +383,14 @@ extension _DeviceServiceEventHandling on DeviceService {
 
   /// Whether a `deviceType`/`deviceId` event is about the profile's guide
   /// camera, which has no slot of its own and must not take the camera's.
+  /// Whether a mount event is about the mount in the app's slot. An event
+  /// without an id (a host older than the id on mount events) is.
+  bool _isSlotMount(Map<String, dynamic> data) {
+    final id = data['device_id'];
+    if (id is! String || id.isEmpty) return true;
+    return readDeviceSlot(_ref, DeviceType.mount).deviceId == id;
+  }
+
   bool _isGuideCameraEvent(String? deviceType, String? deviceId) {
     if (deviceTypeFromWireName(deviceType ?? '') != DeviceType.camera ||
         deviceId == null) {

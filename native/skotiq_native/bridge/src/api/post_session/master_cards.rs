@@ -1,8 +1,8 @@
 //! Header cards an exported master carries so PixInsight and other tools can
 //! use it without re-entering the optics or re-solving the field.
 
-use super::*;
-use skotiq_imaging::FitsValue;
+use skotiq_imaging::{read_frame_header, FitsHeader, FitsValue};
+use std::path::Path;
 
 /// Acquisition and optics cards copied from a sub of the master's own filter.
 const OPTICS_CARDS: &[&str] = &[

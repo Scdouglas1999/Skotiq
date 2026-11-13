@@ -1,4 +1,15 @@
-use super::*;
+use super::{device_error, UnifiedDeviceOps};
+use crate::device_manager::get_device_manager;
+use crate::event::equipment::EventSeverity;
+use crate::event::imaging::ImagingEvent;
+use crate::state::SharedAppState;
+use crate::unified_device_ops::exposure_wait::{
+    claim_camera_acquisition, exposure_abort_generation, exposure_completion_timeout,
+    mark_camera_exposure_aborted, wait_for_camera_exposure_complete,
+};
+use crate::unified_device_ops::pointing::connected_camera_label;
+use async_trait::async_trait;
+use skotiq_sequencer::{CameraOps, DeviceError, DeviceResult, ExposureRequest, ImageData};
 
 #[async_trait]
 impl CameraOps for UnifiedDeviceOps {
@@ -168,7 +179,8 @@ impl CameraOps for UnifiedDeviceOps {
         // What the camera says of itself: where it clips, and whether it has
         // gain and offset controls. Best-effort by design: a driver that cannot
         // answer its own status must not cost us the frame.
-        let camera_status = match get_camera_status(camera_id.to_string()).await {
+        let camera_status = match get_device_manager()
+            .camera_get_status(camera_id).await {
             Ok(status) => Some(status),
             Err(e) => {
                 tracing::debug!(
@@ -331,13 +343,15 @@ impl CameraOps for UnifiedDeviceOps {
         );
 
         // `DeviceManager::camera_set_cooler` publishes the cooling event.
-        set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
+        get_device_manager()
+            .camera_set_cooler(camera_id, enabled, Some(target_temp))
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
     }
 
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
@@ -347,7 +361,8 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
@@ -357,14 +372,16 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
         Ok(status.cooler_on)
     }
 
     async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
         Ok(status
@@ -373,7 +390,8 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
@@ -391,7 +409,7 @@ impl CameraOps for UnifiedDeviceOps {
 
     async fn camera_get_iso_speeds(&self, camera_id: &str) -> DeviceResult<Vec<i32>> {
         match crate::device_capabilities::get_device_capabilities(camera_id).await {
-            Ok(crate::device_capabilities::DeviceCapabilities::Camera(caps)) => Ok(caps.iso_speeds),
+            Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps)) => Ok(caps.iso_speeds),
             Ok(_) => Ok(Vec::new()),
             Err(e) => Err(format!("Failed to read camera capabilities: {}", e).into()),
         }

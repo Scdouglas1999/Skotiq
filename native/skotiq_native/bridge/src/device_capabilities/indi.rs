@@ -1,5 +1,11 @@
-use super::*;
+use crate::device::TrackingRate;
+use crate::device_capabilities::types::{
+    CameraCapabilities, DeviceCapabilities, MountCapabilities,
+};
+use crate::device_id::cache::parse_device_id_cached;
+use crate::error::SkotiqError;
 use skotiq_indi::names as indi;
+use std::sync::Arc;
 
 pub(crate) fn indi_sensor_type_is_color(sensor_type: &str) -> bool {
     let normalized = sensor_type.to_ascii_lowercase();
@@ -19,17 +25,11 @@ pub(crate) fn indi_readout_mode_label(mode: &skotiq_indi::IndiReadoutMode) -> St
     }
 }
 
-/// Get capabilities for an INDI camera or mount
-///
-/// INDI devices report capabilities through their property definitions.
-/// This function queries the INDI server to discover what properties
-/// (and thus capabilities) a device supports.
+/// Capabilities of an INDI camera or mount that has no handle, read through
+/// its server's shared connection.
 pub(crate) async fn get_indi_capabilities(
     device_id: &str,
 ) -> Result<DeviceCapabilities, SkotiqError> {
-    use skotiq_device::DeviceKind;
-    use skotiq_indi::IndiCamera;
-
     let parsed = parse_device_id_cached(device_id)?;
     let (host, port, device_name) = match &parsed.connection_info {
         crate::device_id::ConnectionInfo::Indi {
@@ -45,17 +45,29 @@ pub(crate) async fn get_indi_capabilities(
         }
     };
 
-    let client = crate::api::get_device_manager()
+    let client = crate::device_manager::get_device_manager()
         .indi_server(&host, port)
         .await
         .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
+    indi_capabilities(&client, &device_name, device_id).await
+}
+
+/// What the INDI camera or mount `device_name` supports, from the property
+/// definitions its server published on `client`.
+pub(crate) async fn indi_capabilities(
+    client: &Arc<tokio::sync::RwLock<skotiq_indi::IndiClient>>,
+    device_name: &str,
+    device_id: &str,
+) -> Result<DeviceCapabilities, SkotiqError> {
+    use skotiq_device::DeviceKind;
+    use skotiq_indi::IndiCamera;
 
     // INDI servers publish capability-bearing property definitions
     // asynchronously after connect; reuse an existing populated client when
     // present, otherwise wait briefly for the newly pooled client to hydrate.
     let start = std::time::Instant::now();
     let description = loop {
-        let description = client.read().await.describe_device(&device_name).await;
+        let description = client.read().await.describe_device(device_name).await;
         if !description.properties.is_empty()
             || start.elapsed() >= std::time::Duration::from_secs(1)
         {
@@ -81,7 +93,7 @@ pub(crate) async fn get_indi_capabilities(
             .any(|p| p.name == indi::CCD_GAIN || p.name == indi::CCD_CONTROLS);
         let has_offset = properties.iter().any(|p| p.name == indi::CCD_OFFSET);
 
-        let camera = IndiCamera::new(Arc::clone(&client), &device_name);
+        let camera = IndiCamera::new(Arc::clone(client), device_name);
         let gain_range = camera.get_gain_range().await;
         let sensor_type = camera.get_sensor_type().await;
         let bayer_pattern = camera.get_bayer_pattern().await;
@@ -109,7 +121,7 @@ pub(crate) async fn get_indi_capabilities(
             let locked_client = client.read().await;
             let limits = locked_client
                 .get_number_limits(
-                    &device_name,
+                    device_name,
                     indi::CCD_TEMPERATURE,
                     indi::CCD_TEMPERATURE_VALUE,
                 )
@@ -198,7 +210,7 @@ pub(crate) async fn get_indi_capabilities(
             let mut max_rate: Option<f64> = None;
             for element in &slew_rate.elements {
                 if let Some(max) = locked_client
-                    .get_number_limits(&device_name, indi::TELESCOPE_SLEW_RATE, element)
+                    .get_number_limits(device_name, indi::TELESCOPE_SLEW_RATE, element)
                     .await
                     .and_then(|limits| limits.max)
                 {
@@ -231,7 +243,7 @@ pub(crate) async fn get_indi_capabilities(
                 };
                 for element in &prop.elements {
                     let Some(limits) = locked_client
-                        .get_number_limits(&device_name, prop_name, element)
+                        .get_number_limits(device_name, prop_name, element)
                         .await
                     else {
                         continue;

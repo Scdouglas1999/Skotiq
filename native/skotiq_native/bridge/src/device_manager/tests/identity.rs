@@ -27,7 +27,7 @@ async fn connect_replaces_the_id_derived_name_with_the_drivers_own() {
         "the driver's own name must replace the id-derived placeholder"
     );
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -68,7 +68,7 @@ async fn connect_refuses_an_id_that_re_bound_to_different_hardware() {
         "error should name both cameras so the operator can see the swap, got: {err}"
     );
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -95,7 +95,7 @@ async fn reconnecting_the_same_camera_is_not_treated_as_a_swap() {
         .await
         .expect("reconnecting the same camera must succeed");
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -142,7 +142,7 @@ async fn a_swap_found_during_auto_reconnect_is_not_reported_as_a_user_cancel() {
         "the reconnect error must still name both cameras, got: {err}"
     );
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -177,7 +177,7 @@ async fn a_driver_echoing_its_own_id_does_not_become_the_name() {
         "the placeholder must survive a driver that only echoed the device id"
     );
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -190,7 +190,7 @@ async fn a_driver_echoing_its_own_id_does_not_become_the_name() {
 /// be accepted as the main camera.
 #[tokio::test]
 async fn expected_model_follows_a_camera_that_moved_ids() {
-    use crate::api::devices::simulation::{
+    use crate::simulator::camera::{
         reset_sim_camera_bus, unplug_sim_camera, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
     };
 
@@ -254,7 +254,7 @@ async fn expected_model_follows_a_camera_that_moved_ids() {
 /// Without an expectation, the id's last observation still guards it.
 #[tokio::test]
 async fn a_moved_camera_is_still_refused_without_an_expectation() {
-    use crate::api::devices::simulation::{
+    use crate::simulator::camera::{
         reset_sim_camera_bus, unplug_sim_camera, SIM_IMAGING_CAMERA_ID,
     };
 

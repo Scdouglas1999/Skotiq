@@ -3,8 +3,9 @@
 //! (`IsPulseGuiding`).
 
 use super::*;
+use crate::device::DriverType;
 use crate::device_manager::epoch::MountFrame;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use std::sync::Mutex as StdMutex;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

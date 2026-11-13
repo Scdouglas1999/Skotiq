@@ -2,11 +2,11 @@
 //! read is an error, never a verdict: the run's safety fail mode decides what
 //! an unreadable monitor means.
 
-use super::sta_device::{driver_error, sta_accessory, StaDevice};
-use crate::device_capabilities::SafetyMonitorCapabilities;
+use crate::ascom_wrapper::sta_device::{driver_error, sta_accessory, StaDevice};
+use crate::device_capabilities::types::SafetyMonitorCapabilities;
 use crate::device_manager::accessory::SafetyMonitor;
 use crate::device_manager::handle::device_error;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::Timeouts;
 use async_trait::async_trait;

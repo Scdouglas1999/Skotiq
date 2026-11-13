@@ -1,6 +1,8 @@
-use super::*;
+use crate::device::DeviceType;
 use crate::device_manager::ops::state_events::property;
-use crate::event::EquipmentEvent;
+use crate::device_manager::DeviceManager;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 
 impl DeviceManager {
     // Each setter publishes the camera's settings once it accepted the value

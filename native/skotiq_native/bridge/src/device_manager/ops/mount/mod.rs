@@ -1,8 +1,7 @@
 //! Mount operations dispatcher.
 //!
 //! Methods in this module are an additional impl block on `DeviceManager`
-//! using Rust's split-impl-block feature. Behavior is identical to the
-//! previous monolithic `devices.rs`.
+//! using Rust's split-impl-block feature.
 //!
 //! # `unwrap_or` policy
 //!
@@ -19,11 +18,6 @@
 //!   `CanSetTracking` probe; absence means "cannot set tracking rate",
 //!   the safe assumption (UI hides the tracking-rate dropdown).
 
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
-use std::collections::HashMap;
-
 pub(crate) mod park;
 pub(crate) mod site;
 pub(crate) mod slew;
@@ -31,9 +25,11 @@ pub(crate) mod status;
 pub(crate) mod tracking;
 #[cfg(test)]
 mod sim_mount_tests {
-    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
-    use crate::api::{get_device_manager, get_state};
     use crate::device::{DeviceInfo, DeviceType, DriverType, PierSide};
+    use crate::device_manager::get_device_manager;
+    use crate::simulator::mount::{get_sim_mount, SimulatedMount};
+    use crate::simulator::sim_singleton_test_lock;
+    use crate::state::get_state;
     use crate::storage::ObserverLocation;
 
     const TEST_LATITUDE: f64 = 40.0;
@@ -54,7 +50,7 @@ mod sim_mount_tests {
         // The interpolation cell lives outside `SimulatedMount`, so resetting
         // the struct alone would leave the previous test's slew in flight and
         // this one's first command would be refused as "still moving".
-        crate::api::devices::simulation::cancel_sim_slew().await;
+        crate::simulator::mount::cancel_sim_slew().await;
         let mut mount = get_sim_mount().write().await;
         *mount = SimulatedMount::default();
         mount.status.connected = true;

@@ -19,7 +19,7 @@ pub mod sta_worker;
 pub mod switch;
 pub mod weather;
 
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use std::time::Duration;
 use tokio::sync::oneshot;
 

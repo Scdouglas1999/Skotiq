@@ -1,29 +1,6 @@
-// split from monolithic api.rs
-#![allow(unused_imports)]
-// Shared imports inherited from the monolithic api.rs.
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::error::*;
-use crate::event::*;
-use crate::state::*;
-use crate::storage::{AppSettings, ObserverLocation};
-use crate::unified_device_ops::create_unified_device_ops;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
-    DebayerAlgorithm, FitsHeader, ImageData,
-};
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-// Sibling-module items via the parent's pub use re-exports.
-use super::super::*;
-use super::*;
+use crate::device::{CameraState, CameraStatus};
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
 
 /// Get camera status
 pub async fn get_camera_status(device_id: String) -> Result<CameraStatus, SkotiqError> {
@@ -34,7 +11,7 @@ pub async fn get_camera_status(device_id: String) -> Result<CameraStatus, Skotiq
         .map_err(SkotiqError::from)?;
     // Some drivers report Idle once the sensor is done, while its buffer is
     // still owned by the acquisition/download task.
-    if crate::unified_device_ops::camera_acquisition_in_progress(&device_id).await
+    if crate::unified_device_ops::exposure_wait::camera_acquisition_in_progress(&device_id).await
         && status.state == CameraState::Idle
     {
         status.state = CameraState::Download;
@@ -122,11 +99,11 @@ pub async fn api_camera_capture_preview(device_id: String) -> Result<Vec<u8>, Sk
 /// overwritten).
 pub async fn api_camera_get_recommended_settings(
     device_id: String,
-) -> Result<crate::device_capabilities::CameraRecommendedSettings, SkotiqError> {
+) -> Result<crate::device_capabilities::types::CameraRecommendedSettings, SkotiqError> {
     if device_id.starts_with("sim_") {
         // Simulator cameras have no manufacturer to recommend anything.
         // Honest empty answer.
-        return Ok(crate::device_capabilities::CameraRecommendedSettings::default());
+        return Ok(crate::device_capabilities::types::CameraRecommendedSettings::default());
     }
 
     let mgr = get_device_manager();

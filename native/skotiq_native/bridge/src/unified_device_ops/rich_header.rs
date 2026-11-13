@@ -1,4 +1,5 @@
-use super::*;
+use crate::unified_device_ops::pointing::MountPointing;
+use skotiq_sequencer::ImageData;
 
 /// Assemble the rich FITS header for a sequencer-saved frame.
 ///

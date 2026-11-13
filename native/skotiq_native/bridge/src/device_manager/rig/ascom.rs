@@ -17,8 +17,8 @@
 //! passing the call on, in its own words when it fails.
 
 use super::RigDriver;
-use crate::device_capabilities::{FilterWheelCapabilities, FocuserCapabilities};
-use crate::dispatch::DeviceOpError;
+use crate::device_capabilities::types::{FilterWheelCapabilities, FocuserCapabilities};
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{focuser_move_with_timeout, Timeouts};
 use async_trait::async_trait;
@@ -585,7 +585,10 @@ impl FilterWheelMembers for skotiq_alpaca::AlpacaFilterWheel {
 #[cfg(windows)]
 mod com {
     use super::super::Exclusive;
-    use super::*;
+    use super::{DeviceMembers, FilterWheelMembers, FocuserMembers};
+    use crate::dispatch::error::DeviceOpError;
+    use async_trait::async_trait;
+    use skotiq_device::DriverError;
     use crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper;
     use crate::ascom_wrapper::focuser::AscomFocuserWrapper;
 

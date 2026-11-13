@@ -1,4 +1,6 @@
-use super::*;
+use crate::device_manager::{rig, DeviceManager};
+use crate::dispatch::error::DeviceOpError;
+use skotiq_device::SubFrame;
 
 impl DeviceManager {
     // Camera control

@@ -1,4 +1,5 @@
 use super::*;
+use crate::device::DriverType;
 
 #[tokio::test]
 async fn test_switch_methods_require_registered_device() {

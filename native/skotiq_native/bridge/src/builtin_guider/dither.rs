@@ -1,4 +1,12 @@
-use super::*;
+use crate::builtin_guider::config::{Vec2, GUIDE_MAX_MATCH_DISTANCE_PX};
+use crate::builtin_guider::loop_runner::ensure_connected;
+use crate::builtin_guider::metrics::recent_rms;
+use crate::builtin_guider::state::{state, BuiltinGuiderState, SettleSpec};
+use crate::error::SkotiqError;
+use crate::event::equipment::EventSeverity;
+use crate::event::guiding::GuidingEvent;
+use crate::state::get_state;
+use std::time::{Duration, Instant};
 
 /// Golden angle (radians) — successive multiples spread points evenly around the
 /// circle without ever repeating, the basis of the sunflower/spiral dither.

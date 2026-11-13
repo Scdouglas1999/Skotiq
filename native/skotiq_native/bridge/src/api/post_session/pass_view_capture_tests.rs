@@ -19,8 +19,14 @@
 //! ```
 
 use super::*;
-use crate::event::EventPayload;
+use crate::api::post_session::args::{transform_to_row_major, AlignArgs};
+use crate::api::post_session::entrypoints::api_integrate_session;
+use crate::api::post_session::helpers::build_registration_config;
+use crate::api::post_session::telemetry::emit_pass_telemetry;
+use crate::event::bus::EventPayload;
 use skotiq_imaging::registration::solve_registration;
+use skotiq_imaging::{read_frame, read_frame_header, ImageData};
+use std::path::Path;
 
 fn session_subs(captures: &str, filter: &str, from: &str) -> Vec<(String, f64, String)> {
     let mut subs: Vec<(String, f64, String)> = std::fs::read_dir(captures)

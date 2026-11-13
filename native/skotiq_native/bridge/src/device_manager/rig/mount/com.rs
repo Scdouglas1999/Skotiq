@@ -6,17 +6,20 @@
 //! wrapper's queue, run by the STA worker.
 
 use super::{pulse_error, Mount};
-use skotiq_device::ascom::telescope::wait_for_pulse_end;
 use crate::ascom_wrapper::mount::AscomMountWrapper;
-use crate::device::*;
-use crate::device_capabilities::DeviceCapabilities;
+use crate::device::{
+    mount_status_field, FieldAvailability, MountSite, MountSiteCapabilities, MountStatus,
+    MountTimeInfo,
+};
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::ops::mount::site::{ole_to_unix_seconds, unix_seconds_to_ole};
 use crate::device_manager::rig::{Exclusive, RigDriver};
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{mount_slew_with_timeout, with_timeout_str, Timeouts};
 use async_trait::async_trait;
+use skotiq_device::ascom::telescope::wait_for_pulse_end;
 use skotiq_device::{DeviceDriver, DriverError, MountDriver};
 use tokio::time::Instant;
 use tracing::warn;
@@ -485,7 +488,7 @@ impl Mount for ComMount {
             .await
             .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?;
         Ok(DeviceCapabilities::Mount(
-            crate::device_capabilities::mount_capabilities_from_ascom(ascom_caps),
+            crate::device_capabilities::ascom::mount_capabilities_from_ascom(ascom_caps),
         ))
     }
 }

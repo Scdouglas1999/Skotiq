@@ -1,11 +1,11 @@
 use super::*;
+use crate::device_manager::rig::camera::driver::DriverCamera;
 use skotiq_device::{
     CameraCapabilities, CameraDriver, CameraState, DeviceDriver, DriverError, ExposureAbort,
     ExposureParams, ImageMetadata, ReadoutMode, SensorInfo, VendorFeatures,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 type Calls = Arc<Mutex<Vec<&'static str>>>;

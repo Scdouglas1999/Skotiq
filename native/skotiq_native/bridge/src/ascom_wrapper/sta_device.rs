@@ -6,8 +6,8 @@
 //! answered over a oneshot channel. Each wrapper's methods are then one line
 //! naming the member, its timeout and the call.
 
-use super::sta_worker::{register_device, DevicePump, PumpOutcome};
-use crate::dispatch::DeviceOpError;
+use crate::ascom_wrapper::sta_worker::{register_device, DevicePump, PumpOutcome};
+use crate::dispatch::error::DeviceOpError;
 use skotiq_ascom::AscomResult;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};

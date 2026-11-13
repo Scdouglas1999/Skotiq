@@ -309,8 +309,16 @@ void main() {
         deviceId: 'm',
         message: 'timeout',
       ),
-      const bridge.EquipmentEvent.mountSlewStarted(ra: 1, dec: 2),
-      const bridge.EquipmentEvent.mountSlewCompleted(ra: 1, dec: 2),
+      const bridge.EquipmentEvent.mountSlewStarted(
+        deviceId: 'm',
+        ra: 1,
+        dec: 2,
+      ),
+      const bridge.EquipmentEvent.mountSlewCompleted(
+        deviceId: 'm',
+        ra: 1,
+        dec: 2,
+      ),
       const bridge.EquipmentEvent.focuserMoveStarted(
         deviceId: 'f',
         targetPosition: 100,
@@ -319,7 +327,6 @@ void main() {
         deviceId: 'f',
         position: 100,
       ),
-      const bridge.EquipmentEvent.focuserTemperatureChanged(temperature: 4.5),
       const bridge.EquipmentEvent.filterChanging(
         deviceId: 'w',
         fromPosition: 0,

@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 99863083;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 454717944;
 
 // Section: executor
 
@@ -3512,7 +3512,7 @@ fn wire__crate__api__post_session__entrypoints__api_integrate_session_impl(
         },
     )
 }
-fn wire__crate__api__api_invalidate_discovery_cache_impl(
+fn wire__crate__api__discovery__api_invalidate_discovery_cache_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
@@ -3526,7 +3526,7 @@ fn wire__crate__api__api_invalidate_discovery_cache_impl(
                 transform_result_dco::<_, _, ()>(
                     (move || async move {
                         let output_ok = Result::<_, ()>::Ok({
-                            crate::api::api_invalidate_discovery_cache().await;
+                            crate::api::discovery::api_invalidate_discovery_cache().await;
                         })?;
                         Ok(output_ok)
                     })()
@@ -7184,150 +7184,6 @@ fn wire__crate__api__devices__camera__set_camera_offset_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__camera__simulated_camera_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_camera_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::camera::SimulatedCamera::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__environment__simulated_dome_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_dome_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::environment::SimulatedDome::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "simulated_filter_wheel_default", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {  move |context|  {
-                    transform_result_dco::<_, _, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok(crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel::default())?;   Ok(output_ok)
-                    })())
-                } })
-}
-fn wire__crate__api__devices__simulation__focuser__simulated_focuser_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_focuser_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::focuser::SimulatedFocuser::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__mount__simulated_mount_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_mount_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::mount::SimulatedMount::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__rotator__simulated_rotator_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_rotator_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::rotator::SimulatedRotator::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "simulated_safety_monitor_default", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {  move |context|  {
-                    transform_result_dco::<_, _, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok(crate::api::devices::simulation::environment::SimulatedSafetyMonitor::default())?;   Ok(output_ok)
-                    })())
-                } })
-}
-fn wire__crate__api__devices__simulation__environment__simulated_weather_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_weather_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::environment::SimulatedWeather::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__plate_solve__solve_hints_default_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -8914,35 +8770,54 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                 };
             }
             5 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_ra = <f64>::sse_decode(deserializer);
                 let mut var_dec = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::MountSlewStarted {
+                    device_id: var_deviceId,
                     ra: var_ra,
                     dec: var_dec,
                 };
             }
             6 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_ra = <f64>::sse_decode(deserializer);
                 let mut var_dec = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::MountSlewCompleted {
+                    device_id: var_deviceId,
                     ra: var_ra,
                     dec: var_dec,
                 };
             }
             7 => {
-                return crate::event::equipment::EquipmentEvent::MountTrackingStarted;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountTrackingStarted {
+                    device_id: var_deviceId,
+                };
             }
             8 => {
-                return crate::event::equipment::EquipmentEvent::MountTrackingStopped;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountTrackingStopped {
+                    device_id: var_deviceId,
+                };
             }
             9 => {
-                return crate::event::equipment::EquipmentEvent::MountParkStarted;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountParkStarted {
+                    device_id: var_deviceId,
+                };
             }
             10 => {
-                return crate::event::equipment::EquipmentEvent::MountParkCompleted;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountParkCompleted {
+                    device_id: var_deviceId,
+                };
             }
             11 => {
-                return crate::event::equipment::EquipmentEvent::MountUnparked;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountUnparked {
+                    device_id: var_deviceId,
+                };
             }
             12 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
@@ -8961,12 +8836,6 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                 };
             }
             14 => {
-                let mut var_temperature = <f64>::sse_decode(deserializer);
-                return crate::event::equipment::EquipmentEvent::FocuserTemperatureChanged {
-                    temperature: var_temperature,
-                };
-            }
-            15 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_fromPosition = <i32>::sse_decode(deserializer);
                 let mut var_toPosition = <i32>::sse_decode(deserializer);
@@ -8980,7 +8849,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     from_filter_name: var_fromFilterName,
                 };
             }
-            16 => {
+            15 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_position = <i32>::sse_decode(deserializer);
                 let mut var_filterName = <Option<String>>::sse_decode(deserializer);
@@ -8990,7 +8859,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     filter_name: var_filterName,
                 };
             }
-            17 => {
+            16 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_targetAngle = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::RotatorMoveStarted {
@@ -8998,7 +8867,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     target_angle: var_targetAngle,
                 };
             }
-            18 => {
+            17 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_angle = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::RotatorMoveCompleted {
@@ -9006,7 +8875,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     angle: var_angle,
                 };
             }
-            19 => {
+            18 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_targetTemp = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraCoolingStarted {
@@ -9014,7 +8883,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     target_temp: var_targetTemp,
                 };
             }
-            20 => {
+            19 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_temperature = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraCoolingReached {
@@ -9022,19 +8891,19 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     temperature: var_temperature,
                 };
             }
-            21 => {
+            20 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraWarmingStarted {
                     device_id: var_deviceId,
                 };
             }
-            22 => {
+            21 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraWarmingCompleted {
                     device_id: var_deviceId,
                 };
             }
-            23 => {
+            22 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_temperature = <f64>::sse_decode(deserializer);
                 let mut var_coolerPower = <Option<f64>>::sse_decode(deserializer);
@@ -9044,7 +8913,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     cooler_power: var_coolerPower,
                 };
             }
-            24 => {
+            23 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_gain = <i32>::sse_decode(deserializer);
                 let mut var_gainIsIso = <bool>::sse_decode(deserializer);
@@ -9060,7 +8929,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     bin_y: var_binY,
                 };
             }
-            25 => {
+            24 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_intervalSecs = <u64>::sse_decode(deserializer);
@@ -9070,7 +8939,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     interval_secs: var_intervalSecs,
                 };
             }
-            26 => {
+            25 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::HeartbeatStopped {
@@ -9078,7 +8947,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     device_id: var_deviceId,
                 };
             }
-            27 => {
+            26 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_status =
@@ -9093,7 +8962,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     last_rtt_ms: var_lastRttMs,
                 };
             }
-            28 => {
+            27 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_attempt = <u32>::sse_decode(deserializer);
@@ -9105,7 +8974,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     max_attempts: var_maxAttempts,
                 };
             }
-            29 => {
+            28 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_afterAttempts = <u32>::sse_decode(deserializer);
@@ -9115,7 +8984,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     after_attempts: var_afterAttempts,
                 };
             }
-            30 => {
+            29 => {
                 let mut var_deviceClass = <String>::sse_decode(deserializer);
                 let mut var_driver = <String>::sse_decode(deserializer);
                 let mut var_id = <String>::sse_decode(deserializer);
@@ -9131,7 +9000,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     unique_id: var_uniqueId,
                 };
             }
-            31 => {
+            30 => {
                 let mut var_deviceClass = <String>::sse_decode(deserializer);
                 let mut var_driver = <String>::sse_decode(deserializer);
                 let mut var_id = <String>::sse_decode(deserializer);
@@ -12127,78 +11996,6 @@ impl SseDecode for crate::device_capabilities::types::ShutterStatus {
     }
 }
 
-impl SseDecode for crate::api::devices::simulation::camera::SimulatedCamera {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::CameraStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::camera::SimulatedCamera { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::environment::SimulatedDome {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::DomeStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::environment::SimulatedDome { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::FilterWheelStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-            status: var_status,
-        };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::focuser::SimulatedFocuser {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::FocuserStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::focuser::SimulatedFocuser { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::mount::SimulatedMount {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::MountStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::mount::SimulatedMount { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::rotator::SimulatedRotator {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::RotatorStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::rotator::SimulatedRotator { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::SafetyStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-            status: var_status,
-        };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::environment::SimulatedWeather {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_connected = <bool>::sse_decode(deserializer);
-        let mut var_conditions = <crate::device::WeatherConditions>::sse_decode(deserializer);
-        return crate::api::devices::simulation::environment::SimulatedWeather {
-            connected: var_connected,
-            conditions: var_conditions,
-        };
-    }
-}
-
 impl SseDecode for crate::error::SkotiqError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -14086,31 +13883,35 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 message.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::equipment::EquipmentEvent::MountSlewStarted { ra, dec } => [
+            crate::event::equipment::EquipmentEvent::MountSlewStarted { device_id, ra, dec } => [
                 5.into_dart(),
+                device_id.into_into_dart().into_dart(),
                 ra.into_into_dart().into_dart(),
                 dec.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::equipment::EquipmentEvent::MountSlewCompleted { ra, dec } => [
+            crate::event::equipment::EquipmentEvent::MountSlewCompleted { device_id, ra, dec } => [
                 6.into_dart(),
+                device_id.into_into_dart().into_dart(),
                 ra.into_into_dart().into_dart(),
                 dec.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::equipment::EquipmentEvent::MountTrackingStarted => {
-                [7.into_dart()].into_dart()
+            crate::event::equipment::EquipmentEvent::MountTrackingStarted { device_id } => {
+                [7.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::equipment::EquipmentEvent::MountTrackingStopped => {
-                [8.into_dart()].into_dart()
+            crate::event::equipment::EquipmentEvent::MountTrackingStopped { device_id } => {
+                [8.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::equipment::EquipmentEvent::MountParkStarted => {
-                [9.into_dart()].into_dart()
+            crate::event::equipment::EquipmentEvent::MountParkStarted { device_id } => {
+                [9.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::equipment::EquipmentEvent::MountParkCompleted => {
-                [10.into_dart()].into_dart()
+            crate::event::equipment::EquipmentEvent::MountParkCompleted { device_id } => {
+                [10.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::equipment::EquipmentEvent::MountUnparked => [11.into_dart()].into_dart(),
+            crate::event::equipment::EquipmentEvent::MountUnparked { device_id } => {
+                [11.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
+            }
             crate::event::equipment::EquipmentEvent::FocuserMoveStarted {
                 device_id,
                 target_position,
@@ -14129,9 +13930,6 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 position.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::equipment::EquipmentEvent::FocuserTemperatureChanged { temperature } => {
-                [14.into_dart(), temperature.into_into_dart().into_dart()].into_dart()
-            }
             crate::event::equipment::EquipmentEvent::FilterChanging {
                 device_id,
                 from_position,
@@ -14139,7 +13937,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 filter_name,
                 from_filter_name,
             } => [
-                15.into_dart(),
+                14.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 from_position.into_into_dart().into_dart(),
                 to_position.into_into_dart().into_dart(),
@@ -14152,7 +13950,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 position,
                 filter_name,
             } => [
-                16.into_dart(),
+                15.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 position.into_into_dart().into_dart(),
                 filter_name.into_into_dart().into_dart(),
@@ -14162,13 +13960,13 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 target_angle,
             } => [
-                17.into_dart(),
+                16.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 target_angle.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::equipment::EquipmentEvent::RotatorMoveCompleted { device_id, angle } => [
-                18.into_dart(),
+                17.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 angle.into_into_dart().into_dart(),
             ]
@@ -14177,7 +13975,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 target_temp,
             } => [
-                19.into_dart(),
+                18.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 target_temp.into_into_dart().into_dart(),
             ]
@@ -14186,23 +13984,23 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 temperature,
             } => [
-                20.into_dart(),
+                19.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 temperature.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::equipment::EquipmentEvent::CameraWarmingStarted { device_id } => {
-                [21.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
+                [20.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
             crate::event::equipment::EquipmentEvent::CameraWarmingCompleted { device_id } => {
-                [22.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
+                [21.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
             crate::event::equipment::EquipmentEvent::CameraTemperatureChanged {
                 device_id,
                 temperature,
                 cooler_power,
             } => [
-                23.into_dart(),
+                22.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 temperature.into_into_dart().into_dart(),
                 cooler_power.into_into_dart().into_dart(),
@@ -14216,7 +14014,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 bin_x,
                 bin_y,
             } => [
-                24.into_dart(),
+                23.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 gain.into_into_dart().into_dart(),
                 gain_is_iso.into_into_dart().into_dart(),
@@ -14230,7 +14028,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 interval_secs,
             } => [
-                25.into_dart(),
+                24.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 interval_secs.into_into_dart().into_dart(),
@@ -14240,7 +14038,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_type,
                 device_id,
             } => [
-                26.into_dart(),
+                25.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
             ]
@@ -14252,7 +14050,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 consecutive_failures,
                 last_rtt_ms,
             } => [
-                27.into_dart(),
+                26.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 status.into_into_dart().into_dart(),
@@ -14266,7 +14064,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 attempt,
                 max_attempts,
             } => [
-                28.into_dart(),
+                27.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 attempt.into_into_dart().into_dart(),
@@ -14278,7 +14076,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 after_attempts,
             } => [
-                29.into_dart(),
+                28.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 after_attempts.into_into_dart().into_dart(),
@@ -14292,7 +14090,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 display_name,
                 unique_id,
             } => [
-                30.into_dart(),
+                29.into_dart(),
                 device_class.into_into_dart().into_dart(),
                 driver.into_into_dart().into_dart(),
                 id.into_into_dart().into_dart(),
@@ -14306,7 +14104,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 driver,
                 id,
             } => [
-                31.into_dart(),
+                30.into_dart(),
                 device_class.into_into_dart().into_dart(),
                 driver.into_into_dart().into_dart(),
                 id.into_into_dart().into_dart(),
@@ -16661,160 +16459,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::device_capabilities::types::Shutte
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::camera::SimulatedCamera {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::camera::SimulatedCamera
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::camera::SimulatedCamera>
-    for crate::api::devices::simulation::camera::SimulatedCamera
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::camera::SimulatedCamera {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::environment::SimulatedDome {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::environment::SimulatedDome
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::environment::SimulatedDome>
-    for crate::api::devices::simulation::environment::SimulatedDome
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::environment::SimulatedDome {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel,
-    > for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::focuser::SimulatedFocuser {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::focuser::SimulatedFocuser
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::focuser::SimulatedFocuser>
-    for crate::api::devices::simulation::focuser::SimulatedFocuser
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::focuser::SimulatedFocuser {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::mount::SimulatedMount {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::mount::SimulatedMount
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::mount::SimulatedMount>
-    for crate::api::devices::simulation::mount::SimulatedMount
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::mount::SimulatedMount {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::rotator::SimulatedRotator {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::rotator::SimulatedRotator
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::rotator::SimulatedRotator>
-    for crate::api::devices::simulation::rotator::SimulatedRotator
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::rotator::SimulatedRotator {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::api::devices::simulation::environment::SimulatedSafetyMonitor
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::environment::SimulatedSafetyMonitor
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::api::devices::simulation::environment::SimulatedSafetyMonitor,
-    > for crate::api::devices::simulation::environment::SimulatedSafetyMonitor
-{
-    fn into_into_dart(
-        self,
-    ) -> crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::api::devices::simulation::environment::SimulatedWeather
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.connected.into_into_dart().into_dart(),
-            self.conditions.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::environment::SimulatedWeather
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::api::devices::simulation::environment::SimulatedWeather,
-    > for crate::api::devices::simulation::environment::SimulatedWeather
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::environment::SimulatedWeather {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::error::SkotiqError {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -18295,30 +17939,37 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 <String>::sse_encode(device_id, serializer);
                 <String>::sse_encode(message, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountSlewStarted { ra, dec } => {
+            crate::event::equipment::EquipmentEvent::MountSlewStarted { device_id, ra, dec } => {
                 <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(ra, serializer);
                 <f64>::sse_encode(dec, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountSlewCompleted { ra, dec } => {
+            crate::event::equipment::EquipmentEvent::MountSlewCompleted { device_id, ra, dec } => {
                 <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(ra, serializer);
                 <f64>::sse_encode(dec, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountTrackingStarted => {
+            crate::event::equipment::EquipmentEvent::MountTrackingStarted { device_id } => {
                 <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountTrackingStopped => {
+            crate::event::equipment::EquipmentEvent::MountTrackingStopped { device_id } => {
                 <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountParkStarted => {
+            crate::event::equipment::EquipmentEvent::MountParkStarted { device_id } => {
                 <i32>::sse_encode(9, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountParkCompleted => {
+            crate::event::equipment::EquipmentEvent::MountParkCompleted { device_id } => {
                 <i32>::sse_encode(10, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountUnparked => {
+            crate::event::equipment::EquipmentEvent::MountUnparked { device_id } => {
                 <i32>::sse_encode(11, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
             crate::event::equipment::EquipmentEvent::FocuserMoveStarted {
                 device_id,
@@ -18336,10 +17987,6 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(position, serializer);
             }
-            crate::event::equipment::EquipmentEvent::FocuserTemperatureChanged { temperature } => {
-                <i32>::sse_encode(14, serializer);
-                <f64>::sse_encode(temperature, serializer);
-            }
             crate::event::equipment::EquipmentEvent::FilterChanging {
                 device_id,
                 from_position,
@@ -18347,7 +17994,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 filter_name,
                 from_filter_name,
             } => {
-                <i32>::sse_encode(15, serializer);
+                <i32>::sse_encode(14, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(from_position, serializer);
                 <i32>::sse_encode(to_position, serializer);
@@ -18359,7 +18006,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 position,
                 filter_name,
             } => {
-                <i32>::sse_encode(16, serializer);
+                <i32>::sse_encode(15, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(position, serializer);
                 <Option<String>>::sse_encode(filter_name, serializer);
@@ -18368,12 +18015,12 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 target_angle,
             } => {
-                <i32>::sse_encode(17, serializer);
+                <i32>::sse_encode(16, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(target_angle, serializer);
             }
             crate::event::equipment::EquipmentEvent::RotatorMoveCompleted { device_id, angle } => {
-                <i32>::sse_encode(18, serializer);
+                <i32>::sse_encode(17, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(angle, serializer);
             }
@@ -18381,7 +18028,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 target_temp,
             } => {
-                <i32>::sse_encode(19, serializer);
+                <i32>::sse_encode(18, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(target_temp, serializer);
             }
@@ -18389,16 +18036,16 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 temperature,
             } => {
-                <i32>::sse_encode(20, serializer);
+                <i32>::sse_encode(19, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(temperature, serializer);
             }
             crate::event::equipment::EquipmentEvent::CameraWarmingStarted { device_id } => {
-                <i32>::sse_encode(21, serializer);
+                <i32>::sse_encode(20, serializer);
                 <String>::sse_encode(device_id, serializer);
             }
             crate::event::equipment::EquipmentEvent::CameraWarmingCompleted { device_id } => {
-                <i32>::sse_encode(22, serializer);
+                <i32>::sse_encode(21, serializer);
                 <String>::sse_encode(device_id, serializer);
             }
             crate::event::equipment::EquipmentEvent::CameraTemperatureChanged {
@@ -18406,7 +18053,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 temperature,
                 cooler_power,
             } => {
-                <i32>::sse_encode(23, serializer);
+                <i32>::sse_encode(22, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(temperature, serializer);
                 <Option<f64>>::sse_encode(cooler_power, serializer);
@@ -18419,7 +18066,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 bin_x,
                 bin_y,
             } => {
-                <i32>::sse_encode(24, serializer);
+                <i32>::sse_encode(23, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(gain, serializer);
                 <bool>::sse_encode(gain_is_iso, serializer);
@@ -18432,7 +18079,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 interval_secs,
             } => {
-                <i32>::sse_encode(25, serializer);
+                <i32>::sse_encode(24, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u64>::sse_encode(interval_secs, serializer);
@@ -18441,7 +18088,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_type,
                 device_id,
             } => {
-                <i32>::sse_encode(26, serializer);
+                <i32>::sse_encode(25, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
             }
@@ -18452,7 +18099,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 consecutive_failures,
                 last_rtt_ms,
             } => {
-                <i32>::sse_encode(27, serializer);
+                <i32>::sse_encode(26, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <crate::event::equipment::HeartbeatStatus>::sse_encode(status, serializer);
@@ -18465,7 +18112,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 attempt,
                 max_attempts,
             } => {
-                <i32>::sse_encode(28, serializer);
+                <i32>::sse_encode(27, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u32>::sse_encode(attempt, serializer);
@@ -18476,7 +18123,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 after_attempts,
             } => {
-                <i32>::sse_encode(29, serializer);
+                <i32>::sse_encode(28, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u32>::sse_encode(after_attempts, serializer);
@@ -18489,7 +18136,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 display_name,
                 unique_id,
             } => {
-                <i32>::sse_encode(30, serializer);
+                <i32>::sse_encode(29, serializer);
                 <String>::sse_encode(device_class, serializer);
                 <String>::sse_encode(driver, serializer);
                 <String>::sse_encode(id, serializer);
@@ -18502,7 +18149,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 driver,
                 id,
             } => {
-                <i32>::sse_encode(31, serializer);
+                <i32>::sse_encode(30, serializer);
                 <String>::sse_encode(device_class, serializer);
                 <String>::sse_encode(driver, serializer);
                 <String>::sse_encode(id, serializer);
@@ -20852,63 +20499,6 @@ impl SseEncode for crate::device_capabilities::types::ShutterStatus {
     }
 }
 
-impl SseEncode for crate::api::devices::simulation::camera::SimulatedCamera {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::CameraStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::environment::SimulatedDome {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::DomeStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::FilterWheelStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::focuser::SimulatedFocuser {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::FocuserStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::mount::SimulatedMount {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::MountStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::rotator::SimulatedRotator {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::RotatorStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::SafetyStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::environment::SimulatedWeather {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.connected, serializer);
-        <crate::device::WeatherConditions>::sse_encode(self.conditions, serializer);
-    }
-}
-
 impl SseEncode for crate::error::SkotiqError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22662,6 +22252,7 @@ mod io {
                 5 => {
                     let ans = unsafe { self.kind.MountSlewStarted };
                     crate::event::equipment::EquipmentEvent::MountSlewStarted {
+                        device_id: ans.device_id.cst_decode(),
                         ra: ans.ra.cst_decode(),
                         dec: ans.dec.cst_decode(),
                     }
@@ -22669,15 +22260,41 @@ mod io {
                 6 => {
                     let ans = unsafe { self.kind.MountSlewCompleted };
                     crate::event::equipment::EquipmentEvent::MountSlewCompleted {
+                        device_id: ans.device_id.cst_decode(),
                         ra: ans.ra.cst_decode(),
                         dec: ans.dec.cst_decode(),
                     }
                 }
-                7 => crate::event::equipment::EquipmentEvent::MountTrackingStarted,
-                8 => crate::event::equipment::EquipmentEvent::MountTrackingStopped,
-                9 => crate::event::equipment::EquipmentEvent::MountParkStarted,
-                10 => crate::event::equipment::EquipmentEvent::MountParkCompleted,
-                11 => crate::event::equipment::EquipmentEvent::MountUnparked,
+                7 => {
+                    let ans = unsafe { self.kind.MountTrackingStarted };
+                    crate::event::equipment::EquipmentEvent::MountTrackingStarted {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
+                8 => {
+                    let ans = unsafe { self.kind.MountTrackingStopped };
+                    crate::event::equipment::EquipmentEvent::MountTrackingStopped {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
+                9 => {
+                    let ans = unsafe { self.kind.MountParkStarted };
+                    crate::event::equipment::EquipmentEvent::MountParkStarted {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
+                10 => {
+                    let ans = unsafe { self.kind.MountParkCompleted };
+                    crate::event::equipment::EquipmentEvent::MountParkCompleted {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
+                11 => {
+                    let ans = unsafe { self.kind.MountUnparked };
+                    crate::event::equipment::EquipmentEvent::MountUnparked {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
                 12 => {
                     let ans = unsafe { self.kind.FocuserMoveStarted };
                     crate::event::equipment::EquipmentEvent::FocuserMoveStarted {
@@ -22693,12 +22310,6 @@ mod io {
                     }
                 }
                 14 => {
-                    let ans = unsafe { self.kind.FocuserTemperatureChanged };
-                    crate::event::equipment::EquipmentEvent::FocuserTemperatureChanged {
-                        temperature: ans.temperature.cst_decode(),
-                    }
-                }
-                15 => {
                     let ans = unsafe { self.kind.FilterChanging };
                     crate::event::equipment::EquipmentEvent::FilterChanging {
                         device_id: ans.device_id.cst_decode(),
@@ -22708,7 +22319,7 @@ mod io {
                         from_filter_name: ans.from_filter_name.cst_decode(),
                     }
                 }
-                16 => {
+                15 => {
                     let ans = unsafe { self.kind.FilterChanged };
                     crate::event::equipment::EquipmentEvent::FilterChanged {
                         device_id: ans.device_id.cst_decode(),
@@ -22716,47 +22327,47 @@ mod io {
                         filter_name: ans.filter_name.cst_decode(),
                     }
                 }
-                17 => {
+                16 => {
                     let ans = unsafe { self.kind.RotatorMoveStarted };
                     crate::event::equipment::EquipmentEvent::RotatorMoveStarted {
                         device_id: ans.device_id.cst_decode(),
                         target_angle: ans.target_angle.cst_decode(),
                     }
                 }
-                18 => {
+                17 => {
                     let ans = unsafe { self.kind.RotatorMoveCompleted };
                     crate::event::equipment::EquipmentEvent::RotatorMoveCompleted {
                         device_id: ans.device_id.cst_decode(),
                         angle: ans.angle.cst_decode(),
                     }
                 }
-                19 => {
+                18 => {
                     let ans = unsafe { self.kind.CameraCoolingStarted };
                     crate::event::equipment::EquipmentEvent::CameraCoolingStarted {
                         device_id: ans.device_id.cst_decode(),
                         target_temp: ans.target_temp.cst_decode(),
                     }
                 }
-                20 => {
+                19 => {
                     let ans = unsafe { self.kind.CameraCoolingReached };
                     crate::event::equipment::EquipmentEvent::CameraCoolingReached {
                         device_id: ans.device_id.cst_decode(),
                         temperature: ans.temperature.cst_decode(),
                     }
                 }
-                21 => {
+                20 => {
                     let ans = unsafe { self.kind.CameraWarmingStarted };
                     crate::event::equipment::EquipmentEvent::CameraWarmingStarted {
                         device_id: ans.device_id.cst_decode(),
                     }
                 }
-                22 => {
+                21 => {
                     let ans = unsafe { self.kind.CameraWarmingCompleted };
                     crate::event::equipment::EquipmentEvent::CameraWarmingCompleted {
                         device_id: ans.device_id.cst_decode(),
                     }
                 }
-                23 => {
+                22 => {
                     let ans = unsafe { self.kind.CameraTemperatureChanged };
                     crate::event::equipment::EquipmentEvent::CameraTemperatureChanged {
                         device_id: ans.device_id.cst_decode(),
@@ -22764,7 +22375,7 @@ mod io {
                         cooler_power: ans.cooler_power.cst_decode(),
                     }
                 }
-                24 => {
+                23 => {
                     let ans = unsafe { self.kind.CameraSettingsChanged };
                     crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                         device_id: ans.device_id.cst_decode(),
@@ -22775,7 +22386,7 @@ mod io {
                         bin_y: ans.bin_y.cst_decode(),
                     }
                 }
-                25 => {
+                24 => {
                     let ans = unsafe { self.kind.HeartbeatStarted };
                     crate::event::equipment::EquipmentEvent::HeartbeatStarted {
                         device_type: ans.device_type.cst_decode(),
@@ -22783,14 +22394,14 @@ mod io {
                         interval_secs: ans.interval_secs.cst_decode(),
                     }
                 }
-                26 => {
+                25 => {
                     let ans = unsafe { self.kind.HeartbeatStopped };
                     crate::event::equipment::EquipmentEvent::HeartbeatStopped {
                         device_type: ans.device_type.cst_decode(),
                         device_id: ans.device_id.cst_decode(),
                     }
                 }
-                27 => {
+                26 => {
                     let ans = unsafe { self.kind.HeartbeatStatusChanged };
                     crate::event::equipment::EquipmentEvent::HeartbeatStatusChanged {
                         device_type: ans.device_type.cst_decode(),
@@ -22800,7 +22411,7 @@ mod io {
                         last_rtt_ms: ans.last_rtt_ms.cst_decode(),
                     }
                 }
-                28 => {
+                27 => {
                     let ans = unsafe { self.kind.HeartbeatReconnecting };
                     crate::event::equipment::EquipmentEvent::HeartbeatReconnecting {
                         device_type: ans.device_type.cst_decode(),
@@ -22809,7 +22420,7 @@ mod io {
                         max_attempts: ans.max_attempts.cst_decode(),
                     }
                 }
-                29 => {
+                28 => {
                     let ans = unsafe { self.kind.HeartbeatReconnected };
                     crate::event::equipment::EquipmentEvent::HeartbeatReconnected {
                         device_type: ans.device_type.cst_decode(),
@@ -22817,7 +22428,7 @@ mod io {
                         after_attempts: ans.after_attempts.cst_decode(),
                     }
                 }
-                30 => {
+                29 => {
                     let ans = unsafe { self.kind.DeviceDiscovered };
                     crate::event::equipment::EquipmentEvent::DeviceDiscovered {
                         device_class: ans.device_class.cst_decode(),
@@ -22828,7 +22439,7 @@ mod io {
                         unique_id: ans.unique_id.cst_decode(),
                     }
                 }
-                31 => {
+                30 => {
                     let ans = unsafe { self.kind.DeviceLost };
                     crate::event::equipment::EquipmentEvent::DeviceLost {
                         device_class: ans.device_class.cst_decode(),
@@ -24571,89 +24182,6 @@ mod io {
                 current_target: self.current_target.cst_decode(),
                 current_filter: self.current_filter.cst_decode(),
                 message: self.message.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::camera::SimulatedCamera>
-        for wire_cst_simulated_camera
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::camera::SimulatedCamera {
-            crate::api::devices::simulation::camera::SimulatedCamera {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::environment::SimulatedDome>
-        for wire_cst_simulated_dome
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::environment::SimulatedDome {
-            crate::api::devices::simulation::environment::SimulatedDome {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel>
-        for wire_cst_simulated_filter_wheel
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-            crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::focuser::SimulatedFocuser>
-        for wire_cst_simulated_focuser
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::focuser::SimulatedFocuser {
-            crate::api::devices::simulation::focuser::SimulatedFocuser {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::mount::SimulatedMount>
-        for wire_cst_simulated_mount
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::mount::SimulatedMount {
-            crate::api::devices::simulation::mount::SimulatedMount {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::rotator::SimulatedRotator>
-        for wire_cst_simulated_rotator
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::rotator::SimulatedRotator {
-            crate::api::devices::simulation::rotator::SimulatedRotator {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::environment::SimulatedSafetyMonitor>
-        for wire_cst_simulated_safety_monitor
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(
-            self,
-        ) -> crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-            crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::environment::SimulatedWeather>
-        for wire_cst_simulated_weather
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::environment::SimulatedWeather {
-            crate::api::devices::simulation::environment::SimulatedWeather {
-                connected: self.connected.cst_decode(),
-                conditions: self.conditions.cst_decode(),
             }
         }
     }
@@ -26876,103 +26404,6 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
-    impl NewWithNullPtr for wire_cst_simulated_camera {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_camera {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_dome {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_dome {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_filter_wheel {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_filter_wheel {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_focuser {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_focuser {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_mount {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_mount {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_rotator {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_rotator {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_safety_monitor {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_safety_monitor {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_weather {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                connected: Default::default(),
-                conditions: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_weather {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
     impl NewWithNullPtr for wire_cst_skotiq_error {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -28502,10 +27933,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__api_invalidate_discovery_cache(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__discovery__api_invalidate_discovery_cache(
         port_: i64,
     ) {
-        wire__crate__api__api_invalidate_discovery_cache_impl(port_)
+        wire__crate__api__discovery__api_invalidate_discovery_cache_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -29928,66 +29359,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__simulated_camera_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__camera__simulated_camera_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_dome_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__environment__simulated_dome_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default_impl(
-            port_,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__simulated_focuser_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__focuser__simulated_focuser_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__simulated_mount_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__mount__simulated_mount_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__simulated_rotator_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__rotator__simulated_rotator_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default_impl(
-            port_,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_weather_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__environment__simulated_weather_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__plate_solve__solve_hints_default(
         port_: i64,
     ) {
@@ -31399,9 +30770,13 @@ mod io {
         Error: wire_cst_EquipmentEvent_Error,
         MountSlewStarted: wire_cst_EquipmentEvent_MountSlewStarted,
         MountSlewCompleted: wire_cst_EquipmentEvent_MountSlewCompleted,
+        MountTrackingStarted: wire_cst_EquipmentEvent_MountTrackingStarted,
+        MountTrackingStopped: wire_cst_EquipmentEvent_MountTrackingStopped,
+        MountParkStarted: wire_cst_EquipmentEvent_MountParkStarted,
+        MountParkCompleted: wire_cst_EquipmentEvent_MountParkCompleted,
+        MountUnparked: wire_cst_EquipmentEvent_MountUnparked,
         FocuserMoveStarted: wire_cst_EquipmentEvent_FocuserMoveStarted,
         FocuserMoveCompleted: wire_cst_EquipmentEvent_FocuserMoveCompleted,
-        FocuserTemperatureChanged: wire_cst_EquipmentEvent_FocuserTemperatureChanged,
         FilterChanging: wire_cst_EquipmentEvent_FilterChanging,
         FilterChanged: wire_cst_EquipmentEvent_FilterChanged,
         RotatorMoveStarted: wire_cst_EquipmentEvent_RotatorMoveStarted,
@@ -31459,14 +30834,41 @@ mod io {
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_EquipmentEvent_MountSlewStarted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
         ra: f64,
         dec: f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_EquipmentEvent_MountSlewCompleted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
         ra: f64,
         dec: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountTrackingStarted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountTrackingStopped {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountParkStarted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountParkCompleted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountUnparked {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -31479,11 +30881,6 @@ mod io {
     pub struct wire_cst_EquipmentEvent_FocuserMoveCompleted {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         position: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_EquipmentEvent_FocuserTemperatureChanged {
-        temperature: f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -33066,47 +32463,6 @@ mod io {
         current_target: *mut wire_cst_list_prim_u_8_strict,
         current_filter: *mut wire_cst_list_prim_u_8_strict,
         message: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_camera {
-        status: wire_cst_camera_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_dome {
-        status: wire_cst_dome_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_filter_wheel {
-        status: wire_cst_filter_wheel_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_focuser {
-        status: wire_cst_focuser_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_mount {
-        status: wire_cst_mount_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_rotator {
-        status: wire_cst_rotator_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_safety_monitor {
-        status: wire_cst_safety_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_weather {
-        connected: bool,
-        conditions: wire_cst_weather_conditions,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

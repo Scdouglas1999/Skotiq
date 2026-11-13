@@ -1,5 +1,5 @@
-use crate::dispatch::DeviceOpError;
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
+use crate::dispatch::error::DeviceOpError;
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomRotator;
 use std::sync::atomic::{AtomicBool, Ordering};

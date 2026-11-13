@@ -16,6 +16,7 @@
 //! `camprofile.py osc`.
 
 use super::*;
+use crate::device::DriverType;
 use skotiq_device::FrameType;
 use std::time::Duration;
 
@@ -98,7 +99,7 @@ async fn capabilities_report_the_cameras_own_controls() {
     let manager = build_device_manager();
     let id = connected_camera(&manager, &base_url).await;
 
-    let crate::device_capabilities::DeviceCapabilities::Camera(caps) =
+    let crate::device_capabilities::types::DeviceCapabilities::Camera(caps) =
         crate::device_capabilities::alpaca::get_alpaca_capabilities(&id)
             .await
             .expect("capabilities")

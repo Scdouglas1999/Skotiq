@@ -1,4 +1,26 @@
-use super::*;
+use crate::builtin_guider::calibration::calibrate_mount_response;
+use crate::builtin_guider::config::Vec2;
+use crate::builtin_guider::dither::{abandon_dither, DITHER_MATCH_GRACE_FRAMES};
+use crate::builtin_guider::metrics::{
+    apply_guide_correction, apply_settle_state, axis_rms, choose_lock_star, measure_offset,
+    push_arcsec_sample, push_rms_sample, record_per_star_residuals, select_reference_stars,
+    update_snapshot_from_frame,
+};
+use crate::builtin_guider::state::{
+    binned_guide_pixel_scale, guide_offset_arcsec, guide_pixel_scale_arcsec, state,
+    BuiltinGuiderState, GuideFrame, SettleSpec,
+};
+use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
+use crate::event::equipment::EventSeverity;
+use crate::event::guiding::GuidingEvent;
+use crate::event::system::SystemEvent;
+use crate::state::get_state;
+use skotiq_imaging::{detect_stars_with_stats, DetectedStar, ImageData, StarDetectionConfig};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 
 pub(crate) async fn ensure_connected() -> Result<(), SkotiqError> {
     let connected = state().read().await.connected;
@@ -347,10 +369,10 @@ where
                 consecutive_failures,
                 GUIDE_FRAME_RETRIES
             );
-            get_state().publish_event(crate::event::create_event_auto_id(
+            get_state().publish_event(crate::event::correlation::create_event_auto_id(
                 EventSeverity::Warning,
-                crate::event::EventCategory::System,
-                crate::event::EventPayload::System(SystemEvent::Notification {
+                crate::event::equipment::EventCategory::System,
+                crate::event::bus::EventPayload::System(SystemEvent::Notification {
                     title: "Built-in guider".to_string(),
                     message: message.clone(),
                     level: "warning".to_string(),

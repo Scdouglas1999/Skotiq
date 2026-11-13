@@ -3,6 +3,7 @@
 //! with no home command.
 
 use super::*;
+use crate::device::{DriverType, MountStatus};
 use crate::dispatch::error::DeviceOpError;
 use crate::storage::ObserverLocation;
 
@@ -32,10 +33,10 @@ pub(super) async fn register_mount(
 /// Put the simulated mount somewhere that is plainly not home: unparked,
 /// tracking, pointing well away from either pole.
 pub(super) async fn connect_sim_mount_away_from_home() {
-    crate::api::devices::simulation::cancel_sim_slew().await;
-    let mount = crate::api::devices::simulation::get_sim_mount();
+    crate::simulator::mount::cancel_sim_slew().await;
+    let mount = crate::simulator::mount::get_sim_mount();
     let mut mount = mount.write().await;
-    *mount = crate::api::devices::simulation::SimulatedMount::default();
+    *mount = crate::simulator::mount::SimulatedMount::default();
     mount.status.connected = true;
     mount.status.parked = false;
     mount.status.tracking = true;
@@ -44,8 +45,8 @@ pub(super) async fn connect_sim_mount_away_from_home() {
 }
 
 pub(super) async fn disconnect_sim_mount() {
-    crate::api::devices::simulation::cancel_sim_slew().await;
-    crate::api::devices::simulation::get_sim_mount()
+    crate::simulator::mount::cancel_sim_slew().await;
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status
@@ -59,7 +60,7 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = ()>,
 {
-    let state = crate::api::get_state();
+    let state = crate::state::get_state();
     let previous = state.get_observer_location().ok().flatten();
     state
         .set_observer_location(Some(ObserverLocation {
@@ -171,7 +172,7 @@ async fn a_parked_mount_is_refused_and_stays_parked() {
     register_mount(&manager, device_id, DriverType::Simulator).await;
 
     connect_sim_mount_away_from_home().await;
-    crate::api::devices::simulation::get_sim_mount()
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status

@@ -1,4 +1,5 @@
-use super::*;
+use flutter_rust_bridge::frb;
+use serde::{Deserialize, Serialize};
 
 /// Event severity levels
 #[frb]
@@ -71,24 +72,35 @@ pub enum EquipmentEvent {
         message: String,
     },
 
-    // Mount events
+    // Mount events. Every device event names its device, so a second mount,
+    // focuser, wheel or rotator is never taken for the one in the app's slot.
     MountSlewStarted {
+        device_id: String,
         ra: f64,
         dec: f64,
     },
     MountSlewCompleted {
+        device_id: String,
         ra: f64,
         dec: f64,
     },
-    MountTrackingStarted,
-    MountTrackingStopped,
-    MountParkStarted,
-    MountParkCompleted,
-    MountUnparked,
+    MountTrackingStarted {
+        device_id: String,
+    },
+    MountTrackingStopped {
+        device_id: String,
+    },
+    MountParkStarted {
+        device_id: String,
+    },
+    MountParkCompleted {
+        device_id: String,
+    },
+    MountUnparked {
+        device_id: String,
+    },
 
-    // Focuser events. Every move, filter and rotator event names its device,
-    // so a second focuser, wheel or rotator is never taken for the one in the
-    // app's slot.
+    // Focuser events
     FocuserMoveStarted {
         device_id: String,
         target_position: i32,
@@ -96,9 +108,6 @@ pub enum EquipmentEvent {
     FocuserMoveCompleted {
         device_id: String,
         position: i32,
-    },
-    FocuserTemperatureChanged {
-        temperature: f64,
     },
 
     // Filter wheel events
@@ -222,4 +231,44 @@ pub enum EquipmentEvent {
         driver: String,
         id: String,
     },
+}
+
+impl EquipmentEvent {
+    /// The device the event is about.
+    pub(crate) fn device_id(&self) -> &str {
+        match self {
+            EquipmentEvent::Connecting { device_id, .. }
+            | EquipmentEvent::Connected { device_id, .. }
+            | EquipmentEvent::Disconnected { device_id, .. }
+            | EquipmentEvent::PropertyChanged { device_id, .. }
+            | EquipmentEvent::Error { device_id, .. }
+            | EquipmentEvent::MountSlewStarted { device_id, .. }
+            | EquipmentEvent::MountSlewCompleted { device_id, .. }
+            | EquipmentEvent::MountTrackingStarted { device_id }
+            | EquipmentEvent::MountTrackingStopped { device_id }
+            | EquipmentEvent::MountParkStarted { device_id }
+            | EquipmentEvent::MountParkCompleted { device_id }
+            | EquipmentEvent::MountUnparked { device_id }
+            | EquipmentEvent::FocuserMoveStarted { device_id, .. }
+            | EquipmentEvent::FocuserMoveCompleted { device_id, .. }
+            | EquipmentEvent::FilterChanging { device_id, .. }
+            | EquipmentEvent::FilterChanged { device_id, .. }
+            | EquipmentEvent::RotatorMoveStarted { device_id, .. }
+            | EquipmentEvent::RotatorMoveCompleted { device_id, .. }
+            | EquipmentEvent::CameraCoolingStarted { device_id, .. }
+            | EquipmentEvent::CameraCoolingReached { device_id, .. }
+            | EquipmentEvent::CameraWarmingStarted { device_id }
+            | EquipmentEvent::CameraWarmingCompleted { device_id }
+            | EquipmentEvent::CameraTemperatureChanged { device_id, .. }
+            | EquipmentEvent::CameraSettingsChanged { device_id, .. }
+            | EquipmentEvent::HeartbeatStarted { device_id, .. }
+            | EquipmentEvent::HeartbeatStopped { device_id, .. }
+            | EquipmentEvent::HeartbeatStatusChanged { device_id, .. }
+            | EquipmentEvent::HeartbeatReconnecting { device_id, .. }
+            | EquipmentEvent::HeartbeatReconnected { device_id, .. } => device_id,
+            EquipmentEvent::DeviceDiscovered { id, .. } | EquipmentEvent::DeviceLost { id, .. } => {
+                id
+            }
+        }
+    }
 }

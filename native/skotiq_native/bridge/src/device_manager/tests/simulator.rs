@@ -1,8 +1,9 @@
 use super::*;
+use crate::device::{CoverState, DriverType, ShutterState};
 
 #[tokio::test]
 async fn connect_simulator_marks_singleton_connected() {
-    use crate::api::devices::simulation::get_sim_focuser;
+    use crate::simulator::focuser::get_sim_focuser;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
@@ -45,7 +46,7 @@ async fn connect_simulator_marks_singleton_connected() {
         err
     );
 
-    // Unsupported device type (no simulation.rs singleton) must error.
+    // Unsupported device type (no simulator singleton) must error.
     // Guider is the remaining one; switch and cover calibrator now have
     // simulators and are covered by their own test below.
     let guider = build_sim_info("sim_guider_1", DeviceType::Guider);
@@ -66,7 +67,7 @@ async fn connect_simulator_marks_singleton_connected() {
 
 #[tokio::test]
 async fn observatory_accessory_simulators_support_status_and_safe_controls() {
-    use crate::api::devices::simulation::{get_sim_dome, get_sim_safety_monitor, get_sim_weather};
+    use crate::simulator::environment::{get_sim_dome, get_sim_safety_monitor, get_sim_weather};
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
@@ -155,7 +156,7 @@ async fn observatory_accessory_simulators_support_status_and_safe_controls() {
 
 #[tokio::test]
 async fn disconnect_simulator_marks_singleton_disconnected() {
-    use crate::api::devices::simulation::get_sim_filterwheel;
+    use crate::simulator::filter_wheel::get_sim_filterwheel;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
@@ -198,7 +199,7 @@ async fn disconnect_simulator_marks_singleton_disconnected() {
 
 #[tokio::test]
 async fn heartbeat_reflects_simulator_singleton_state() {
-    use crate::api::devices::simulation::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
@@ -417,13 +418,13 @@ async fn indi_health_check_reissues_device_connect_after_server_recovery() {
 // disconnect → read cycle for a read-side and a write-side shape, plus one
 // device type with no singleton (switch).
 //
-// The simulation.rs singletons are process-wide, so these tests hold
+// The simulator singletons are process-wide, so these tests hold
 // `simulator_singleton_test_lock` while they run and reset singleton state
 // before returning.
 
 #[tokio::test]
 async fn camera_ops_simulator_gates_on_singleton_connected() {
-    use crate::api::devices::simulation::get_sim_camera;
+    use crate::simulator::camera::get_sim_camera;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = Arc::new(build_device_manager());
@@ -492,7 +493,7 @@ async fn camera_ops_simulator_gates_on_singleton_connected() {
 
 #[tokio::test]
 async fn focuser_ops_simulator_gates_on_singleton_connected() {
-    use crate::api::devices::simulation::get_sim_focuser;
+    use crate::simulator::focuser::get_sim_focuser;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = Arc::new(build_device_manager());
@@ -557,8 +558,8 @@ async fn switch_and_cover_simulators_answer_only_while_connected() {
     let _guard = simulator_singleton_test_lock().lock().await;
     // The singletons are process-global; start from the power-on state so
     // an earlier test's open cover cannot masquerade as this one's.
-    crate::api::devices::simulation::reset_sim_cover_calibrator().await;
-    crate::api::devices::simulation::reset_sim_switch().await;
+    crate::simulator::cover_calibrator::reset_sim_cover_calibrator().await;
+    crate::simulator::switch::reset_sim_switch().await;
     let manager = Arc::new(build_device_manager());
 
     let switch_info = build_sim_info("sim_switch_1", DeviceType::Switch);
