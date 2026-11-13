@@ -1,15 +1,24 @@
 //! Full driver sessions against the software-only fake vendor SDKs, recorded as text.
 //!
-//! Each `#[ignore]` test drives every device one fake SDK exposes through a whole
-//! session (discover, connect, settings, cooler, status, exposures with download,
-//! abort, disconnect) and writes every answer to `$CAMERA_SESSION_OUT`: for a
-//! downloaded frame the dimensions, bit depth, Bayer pattern, a hash of the pixels
-//! and the whole metadata (timestamp zeroed). Nothing is asserted: the record is
-//! compared before and after a driver change, together with the SDK call trace
-//! the instrumented fakes write. `tests/fake_sdk_linux/run_sessions.sh` builds
-//! the fakes, runs one vendor per process and explains the comparison.
+//! Each `session_*` test drives every device one fake SDK exposes through a
+//! whole session (discover, connect, settings, cooler, status, exposures with
+//! download, abort, disconnect) and writes every answer to
+//! `$CAMERA_SESSION_OUT`: for a downloaded frame the dimensions, bit depth,
+//! Bayer pattern, a hash of the pixels and the whole metadata (timestamp
+//! zeroed). Nothing is asserted there.
+//!
+//! `camera_sessions_match_their_records` runs each vendor's session in a child
+//! process against that vendor's traced fakes and compares what the driver
+//! answered and the SDK calls it made with `tests/sessions/<vendor>.session`
+//! and `.trace`. A driver change that keeps what the camera is told and what
+//! the app is told back passes; any other change shows as the first differing
+//! lines. Record new expectations, after checking each difference is meant,
+//! with `SKOTIQ_RECORD_SESSIONS=1 cargo test -p skotiq_native --test camera_session`.
 
-#![cfg(unix)]
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{CameraDriver, DriverError, FilterWheelDriver, FocuserDriver};
 use skotiq_device::{CameraStatus, ExposureParams, FrameType, ImageData, SubFrame};
@@ -303,8 +312,92 @@ async fn wheel_session<W: FilterWheelDriver>(record: &mut Record, label: &str, w
     record.result(&l("get_position disconnected"), wheel.get_position().await);
 }
 
+/// Consecutive repeats of one SDK call collapse to one line: how often a
+/// status is polled depends on the machine.
+fn collapse_repeats(trace: &str) -> String {
+    let mut out = String::new();
+    let mut last = None;
+    for line in trace.lines() {
+        if last != Some(line) {
+            out.push_str(line);
+            out.push('\n');
+            last = Some(line);
+        }
+    }
+    out
+}
+
+/// The first lines where `actual` and `expected` part, for the failure text.
+fn first_difference(expected: &str, actual: &str) -> String {
+    let expected: Vec<&str> = expected.lines().collect();
+    let actual: Vec<&str> = actual.lines().collect();
+    let at = expected
+        .iter()
+        .zip(&actual)
+        .position(|(e, a)| e != a)
+        .unwrap_or(expected.len().min(actual.len()));
+    let show = |lines: &[&str]| {
+        lines
+            .iter()
+            .skip(at)
+            .take(4)
+            .map(|l| l.to_string())
+            .collect::<Vec<_>>()
+    };
+    format!(
+        "line {}: expected {:?}, got {:?} ({} vs {} lines)",
+        at + 1,
+        show(&expected),
+        show(&actual),
+        expected.len(),
+        actual.len()
+    )
+}
+
+#[test]
+fn camera_sessions_match_their_records() {
+    let records = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/sessions");
+    let record = std::env::var_os("SKOTIQ_RECORD_SESSIONS").is_some();
+    let mut differences = Vec::new();
+    for (vendor, libraries) in harness::CAMERA_FAKES {
+        let fake = harness::FakeSdk::build_traced(vendor, libraries);
+        let trace_file = fake.dir().join("sdk.trace");
+        fake.run_one(
+            &format!("session_{vendor}"),
+            &[
+                ("CAMERA_SESSION_OUT", fake.dir().to_str().unwrap()),
+                ("FAKE_SDK_TRACE", trace_file.to_str().unwrap()),
+            ],
+        );
+        let answers = std::fs::read_to_string(fake.dir().join(format!("{vendor}.session")))
+            .expect("the session record");
+        let calls = collapse_repeats(&std::fs::read_to_string(&trace_file).unwrap_or_default());
+        for (actual, kind) in [(answers, "session"), (calls, "trace")] {
+            let path = records.join(format!("{vendor}.{kind}"));
+            if record {
+                std::fs::create_dir_all(&records).expect("create tests/sessions");
+                std::fs::write(&path, &actual).expect("write the record");
+                continue;
+            }
+            let expected = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+            if expected != actual {
+                differences.push(format!(
+                    "{vendor}.{kind}: {}",
+                    first_difference(&expected, &actual)
+                ));
+            }
+        }
+    }
+    assert!(
+        differences.is_empty(),
+        "camera sessions differ from tests/sessions:\n{}",
+        differences.join("\n")
+    );
+}
+
 #[tokio::test]
-#[ignore = "needs the fake SDKs on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_sessions.sh"]
+#[ignore = "run by camera_sessions_match_their_records"]
 async fn session_zwo() {
     let mut record = Record(String::new());
     let cameras = zwo::discover_devices().await;
@@ -343,7 +436,7 @@ async fn session_zwo() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake SDKs on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_sessions.sh"]
+#[ignore = "run by camera_sessions_match_their_records"]
 async fn session_atik() {
     let mut record = Record(String::new());
     let cameras = atik::discover_devices().await;
@@ -374,7 +467,7 @@ async fn session_atik() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake SDKs on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_sessions.sh"]
+#[ignore = "run by camera_sessions_match_their_records"]
 async fn session_svbony() {
     let mut record = Record(String::new());
     let cameras = svbony::discover_devices().await;
@@ -393,7 +486,7 @@ async fn session_svbony() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake SDKs on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_sessions.sh"]
+#[ignore = "run by camera_sessions_match_their_records"]
 async fn session_player_one() {
     let mut record = Record(String::new());
     let cameras = player_one::discover_devices().await;
@@ -429,7 +522,7 @@ async fn session_player_one() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake SDKs on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_sessions.sh"]
+#[ignore = "run by camera_sessions_match_their_records"]
 async fn session_qhy() {
     let mut record = Record(String::new());
     let cameras = qhy::discover_devices().await;
@@ -460,7 +553,7 @@ async fn session_qhy() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake SDKs on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_sessions.sh"]
+#[ignore = "run by camera_sessions_match_their_records"]
 async fn session_touptek() {
     let mut record = Record(String::new());
     let cameras = touptek::discover_devices_for_brand("OGMA").await;
@@ -482,7 +575,7 @@ async fn session_touptek() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake SDKs on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_sessions.sh"]
+#[ignore = "run by camera_sessions_match_their_records"]
 async fn session_fli() {
     let mut record = Record(String::new());
     let cameras = fli::discover_cameras().await;
@@ -516,7 +609,7 @@ async fn session_fli() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake SDKs on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_sessions.sh"]
+#[ignore = "run by camera_sessions_match_their_records"]
 async fn session_moravian() {
     let mut record = Record(String::new());
     let cameras = moravian::discover_devices().await;

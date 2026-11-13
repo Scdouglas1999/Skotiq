@@ -1,0 +1,61 @@
+atik.discover_devices = Ok(1)
+atik.camera0.name before connect = Atik Camera 0
+atik.camera0.connect = Ok(())
+atik.camera0.is_connected = true
+atik.camera0.name = Fake Horizon II
+atik.camera0.vendor = Atik
+atik.camera0.serial_number = Some("ATIK-FAKE-0001")
+atik.camera0.capabilities = CameraCapabilities { can_cool: true, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: true, has_guider_port: true, max_bin_x: 4, max_bin_y: 4, supports_readout_modes: false }
+atik.camera0.get_sensor_info = SensorInfo { width: 32, height: 24, pixel_size_x: 3.799999952316284, pixel_size_y: 3.799999952316284, max_adu: 65535, bit_depth: 16, color: true, bayer_pattern: Some(Rggb), saturation_adu: None }
+atik.camera0.get_gain_range = Err(NotSupported)
+atik.camera0.get_offset_range = Err(NotSupported)
+atik.camera0.get_exposure_range = Ok(None)
+atik.camera0.get_cooler_temp_range = Ok(None)
+atik.camera0.get_recommended_settings = Ok(CameraRecommendedSettings { unity_gain: None, hcg_gain: None, default_offset: None, recommended_cooling_setpoint_c: None, notes: "" })
+atik.camera0.get_readout_modes = Ok([ReadoutMode { name: "Normal", description: "Standard readout mode", index: 0, gain_min: None, gain_max: None, offset_min: None, offset_max: None }])
+atik.camera0.get_vendor_features = Ok(VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} })
+atik.camera0.get_status initial = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.5), cooler_power: Some(35.0), target_temp: Some(-10.0), cooler_on: Some(false), gain: 0, offset: 0, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+atik.camera0.set_gain(42) = Ok(())
+atik.camera0.get_gain = Ok(42)
+atik.camera0.set_offset(8) = Ok(())
+atik.camera0.get_offset = Ok(8)
+atik.camera0.set_binning(2,2) = Ok(())
+atik.camera0.get_binning = Ok((2, 2))
+atik.camera0.set_subframe(8,4,16,8) = Err(InvalidParameter("Atik subframe Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }) at bin 2x2 does not fit the 32x24 sensor"))
+atik.camera0.set_subframe(None) = Ok(())
+atik.camera0.set_cooler(on,-12.5) = Ok(())
+atik.camera0.get_status cooling = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.5), cooler_power: Some(35.0), target_temp: Some(-12.5), cooler_on: Some(true), gain: 42, offset: 8, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
+atik.camera0.get_temperature = Ok(-9.5)
+atik.camera0.get_cooler_power = Ok(35.0)
+atik.camera0.start_exposure light bin2 = Ok(())
+atik.camera0.exposure complete = Ok(true)
+atik.camera0.download light bin2 = Ok 16x12 pixels=192 fnv1a=8fa2246983ece8e5 bits_per_pixel=16 bayer=Some(Rggb) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(-9.5), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+atik.camera0.get_status after download = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.5), cooler_power: Some(35.0), target_temp: Some(-12.5), cooler_on: Some(true), gain: 55, offset: 9, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
+atik.camera0.start_exposure dark bin1 subframe = Ok(())
+atik.camera0.exposure complete = Ok(true)
+atik.camera0.download dark subframe = Ok 16x12 pixels=192 fnv1a=8fa2246983ece8e5 bits_per_pixel=16 bayer=Some(Rggb) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-9.5), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+atik.camera0.start_exposure invalid bin = Err(InvalidParameter("Binning 99x99 is outside 1x1 to 4x4"))
+atik.camera0.start_exposure long = Ok(())
+atik.camera0.get_status exposing = Ok(CameraStatus { state: Exposing, sensor_temp: Some(-9.5), cooler_power: Some(35.0), target_temp: Some(-12.5), cooler_on: Some(true), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=true
+atik.camera0.abort_exposure = Ok(())
+atik.camera0.get_status aborted = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.5), cooler_power: Some(35.0), target_temp: Some(-12.5), cooler_on: Some(true), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+atik.camera0.set_cooler(off) = Ok(())
+atik.camera0.get_status cooler off = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.5), cooler_power: Some(35.0), target_temp: Some(-12.5), cooler_on: Some(false), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+atik.camera0.disconnect = Ok(())
+atik.camera0.is_connected = false
+atik.camera0.get_status disconnected = Err(NotConnected)
+atik.discover_filter_wheels = Ok(1)
+atik.efw.connect = Ok(())
+atik.efw.name = Atik EFW2/EFW3
+atik.efw.serial_number = Some("ATIK-EFW-FAKE-0001")
+atik.efw.get_filter_count = 7
+atik.efw.get_filter_names = Ok(["Filter 1", "Filter 2", "Filter 3", "Filter 4", "Filter 5", "Filter 6", "Filter 7"])
+atik.efw.get_position = Ok(0)
+atik.efw.move_to_position(2) = Ok(())
+atik.efw.is_moving = Ok(false)
+atik.efw.get_position = Ok(2)
+atik.efw.move_to_position(99) = Err(InvalidParameter("Atik EFW position 99 outside valid range 0-6"))
+atik.efw.set_filter_name(1) = Ok(())
+atik.efw.get_filter_names = Ok(["Filter 1", "Filter 2", "Filter 3", "Filter 4", "Filter 5", "Filter 6", "Filter 7"])
+atik.efw.disconnect = Ok(())
+atik.efw.get_position disconnected = Err(NotConnected)

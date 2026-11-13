@@ -1325,8 +1325,14 @@ impl MountDriver for IOptronMount {
             .is_some_and(|session| session.alt_az)
     }
 
-    async fn can_set_tracking_rate(&self) -> bool {
-        true
+    /// `:RT4#`, the stored custom rate, is not offered: nothing sets it.
+    async fn tracking_rates(&self) -> Vec<TrackingRate> {
+        vec![
+            TrackingRate::Sidereal,
+            TrackingRate::Lunar,
+            TrackingRate::Solar,
+            TrackingRate::King,
+        ]
     }
 
     async fn can_find_home(&self) -> Result<bool, DriverError> {

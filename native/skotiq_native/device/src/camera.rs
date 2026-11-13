@@ -21,6 +21,31 @@ pub struct CameraCapabilities {
     pub supports_readout_modes: bool,
 }
 
+/// What a connected camera can do and how its sensor is built: what holds
+/// for the connection, as opposed to its state now.
+#[derive(Debug, Clone, Default)]
+pub struct CameraDescription {
+    pub capabilities: CameraCapabilities,
+    pub sensor: SensorInfo,
+    pub gain_range: Option<(i32, i32)>,
+    pub offset_range: Option<(i32, i32)>,
+    /// See [`crate::CameraDriver::get_iso_speeds`].
+    pub iso_speeds: Vec<i32>,
+    pub readout_modes: Vec<ReadoutMode>,
+    /// The cooler set-points the camera can hold, in degrees Celsius.
+    pub cooler_temp_range: Option<(f64, f64)>,
+    /// Shortest and longest exposure, in seconds.
+    pub exposure_range: Option<(f64, f64)>,
+    /// Whether an exposure under way can be thrown away.
+    pub can_abort_exposure: bool,
+    /// Whether an exposure under way can be ended early and still read.
+    pub can_stop_exposure: bool,
+    /// Whether the two axes can be binned by different factors.
+    pub can_asymmetric_bin: bool,
+    /// The protocol's own name for the sensor, when it has one.
+    pub sensor_type: Option<String>,
+}
+
 /// Where a camera's long exposure noise reduction stands after connect.
 ///
 /// With it on, a DSLR or mirrorless body shoots a dark frame of the same

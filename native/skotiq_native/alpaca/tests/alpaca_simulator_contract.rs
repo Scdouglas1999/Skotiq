@@ -20,7 +20,13 @@
 //!   malformed PUT — again surfacing the bad payload via the test
 //!   assertion rather than silently succeeding.
 use serde_json::{json, Value};
-use skotiq_alpaca::{AlpacaCamera, AlpacaFilterWheel, AlpacaTelescope, CameraState, DriveRate};
+use skotiq_alpaca::AlpacaCameraDriver;
+use skotiq_alpaca::{
+    AlpacaCamera, AlpacaFilterWheel, AlpacaMount, AlpacaTelescope, CameraState, DriveRate,
+};
+use skotiq_device::{
+    BayerPattern, CameraDriver, ExposureParams, FrameType, MountDriver, TrackingRate,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -31,6 +37,7 @@ struct SimState {
     requests: Arc<Mutex<Vec<String>>>,
     camera_connected: Arc<Mutex<bool>>,
     telescope_tracking: Arc<Mutex<bool>>,
+    telescope_rate: Arc<Mutex<i32>>,
     filter_position: Arc<Mutex<i32>>,
 }
 
@@ -40,6 +47,7 @@ impl SimState {
             requests: Arc::new(Mutex::new(Vec::new())),
             camera_connected: Arc::new(Mutex::new(false)),
             telescope_tracking: Arc::new(Mutex::new(true)),
+            telescope_rate: Arc::new(Mutex::new(DriveRate::Sidereal as i32)),
             filter_position: Arc::new(Mutex::new(0)),
         }
     }
@@ -176,6 +184,18 @@ async fn handle_connection(mut stream: TcpStream, state: SimState) -> std::io::R
         ("GET", "camera", "ccdtemperature") => json!(-10.5),
         ("GET", "camera", "cooleron") => json!(true),
         ("GET", "camera", "coolerpower") => json!(42.0),
+        ("GET", "camera", "cameraxsize") => json!(2),
+        ("GET", "camera", "cameraysize") => json!(2),
+        ("GET", "camera", "maxadu") => json!(4095),
+        ("GET", "camera", "pixelsizex") => json!(3.76),
+        ("GET", "camera", "pixelsizey") => json!(3.76),
+        // An RGGB-family sensor whose red is at (1, 1): BGGR.
+        ("GET", "camera", "sensortype") => json!(2),
+        ("GET", "camera", "bayeroffsetx") => json!(1),
+        ("GET", "camera", "bayeroffsety") => json!(1),
+        ("GET", "camera", "readoutmodes") => json!(["Normal", "Fast"]),
+        ("GET", "camera", "readoutmode") => json!(1),
+        ("PUT", "camera", "binx" | "biny" | "startx" | "starty" | "numx" | "numy") => Value::Null,
         ("GET", "camera", "imagearray") => {
             json!({"Type": 8, "Rank": 2, "Value": [[10, 20], [30, 40]]})
         }
@@ -198,7 +218,14 @@ async fn handle_connection(mut stream: TcpStream, state: SimState) -> std::io::R
         ("GET", "telescope", "azimuth") => json!(180.0),
         ("GET", "telescope", "slewing") => json!(false),
         ("GET", "telescope", "tracking") => json!(*state.telescope_tracking.lock().unwrap()),
-        ("GET", "telescope", "trackingrate") => json!(DriveRate::Sidereal as i32),
+        ("GET", "telescope", "trackingrate") => json!(*state.telescope_rate.lock().unwrap()),
+        ("GET", "telescope", "trackingrates") => json!([0, 1, 2]),
+        ("PUT", "telescope", "trackingrate") => {
+            if let Some(rate) = form.get("TrackingRate").and_then(|v| v.parse().ok()) {
+                *state.telescope_rate.lock().unwrap() = rate;
+            }
+            Value::Null
+        }
         ("GET", "telescope", "athome") => json!(false),
         ("GET", "telescope", "atpark") => json!(false),
         ("GET", "telescope", "sideofpier") => json!(0),
@@ -341,4 +368,72 @@ async fn alpaca_simulator_fault_contract_surfaces_device_and_payload_errors() {
         image_err.contains("JSON") || image_err.contains("parse") || image_err.contains("EOF"),
         "unexpected malformed image error: {image_err}"
     );
+}
+
+/// A mount that lists its drive rates offers them, takes any of them, and
+/// reads back the one it took.
+#[tokio::test]
+async fn an_alpaca_mount_takes_a_drive_rate_it_lists() {
+    let (base_url, state) = start_simulator().await;
+    let mut mount = AlpacaMount::new(AlpacaTelescope::from_server(&base_url, 0));
+    let listed = [
+        TrackingRate::Sidereal,
+        TrackingRate::Lunar,
+        TrackingRate::Solar,
+    ];
+    assert_eq!(mount.tracking_rates().await, listed);
+    assert_eq!(mount.describe().await.tracking_rates, listed);
+
+    mount
+        .set_tracking_rate(TrackingRate::Lunar)
+        .await
+        .expect("lunar");
+    assert_eq!(
+        mount.get_tracking_rate().await.unwrap(),
+        TrackingRate::Lunar
+    );
+    assert!(state.requests.lock().unwrap().iter().any(|request| request
+        .starts_with("PUT /api/v1/telescope/0/trackingrate")
+        && request.contains("TrackingRate=1")));
+    let status = mount.status().await.expect("status");
+    assert!(status.can_set_tracking_rate);
+    assert_eq!(status.tracking_rate.unwrap(), TrackingRate::Lunar);
+}
+
+/// The sensor a camera describes carries its colour, Bayer order and full
+/// scale, and a frame from a camera that does not report
+/// `LastExposureDuration` records the time it was started with and the read
+/// mode in force.
+#[tokio::test]
+async fn an_alpaca_camera_reports_its_sensor_and_what_each_frame_was_taken_with() {
+    let (base_url, _state) = start_simulator().await;
+    let camera = AlpacaCamera::from_server(&base_url, 0);
+    camera.connect().await.unwrap();
+    let mut driver = AlpacaCameraDriver::new(camera);
+
+    let sensor = driver.report().await.expect("report").sensor;
+    assert!(sensor.color);
+    assert_eq!(sensor.bayer_pattern, Some(BayerPattern::Bggr));
+    assert_eq!((sensor.max_adu, sensor.bit_depth), (4095, 16));
+    assert_eq!(
+        driver.describe().await.sensor.bayer_pattern,
+        Some(BayerPattern::Bggr)
+    );
+
+    driver
+        .start_exposure(ExposureParams {
+            duration_secs: 2.5,
+            gain: None,
+            offset: None,
+            bin_x: 1,
+            bin_y: 1,
+            subframe: None,
+            readout_mode: None,
+            frame_type: FrameType::Light,
+        })
+        .await
+        .expect("exposure");
+    let frame = driver.download_image().await.expect("frame");
+    assert_eq!(frame.metadata.exposure_time, 2.5);
+    assert_eq!(frame.metadata.readout_mode.as_deref(), Some("Fast"));
 }

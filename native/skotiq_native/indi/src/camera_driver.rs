@@ -5,12 +5,12 @@
 
 use crate::frame::decode_frame;
 use crate::protocol::names::*;
-use crate::{CcdFrameType, IndiCamera, IndiError, IndiPropertyType};
+use crate::{CcdFrameType, IndiCamera, IndiClient, IndiError, IndiPropertyType};
 use async_trait::async_trait;
 use skotiq_device::{
-    CameraCapabilities, CameraDriver, CameraReport, CameraState, CameraStatus, DeviceDriver,
-    DriverError, ExposureParams, FrameType, ImageData, ImageMetadata, ReadoutMode, SensorInfo,
-    SubFrame, Vendor, VendorFeatures, UNKNOWN_CAMERA_SETTING,
+    BayerPattern, CameraCapabilities, CameraDescription, CameraDriver, CameraReport, CameraState,
+    CameraStatus, DeviceDriver, DriverError, ExposureParams, FrameType, ImageData, ImageMetadata,
+    ReadoutMode, SensorInfo, SubFrame, Vendor, VendorFeatures, UNKNOWN_CAMERA_SETTING,
 };
 
 impl std::fmt::Debug for IndiCamera {
@@ -37,7 +37,94 @@ fn failed(what: &str, error: IndiError) -> DriverError {
     }
 }
 
+/// Whether the word a driver puts in `CCD_SENSOR_TYPE` names a colour sensor.
+fn names_a_colour_sensor(sensor_type: &str) -> bool {
+    let word = sensor_type.to_ascii_lowercase();
+    ["color", "colour", "bayer", "cfa", "rgb", "osc"]
+        .iter()
+        .any(|colour| word.contains(colour))
+}
+
+/// A read mode is named by its label, or by its element when the driver
+/// gives it no label.
+fn mode_name(mode: crate::IndiReadoutMode) -> String {
+    if mode.label.is_empty() {
+        mode.element
+    } else {
+        mode.label
+    }
+}
+
 impl IndiCamera {
+    /// The sensor from `CCD_INFO`, which every CCD driver defines, and its
+    /// colour from `CCD_CFA` and `CCD_SENSOR_TYPE`, which a mono one omits.
+    async fn sensor(&self, client: &IndiClient) -> Result<SensorInfo, DriverError> {
+        let device = self.device_name();
+        let info = |element: &'static str, what: &'static str| async move {
+            client
+                .get_number(device, CCD_INFO, element)
+                .await
+                .ok_or_else(|| self.missing(&format!("CCD_INFO.{element}"), what))
+        };
+        // Why: INDI numbers are f64 on the wire; these are whole pixel
+        // counts and bit depths.
+        let width = info(CCD_MAX_X, "sensor width").await? as u32;
+        let height = info(CCD_MAX_Y, "sensor height").await? as u32;
+        let pixel_size_x = info(CCD_PIXEL_SIZE_X, "pixel size").await?;
+        let pixel_size_y = info(CCD_PIXEL_SIZE_Y, "pixel size").await?;
+        let bit_depth = info(CCD_BITSPERPIXEL, "ADU scaling").await? as u32;
+        if bit_depth == 0 {
+            return Err(DriverError::Backend(
+                format!("INDI camera {device} reported invalid CCD_INFO.CCD_BITSPERPIXEL=0.")
+                    .into(),
+            ));
+        }
+        let max_adu = match client
+            .get_number(device, CCD_MAX_PIXEL_VALUE, CCD_MAX_PIXEL_VALUE)
+            .await
+        {
+            Some(value) => Some(value),
+            None => client.get_number(device, CCD_INFO, CCD_MAX_PIXEL).await,
+        };
+        let max_adu = match max_adu {
+            Some(value) => value.max(0.0) as u32,
+            None if bit_depth >= 32 => u32::MAX,
+            None => (1u32 << bit_depth) - 1,
+        };
+        let cfa = client.get_property_value(device, CCD_CFA, CFA_TYPE).await;
+        let colour_word = self
+            .sensor_type(client)
+            .await
+            .is_some_and(|word| names_a_colour_sensor(&word));
+        Ok(SensorInfo {
+            width,
+            height,
+            pixel_size_x,
+            pixel_size_y,
+            max_adu,
+            bit_depth,
+            color: cfa.is_some() || colour_word,
+            bayer_pattern: cfa.as_deref().and_then(BayerPattern::from_fits_name),
+            saturation_adu: None,
+        })
+    }
+
+    /// The element that is On in `CCD_SENSOR_TYPE`.
+    async fn sensor_type(&self, client: &IndiClient) -> Option<String> {
+        let device = self.device_name();
+        let prop = client.get_property(device, CCD_SENSOR_TYPE).await?;
+        for element in prop.elements {
+            if client
+                .get_switch(device, CCD_SENSOR_TYPE, &element)
+                .await
+                .unwrap_or(false)
+            {
+                return Some(element);
+            }
+        }
+        None
+    }
+
     fn missing(&self, element: &str, what: &str) -> DriverError {
         DriverError::Backend(
             format!(
@@ -91,7 +178,7 @@ impl DeviceDriver for IndiCamera {
 
 #[async_trait]
 impl CameraDriver for IndiCamera {
-    /// Not known without the server's property cache; see `report`.
+    /// Not kept; see `describe`.
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities::default()
     }
@@ -122,27 +209,7 @@ impl CameraDriver for IndiCamera {
             return Err(self.missing("CCD_EXPOSURE.CCD_EXPOSURE_VALUE", "camera state"));
         }
         let exposing = client.is_property_busy(device, CCD_EXPOSURE).await;
-        let info = |element: &'static str, what: &'static str| {
-            let client = &client;
-            async move {
-                client
-                    .get_number(device, CCD_INFO, element)
-                    .await
-                    .ok_or_else(|| self.missing(&format!("CCD_INFO.{element}"), what))
-            }
-        };
-        // Why: INDI numbers are f64 on the wire; these are whole pixel
-        // counts and bit depths.
-        let width = info(CCD_MAX_X, "sensor width").await? as u32;
-        let height = info(CCD_MAX_Y, "sensor height").await? as u32;
-        let pixel_size_x = info(CCD_PIXEL_SIZE_X, "pixel size").await?;
-        let pixel_size_y = info(CCD_PIXEL_SIZE_Y, "pixel size").await?;
-        let bit_depth = info(CCD_BITSPERPIXEL, "ADU scaling").await? as u32;
-        if bit_depth == 0 {
-            return Err(DriverError::Backend(
-                format!("INDI camera {device} reported invalid CCD_INFO.CCD_BITSPERPIXEL=0.").into(),
-            ));
-        }
+        let sensor = self.sensor(&client).await?;
         let gain = match client.get_number(device, CCD_GAIN, GAIN).await {
             Some(value) => Some(value),
             None => client.get_number(device, CCD_CONTROLS, CONTROLS_GAIN).await,
@@ -151,18 +218,6 @@ impl CameraDriver for IndiCamera {
         let cooler_power = client
             .get_number(device, CCD_COOLER_POWER, CCD_COOLER_VALUE)
             .await;
-        let max_adu = match client
-            .get_number(device, CCD_MAX_PIXEL_VALUE, CCD_MAX_PIXEL_VALUE)
-            .await
-        {
-            Some(value) => Some(value),
-            None => client.get_number(device, CCD_INFO, CCD_MAX_PIXEL).await,
-        };
-        let max_adu = match max_adu {
-            Some(value) => value.max(0.0) as u32,
-            None if bit_depth >= 32 => u32::MAX,
-            None => (1u32 << bit_depth) - 1,
-        };
         Ok(CameraReport {
             status: CameraStatus {
                 state: if exposing {
@@ -180,15 +235,7 @@ impl CameraDriver for IndiCamera {
                 bin_y: bin_y as i32,
                 exposure_remaining: None,
             },
-            sensor: SensorInfo {
-                width,
-                height,
-                pixel_size_x,
-                pixel_size_y,
-                max_adu,
-                bit_depth,
-                ..SensorInfo::default()
-            },
+            sensor,
             can_cool: cooler_on.is_some(),
             can_set_gain: gain.is_some(),
             can_set_offset: offset.is_some(),
@@ -197,6 +244,56 @@ impl CameraDriver for IndiCamera {
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         Ok(self.report().await?.status)
+    }
+
+    /// From the properties the driver defines. The set-point range is the
+    /// `CCD_TEMPERATURE` limits the driver also clamps a set-point to.
+    async fn describe(&self) -> CameraDescription {
+        let device = self.device_name();
+        let properties = crate::kind::defined_properties(self.client(), device).await;
+        let defines = |name: &str| properties.iter().any(|p| p.name == name);
+        let max_bin_x = self.try_get_max_bin_x().await.ok().flatten().unwrap_or(0);
+        let max_bin_y = self.try_get_max_bin_y().await.ok().flatten().unwrap_or(0);
+        let readout_modes = CameraDriver::get_readout_modes(self)
+            .await
+            .unwrap_or_default();
+        let gain_range = IndiCamera::get_gain_range(self).await;
+        let client = self.client().read().await;
+        let sensor = self.sensor(&client).await.unwrap_or_else(|e| {
+            tracing::warn!("INDI camera {device} did not describe its sensor: {e}");
+            SensorInfo::default()
+        });
+        let sensor_type = self.sensor_type(&client).await;
+        let cooler_temp_range = client
+            .get_number_limits(device, CCD_TEMPERATURE, CCD_TEMPERATURE_VALUE)
+            .await
+            .and_then(|limits| Some((limits.min?, limits.max?)));
+        drop(client);
+        CameraDescription {
+            capabilities: CameraCapabilities {
+                can_cool: defines(CCD_COOLER) || defines(CCD_TEMPERATURE),
+                can_set_gain: defines(CCD_GAIN) || defines(CCD_CONTROLS),
+                can_set_offset: defines(CCD_OFFSET),
+                can_set_binning: defines(CCD_BINNING),
+                can_subframe: defines(CCD_FRAME),
+                has_shutter: false,
+                has_guider_port: false,
+                max_bin_x,
+                max_bin_y,
+                supports_readout_modes: !readout_modes.is_empty(),
+            },
+            sensor,
+            gain_range,
+            offset_range: None,
+            iso_speeds: Vec::new(),
+            readout_modes,
+            cooler_temp_range,
+            exposure_range: None,
+            can_abort_exposure: defines(CCD_ABORT_EXPOSURE),
+            can_stop_exposure: false,
+            can_asymmetric_bin: max_bin_x != max_bin_y,
+            sensor_type,
+        }
     }
 
     /// Gain and offset are written when asked for; a camera without them, or
@@ -467,7 +564,7 @@ impl CameraDriver for IndiCamera {
         }
     }
 
-    /// Not known without the server's property cache; see `report`.
+    /// Not kept; see `describe` and `report`.
     fn get_sensor_info(&self) -> SensorInfo {
         SensorInfo::default()
     }
@@ -478,7 +575,7 @@ impl CameraDriver for IndiCamera {
             .into_iter()
             .enumerate()
             .map(|(index, mode)| ReadoutMode {
-                name: mode.label,
+                name: mode_name(mode),
                 description: String::new(),
                 // Why: a camera has a handful of readout modes.
                 index: index as i32,
@@ -537,5 +634,29 @@ impl CameraDriver for IndiCamera {
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         Err(DriverError::NotSupported)
+    }
+}
+
+#[cfg(test)]
+mod description_tests {
+    use super::*;
+
+    #[test]
+    fn a_sensor_type_names_colour_only_in_colour_words() {
+        assert!(names_a_colour_sensor("COLOR"));
+        assert!(names_a_colour_sensor("Bayer RGGB"));
+        assert!(names_a_colour_sensor("OSC"));
+        assert!(!names_a_colour_sensor("MONOCHROME"));
+        assert!(!names_a_colour_sensor("CCD_SENSOR_MONO"));
+    }
+
+    #[test]
+    fn a_read_mode_without_a_label_is_named_by_its_element() {
+        let mode = |element: &str, label: &str| crate::IndiReadoutMode {
+            element: element.to_string(),
+            label: label.to_string(),
+        };
+        assert_eq!(mode_name(mode("MODE_0", "High Gain")), "High Gain");
+        assert_eq!(mode_name(mode("MODE_1", "")), "MODE_1");
     }
 }
