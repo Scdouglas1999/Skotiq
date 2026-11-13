@@ -63,21 +63,15 @@ void main() {
       expect(restored.action, TriggerActionType.autofocus);
     });
 
-    test('fromNativeJson tolerates legacy payloads with only ra_px', () {
-      // Older saved sequences may only contain ra_px; we must not blow up
-      // and we must fall back to the documented default for the missing
-      // axis. Errors-are-a-feature applies for *unknown* shapes, but a
-      // missing axis is a documented backward-compat path.
+    test('a drift trigger missing an axis is not read', () {
       final restored = ExposureTriggerConfig.fromNativeJson({
         'condition': {
           'DriftAbove': {'ra_px': 5.0},
         },
         'action': 'PauseAndRecalibrate',
         'debounce_secs': 10.0,
-      })!;
-      expect(restored.driftRaPx, 5.0);
-      // Dec falls back to the per-axis default (3.0 px).
-      expect(restored.driftDecPx, 3.0);
+      });
+      expect(restored, isNull);
     });
 
     test('guiding RMS and HFR still serialize as scalar thresholds', () {

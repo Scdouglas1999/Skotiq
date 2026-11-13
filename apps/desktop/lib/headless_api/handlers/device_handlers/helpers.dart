@@ -10,10 +10,8 @@ FrameType _parseFrameType(String type) =>
     FrameType.fromRecord(type) ??
     (throw BadRequestError(
       field: 'frameType',
-      expected: 'one of: light, dark, flat, bias, darkFlat, snapshot',
-      message:
-          'Unknown frame type "$type"; expected one of '
-          'light, dark, flat, bias, darkFlat, snapshot',
+      expected: 'one of: ${FrameType.values.map((t) => t.record).join(', ')}',
+      message: 'Unknown frame type "$type"',
     ));
 
 /// Internal sentinel raised by `_dispatchConnect` when the requested

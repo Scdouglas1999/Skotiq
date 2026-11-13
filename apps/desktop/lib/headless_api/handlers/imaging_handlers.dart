@@ -501,7 +501,7 @@ class ImagingHandlers implements RouteSource {
           .cameraGetLastImage(deviceId);
       if (result == null) return;
       final frameType =
-          FrameType.fromRecord(header.frameType) ?? FrameType.light;
+          FrameType.fromImageType(header.frameType) ?? FrameType.light;
       final DateTime capturedAt;
       try {
         capturedAt = parseUtcTimestamp(header.captureTimestamp);

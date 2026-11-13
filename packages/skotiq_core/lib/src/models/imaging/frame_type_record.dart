@@ -3,9 +3,7 @@ import 'package:drift/drift.dart';
 import '../../database/database.dart' show $CapturedImagesTable, DbCapturedImage;
 import 'imaging_models.dart' show FrameType;
 
-/// A recorded frame's type, read the way every record names it (see
-/// [FrameType.fromRecord]): rows written before the names were one spelling
-/// say "Light" or "darkFlat".
+/// A recorded frame's type ([FrameType.record]).
 extension RecordedFrameType on DbCapturedImage {
   /// Null when the row names no frame type Skotiq knows.
   FrameType? get recordedFrameType => FrameType.fromRecord(frameType);
@@ -15,11 +13,10 @@ extension RecordedFrameType on DbCapturedImage {
   bool get isLight => recordedFrameType == FrameType.light;
 }
 
-/// The same reading of `captured_images.frame_type` in a query.
+/// The same test of `captured_images.frame_type` in a query.
 extension FrameTypeColumn on $CapturedImagesTable {
-  Expression<bool> frameTypeIs(FrameType type) =>
-      frameType.lower().equals(type.record);
+  Expression<bool> frameTypeIs(FrameType type) => frameType.equals(type.record);
 }
 
 /// The light-frame test for a query written as SQL over `captured_images`.
-const lightFrameSql = "lower(frame_type) = 'light'";
+const lightFrameSql = "frame_type = 'light'";

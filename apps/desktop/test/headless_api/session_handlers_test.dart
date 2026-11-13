@@ -411,16 +411,18 @@ void main() {
       ),
     );
 
-    test('a frame type is stored in the one record spelling', () async {
-      final response = await post('Light');
+    test('a frame type is stored as the record names it', () async {
+      final response = await post('darkflat');
       expect(response.statusCode, HttpStatus.ok);
       final rows = await db.select(db.capturedImages).get();
-      expect(rows.single.frameType, 'light');
+      expect(rows.single.frameType, 'darkflat');
     });
 
-    test('a name that is no frame type is refused', () async {
-      final response = await post('lights');
-      expect(response.statusCode, HttpStatus.badRequest);
+    test('a name that is no frame type record is refused', () async {
+      for (final name in ['lights', 'Light', 'darkFlat']) {
+        final response = await post(name);
+        expect(response.statusCode, HttpStatus.badRequest, reason: name);
+      }
       expect(await db.select(db.capturedImages).get(), isEmpty);
     });
   });

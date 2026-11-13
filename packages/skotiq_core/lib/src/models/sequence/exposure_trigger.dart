@@ -121,65 +121,60 @@ class ExposureTriggerConfig {
     };
   }
 
-  /// The trigger [json] stores, or null for a condition this build does not
-  /// know: the caller keeps that trigger as it is rather than rewriting it as
+  /// The trigger [json] stores in the executor's form, or null for one this
+  /// build does not read (an unknown condition or action, a missing field):
+  /// the caller keeps that trigger as it is rather than rewriting it as
   /// another.
   static ExposureTriggerConfig? fromNativeJson(Map<String, dynamic> json) {
-    final conditionJson = json['condition'] as Map?;
-    final conditionKey = conditionJson == null || conditionJson.isEmpty
-        ? null
-        : conditionJson.keys.first;
-    final conditionValue = conditionKey == null
-        ? null
-        : conditionJson![conditionKey];
-    final condition = switch (conditionKey) {
-      'GuidingRmsAbove' => TriggerConditionType.guidingRms,
-      'HfrAbove' => TriggerConditionType.hfr,
-      'DriftAbove' => TriggerConditionType.drift,
-      _ => null,
-    };
-    if (condition == null) return null;
-
-    // J-X2: parse RA and Dec separately, tolerating older payloads that
-    // only included one of the two fields by falling back to the per-axis
-    // default. The general `threshold` field is only meaningful for guiding
-    // RMS / HFR conditions.
-    double driftRa = kDefaultDriftRaPixels;
-    double driftDec = kDefaultDriftDecPixels;
-    double threshold;
-    if (conditionKey == 'DriftAbove') {
-      final driftMap = conditionValue as Map?;
-      driftRa =
-          (driftMap?['ra_px'] as num?)?.toDouble() ?? kDefaultDriftRaPixels;
-      driftDec =
-          (driftMap?['dec_px'] as num?)?.toDouble() ?? kDefaultDriftDecPixels;
-      // Keep `threshold` populated with the RA value for any consumer that
-      // still reads the legacy scalar (e.g. labels with a single number);
-      // the canonical drift values live in driftRaPx/driftDecPx.
-      threshold = driftRa;
-    } else {
-      threshold =
-          (conditionValue as num?)?.toDouble() ??
-          defaultTriggerThreshold(condition);
-    }
-
-    // A stored action is the operator's choice and is kept. Only a payload
-    // with no action this build knows gets the default for a new trigger.
-    final action = switch (json['action'] as String?) {
+    final condition = json['condition'];
+    final action = switch (json['action']) {
+      'Notify' => TriggerActionType.notify,
       'PauseAndRecalibrate' => TriggerActionType.pauseAndRecalibrate,
       'Autofocus' => TriggerActionType.autofocus,
       'Abort' => TriggerActionType.abort,
-      _ => TriggerActionType.notify,
+      _ => null,
     };
+    final debounce = json['debounce_secs'];
+    if (condition is! Map || condition.length != 1) return null;
+    if (action == null || debounce is! num) return null;
+    final (
+      type,
+      threshold,
+      driftRa,
+      driftDec,
+    ) = switch (condition.entries.single) {
+      MapEntry(key: 'GuidingRmsAbove', value: final num rms) => (
+        TriggerConditionType.guidingRms,
+        rms.toDouble(),
+        null,
+        null,
+      ),
+      MapEntry(key: 'HfrAbove', value: final num hfr) => (
+        TriggerConditionType.hfr,
+        hfr.toDouble(),
+        null,
+        null,
+      ),
+      MapEntry(
+        key: 'DriftAbove',
+        value: {'ra_px': final num ra, 'dec_px': final num dec},
+      ) =>
+        (
+          TriggerConditionType.drift,
+          ra.toDouble(),
+          ra.toDouble(),
+          dec.toDouble(),
+        ),
+      _ => (null, null, null, null),
+    };
+    if (type == null || threshold == null) return null;
     return ExposureTriggerConfig(
-      condition: condition,
+      condition: type,
       threshold: threshold,
       driftRaPx: driftRa,
       driftDecPx: driftDec,
       action: action,
-      debounceSecs:
-          (json['debounce_secs'] as num?)?.toDouble() ??
-          kDefaultTriggerDebounceSecs,
+      debounceSecs: debounce.toDouble(),
     );
   }
 

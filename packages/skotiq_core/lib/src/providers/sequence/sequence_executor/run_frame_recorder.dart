@@ -597,8 +597,8 @@ class _CountedFrame {
   final bool accepted;
 }
 
-/// The type of a frame the executor reported: what its capture record says,
-/// else the producing node's.
+/// The type of a frame the executor reported: what its capture record says
+/// (the `IMAGETYP` spelling), else the producing node's.
 FrameType _recordedFrameType(String? captured, FrameAttribution attribution) =>
-    (captured == null ? null : FrameType.fromRecord(captured)) ??
+    (captured == null ? null : FrameType.fromImageType(captured)) ??
     attribution.frameType;

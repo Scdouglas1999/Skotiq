@@ -716,7 +716,7 @@ String _frameTypeRecord(Map<String, dynamic> payload) {
       FrameType.fromRecord(named) ??
       (throw BadRequestError(
         field: 'frameType',
-        expected: 'one of: light, dark, flat, bias, darkFlat, snapshot',
+        expected: 'one of: ${FrameType.values.map((t) => t.record).join(', ')}',
         message: 'Unknown frame type "$named"',
       ));
   return type.record;
