@@ -7,7 +7,7 @@
 //! verified by the pointing actually changing, and reversed once if the axis
 //! turned out to run the other way.
 
-use crate::device_ops::{DeviceResult, MountOps, OperatorNotifyOps, SiteOps};
+use crate::device_ops::{DeviceResult, MountOps, OperatorNotifyOps};
 use crate::meridian::{wrap_hours, PierSide, SIDEREAL_PER_SOLAR};
 use std::time::Duration;
 

@@ -3724,7 +3724,7 @@ async fn a_mount_that_will_not_move_at_all_is_reported() {
     ops.stuck_at_limit.store(true, Ordering::SeqCst);
     ops.axis_frozen.store(true, Ordering::SeqCst);
     let shared: SharedDeviceOps = ops.clone();
-    let outcome = crate::limit_backoff::back_off_limit(&*shared, "mount-1").await;
+    let outcome = crate::limit_backoff::back_off_limit(&*shared, "mount-1", None).await;
     assert!(outcome.is_err(), "{outcome:?}");
 }
 
