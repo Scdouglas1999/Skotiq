@@ -83,7 +83,9 @@ impl MeridianFlipExecutor {
 
     async fn nearby_pointing_reference(&self, ctx: &FlipContext) -> Result<(), String> {
         let (Some(lat), Some(lon)) = (self.run.rig.latitude, self.run.rig.longitude) else {
-            return Err("Cannot attempt nearby-field recovery without an observing location".into());
+            return Err(
+                "Cannot attempt nearby-field recovery without an observing location".into(),
+            );
         };
         let now = chrono::Utc::now();
         let (alt, az) =

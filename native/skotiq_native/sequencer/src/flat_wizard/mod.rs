@@ -27,11 +27,11 @@
 mod panel;
 
 use crate::device_ops::DeviceError;
+use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::instructions::{
     execute_exposure_with_renderer, resolve_frame_filter, BurstControl, InstructionContext,
     InstructionResult, Setback,
 };
-use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::wizard::{
     BorrowedProgressReporter, Wizard, WizardExecutor, WizardProgressReporter, WizardRunStatus,
     WizardStepOutcome,
@@ -200,7 +200,9 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                     hfr_values: Vec::new(),
                 }
             }
-            (WizardRunStatus::Cancelled, _) => InstructionResult::cancelled("Flat wizard cancelled"),
+            (WizardRunStatus::Cancelled, _) => {
+                InstructionResult::cancelled("Flat wizard cancelled")
+            }
             (WizardRunStatus::Failed(msg), _) => {
                 let result = InstructionResult::failure(msg);
                 match &self.cause {
@@ -514,7 +516,10 @@ pub(crate) async fn capture_converged_flats(
     template_ctx.current_filter = filter_name;
     template_ctx.current_filter_index = filter_index;
 
-    let renderer = match frame_namer(&template_ctx, BurstNaming::of(&capture_config, exposure_secs)) {
+    let renderer = match frame_namer(
+        &template_ctx,
+        BurstNaming::of(&capture_config, exposure_secs),
+    ) {
         Ok(renderer) => renderer,
         Err(message) => {
             tracing::error!("{}", message);
@@ -705,14 +710,20 @@ mod tests {
     #[test]
     fn sky_flats_point_away_from_the_sun() {
         let now = chrono::Utc::now();
-        for (location, east_of_meridian) in
-            [(PanelLocation::DuskSky, true), (PanelLocation::DawnSky, false)]
-        {
+        for (location, east_of_meridian) in [
+            (PanelLocation::DuskSky, true),
+            (PanelLocation::DawnSky, false),
+        ] {
             let (alt, az) = panel::sky_flat_alt_az(&location).expect("a sky location");
             let (ra, dec) = crate::meridian::alt_az_to_ra_dec(alt, az, 40.0, -75.0, now);
-            let lst = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), -75.0);
+            let lst =
+                crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), -75.0);
             let hour_angle = crate::meridian::hour_angle(ra, lst);
-            assert_eq!(hour_angle < 0.0, east_of_meridian, "{location:?}: HA {hour_angle}");
+            assert_eq!(
+                hour_angle < 0.0,
+                east_of_meridian,
+                "{location:?}: HA {hour_angle}"
+            );
             let (back_alt, _) = crate::meridian::calculate_alt_az(ra, dec, 40.0, -75.0, now);
             assert!((back_alt - 65.0).abs() < 0.01, "{location:?}: {back_alt}");
         }

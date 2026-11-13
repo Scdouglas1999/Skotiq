@@ -121,8 +121,12 @@ pub async fn execute_slew(
             m.contains(&crate::slew_arrival::SlewWaitError::DidNotMove.to_string())
         })
     {
-        let freed = crate::limit_backoff::back_off_limit(&*ctx.run.device_ops, mount_id, ctx.run.rig.longitude)
-            .await;
+        let freed = crate::limit_backoff::back_off_limit(
+            &*ctx.run.device_ops,
+            mount_id,
+            ctx.run.rig.longitude,
+        )
+        .await;
         crate::limit_backoff::notify(&*ctx.run.device_ops, "slew", &freed).await;
         if freed.is_ok() {
             result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;

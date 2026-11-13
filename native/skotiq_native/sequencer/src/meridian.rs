@@ -550,7 +550,11 @@ mod tests {
         assert_eq!(julian_day(&later), julian_day(&j2000));
         let next = j2000 + chrono::Duration::seconds(1);
         let days = julian_day(&next) - julian_day(&j2000);
-        assert!((days * 86_400.0 - 1.0).abs() < 1e-4, "{} s", days * 86_400.0);
+        assert!(
+            (days * 86_400.0 - 1.0).abs() < 1e-4,
+            "{} s",
+            days * 86_400.0
+        );
     }
 
     #[test]

@@ -59,7 +59,6 @@ pub(crate) fn unset_target_pointing_reason(
     ))
 }
 
-
 /// W1 native daylight gate decision.
 ///
 /// Structural START gate applied by `execute_slew` (when slewing to a

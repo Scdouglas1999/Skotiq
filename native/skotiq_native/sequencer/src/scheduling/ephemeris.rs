@@ -15,8 +15,8 @@
 //! −6 / −12 / −18°". We deliberately avoid a full ELP/VSOP implementation.
 
 use super::astronomy::{angular_separation, object_alt_az};
-use crate::meridian::julian_day;
 use super::scoring::TwilightBracket;
+use crate::meridian::julian_day;
 use chrono::{DateTime, Duration, Utc};
 
 /// Equatorial position of the Sun (RA, Dec) in degrees for `dt`: the Sun of
@@ -205,7 +205,10 @@ mod tests {
             let off = angular_separation(moon_ra, moon_dec, ra, dec);
             assert!(off < 0.3, "{at}: the Moon is {off:.2} deg from astropy's");
             let ours = moon_illumination_percent(&at);
-            assert!((ours - illum).abs() < 1.0, "{at}: {ours:.2} % lit, astropy {illum} %");
+            assert!(
+                (ours - illum).abs() < 1.0,
+                "{at}: {ours:.2} % lit, astropy {illum} %"
+            );
         }
     }
 

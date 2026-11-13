@@ -24,7 +24,8 @@ impl InstructionNode for MeridianFlipInstruction {
 
         let ctx = context.to_instruction_context(node_id).await;
 
-        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Meridian Flip");
+        let progress_fn =
+            step_progress::<String>(context.progress_callback.as_ref(), node_id, "Meridian Flip");
 
         execute_meridian_flip(config, &ctx, Some(&progress_fn))
             .await

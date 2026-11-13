@@ -389,17 +389,13 @@ mod light_frame_grading {
     #[tokio::test]
     async fn a_burst_reports_the_frames_of_it_the_grader_rejected() {
         let scratch = scratch_dir("burst-rejects");
-        let ops =
-            Arc::new(ScriptedDomeRotatorOps::new().with_scripted_frame_metrics(5.0, 60, 0.1));
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_scripted_frame_metrics(5.0, 60, 0.1));
         let (event_tx, _events) = tokio::sync::broadcast::channel(64);
         let mut ctx = saving_expose_ctx(ops, scratch.0.clone(), event_tx).await;
         let mut ts = crate::triggers::TriggerState::new();
         ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
         ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
-        ctx.run
-            .grading
-            .frames_rejected
-            .store(7, Ordering::Relaxed);
+        ctx.run.grading.frames_rejected.store(7, Ordering::Relaxed);
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 3,
@@ -417,7 +413,12 @@ mod light_frame_grading {
         )
         .await;
 
-        assert_eq!(burst.result.status, NodeStatus::Success, "{:?}", burst.result.message);
+        assert_eq!(
+            burst.result.status,
+            NodeStatus::Success,
+            "{:?}",
+            burst.result.message
+        );
         assert_eq!(burst.frames_rejected, 3);
         assert_eq!(ctx.run.grading.frames_rejected.load(Ordering::Relaxed), 10);
     }
@@ -658,7 +659,10 @@ async fn a_burst_skips_its_dither_while_the_run_holds_the_guider_stopped() {
         "{:?}",
         ops.dithers_after_frame.lock().unwrap()
     );
-    assert!(decision_rx.try_recv().is_err(), "no guiding problem to report");
+    assert!(
+        decision_rx.try_recv().is_err(),
+        "no guiding problem to report"
+    );
 }
 
 /// While a burst's dither settles the guider reports why it is not guiding,
@@ -730,7 +734,10 @@ mod settle_ran_out_with_the_star_held {
     ) -> Seen {
         let mut dithers_counted = 0;
         while let Ok(event) = events.try_recv() {
-            if matches!(event, crate::executor::ExecutorEvent::DitherPerformed { .. }) {
+            if matches!(
+                event,
+                crate::executor::ExecutorEvent::DitherPerformed { .. }
+            ) {
                 dithers_counted += 1;
             }
         }

@@ -332,12 +332,10 @@ pub fn resolve_variable(
         )),
         "moon.phase" => float_or_unresolvable(
             name,
-            frame
-                .moon_phase
-                .or_else(|| {
-                    let now = frame.now_override.unwrap_or_else(|| ctx.clock.now_utc());
-                    Some(crate::scheduling::ephemeris::moon_illumination_percent(&now) / 100.0)
-                }),
+            frame.moon_phase.or_else(|| {
+                let now = frame.now_override.unwrap_or_else(|| ctx.clock.now_utc());
+                Some(crate::scheduling::ephemeris::moon_illumination_percent(&now) / 100.0)
+            }),
             "moon phase requires a system clock",
         ),
         "moon.separation" => float_or_unresolvable(

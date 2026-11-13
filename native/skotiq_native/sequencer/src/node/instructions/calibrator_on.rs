@@ -22,7 +22,8 @@ impl InstructionNode for CalibratorOnInstruction {
             return NodeStatus::Failure;
         };
         let ctx = context.to_instruction_context(node_id).await;
-        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Calibrator On");
+        let progress_fn =
+            step_progress::<String>(context.progress_callback.as_ref(), node_id, "Calibrator On");
         execute_calibrator_on(config, &ctx, Some(&progress_fn))
             .await
             .settle("Calibrator On", &ctx)

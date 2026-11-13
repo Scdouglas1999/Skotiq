@@ -777,21 +777,28 @@ async fn a_settle_that_ran_out_is_known_by_its_kind_not_its_words() {
     let result = execute_dither(&config, &ctx, None).await;
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(
-        trigger_state.read().await.latches.consecutive_dither_failures,
+        trigger_state
+            .read()
+            .await
+            .latches
+            .consecutive_dither_failures,
         0,
         "a timed-out settle with the star held is a dither: {:?}",
         result.message
     );
 
-    let (ctx, trigger_state, _events) = restart_ctx(dither_failing(
-        crate::device_ops::DeviceError::Failed(
+    let (ctx, trigger_state, _events) =
+        restart_ctx(dither_failing(crate::device_ops::DeviceError::Failed(
             "Dither did not settle: guiding was stopped while it settled".to_string(),
-        ),
-    ))
-    .await;
+        )))
+        .await;
     execute_dither(&config, &ctx, None).await;
     assert_eq!(
-        trigger_state.read().await.latches.consecutive_dither_failures,
+        trigger_state
+            .read()
+            .await
+            .latches
+            .consecutive_dither_failures,
         1,
         "a stopped settle is a failed dither whatever it says"
     );

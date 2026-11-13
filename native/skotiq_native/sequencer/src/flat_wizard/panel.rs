@@ -284,11 +284,17 @@ pub(super) async fn position_for_flats(
             if let Some(mount_id) = &ctx.run.rig.mount_id {
                 progress.report(0.12, "Slewing to zenith".to_string());
 
-                let (lat, lon) = ctx.run.rig.latitude.zip(ctx.run.rig.longitude).ok_or_else(|| {
-                    DeviceError::Failed(
-                        "Observer location is required for flat-panel positioning".to_string(),
-                    )
-                })?;
+                let (lat, lon) =
+                    ctx.run
+                        .rig
+                        .latitude
+                        .zip(ctx.run.rig.longitude)
+                        .ok_or_else(|| {
+                            DeviceError::Failed(
+                                "Observer location is required for flat-panel positioning"
+                                    .to_string(),
+                            )
+                        })?;
 
                 let (zenith_ra, zenith_dec) =
                     crate::meridian::alt_az_to_ra_dec(90.0, 0.0, lat, lon, chrono::Utc::now());
@@ -317,11 +323,17 @@ pub(super) async fn position_for_flats(
             tracing::info!("Positioning for {:?} sky flats", config.panel_location);
 
             if let Some(mount_id) = &ctx.run.rig.mount_id {
-                let (lat, lon) = ctx.run.rig.latitude.zip(ctx.run.rig.longitude).ok_or_else(|| {
-                    DeviceError::Failed(
-                        "Observer location is required for sky-flat positioning".to_string(),
-                    )
-                })?;
+                let (lat, lon) =
+                    ctx.run
+                        .rig
+                        .latitude
+                        .zip(ctx.run.rig.longitude)
+                        .ok_or_else(|| {
+                            DeviceError::Failed(
+                                "Observer location is required for sky-flat positioning"
+                                    .to_string(),
+                            )
+                        })?;
 
                 progress.report(
                     0.12,

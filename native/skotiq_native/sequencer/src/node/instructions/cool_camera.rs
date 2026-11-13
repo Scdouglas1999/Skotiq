@@ -25,7 +25,11 @@ impl InstructionNode for CoolCameraInstruction {
         let ctx = context.to_instruction_context(node_id).await;
         let target_temp = config.target_temp;
 
-        let progress_fn = step_progress::<ThermalReading>(context.progress_callback.as_ref(), node_id, "Cool Camera");
+        let progress_fn = step_progress::<ThermalReading>(
+            context.progress_callback.as_ref(),
+            node_id,
+            "Cool Camera",
+        );
 
         let status = execute_cool_camera(config, &ctx, Some(&progress_fn))
             .await

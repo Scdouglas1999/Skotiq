@@ -67,7 +67,10 @@ async fn wait_for_time_names_the_time_it_waits_for() {
         Some(format!("Waiting until {clock} UTC").as_str()),
         "the first line is the time waited for, not its hour read as seconds"
     );
-    assert_eq!(lines.last().map(String::as_str), Some("Target time reached"));
+    assert_eq!(
+        lines.last().map(String::as_str),
+        Some("Target time reached")
+    );
 }
 
 #[tokio::test]

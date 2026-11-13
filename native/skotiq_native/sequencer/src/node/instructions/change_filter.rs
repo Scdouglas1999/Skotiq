@@ -23,7 +23,8 @@ impl InstructionNode for ChangeFilterInstruction {
         };
 
         let ctx = context.to_instruction_context(node_id).await;
-        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Filter");
+        let progress_fn =
+            step_progress::<String>(context.progress_callback.as_ref(), node_id, "Filter");
         let result = execute_filter_change(config, &ctx, Some(&progress_fn)).await;
         if result.status == NodeStatus::Success {
             context.send_progress(ProgressUpdate::instruction_progress(

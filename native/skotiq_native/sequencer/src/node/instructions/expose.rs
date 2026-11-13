@@ -7,8 +7,7 @@
 use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::instructions::{
     execute_autofocus, execute_exposure_with_renderer, notify_autofocus_failed_continuing,
-    resolve_burst_filter, AutofocusProgress, BurstFilter,
-    InstructionResult, Setback,
+    resolve_burst_filter, AutofocusProgress, BurstFilter, InstructionResult, Setback,
 };
 use crate::node::context::ExecutionContext;
 use crate::node::instructions::autofocus::autofocus_detail;

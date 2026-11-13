@@ -196,9 +196,9 @@ where
             }
         }
 
-        let remaining = target
-            .zip(sample.position)
-            .map(|(t, p)| crate::scheduling::astronomy::angular_separation(t.0 * 15.0, t.1, p.0 * 15.0, p.1));
+        let remaining = target.zip(sample.position).map(|(t, p)| {
+            crate::scheduling::astronomy::angular_separation(t.0 * 15.0, t.1, p.0 * 15.0, p.1)
+        });
         if initial.is_none() {
             initial = remaining;
         }

@@ -700,7 +700,10 @@ async fn without_a_guider_the_dither_interval_restarts_instead_of_firing_every_f
     assert_eq!(outcome.state, ExecutorState::Completed);
     let timeline = ops.timeline();
     assert_eq!(
-        timeline.split_whitespace().filter(|step| *step != "dither").count(),
+        timeline
+            .split_whitespace()
+            .filter(|step| *step != "dither")
+            .count(),
         12,
         "{timeline}"
     );

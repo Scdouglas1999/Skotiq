@@ -376,7 +376,11 @@ impl std::fmt::Display for SettleError {
             Self::Failed { status, error } => write!(
                 f,
                 "PHD2 settle failed (status {status}): {}",
-                if error.is_empty() { "no error detail" } else { error }
+                if error.is_empty() {
+                    "no error detail"
+                } else {
+                    error
+                }
             ),
             Self::NotReported { waited } => write!(
                 f,
@@ -2393,7 +2397,10 @@ mod tests {
             }
         );
         assert!(err.ran_out_of_time());
-        assert!(err.to_string().contains("star lost"), "error string surfaced: {err}");
+        assert!(
+            err.to_string().contains("star lost"),
+            "error string surfaced: {err}"
+        );
     }
 
     /// The settle waiter returns the outcome on a status-0 settle.

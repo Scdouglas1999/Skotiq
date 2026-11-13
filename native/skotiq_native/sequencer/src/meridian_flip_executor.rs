@@ -1305,13 +1305,12 @@ impl MeridianFlipExecutor {
         ctx: &FlipContext,
         pre_flip_pier_side: PierSide,
     ) -> Option<Result<PierSide, String>> {
-        let freed =
-            crate::limit_backoff::back_off_limit(
-                &*self.run.device_ops,
-                &ctx.mount_id,
-                self.run.rig.longitude,
-            )
-            .await;
+        let freed = crate::limit_backoff::back_off_limit(
+            &*self.run.device_ops,
+            &ctx.mount_id,
+            self.run.rig.longitude,
+        )
+        .await;
         crate::limit_backoff::notify(&*self.run.device_ops, "flip slew", &freed).await;
         // A mount that could not be freed keeps the verification's own
         // failure; the notice says why.
@@ -2015,11 +2014,11 @@ impl MeridianFlipExecutor {
         // Without a site the flip still keys off the mount's pier side; the
         // hour angle is only logged, so Greenwich stands in and says so.
         let longitude_deg = self.run.rig.longitude.unwrap_or_else(|| {
-                tracing::warn!(
-                    "[MERIDIAN] Observer location unavailable, using longitude=0 for LST calculation"
-                );
-                0.0
-            });
+            tracing::warn!(
+                "[MERIDIAN] Observer location unavailable, using longitude=0 for LST calculation"
+            );
+            0.0
+        });
         let lst = local_sidereal_time(jd, longitude_deg);
         let (ra_of_date, _) = meridian::target_of_date(ra_hours, dec_degrees, now);
         let ha = lst - ra_of_date;

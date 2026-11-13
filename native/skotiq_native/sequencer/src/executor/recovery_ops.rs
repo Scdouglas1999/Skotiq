@@ -78,7 +78,14 @@ async fn recovery_displacement_arcmin(
         .get_or_insert_with(Default::default)
         .origin
         .get_or_insert(position);
-    Some(crate::scheduling::astronomy::angular_separation(origin.0 * 15.0, origin.1, position.0 * 15.0, position.1) * 60.0)
+    Some(
+        crate::scheduling::astronomy::angular_separation(
+            origin.0 * 15.0,
+            origin.1,
+            position.0 * 15.0,
+            position.1,
+        ) * 60.0,
+    )
 }
 
 /// Record a failed attempt, with where the mount pointed, for the run and

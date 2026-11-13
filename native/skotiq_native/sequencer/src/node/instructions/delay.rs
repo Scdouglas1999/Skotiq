@@ -24,7 +24,8 @@ impl InstructionNode for DelayInstruction {
 
         let ctx = context.to_instruction_context(node_id).await;
 
-        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Delay");
+        let progress_fn =
+            step_progress::<String>(context.progress_callback.as_ref(), node_id, "Delay");
 
         execute_delay(config, context, Some(&progress_fn))
             .await

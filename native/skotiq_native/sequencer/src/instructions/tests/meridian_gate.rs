@@ -722,5 +722,8 @@ async fn the_flip_step_reads_the_runs_site() {
     let result = execute_meridian_flip(&crate::MeridianFlipConfig::default(), &ctx, None).await;
 
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
-    assert_eq!(result.message.as_deref(), Some("Meridian flip not yet required"));
+    assert_eq!(
+        result.message.as_deref(),
+        Some("Meridian flip not yet required")
+    );
 }

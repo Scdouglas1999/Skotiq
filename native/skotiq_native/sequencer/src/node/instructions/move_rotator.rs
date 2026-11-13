@@ -24,7 +24,8 @@ impl InstructionNode for MoveRotatorInstruction {
 
         let ctx = context.to_instruction_context(node_id).await;
 
-        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Move Rotator");
+        let progress_fn =
+            step_progress::<String>(context.progress_callback.as_ref(), node_id, "Move Rotator");
 
         execute_rotator_move(config, &ctx, Some(&progress_fn))
             .await

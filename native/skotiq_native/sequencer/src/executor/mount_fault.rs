@@ -209,7 +209,10 @@ mod tests {
 
         let held = tokio::time::timeout(
             std::time::Duration::from_secs(2),
-            handle.hold_for_mount_fault("the mount moved on its own", &(Arc::new(NullDeviceOps) as SharedDeviceOps)),
+            handle.hold_for_mount_fault(
+                "the mount moved on its own",
+                &(Arc::new(NullDeviceOps) as SharedDeviceOps),
+            ),
         )
         .await
         .expect("the hold does not wait for the executor")
@@ -227,7 +230,10 @@ mod tests {
 
         let held = executor
             .handle()
-            .hold_for_mount_fault("the mount moved on its own", &(Arc::new(NullDeviceOps) as SharedDeviceOps))
+            .hold_for_mount_fault(
+                "the mount moved on its own",
+                &(Arc::new(NullDeviceOps) as SharedDeviceOps),
+            )
             .await
             .expect("the call is accepted");
         let (states, _) = announced(&mut events, std::time::Duration::from_millis(100)).await;

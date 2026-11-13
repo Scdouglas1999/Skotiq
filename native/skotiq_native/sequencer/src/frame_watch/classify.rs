@@ -423,7 +423,12 @@ impl FrameWatch {
         } else {
             (target_ra, target_dec)
         };
-        let offset = crate::scheduling::astronomy::angular_separation(ra_deg, dec_deg, reference_ra, reference_dec) * 60.0;
+        let offset = crate::scheduling::astronomy::angular_separation(
+            ra_deg,
+            dec_deg,
+            reference_ra,
+            reference_dec,
+        ) * 60.0;
         verdict.offset_arcmin = Some(offset);
         let Some(limit) = self.config.drift_limit_arcmin(obs.field_short_side_arcmin) else {
             return;
@@ -598,4 +603,3 @@ pub fn obstructed_reason(onset: Pointing) -> String {
         onset.describe()
     )
 }
-

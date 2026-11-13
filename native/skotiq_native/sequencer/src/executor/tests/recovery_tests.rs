@@ -1159,4 +1159,3 @@ fn each_recoverable_trigger_maps_to_the_cause_that_fixes_it() {
         .expect("mount_tracking_lost is a standard trigger");
     assert!(matches!(trigger.recovery_action, RecoveryAction::Pause));
 }
-

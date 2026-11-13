@@ -52,7 +52,9 @@ impl GuideRecoveryStall {
         let mut spread: f64 = 0.0;
         for (i, a) in pointings.iter().enumerate() {
             for b in &pointings[i + 1..] {
-                spread = spread.max(crate::scheduling::astronomy::angular_separation(a.1, a.0, b.1, b.0));
+                spread = spread.max(crate::scheduling::astronomy::angular_separation(
+                    a.1, a.0, b.1, b.0,
+                ));
             }
         }
         Some(spread)
@@ -67,7 +69,6 @@ impl GuideRecoveryStall {
                 .is_some_and(|spread| spread <= max_spread_deg)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -138,10 +138,8 @@ pub(crate) fn frame_namer(
     //
     // LIGHT frames still hard-fail here: inventing a target name for science
     // data would mislabel the data itself, which is worse than refusing.
-    if ctx_snapshot.target_name.is_none() {
-        if burst.frame_type.is_calibration() {
-            ctx_snapshot.target_name = Some(burst.frame_type.as_str().to_string());
-        }
+    if ctx_snapshot.target_name.is_none() && burst.frame_type.is_calibration() {
+        ctx_snapshot.target_name = Some(burst.frame_type.as_str().to_string());
     }
 
     Ok(Box::new(move |frame: &FrameToName| {
@@ -312,7 +310,9 @@ fn split_rendered_save_path(
 /// renderer). Doubling then bisecting keeps a folder of a thousand frames to
 /// about twenty probes. A gap left by a deleted file may be reused, which
 /// overwrites nothing.
-pub(crate) fn first_free_frame_number(taken: impl Fn(u32) -> Result<bool, String>) -> Result<u32, String> {
+pub(crate) fn first_free_frame_number(
+    taken: impl Fn(u32) -> Result<bool, String>,
+) -> Result<u32, String> {
     if !taken(1)? {
         return Ok(1);
     }
@@ -335,4 +335,3 @@ pub(crate) fn first_free_frame_number(taken: impl Fn(u32) -> Result<bool, String
     }
     Ok(free)
 }
-

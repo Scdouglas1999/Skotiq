@@ -24,7 +24,8 @@ impl InstructionNode for WaitForTimeInstruction {
 
         let ctx = context.to_instruction_context(node_id).await;
 
-        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Wait");
+        let progress_fn =
+            step_progress::<String>(context.progress_callback.as_ref(), node_id, "Wait");
 
         execute_wait_time(config, &ctx, Some(&progress_fn))
             .await

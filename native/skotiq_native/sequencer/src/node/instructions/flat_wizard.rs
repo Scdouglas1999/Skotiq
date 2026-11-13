@@ -23,7 +23,8 @@ impl InstructionNode for FlatWizardInstruction {
 
         let ctx = context.to_instruction_context(node_id).await;
 
-        let progress_fn = step_progress::<String>(context.progress_callback.as_ref(), node_id, "Flat Wizard");
+        let progress_fn =
+            step_progress::<String>(context.progress_callback.as_ref(), node_id, "Flat Wizard");
 
         let result =
             crate::flat_wizard::execute_flat_wizard(config, &ctx, Some(&progress_fn)).await;

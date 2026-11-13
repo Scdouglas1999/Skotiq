@@ -246,7 +246,8 @@ impl MountOps for UnifiedDeviceOps {
 
     async fn request_mount_fault_hold(&self, mount_id: &str, message: &str) {
         tracing::warn!("[MOTION GUARD] {mount_id}: {message}");
-        let ops: skotiq_sequencer::SharedDeviceOps = std::sync::Arc::new(Self::new(self.app_state.clone()));
+        let ops: skotiq_sequencer::SharedDeviceOps =
+            std::sync::Arc::new(Self::new(self.app_state.clone()));
         if let Err(e) = skotiq_sequencer::executor_handle()
             .hold_for_mount_fault(message, &ops)
             .await
