@@ -133,13 +133,11 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
   }) async {
     if (_schedulerActionBusy) return;
     final command = _hostScopes.beginLatest(#schedulerAction);
-    final hostPlanning = ref.read(linkedHostPlanningProvider);
+    final scheduler = ref.read(schedulerControlProvider);
     setState(() => _schedulerActionBusy = true);
     try {
       if (action == 'start') {
-        final readiness = hostPlanning != null
-            ? (await ref.read(schedulerRemoteSnapshotProvider.future)).readiness
-            : ref.read(schedulerStartReadinessProvider);
+        final readiness = await scheduler.startReadiness();
         if (readiness.blocked ||
             (readiness.warnings.isNotEmpty && !allowWarnings)) {
           throw StateError(
@@ -149,32 +147,17 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
           );
         }
       }
-      if (hostPlanning != null) {
-        if (action == 'start' && allowWarnings) {
-          await hostPlanning.controlScheduler(action, confirmWarnings: true);
-        } else {
-          await hostPlanning.controlScheduler(action);
-        }
-      } else {
-        // Pause and Stop must remain available for an already-running engine
-        // even if an unrelated settings refresh is failing. Operations that
-        // evaluate/dispatch wait for the cold-start authority gate.
-        final engine = switch (action) {
-          'pause' || 'stop' => ref.read(schedulerEngineProvider),
-          _ => await ref.read(schedulerEngineReadyProvider.future),
-        };
-        switch (action) {
-          case 'start':
-            await engine.start();
-          case 'pause':
-            await engine.pause();
-          case 'resume':
-            await engine.resume();
-          case 'stop':
-            await engine.stop();
-          case 'evaluate':
-            await engine.evaluateNow(reason: 'manual force re-evaluation');
-        }
+      switch (action) {
+        case 'start':
+          await scheduler.start(confirmWarnings: allowWarnings);
+        case 'pause':
+          await scheduler.pause();
+        case 'resume':
+          await scheduler.resume();
+        case 'stop':
+          await scheduler.stop();
+        case 'evaluate':
+          await scheduler.evaluate(reason: 'manual force re-evaluation');
       }
       if (command.isCurrent) {
         ref.invalidate(schedulerRemoteSnapshotProvider);
@@ -213,63 +196,29 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
 
   void _applySchedulerConfig(SchedulerConfig config) {
     final host = _hostScopes.begin();
-    final hostPlanning = ref.read(linkedHostPlanningProvider);
-    final localStore =
-        hostPlanning != null ? null : ref.read(schedulerConfigStoreProvider);
-    final localEngine =
-        hostPlanning != null ? null : ref.read(schedulerEngineProvider);
+    final scheduler = ref.read(schedulerControlProvider);
     setState(() => _requestedConfig = config);
-
-    // Local changes are reflected immediately while their durable writes are
-    // serialized. Remote changes remain optimistic in this widget until the
-    // host confirms the same full config.
-    if (hostPlanning == null) {
-      ref.read(schedulerConfigUserDirtyProvider.notifier).state = true;
-      localEngine!.updateConfig(config);
-    }
+    // The widget shows the requested settings until the host confirms them;
+    // writes are saved one after another.
+    scheduler.preview(config);
 
     _configSaveTail = _configSaveTail.then((_) async {
       try {
-        SchedulerConfig confirmed;
-        if (hostPlanning != null) {
-          final response = await hostPlanning.updateSchedulerConfig(
-            config.toStorageJson().cast<String, dynamic>(),
-          );
-          confirmed = SchedulerRemoteSnapshot.fromJson(response).config;
-        } else {
-          await localStore!.save(config);
-          confirmed = config;
-          // The durable row is what siteMinimumAltitudeDegProvider serves to
-          // the sequence builder and the altitude charts, so a slider edit has
-          // to reach it now — otherwise moving "Min altitude" here would only
-          // take effect on the next launch and the rest of the app would keep
-          // gating on the superseded number. Safe for the engine: it takes this
-          // provider through ref.listen and skips the update while
-          // schedulerConfigUserDirtyProvider is set (which this edit set), so
-          // nothing is torn down and the live config is not overwritten.
-          ref.invalidate(schedulerPersistedConfigProvider);
-        }
+        final confirmed = await scheduler.save(config);
         if (!mounted || host.isStale) return;
         setState(() {
           _confirmedConfig = confirmed;
           if (_requestedConfig == config) _requestedConfig = null;
         });
-        if (hostPlanning != null) {
-          ref.invalidate(schedulerRemoteSnapshotProvider);
-        }
+        ref.invalidate(schedulerRemoteSnapshotProvider);
         _configSaveErrorVisible = false;
       } catch (error) {
         if (mounted && host.isCurrent) {
           if (_requestedConfig == config) {
-            final rollback = _confirmedConfig ?? SchedulerConfig.defaults;
-            if (hostPlanning == null) {
-              localEngine!.updateConfig(rollback);
-            }
+            scheduler.preview(_confirmedConfig ?? SchedulerConfig.defaults);
             setState(() => _requestedConfig = null);
           }
-          if (hostPlanning != null) {
-            ref.invalidate(schedulerRemoteSnapshotProvider);
-          }
+          ref.invalidate(schedulerRemoteSnapshotProvider);
         }
         if (mounted && host.isCurrent && !_configSaveErrorVisible) {
           _configSaveErrorVisible = true;
