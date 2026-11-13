@@ -10,6 +10,7 @@ import '../../models/sequence/sequence_models.dart';
 import '../../services/remote_sequence_editor_sync_lifecycle.dart';
 import '../../services/sequence_file_service.dart';
 import '../../services/sequence_repository.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../sequence_provider.dart';
 import '../logging_service_provider.dart';
@@ -224,7 +225,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
   late final RemoteSequencePreSwapFlush preSwapFlush;
   preSwapFlush = (outgoingBackend, {required requireSuccess}) async {
-    if (isDisposed || !ref.read(isRemoteModeProvider)) return;
+    if (isDisposed || !outgoingBackend.linksToHost) return;
     if (ref.backendScopeOver(outgoingBackend).isStale) return;
     await flushPending(reason: 'backend_swap', drainLatest: true);
     if (requireSuccess &&
@@ -252,7 +253,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
       writeThroughTimer = null;
       syncState.reset();
     }
-    if (!ref.read(isRemoteModeProvider)) {
+    if (!next.linksToHost) {
       debounce?.cancel();
       debounce = null;
     }
