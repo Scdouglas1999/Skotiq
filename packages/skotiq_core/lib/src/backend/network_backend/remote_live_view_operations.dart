@@ -44,7 +44,7 @@ mixin _NetworkBackendRemoteLiveViewOperations on _NetworkBackendTransport {
           query['token'] = authToken!;
         }
       }
-      final uri = _wsUri('/ws/live-view', query);
+      final uri = _wsUri(WebSocketApi.liveView, query);
       try {
         channel = IOWebSocketChannel.connect(uri);
         // IOWebSocketChannel reports a failed connection on BOTH the stream

@@ -108,8 +108,9 @@ class RouteTable {
       case ApiMethodNotAllowed():
         final response = _methodNotAllowed(request, resolution);
         return request.method == 'HEAD' ? _withoutBody(response) : response;
-      case ApiRouteMatched(:final position, :final params):
+      case ApiRouteMatched(:final position, params: final encoded):
         final handler = _handlers[position];
+        final params = _decoded(encoded);
         final routed = request.change(context: {'shelf_router/params': params});
         final Response response;
         if (handler is Handler || params.isEmpty) {
@@ -122,6 +123,14 @@ class RouteTable {
         return request.method == 'HEAD' ? _withoutBody(response) : response;
     }
   }
+
+  /// Path parameter values as the caller meant them: clients percent-encode
+  /// each one as a single segment (`ApiRoute.fill`). shelf has already
+  /// refused a request whose path does not decode.
+  static Map<String, String> _decoded(Map<String, String> params) => {
+    for (final MapEntry(key: name, :value) in params.entries)
+      name: Uri.decodeComponent(value),
+  };
 
   static Response _withoutBody(Response response) {
     final headers = response.headers.containsKey('content-length')

@@ -105,7 +105,9 @@ Read the nearest existing example first and copy its shape. Every recipe ends wi
    and the handler method. A handler builds JSON through the shared DTOs and errors through
    `ApiErrorBody`; `RouteTable` refuses to start when a route has no handler or a handler no route.
 3. Client: the `NetworkBackend` method in `packages/skotiq_core/lib/src/backend/network_backend/`, reached by
-   callers through a role (3.8), never by `is NetworkBackend`.
+   callers through a role (3.8), never by `is NetworkBackend`. It names the route by its enum value
+   (`_get(DomeApi.status)`, `_post(JobApi.cancelJob, path: {'jobId': id}, body: ...)`), never by a path string;
+   path values are percent-encoded by the client and decoded once by `RouteTable`.
 4. Check: `melos run audit:headless-api-contract`, `audit:headless-route-policy`,
    `packages/skotiq_remote_protocol/test/wire/`, `apps/desktop/test/headless_api/`.
 

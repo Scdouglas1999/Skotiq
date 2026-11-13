@@ -264,20 +264,8 @@ class EquipmentHandlers implements RouteSource {
     Request request,
     String deviceId,
   ) async {
-    late final String decodedDeviceId;
-    try {
-      decodedDeviceId = Uri.decodeComponent(deviceId);
-    } on FormatException {
-      throw BadRequestError(
-        field: 'deviceId',
-        expected: 'URL-encoded device identifier',
-        message: 'deviceId contains invalid percent encoding',
-      );
-    }
     final backend = container.read(deviceBackendProvider);
-    final (lastComm, isHealthy) = await backend.getDeviceHealth(
-      decodedDeviceId,
-    );
+    final (lastComm, isHealthy) = await backend.getDeviceHealth(deviceId);
     return jsonOk({'last_successful_comm': lastComm, 'is_healthy': isHealthy});
   }
 }

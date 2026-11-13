@@ -1,10 +1,10 @@
-// Checks the callers of the remote API against its declared route table
-// (packages/skotiq_remote_protocol/lib/wire.dart).
+// Checks the browser clients of the remote API against its declared route
+// table (packages/skotiq_remote_protocol/lib/wire.dart).
 //
-// The host serves, advertises and documents exactly the declared routes, so
-// those cannot drift. What can is a caller that still writes its paths as
-// text: NetworkBackend and the two browser clients. Each path they name must
-// be a declared route, and NetworkBackend's method must match too.
+// The host serves, advertises and documents exactly the declared routes, and
+// NetworkBackend names each route by its declaration, so those cannot drift.
+// The two browser clients still write their paths as text: each path they
+// name must be a declared route.
 //
 //   dart run tools/production/headless_api_contract_audit.dart [--no-fail-on-drift]
 import 'dart:convert';
@@ -13,10 +13,6 @@ import 'dart:io';
 // ignore: avoid_relative_lib_imports
 import '../../packages/skotiq_remote_protocol/lib/routes.dart';
 
-const _networkBackendPath =
-    'packages/skotiq_core/lib/src/backend/network_backend.dart';
-const _networkBackendPartsDirectory =
-    'packages/skotiq_core/lib/src/backend/network_backend';
 const _browserClientPaths = [
   'apps/desktop/web_dashboard/js',
   'apps/desktop/web_run_watch/js',
@@ -28,18 +24,6 @@ const _markdownOutputPath =
 
 void main(List<String> args) {
   final failOnDrift = !args.contains('--no-fail-on-drift');
-  final networkBackendSource = _readDartSources();
-  if (networkBackendSource.isEmpty) {
-    stderr.writeln('NetworkBackend source not found: $_networkBackendPath');
-    exit(2);
-  }
-
-  final networkBackendCalls = _networkBackendCalls(networkBackendSource);
-  final networkBackendMissingOnServer = [
-    for (final call in networkBackendCalls)
-      if (!_isDeclared(call.method, call.path)) '${call.method} ${call.path}',
-  ]..sort();
-
   final browserPaths = _browserClientApiPaths();
   final browserMissingOnServer = [
     for (final path in browserPaths)
@@ -50,10 +34,7 @@ void main(List<String> args) {
     for (final endpoint in apiEndpoints)
       if (endpoint.route.method != ApiMethod.ws) endpoint.route,
   ];
-  final passed =
-      networkBackendCalls.isNotEmpty &&
-      networkBackendMissingOnServer.isEmpty &&
-      browserMissingOnServer.isEmpty;
+  final passed = browserPaths.isNotEmpty && browserMissingOnServer.isEmpty;
 
   final report = {
     'generatedAt': DateTime.now().toUtc().toIso8601String(),
@@ -63,9 +44,6 @@ void main(List<String> args) {
     'openApiOperationCount': httpRoutes
         .where((route) => route.path.startsWith('/api/'))
         .length,
-    'networkBackendRouteCount': networkBackendCalls.length,
-    'networkBackendMissingOnServerCount': networkBackendMissingOnServer.length,
-    'networkBackendMissingOnServer': networkBackendMissingOnServer,
     'browserClientPathCount': browserPaths.length,
     'browserClientMissingOnServerCount': browserMissingOnServer.length,
     'browserClientMissingOnServer': browserMissingOnServer,
@@ -82,13 +60,9 @@ void main(List<String> args) {
       '',
       '- Declared routes: ${apiEndpoints.length} '
           '(${advertisedApiEndpoints.length} advertised by `/api/info`)',
-      '- NetworkBackend calls: ${networkBackendCalls.length}, '
-          '${networkBackendMissingOnServer.length} not declared',
       '- Browser client paths: ${browserPaths.length}, '
           '${browserMissingOnServer.length} not declared',
       '',
-      for (final route in networkBackendMissingOnServer)
-        '- NetworkBackend calls `$route`, which the host does not serve.',
       for (final path in browserMissingOnServer)
         '- A browser client names `$path`, which the host does not serve.',
       '',
@@ -98,24 +72,15 @@ void main(List<String> args) {
   stdout.writeln('Headless API contract audit complete.');
   stdout.writeln('Passed: $passed');
   stdout.writeln('Declared routes: ${apiEndpoints.length}');
-  stdout.writeln('NetworkBackend calls: ${networkBackendCalls.length}');
-  stdout.writeln(
-    'NetworkBackend missing on server: ${networkBackendMissingOnServer.length}',
-  );
   stdout.writeln('Browser client paths: ${browserPaths.length}');
   stdout.writeln(
     'Browser client missing on server: ${browserMissingOnServer.length}',
   );
-  for (final route in networkBackendMissingOnServer) {
-    stdout.writeln('  NetworkBackend: $route');
-  }
   for (final path in browserMissingOnServer) {
     stdout.writeln('  Browser client: $path');
   }
   if (failOnDrift && !passed) exit(1);
 }
-
-typedef _Call = ({String method, String path});
 
 /// A value no real path segment has, standing for an interpolated one.
 const _placeholder = '~param~';
@@ -135,44 +100,6 @@ bool _isDeclaredPath(String path) {
     'PUT',
     'DELETE',
   ].any((method) => _isDeclared(method, path));
-}
-
-String _readDartSources() {
-  final root = File(_networkBackendPath);
-  if (!root.existsSync()) return '';
-  final sources = <String>[root.readAsStringSync()];
-  final parts = Directory(_networkBackendPartsDirectory);
-  if (parts.existsSync()) {
-    final files =
-        parts
-            .listSync(recursive: true)
-            .whereType<File>()
-            .where((file) => file.path.endsWith('.dart'))
-            .toList()
-          ..sort((a, b) => a.path.compareTo(b.path));
-    sources.addAll(files.map((file) => file.readAsStringSync()));
-  }
-  return sources.join('\n');
-}
-
-Set<_Call> _networkBackendCalls(String source) {
-  return RegExp(
-    r"_(get|post|put|delete|downloadBytes|postRaw|postRawBytes)\(\s*'([^']+)'",
-  ).allMatches(source).map((match) {
-    final method = switch (match.group(1)!) {
-      'get' || 'downloadBytes' => 'GET',
-      'post' || 'postRaw' || 'postRawBytes' => 'POST',
-      'put' => 'PUT',
-      _ => 'DELETE',
-    };
-    final path = match
-        .group(2)!
-        .split('?')
-        .first
-        .replaceAll(RegExp(r'\$\{[^}]+\}'), _placeholder)
-        .replaceAll(RegExp(r'\$[A-Za-z_][A-Za-z0-9_]*'), _placeholder);
-    return (method: method, path: '/api/$path');
-  }).toSet();
 }
 
 /// Every `/api/...` path the browser clients write as a string or template

@@ -1,7 +1,6 @@
 part of '../network_backend.dart';
 
 extension _NetworkBackendWireDecoding on _NetworkBackendTransport {
-
   DriverType _parseDriverType(String str) {
     switch (str.toLowerCase()) {
       case 'ascom':

@@ -85,8 +85,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
         TailnetDetector,
         buildSkotiqServerUri,
         kDefaultHeadlessPort;
-import 'package:skotiq_remote_protocol/wire.dart'
-    show WireTime, tryParseWireTime;
+import 'package:skotiq_remote_protocol/wire.dart';
 import 'package:path/path.dart' as p;
 import '../models/settings/app_settings.dart' as models;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -100,7 +99,6 @@ import '../models/errors/skotiq_error.dart' as dart_error;
 import 'remote_display_jpeg.dart';
 import 'skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
-import 'package:skotiq_remote_protocol/wire_models.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/notes/journal_note.dart';
 import '../models/backend/backend_types.dart';
@@ -142,6 +140,7 @@ part 'network_backend/wire_decoding.dart';
 /// and is used by the Mobile app to control a remote Desktop/Headless instance.
 abstract class _NetworkBackendTransport {
   static const _requestIdHeader = 'x-request-id';
+  static const _apiPrefix = '/api/';
 
   final String serverHost;
   final int serverPort;
@@ -434,9 +433,13 @@ abstract class _NetworkBackendTransport {
     );
   }
 
-  /// Build a WebSocket URI for [path] (e.g. `/events`, `/ws/live-view`),
-  /// honouring the derived [_wsScheme]. [queryParameters] are merged on.
-  Uri _wsUri(String path, [Map<String, String>? queryParameters]) {
+  /// The WebSocket URI of [endpoint], with the scheme derived from [scheme].
+  Uri _wsUri(ApiEndpoint endpoint, [Map<String, String>? queryParameters]) {
+    final route = endpoint.route;
+    if (route.method != ApiMethod.ws) {
+      throw StateError('${route.signature} is not a WebSocket route');
+    }
+    final path = route.path;
     return Uri(
       scheme: _wsScheme,
       host: serverHost,

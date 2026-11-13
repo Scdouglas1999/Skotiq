@@ -66,11 +66,12 @@ class _WebRtcLiveViewSubscription {
     });
     await pc.setLocalDescription(offer);
 
-    final offerUri = backend._apiUri('webrtc/live-view/offer');
-    final headers = backend._addAuthHeaders(
-      {},
-      endpoint: 'webrtc/live-view/offer',
+    final offerPath = backend._endpointPath(
+      WebRtcLiveViewApi.rsOffer,
+      ApiMethod.post,
     );
+    final offerUri = backend._apiUri(offerPath);
+    final headers = backend._addAuthHeaders({}, endpoint: offerPath);
     headers[HttpHeaders.contentTypeHeader] = 'application/json';
     final body = <String, Object?>{
       'deviceId': deviceId,
@@ -88,7 +89,7 @@ class _WebRtcLiveViewSubscription {
         response.statusCode,
         response.body,
         'POST',
-        'webrtc/live-view/offer',
+        offerPath,
       );
     }
     final decoded = jsonDecode(response.body);
@@ -224,11 +225,13 @@ class _WebRtcLiveViewSubscription {
 
   Future<void> _onLocalIceCandidate(RTCIceCandidate candidate) async {
     if (_disposed) return;
-    final uri = backend._apiUri('webrtc/live-view/ice/$sessionId');
-    final headers = backend._addAuthHeaders(
-      {},
-      endpoint: 'webrtc/live-view/ice',
+    final path = backend._endpointPath(
+      WebRtcLiveViewApi.rsSessionid,
+      ApiMethod.post,
+      {'sessionId': sessionId},
     );
+    final uri = backend._apiUri(path);
+    final headers = backend._addAuthHeaders({}, endpoint: path);
     headers[HttpHeaders.contentTypeHeader] = 'application/json';
     final body = jsonEncode({
       'candidate': {
@@ -263,10 +266,12 @@ class _WebRtcLiveViewSubscription {
   Future<void> _consumeServerIce() async {
     if (_disposed) return;
     try {
-      final uri = backend._apiUri('webrtc/live-view/ice/$sessionId/events');
-      final request = await _sseClient.getUrl(uri);
+      final path = backend._endpointPath(WebRtcLiveViewApi.rs, ApiMethod.get, {
+        'sessionId': sessionId,
+      });
+      final request = await _sseClient.getUrl(backend._apiUri(path));
       backend
-          ._addAuthHeaders({}, endpoint: 'webrtc/live-view/ice/events')
+          ._addAuthHeaders({}, endpoint: path)
           .forEach((k, v) => request.headers.add(k, v));
       request.headers.set('accept', 'text/event-stream');
       final response = await request.close();
@@ -451,11 +456,13 @@ class _WebRtcLiveViewSubscription {
     // Best-effort DELETE so the server reaps the session immediately
     // rather than waiting for the 30 s startup timer.
     try {
-      final uri = backend._apiUri('webrtc/live-view/$sessionId');
-      final headers = backend._addAuthHeaders(
-        {},
-        endpoint: 'webrtc/live-view/delete',
+      final path = backend._endpointPath(
+        WebRtcLiveViewApi.rsDelete,
+        ApiMethod.delete,
+        {'sessionId': sessionId},
       );
+      final uri = backend._apiUri(path);
+      final headers = backend._addAuthHeaders({}, endpoint: path);
       await backend._http.delete(uri, headers: headers);
     } catch (_) {
       // Server might already be unreachable; the startup timer will

@@ -406,18 +406,39 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     Error.throwWithStackTrace(lastError!, lastStackTrace!);
   }
 
+  /// The request path of [endpoint] below `/api/`, with its `<name>`
+  /// parameters taken from [path]. [sends] is the verb the calling helper
+  /// puts on the wire.
+  String _endpointPath(
+    ApiEndpoint endpoint,
+    ApiMethod sends, [
+    Map<String, Object> path = const {},
+  ]) {
+    final route = endpoint.route;
+    if (route.method != sends) {
+      throw StateError('${route.signature} is not sent as ${sends.wireName}');
+    }
+    final filled = route.fill(path);
+    if (!filled.startsWith(_NetworkBackendTransport._apiPrefix)) {
+      throw StateError('${route.signature} is not an API route');
+    }
+    return filled.substring(_NetworkBackendTransport._apiPrefix.length);
+  }
+
+  Map<String, String>? _queryStrings(Map<String, dynamic>? query) =>
+      query?.map((key, value) => MapEntry(key, value.toString()));
+
   Future<Map<String, dynamic>> _get(
-    String endpoint, [
-    Map<String, dynamic>? queryParams,
-  ]) async {
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    Map<String, dynamic>? query,
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.get, path);
     return _retryableRequest(() async {
-      final uri = _apiUri(
-        endpoint,
-        queryParams?.map((k, v) => MapEntry(k, v.toString())),
-      );
+      final uri = _apiUri(target, _queryStrings(query));
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         send: (headers) => _http.get(uri, headers: headers),
       );
 
@@ -426,7 +447,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'GET',
-          endpoint,
+          target,
         );
       }
 
@@ -435,23 +456,25 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   }
 
   Future<Map<String, dynamic>> _post(
-    String endpoint, [
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
     Map<String, dynamic>? body,
-    Map<String, String>? extraHeaders,
+    Map<String, String>? headers,
     int maxAttempts = 3,
     Duration? timeout,
-  ]) async {
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.post, path);
     return _retryableRequest(
       maxAttempts: maxAttempts,
       timeout: timeout,
       mutating: true,
       () async {
-        final uri = _apiUri(endpoint);
+        final uri = _apiUri(target);
 
         final response = await _sendWithAuthRefresh(
-          endpoint: endpoint,
+          endpoint: target,
           jsonContent: true,
-          extraHeaders: extraHeaders,
+          extraHeaders: headers,
           send: (headers) => _http.post(
             uri,
             headers: headers,
@@ -459,15 +482,13 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           ),
         );
 
-        // Any 2xx is success: the host answers a create with 201 Created
-        // (POST /api/calibration/flats did), and treating that as a failure
-        // told the operator their flats were not recorded when they were.
+        // A create answers 201 Created, so any 2xx is success.
         if (response.statusCode < 200 || response.statusCode >= 300) {
           throw _parseErrorResponse(
             response.statusCode,
             response.body,
             'POST',
-            endpoint,
+            target,
           );
         }
         if (response.body.trim().isEmpty) return <String, dynamic>{};
@@ -495,7 +516,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       return null;
     }
     try {
-      final res = await _post('ws/ticket');
+      final res = await _post(AuthApi.wsTicketIssue);
       final ticket = res['ticket'];
       if (ticket is String && ticket.isNotEmpty) {
         return ticket;
@@ -510,12 +531,17 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     return null;
   }
 
-  Future<void> _delete(String endpoint) async {
+  Future<void> _delete(
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    Map<String, dynamic>? query,
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.delete, path);
     return _retryableRequest(mutating: true, () async {
-      final uri = _apiUri(endpoint);
+      final uri = _apiUri(target, _queryStrings(query));
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         send: (headers) => _http.delete(uri, headers: headers),
       );
 
@@ -524,21 +550,23 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'DELETE',
-          endpoint,
+          target,
         );
       }
     });
   }
 
   Future<Map<String, dynamic>> _put(
-    String endpoint, [
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
     Map<String, dynamic>? body,
-  ]) async {
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.put, path);
     return _retryableRequest(() async {
-      final uri = _apiUri(endpoint);
+      final uri = _apiUri(target);
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         jsonContent: true,
         send: (headers) => _http.put(
           uri,
@@ -552,7 +580,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'PUT',
-          endpoint,
+          target,
         );
       }
 
@@ -561,25 +589,29 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   }
 
   Future<Uint8List> _downloadBytes(
-    String endpoint, [
-    Map<String, dynamic>? queryParams,
-  ]) async {
-    final downloaded = await _downloadBytesWithHeaders(endpoint, queryParams);
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    Map<String, dynamic>? query,
+  }) async {
+    final downloaded = await _downloadBytesWithHeaders(
+      endpoint,
+      path: path,
+      query: query,
+    );
     return downloaded.bytes;
   }
 
   Future<({Uint8List bytes, Map<String, String> headers})>
   _downloadBytesWithHeaders(
-    String endpoint, [
-    Map<String, dynamic>? queryParams,
-  ]) async {
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    Map<String, dynamic>? query,
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.get, path);
     return _retryableRequest(() async {
-      final uri = _apiUri(
-        endpoint,
-        queryParams?.map((k, v) => MapEntry(k, v.toString())),
-      );
+      final uri = _apiUri(target, _queryStrings(query));
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         send: (headers) => _http.get(uri, headers: headers),
       );
       if (response.statusCode != 200) {
@@ -587,7 +619,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'GET',
-          endpoint,
+          target,
         );
       }
       return (
@@ -605,16 +637,18 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   /// are modest enough that an interrupted transfer just restarts, so the
   /// sidecar/Range/ETag machinery is deliberately not replicated here.
   Future<void> _downloadToFile(
-    String endpoint,
+    ApiEndpoint endpoint,
     String localPath, {
+    Map<String, Object> path = const {},
     void Function(double)? onProgress,
   }) async {
+    final target = _endpointPath(endpoint, ApiMethod.get, path);
     final file = File(localPath);
     await file.parent.create(recursive: true);
-    final response = await _openRawGetWithAuthRefresh(endpoint);
+    final response = await _openRawGetWithAuthRefresh(target);
     if (response.statusCode != HttpStatus.ok) {
       final body = await response.transform(utf8.decoder).join();
-      throw _parseErrorResponse(response.statusCode, body, 'GET', endpoint);
+      throw _parseErrorResponse(response.statusCode, body, 'GET', target);
     }
     final totalLength = response.contentLength;
     final sink = file.openWrite();
@@ -633,26 +667,24 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     }
     if (totalLength > 0 && received != totalLength) {
       throw FormatException(
-        '$endpoint transfer truncated ($received of $totalLength bytes)',
+        '$target transfer truncated ($received of $totalLength bytes)',
       );
     }
     onProgress?.call(1);
   }
 
   Future<Map<String, dynamic>> _postRaw(
-    String endpoint,
-    Map<String, dynamic> queryParams,
-    Uint8List bytes, {
+    ApiEndpoint endpoint, {
+    required Map<String, dynamic> query,
+    required Uint8List bytes,
     String contentType = 'application/octet-stream',
   }) async {
+    final target = _endpointPath(endpoint, ApiMethod.post);
     return _retryableRequest(() async {
-      final uri = _apiUri(
-        endpoint,
-        queryParams.map((key, value) => MapEntry(key, value.toString())),
-      );
+      final uri = _apiUri(target, _queryStrings(query));
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         extraHeaders: {HttpHeaders.contentTypeHeader: contentType},
         send: (headers) => _http.post(uri, headers: headers, body: bytes),
       );
@@ -662,7 +694,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'POST',
-          endpoint,
+          target,
         );
       }
 
@@ -671,14 +703,16 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   }
 
   Future<Uint8List> _postRawBytes(
-    String endpoint,
-    Map<String, dynamic> body,
-  ) async {
+    ApiEndpoint endpoint, {
+    Map<String, Object> path = const {},
+    required Map<String, dynamic> body,
+  }) async {
+    final target = _endpointPath(endpoint, ApiMethod.post, path);
     return _retryableRequest(() async {
-      final uri = _apiUri(endpoint);
+      final uri = _apiUri(target);
 
       final response = await _sendWithAuthRefresh(
-        endpoint: endpoint,
+        endpoint: target,
         jsonContent: true,
         send: (headers) =>
             _http.post(uri, headers: headers, body: jsonEncode(body)),
@@ -688,7 +722,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           response.statusCode,
           response.body,
           'POST',
-          endpoint,
+          target,
         );
       }
       return response.bodyBytes;
