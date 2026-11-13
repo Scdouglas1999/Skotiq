@@ -72,6 +72,7 @@ mod frame_header;
 mod guider;
 mod hotplug;
 mod last_frame;
+mod sequence_run;
 mod simulator;
 pub(crate) mod stacking_api;
 pub(crate) mod state;
