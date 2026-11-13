@@ -1,6 +1,8 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
-import '../../../services/device_service_lifecycle.dart';
+import '../../device_service_providers.dart';
 import '../../device_heartbeat_health_provider.dart';
 import '../../equipment/device_slots.dart';
 import '../../profiles_provider.dart';
@@ -65,10 +67,10 @@ class DeviceSlotChannel
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (context.networkBackend == null) return;
-    final notifier = readDeviceConnectionNotifier(context.reader, slot.type);
+    final notifier = readDeviceConnectionNotifier(context.container, slot.type);
     final shownId = notifier.deviceId;
     final deviceId = jsonString(value?['deviceId']);
-    if (_ownConnectHolds(context.reader, deviceId)) return;
+    if (_ownConnectHolds(context.container, deviceId)) return;
     final state = jsonString(value?['state']);
     final readings = value?['readings'];
     final decoder = slot.readings;
@@ -95,11 +97,11 @@ class DeviceSlotChannel
   /// Whether a connect this client asked for owns the slot: in flight (the
   /// host shows the device only once it is up) or just failed (a host value
   /// from before the refusal would put the failed slot back to connecting).
-  bool _ownConnectHolds(Object reader, String? hostDeviceId) {
-    final shown = readDeviceSlot(reader, slot.type).retryDeviceId;
-    return (shown != null && DeviceServiceLifecycle.hasOwnConnectOf(shown)) ||
-        (hostDeviceId != null &&
-            DeviceServiceLifecycle.hasOwnConnectOf(hostDeviceId));
+  bool _ownConnectHolds(ProviderContainer container, String? hostDeviceId) {
+    final shown = readDeviceSlot(container, slot.type).retryDeviceId;
+    final attempts = container.read(connectAttemptsProvider);
+    return (shown != null && attempts.isOwn(shown)) ||
+        (hostDeviceId != null && attempts.isOwn(hostDeviceId));
   }
 
   static DeviceError? _error(Object? json) {
@@ -131,18 +133,18 @@ final List<DeviceSlotChannel> deviceSlotChannels = List.unmodifiable([
 /// its run. Readings, the guider's state and the host's open plan need the
 /// host updated; the operator is told once per link.
 Future<void> mirrorDevicesOfOlderHost(
-  Object reader,
+  ProviderContainer container,
   SkotiqBackend backend, {
   required bool Function() isCurrent,
 }) async {
   final mirror = RuntimeApplyContext(
-    reader,
+    container,
     networkBackend: backend,
   ).read(clientRuntimeMirrorStateProvider);
   if (mirror.hostPublishes(deviceSlotChannels.first.key)) return;
   final devices = await backend.getConnectedDevices();
   if (!isCurrent()) return;
-  final context = RuntimeApplyContext(reader, networkBackend: backend);
+  final context = RuntimeApplyContext(container, networkBackend: backend);
   // The guide camera has no slot of its own and must not take the imaging
   // camera's.
   final guideProfile = context.read(activeEquipmentProfileProvider);
@@ -158,11 +160,11 @@ Future<void> mirrorDevicesOfOlderHost(
                   isProfileGuideCamera(guideProfile, candidate.id)),
         )
         .firstOrNull;
-    final shown = readDeviceSlot(reader, type);
+    final shown = readDeviceSlot(container, type);
     if (device == null && shown.deviceId == null) continue;
     final ownConnect = shown.retryDeviceId ?? device?.id;
     if (ownConnect != null &&
-        DeviceServiceLifecycle.hasOwnConnectOf(ownConnect)) {
+        container.read(connectAttemptsProvider).isOwn(ownConnect)) {
       continue;
     }
     if (device != null &&
@@ -170,7 +172,7 @@ Future<void> mirrorDevicesOfOlderHost(
         shown.connectionState == DeviceConnectionState.connected) {
       continue;
     }
-    readDeviceConnectionNotifier(reader, type).mirrorHost(
+    readDeviceConnectionNotifier(container, type).mirrorHost(
       connectionState: device == null
           ? DeviceConnectionState.disconnected
           : DeviceConnectionState.connected,

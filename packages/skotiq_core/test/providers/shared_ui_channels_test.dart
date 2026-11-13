@@ -360,23 +360,14 @@ void main() {
       () async {
         final host = _host();
         addTearDown(host.container.dispose);
-        await applyRemoteSyncEvent(
-          host.container,
-          imaging('ExposureStarted', {'durationSecs': 8.0, 'frameNumber': 1}),
-        );
+        applyHostLocalSyncEvent(host.container, imaging('ExposureStarted', {'durationSecs': 8.0, 'frameNumber': 1}));
         expect(host.container.read(cameraStateProvider).isExposing, isTrue);
         expect(host.container.read(exposureProgressProvider).remaining, 8.0);
 
-        await applyRemoteSyncEvent(
-          host.container,
-          imaging('ExposureProgress', {'progress': 0.5, 'remainingSecs': 4.0}),
-        );
+        applyHostLocalSyncEvent(host.container, imaging('ExposureProgress', {'progress': 0.5, 'remainingSecs': 4.0}));
         expect(host.container.read(exposureProgressProvider).remaining, 4.0);
 
-        await applyRemoteSyncEvent(
-          host.container,
-          imaging('ExposureComplete', const {}),
-        );
+        applyHostLocalSyncEvent(host.container, imaging('ExposureComplete', const {}));
         expect(host.container.read(cameraStateProvider).isExposing, isFalse);
         expect(
           host.container.read(exposureProgressProvider),
@@ -394,14 +385,8 @@ void main() {
           .read(exposureProgressProvider.notifier)
           .startExposure(30, 4, null);
 
-      await applyRemoteSyncEvent(
-        host.container,
-        imaging('ExposureStarted', {'durationSecs': 1.0}),
-      );
-      await applyRemoteSyncEvent(
-        host.container,
-        imaging('ExposureComplete', const {}),
-      );
+      applyHostLocalSyncEvent(host.container, imaging('ExposureStarted', {'durationSecs': 1.0}));
+      applyHostLocalSyncEvent(host.container, imaging('ExposureComplete', const {}));
 
       expect(host.container.read(cameraStateProvider).isExposing, isTrue);
       expect(host.container.read(exposureProgressProvider).remaining, 30.0);

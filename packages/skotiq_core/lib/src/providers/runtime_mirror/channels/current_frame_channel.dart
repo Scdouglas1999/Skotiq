@@ -91,7 +91,7 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
     final gain = jsonInt(value['gain']);
     final offset = jsonInt(value['offset']);
     requestHostCurrentFrame(
-      context.reader,
+      context.container,
       backend,
       hint: width == null || height == null
           ? null

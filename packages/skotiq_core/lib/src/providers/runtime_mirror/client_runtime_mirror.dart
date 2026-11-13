@@ -9,7 +9,6 @@ import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
 import '../backend_provider.dart';
-import '../provider_reader.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
 import '../logging_service_provider.dart';
@@ -69,16 +68,16 @@ final clientRuntimeMirrorStateProvider = Provider<ClientRuntimeMirrorState>(
 /// The update already applied is applied again only for a channel that
 /// [RuntimeMirrorChannel.reappliesOnReread].
 void applyHostRuntimeUpdate(
-  Object reader,
+  ProviderContainer container,
   HostRuntimeUpdate update, {
   required SkotiqBackend networkBackend,
 }) {
   final channel = runtimeChannelFor(
-    readProvider(reader, runtimeMirrorChannelsProvider),
+    container.read(runtimeMirrorChannelsProvider),
     update.channel,
   );
   if (channel == null) return;
-  final state = readProvider(reader, clientRuntimeMirrorStateProvider);
+  final state = container.read(clientRuntimeMirrorStateProvider);
   final last = state._revisions[update.channel];
   if (last != null &&
       (update.revision < last ||
@@ -90,7 +89,7 @@ void applyHostRuntimeUpdate(
   state._applying.add(update.channel);
   try {
     channel.apply(
-      RuntimeApplyContext(reader, networkBackend: networkBackend),
+      RuntimeApplyContext(container, networkBackend: networkBackend),
       update.value,
     );
   } on FormatException catch (e) {
@@ -102,22 +101,22 @@ void applyHostRuntimeUpdate(
   } finally {
     state._applying.remove(update.channel);
   }
-  state._applied[update.channel] = channel.readSource(reader);
+  state._applied[update.channel] = channel.readSource(container);
 }
 
 /// Fill every runtime channel from the host's current values. Runs on connect,
 /// on reconnect and with the periodic re-hydrate; the revision check makes an
 /// unchanged channel a no-op.
 Future<void> hydrateHostRuntimeState(
-  Object reader,
+  ProviderContainer container,
   SkotiqBackend backend,
 ) async {
   final mirror = backend.remoteHost?.runtimeMirror;
   if (mirror == null) return;
   final updates = await mirror.getHostRuntimeState();
-  if (!identical(readProvider(reader, backendProvider), backend)) return;
+  if (!identical(container.read(backendProvider), backend)) return;
   for (final update in updates) {
-    applyHostRuntimeUpdate(reader, update, networkBackend: backend);
+    applyHostRuntimeUpdate(container, update, networkBackend: backend);
   }
 }
 
@@ -147,7 +146,7 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
     if (!identical(ref.read(backendProvider), backend)) return;
     final Map<String, dynamic>? value;
     try {
-      value = channel.encodeCurrent(ref);
+      value = channel.encodeCurrent(ref.container);
     } on Object catch (e) {
       developer.log(
         'Runtime report ${channel.key} not encoded: $e',

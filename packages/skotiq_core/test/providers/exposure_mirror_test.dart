@@ -50,15 +50,12 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await applyRemoteSyncEvent(
-        container,
-        imagingEvent('ExposureStarted', {
-          'durationSecs': 60.0,
-          'frameNumber': 3,
-          'totalFrames': 10,
-        }),
-        networkBackend: backend,
-      );
+      applyHostEventOnClient(container, backend, imagingEvent('ExposureStarted', {
+          'duration_secs': 60.0,
+          'frame_type': 'light',
+          'frame': 3,
+          'total': 10,
+        }));
 
       expect(container.read(cameraStateProvider).isExposing, isTrue);
       final progress = container.read(exposureProgressProvider);
@@ -81,14 +78,10 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await applyRemoteSyncEvent(
-      container,
-      imagingEvent('ExposureProgress', {
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
         'progress': 0.25,
         'remainingSecs': 45.0,
-      }),
-      networkBackend: backend,
-    );
+      }));
 
     final camera = container.read(cameraStateProvider);
     expect(camera.isExposing, isTrue);
@@ -111,21 +104,13 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await applyRemoteSyncEvent(
-      container,
-      imagingEvent('ExposureProgress', {
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
         'progress': 0.5,
         'remainingSecs': 30.0,
-      }),
-      networkBackend: backend,
-    );
+      }));
     expect(container.read(cameraStateProvider).isExposing, isTrue);
 
-    await applyRemoteSyncEvent(
-      container,
-      imagingEvent('ExposureComplete', const {}),
-      networkBackend: backend,
-    );
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureComplete', const {}));
     expect(container.read(cameraStateProvider).isExposing, isFalse);
     expect(
       container.read(exposureProgressProvider),
@@ -148,19 +133,11 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await applyRemoteSyncEvent(
-        container,
-        imagingEvent('ExposureProgress', {
+      applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
           'progress': 0.5,
           'remainingSecs': 30.0,
-        }),
-        networkBackend: backend,
-      );
-      await applyRemoteSyncEvent(
-        container,
-        imagingEvent(ending, const {'error': 'driver fault'}),
-        networkBackend: backend,
-      );
+        }));
+      applyHostEventOnClient(container, backend, imagingEvent(ending, const {'error': 'driver fault'}));
 
       expect(container.read(cameraStateProvider).isExposing, isFalse);
       expect(container.read(exposureProgressProvider), ExposureProgress.idle());
@@ -175,15 +152,10 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await applyRemoteSyncEvent(
-        container,
-        imagingEvent('ExposureProgress', {
+      applyHostLocalSyncEvent(container, imagingEvent('ExposureProgress', {
           'progress': 0.5,
           'remainingSecs': 30.0,
-        }),
-        // No networkBackend => host path; ImagingService already owns this state,
-        // so the mirror must NOT run (would double-apply).
-      );
+        }));
 
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     },

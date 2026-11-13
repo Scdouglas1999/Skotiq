@@ -416,14 +416,6 @@ class MockDeviceService extends _i1.Mock implements _i10.DeviceService {
           as _i3.SkotiqBackend);
 
   @override
-  bool hasOwnConnectOf(String? deviceId) =>
-      (super.noSuchMethod(
-            Invocation.method(#hasOwnConnectOf, [deviceId]),
-            returnValue: false,
-          )
-          as bool);
-
-  @override
   _i8.Future<void> quiesce({Duration? timeout}) =>
       (super.noSuchMethod(
             Invocation.method(#quiesce, [], {#timeout: timeout}),

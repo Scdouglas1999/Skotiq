@@ -122,9 +122,7 @@ void main() {
       for (var i = 0; i < 20; i++) {
         final event = _event(EventCategory.guiding, 'AppState');
         hostEvents.add(event);
-        unawaited(
-          applyRemoteSyncEvent(companion, event, networkBackend: backend),
-        );
+        applyHostEventOnClient(companion, backend, event);
         async.elapse(const Duration(milliseconds: 20));
       }
       async.elapse(const Duration(seconds: 10));

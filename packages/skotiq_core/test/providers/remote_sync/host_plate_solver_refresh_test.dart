@@ -1,14 +1,12 @@
-// reverify RV-01: a linked client kept the host's plate-solver state from when
-// it connected; after the host set up ASTAP the client's pre-flight still said
-// "No plate solver" until someone pressed Re-scan. Hydration (on reconnect and
-// every 30 s) now reads it again.
+// A plate solver set up on the host while a client is linked shows on the
+// client with the next re-read of the host (on reconnect and every 30 s).
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 void main() {
-  test('the host plate solver is read again on refresh', () async {
+  test('the host plate solver is read again with the host re-read', () async {
     var detections = 0;
     final container = ProviderContainer(
       overrides: [
@@ -23,7 +21,7 @@ void main() {
     await container.read(plateSolverDetectionProvider.future);
     expect(detections, 1);
 
-    refreshHostPlateSolverState(container);
+    rereadStoredHostData(container);
     await container.read(plateSolverDetectionProvider.future);
     expect(detections, 2);
   });

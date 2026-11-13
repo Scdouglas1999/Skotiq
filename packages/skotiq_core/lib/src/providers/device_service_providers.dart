@@ -2,6 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'backend_provider.dart';
 import '../models/backend/backend_types.dart';
 import '../services/device_service.dart';
+import '../services/device_service/connect_attempts.dart';
+
+/// Where each connect this app asked for stands, for the backend that is
+/// current. The device service writes it; whatever else writes a device slot
+/// (a linked client's mirror of the host) asks it first, so a connect in
+/// flight or just failed keeps its slot.
+final connectAttemptsProvider = Provider<ConnectAttempts>((ref) {
+  ref.watch(backendProvider);
+  final attempts = ConnectAttempts();
+  ref.onDispose(attempts.dispose);
+  return attempts;
+});
 
 final deviceServiceProvider = Provider<DeviceService>((ref) {
   final backend = ref.watch(backendProvider);
