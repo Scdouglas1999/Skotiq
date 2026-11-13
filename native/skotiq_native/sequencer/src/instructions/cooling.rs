@@ -408,6 +408,7 @@ pub async fn execute_warm_camera(
         );
     }
 
+    let mut last_sensor_temp = Some(start_temp);
     for step in 0..steps {
         if let Some(result) = ctx.check_cancelled() {
             // Turn off cooler on cancel
@@ -450,6 +451,9 @@ pub async fn execute_warm_camera(
                 .camera_get_temperature(&camera_id)
                 .await
                 .ok();
+            if sensor_temp.is_some() {
+                last_sensor_temp = sensor_temp;
+            }
             cb(
                 progress_percent,
                 ThermalReading {
@@ -489,7 +493,7 @@ pub async fn execute_warm_camera(
         cb(
             100.0,
             ThermalReading {
-                sensor_temp_c: None,
+                sensor_temp_c: last_sensor_temp,
                 target_temp_c: Some(target_temp),
                 cooler_power_percent: None,
             },
