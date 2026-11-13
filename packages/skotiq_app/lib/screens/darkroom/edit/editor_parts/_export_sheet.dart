@@ -1246,13 +1246,13 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       if (!mounted) return;
       _settle(() => _result = _describeReply(reply, outputPath));
       if (!context.mounted) return;
-      context.showSuccessSnackBar('Exported ${p.basename(outputPath)}');
       // The reveal/share is a hand-off to the OS AFTER the file is written and
-      // the success above is already recorded. It gets its OWN try: on a
-      // platform whose share sheet throws — some desktop and headless targets
-      // do — a written export must not be reported as "Export failed" and must
-      // not latch `_exportMasterFailure`. The export succeeded; only the reveal
-      // did not, and that is the smaller, non-fatal news it carries.
+      // the outcome above is recorded. It gets its OWN try: on a platform whose
+      // share sheet throws — some desktop and headless targets do — a written
+      // export must not be reported as "Export failed" and must not latch
+      // `_exportMasterFailure`. The export succeeded; only the reveal did not,
+      // and that is the one notice the operator gets.
+      var revealed = true;
       try {
         await ref.read(darkroomFileRevealerProvider)(
           context,
@@ -1262,19 +1262,23 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       } catch (revealError, revealStack) {
         // The path is on the sheet's own outcome block either way, so the
         // operator can still find the file; only the hand-off is lost, and the
-        // reason for it belongs in the log rather than in a toast.
+        // reason for it belongs in the log rather than in the notice.
         Log.warning(
           'Darkroom: the export was written to $outputPath but could not be '
           'revealed or shared: $revealError',
           source: 'Darkroom',
           stackTrace: revealStack,
         );
-        if (mounted) {
-          context.showWarningSnackBar(
-            'Exported ${p.basename(outputPath)}, but it could not be '
-            'revealed or shared on this device.',
-          );
-        }
+        revealed = false;
+      }
+      if (!mounted || !context.mounted) return;
+      if (revealed) {
+        context.showSuccessSnackBar('Exported ${p.basename(outputPath)}');
+      } else {
+        context.showWarningSnackBar(
+          'Exported ${p.basename(outputPath)}, but it could not be '
+          'revealed or shared on this device.',
+        );
       }
     } on DarkroomCancelledOutcome catch (cancelled) {
       if (!mounted) return;
