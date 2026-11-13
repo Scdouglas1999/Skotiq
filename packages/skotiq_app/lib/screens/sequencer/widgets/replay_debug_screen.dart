@@ -406,7 +406,7 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
   /// (silent insert) so the operator's next visit to the run's notes
   /// list shows the entry; a snackbar confirms.
   Future<void> _addNoteForDecision(ReplayDecision d) async {
-    final notesService = ref.read(notesRepositoryProvider);
+    final notesService = ref.read(notesJournalProvider);
     final body = StringBuffer()
       ..writeln(
           'At ${ClockFormat.dateHms(d.timestamp.toLocal())}: ${d.summary}')

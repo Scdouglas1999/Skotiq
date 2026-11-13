@@ -21,6 +21,7 @@ import '../services/science/science_camera_auto_config.dart';
 import '../services/sky_atlas/sky_atlas_service.dart' show parseSkyAtlasLimitGb;
 import 'async_scope.dart';
 import 'backend_provider.dart';
+import 'host_role.dart';
 import 'database_provider.dart';
 import '../backend/remote_host.dart';
 import '../backend/roles/host_data/science_products.dart';

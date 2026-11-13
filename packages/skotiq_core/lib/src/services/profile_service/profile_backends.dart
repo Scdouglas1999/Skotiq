@@ -1,20 +1,15 @@
 part of '../profile_service.dart';
 
 extension _ProfileServiceBackends on ProfileService {
-  void _requireAuthority(_BackendAuthority authority) {
-    if (!authority.owner.isCurrentBackend(authority.backend)) {
-      throw StateError(
-        'The imaging host changed while the profile operation was running.',
-      );
-    }
-  }
+  void _requireAuthority(_BackendAuthority authority) =>
+      authority.ensureCurrent('the profile operation was running');
 
   Future<EquipmentProfileModel?> _getProfileModelById(
     int profileId, {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.backend;
+    final backend = operation.value;
     if (backend.remoteHost != null) {
       final profiles = await backend.getProfiles();
       _requireAuthority(operation);
@@ -36,7 +31,7 @@ extension _ProfileServiceBackends on ProfileService {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.backend;
+    final backend = operation.value;
     if (backend.remoteHost != null) {
       final active = await backend.getActiveProfile();
       _requireAuthority(operation);
@@ -61,7 +56,7 @@ extension _ProfileServiceBackends on ProfileService {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.backend;
+    final backend = operation.value;
     if (backend.remoteHost != null) {
       final profiles = await backend.getProfiles();
       _requireAuthority(operation);
@@ -102,7 +97,7 @@ extension _ProfileServiceBackends on ProfileService {
   }) async {
     final operation = authority ?? _authority;
     _requireAuthority(operation);
-    final backend = operation.backend;
+    final backend = operation.value;
     if (backend.remoteHost != null) {
       await backend.saveProfile(profile.toRemoteProfile());
       _requireAuthority(operation);
@@ -243,7 +238,7 @@ extension _ProfileServiceBackends on ProfileService {
     required _BackendAuthority authority,
   }) async {
     _requireAuthority(authority);
-    final backend = authority.backend;
+    final backend = authority.value;
     if (backend.remoteHost != null) {
       final existingProfiles = await backend.getProfiles();
       _requireAuthority(authority);

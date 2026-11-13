@@ -6,7 +6,10 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
   /// current after that.
   void _refreshCoverCalibrator(String deviceId) {
     unawaited(
-      refreshCoverCalibratorSnapshot(ref, deviceId).catchError((Object _) {
+      refreshCoverCalibratorSnapshot(
+        ProviderScope.containerOf(context, listen: false),
+        deviceId,
+      ).catchError((Object _) {
         return null;
       }),
     );

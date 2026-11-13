@@ -9,6 +9,7 @@ import '../models/backend/device_capabilities.dart';
 import '../models/equipment/equipment_models.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
+import 'host_role.dart';
 import 'capability_provider.dart' show cameraSensitivityProvider;
 import 'equipment/camera_state_provider.dart';
 import 'database_provider.dart';
@@ -688,86 +689,70 @@ final sessionNightSeedProvider = FutureProvider<void>((ref) async {
   ], now: now);
 });
 
-/// Recent frames for the active session, remote-aware.
+/// The session a linked client's host is recording into, for a client that
+/// only watches: its own session state names a session only when it started
+/// or recovered one itself. Null on the host, whose session state is the
+/// whole answer, and when the host is idle.
 ///
-/// On the host this is exactly the in-memory [sessionImagesProvider] list (the
-/// local capture loop populates it). On a slave (NetworkBackend) the master is
-/// the node actually imaging, so those frames never reach the local in-memory
-/// list — instead this branches onto the already remote-aware
-/// [allDbImagesProvider] (which polls the host's `/api/images`), filters to the
-/// active session's `dbSessionId`, and maps each Drift row back onto the
-/// in-memory [CapturedImage] shape the cockpit/strip widgets render. Ordering
-/// matches [sessionImagesProvider]: oldest-first (capture order), so the
-/// consumers' "take the tail, reverse to newest-first" logic is unchanged.
-///
-/// The session id itself is also remote-aware. `dbSessionId` is only ever set
-/// locally by [SessionStateNotifier.startSession] / `recoverSession`, so a
-/// phone or tablet that merely *watches* a host-started run never has one. When
-/// the local id is absent this falls back to the host's own active session,
-/// using the same `status == 'active'` invariant
-/// `SessionsDao.getActiveSessions` relies on.
-///
-/// A host that shares its own list (see `SessionFramesChannel`) settles all
-/// of that: the client shows the host's frames, in the host's order, so the
-/// two count the same frames whenever the client connected.
-final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend.remoteHost == null) {
-    return ref.watch(sessionImagesProvider);
-  }
-
-  final hostIds = ref.watch(hostSessionFrameIdsProvider);
-  if (hostIds != null) {
-    if (hostIds.isEmpty) return const <CapturedImage>[];
-    final rows = ref.watch(allDbImagesProvider).valueOrNull;
-    if (rows == null) return const <CapturedImage>[];
-    final byId = {for (final row in rows) row.id: row};
-    return [
-      for (final id in hostIds)
-        if (byId[id] case final db.DbCapturedImage row)
-          capturedImageFromDbRow(row),
-    ];
-  }
-
-  var sessionId = ref.watch(
-    sessionStateProvider.select((state) => state.dbSessionId),
-  );
-  if (sessionId == null) {
-    // `allSessionsProvider` is already sorted newest-first on both the local
-    // and the remote path, so the first active row is the current session. A
-    // genuinely idle host yields null and the strip stays empty — which is then
-    // the truth, not a false negative.
+/// The host's sessions arrive newest first, so the first active one is the
+/// current one. A run that ended here closed its session on the host; its
+/// frames stay tonight's until the next run starts.
+final watchedHostSessionIdProvider = hostRoleProvider<int?>(
+  here: (ref) => null,
+  linked: (ref, host) {
     final sessions = ref.watch(allSessionsProvider).valueOrNull;
-    if (sessions != null) {
-      for (final session in sessions) {
-        if (session.status == 'active') {
-          sessionId = session.id;
-          break;
-        }
-      }
-      // A run that ended this session closed its session on the host; its
-      // frames are still tonight's until the next run starts.
-      if (sessionId == null &&
-          sessions.isNotEmpty &&
-          ref.watch(lastEndedRunProvider) != null) {
-        sessionId = sessions.first.id;
-      }
+    if (sessions == null) return null;
+    for (final session in sessions) {
+      if (session.status == 'active') return session.id;
     }
-  }
-  if (sessionId == null) {
-    return const <CapturedImage>[];
-  }
+    if (sessions.isNotEmpty && ref.watch(lastEndedRunProvider) != null) {
+      return sessions.first.id;
+    }
+    return null;
+  },
+);
 
-  final rows = ref.watch(allDbImagesProvider).valueOrNull;
-  if (rows == null) {
-    return const <CapturedImage>[];
-  }
+/// The frames of the session in progress, oldest first.
+///
+/// The host keeps them in memory as its capture loop takes them
+/// ([sessionImagesProvider]). A linked client takes the list of frame ids its
+/// host shares (`SessionFramesChannel`), so both count the same frames
+/// whenever the client connected; for a host that shares none it shows the
+/// rows of the session the host is recording into.
+final recentSessionFramesProvider = hostRoleProvider<List<CapturedImage>>(
+  here: (ref) => ref.watch(sessionImagesProvider),
+  linked: (ref, host) {
+    final hostIds = ref.watch(hostSessionFrameIdsProvider);
+    if (hostIds != null) {
+      if (hostIds.isEmpty) return const <CapturedImage>[];
+      final rows = ref.watch(allDbImagesProvider).valueOrNull;
+      if (rows == null) return const <CapturedImage>[];
+      final byId = {for (final row in rows) row.id: row};
+      return [
+        for (final id in hostIds)
+          if (byId[id] case final db.DbCapturedImage row)
+            capturedImageFromDbRow(row),
+      ];
+    }
 
-  final sessionRows =
-      rows.where((row) => row.sessionId == sessionId).toList(growable: false)
-        ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-  return sessionRows.map(capturedImageFromDbRow).toList(growable: false);
-});
+    final sessionId =
+        ref.watch(sessionStateProvider.select((state) => state.dbSessionId)) ??
+        ref.watch(watchedHostSessionIdProvider);
+    if (sessionId == null) {
+      return const <CapturedImage>[];
+    }
+
+    final rows = ref.watch(allDbImagesProvider).valueOrNull;
+    if (rows == null) {
+      return const <CapturedImage>[];
+    }
+
+    final sessionRows =
+        rows.where((row) => row.sessionId == sessionId).toList(growable: false)
+          ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+    return sessionRows.map(capturedImageFromDbRow).toList(growable: false);
+  },
+);
 
 /// Map a persisted `captured_images` row onto the in-memory [CapturedImage]
 /// shape the cockpit/strip widgets render.

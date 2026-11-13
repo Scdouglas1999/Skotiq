@@ -160,16 +160,13 @@ void main() {
         await container.read(equipmentProfilesProvider.future);
         expect(loadCount, 1, reason: 'one initial build');
 
-        await applyRemoteSyncEvent(
-          container,
-          const SkotiqEvent(
+        applyHostLocalSyncEvent(container, const SkotiqEvent(
             timestamp: 1,
             severity: EventSeverity.info,
             category: EventCategory.equipment,
             eventType: 'Connected',
             data: {'device_type': 'camera', 'device_id': 'cam-42'},
-          ),
-        );
+          ));
 
         await container.read(equipmentProfilesProvider.future);
         expect(
@@ -207,13 +204,10 @@ void main() {
       await container.read(equipmentProfilesProvider.future);
       expect(loadCount, 1, reason: 'one initial build');
 
-      await applyRemoteSyncEvent(
-        container,
-        buildHostMutationEvent(
+      applyHostLocalSyncEvent(container, buildHostMutationEvent(
           entityType: HostMutationEntity.profile,
           action: HostMutationAction.updated,
-        ),
-      );
+        ));
 
       await container.read(equipmentProfilesProvider.future);
       expect(

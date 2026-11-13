@@ -147,9 +147,8 @@ class IntegrationGoalService {
     if (remote != null) {
       // On a slave the host owns the goals; there is no local mutation stream
       // to listen to, so poll the host on a fixed tick. A change-guard
-      // suppresses unchanged re-fetches (mirrors database_provider's
-      // _pollRemote). Our own optimistic mutations are picked up by the next
-      // poll within the interval.
+      // suppresses unchanged re-fetches. Our own optimistic mutations are
+      // picked up by the next poll within the interval.
       yield* resilientDistinctPoll(
         fetch: remote.getIntegrationGoals,
         unchanged: _goalListEquals,

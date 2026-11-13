@@ -44,20 +44,18 @@ final remoteSciencePollIntervalProvider = Provider<Duration>(
 
 /// The science measurements of whichever machine is the imaging host: this
 /// process's database, or the linked host's.
-final scienceProductsProvider = Provider<ScienceProducts>((ref) {
-  final remote = ref.watch(backendProvider).remoteHost;
-  if (remote == null) return ref.watch(scienceDaoProvider);
-  return remote.scienceProducts(
+final scienceProductsProvider = hostRoleProvider<ScienceProducts>(
+  here: (ref) => ref.watch(scienceDaoProvider),
+  linked: (ref, host) => host.scienceProducts(
     pollInterval: ref.watch(remoteSciencePollIntervalProvider),
-  );
-});
+  ),
+);
 
 /// The rows the science settings are stored in: the settings table, or the
 /// linked host's science settings.
-final _scienceSettingRowsProvider = Provider<SettingRows>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.scienceSettingRows ??
-      ref.watch(settingsDaoProvider),
+final _scienceSettingRowsProvider = hostRoleProvider<SettingRows>(
+  here: (ref) => ref.watch(settingsDaoProvider),
+  linked: (ref, host) => host.scienceSettingRows,
 );
 
 final sessionPhotometryProvider =

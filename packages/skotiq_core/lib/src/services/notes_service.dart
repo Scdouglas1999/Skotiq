@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/database.dart' as db;
 import '../models/notes/journal_note.dart';
+import '../backend/roles/host_data/notes_journal.dart';
 import 'package:skotiq_astro/format.dart';
 
 /// Persistence + business logic for per-target /
@@ -21,7 +22,7 @@ import 'package:skotiq_astro/format.dart';
 /// Notes are deliberately not session-scoped: a note attached to target
 /// "M31" remains visible the next time the operator opens M31, which is
 /// the whole point of the journal feature.
-class NotesService {
+class NotesService implements NotesJournal {
   final db.SkotiqDatabase _db;
   final Uuid _uuid;
 
@@ -52,6 +53,7 @@ class NotesService {
   ///
   /// An empty [targetId] throws [ArgumentError] rather than coercing to
   /// "Untargeted": the caller resolves the target before reaching this layer.
+  @override
   Future<JournalNote> addNote({
     required String targetId,
     int? sequenceRunId,
@@ -99,6 +101,7 @@ class NotesService {
   /// the note no longer exists. Pass `clearTitle: true` / `clearSentiment:
   /// true` to drop those optional fields explicitly (matching
   /// [JournalNote.copyWith]).
+  @override
   Future<JournalNote> updateNote(
     String id, {
     String? body,
@@ -141,6 +144,7 @@ class NotesService {
   }
 
   /// Delete a single note by id. No-op when the id does not exist.
+  @override
   Future<int> deleteNote(String id) async {
     final affected = await _db.notesJournalDao.deleteNote(id);
     if (affected > 0) _notifyMutated();
@@ -190,6 +194,7 @@ class NotesService {
 
   /// Live stream of notes for [targetId]. Emits an initial snapshot
   /// immediately, then a fresh list on every insert / update / delete.
+  @override
   Stream<List<JournalNote>> watchTargetNotes(String targetId) async* {
     yield await notesForTarget(targetId);
     await for (final _ in _mutations.stream) {
@@ -198,6 +203,7 @@ class NotesService {
   }
 
   /// Live stream of notes for a single sequence run.
+  @override
   Stream<List<JournalNote>> watchRunNotes(int runId) async* {
     yield await notesForRun(runId);
     await for (final _ in _mutations.stream) {
@@ -207,6 +213,7 @@ class NotesService {
 
   /// Live stream of every note. Useful for the global search results
   /// list and for tests.
+  @override
   Stream<List<JournalNote>> watchAllNotes() async* {
     yield await allNotes();
     await for (final _ in _mutations.stream) {

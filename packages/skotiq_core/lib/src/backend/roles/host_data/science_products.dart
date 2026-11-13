@@ -3,6 +3,7 @@ import '../../../database/database.dart'
         FramePhotometricCalibrationRow,
         LineRatioProductRow,
         MovingObjectCandidateRow,
+        PhotometricTransformRow,
         PhotometryMeasurementRow,
         PsfFieldTileRow,
         ScienceFrameQualityMetricsRow,
@@ -102,6 +103,12 @@ abstract interface class ScienceProducts {
   Future<List<FramePhotometricCalibrationRow>> getAllSessionlessCalibrations();
 
   Future<List<MovingObjectCandidateRow>> getAllSessionlessMovingObjects();
+
+  /// The photometric transforms computed for an equipment profile, newest
+  /// first; for a null profile, the ones tied to no profile.
+  Stream<List<PhotometricTransformRow>> watchTransformsForProfile(
+    int? equipmentProfileId,
+  );
 }
 
 /// A set of key/value setting rows on the imaging host, read and written as a

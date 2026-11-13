@@ -29,13 +29,6 @@ class DeviceServiceLifecycle {
     return active != null && identical(active.eventSource, backend);
   }
 
-  /// Whether the live [DeviceService] has a connect of [deviceId] in flight
-  /// or just failed. The slot is then that connect's to write: a linked
-  /// client's mirror of the host's events and its periodic re-read of the
-  /// host leave it alone.
-  static bool hasOwnConnectOf(String deviceId) =>
-      _active?.hasOwnConnectOf(deviceId) ?? false;
-
   static Future<void> prepareForBackendSwap() async {
     final active = _active;
     if (active == null) {

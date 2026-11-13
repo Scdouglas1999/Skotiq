@@ -64,7 +64,7 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    final repo = SequenceRepository(
+    final repo = LocalSequenceRepository(
       db.sequencesDao,
       runsDao: db.sequenceRunsDao,
     );

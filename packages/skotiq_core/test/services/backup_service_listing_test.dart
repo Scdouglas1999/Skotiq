@@ -30,7 +30,7 @@ void main() {
   BackupService service(Future<Directory> Function() directory) =>
       BackupService(
         database: database,
-        sequenceRepository: SequenceRepository(database.sequencesDao),
+        sequenceRepository: LocalSequenceRepository(database.sequencesDao),
         logger: logger,
         backupDirectoryProvider: directory,
       );

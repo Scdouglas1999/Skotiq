@@ -48,7 +48,8 @@ parallel table, or a special case for one device, caller or mode.
 | Fact | Owner |
 | --- | --- |
 | Local host vs linked host vs no host | `packages/skotiq_core/lib/src/backend/remote_host.dart`: `backend.remoteHost` (null when the host is this process), `hasNoHost`, `runsRigHere`, `ownsDeviceBridge`; `isRemoteModeProvider`, `isRemoteClientProvider` in `providers/backend_provider.dart`. Nothing outside the backend files tests a backend's class (section 4). |
-| Host data (both sides) | role interfaces in `packages/skotiq_core/lib/src/backend/roles/host_data/`, remote halves in `backend/network_backend/host_data/`, one getter each on `RemoteHost`. Recipe: section 3.8. |
+| Host data (both sides) | role interfaces in `packages/skotiq_core/lib/src/backend/roles/host_data/`, remote halves in `backend/network_backend/host_data/`, one getter each on `RemoteHost`; which side serves a read or write is chosen by `hostRoleProvider` in `providers/host_role.dart` and nowhere else. Recipe: section 3.8. |
+| What a linked client mirrors from its host | `providers/remote_sync_handler.dart`: `applyHostEventOnClient` (a client following its host) and `applyHostLocalSyncEvent` (the host's own window following its server), both over a `ProviderContainer`; live state travels as runtime channels (`providers/runtime_mirror/`); stored data a client re-reads on link is the list `_rereadWithTheHost` in `remote_sync/session_hydration.dart` |
 | Stale async work after a host switch | `AsyncScopes` / `ref.backendScope()` in `packages/skotiq_core/lib/src/providers/async_scope.dart`; dialogs: `HostBoundDialogState` in `packages/skotiq_app/lib/utils/authority_bound_dialog.dart` |
 | Sequence node types (Dart) | `NodeKind` in `packages/skotiq_core/lib/src/models/sequence/sequence_models/node_kind.dart`, one entry per type in `node_kinds.dart`: wire name, legacy names, icon, category, container flag, required devices, field table, describe, diff, captures. App icon and tint: `packages/skotiq_app/lib/screens/sequencer/widgets/node_appearance.dart`. Palette: `packages/skotiq_core/lib/src/providers/sequence/node_palette.dart`. Tree insert: `packages/skotiq_app/lib/screens/sequencer/widgets/tree_insert.dart`. |
 | Sequence node types (Rust) | `NodeType` in `native/skotiq_native/sequencer/src/lib.rs` (`wire_name`, `display_name`), `instruction_for` in `sequencer/src/node/registry.rs`, node wrapper in `sequencer/src/node/instructions/`, the work in `sequencer/src/instructions/` |
@@ -185,9 +186,14 @@ Copy a converted role: `backend/roles/host_data/observing_lists_store.dart` (loc
 1. Both sides have the same shape: an interface in `backend/roles/host_data/<role>.dart`; the local
    DAO or service `implements` it; `Remote<Role>` in `backend/network_backend/host_data/` calls the
    client methods (watched reads through `HostPoll`); a `late final` field on `RemoteHost`; a provider
-   `ref.watch(backendProvider).remoteHost?.<role> ?? ref.watch(<localProvider>)`.
+   declared with `hostRoleProvider<Role>(here: ..., linked: (ref, host) => host.<role>)`
+   (`providers/host_role.dart`). That helper is the only place that picks a side: providers, services
+   and widgets watch the role provider and call it, and never test `remoteHost` to choose a store. A
+   member only the host does (its own bookkeeping) is a no-op on the remote side, said in its doc.
 2. Only the host has it: `Host<X>` interface listing the `NetworkBackend` methods, which
-   `NetworkBackend` implements, and a getter on `RemoteHost`; callers use `backend.remoteHost?.x`.
+   `NetworkBackend` implements, and a getter on `RemoteHost`; the remote side of a role takes the
+   `Host<X>` it needs. A yes/no question that is not about data ("are the host's files on this
+   machine") reads `isRemoteModeProvider`.
 3. The host side is an API endpoint (3.2). Do not add members to `SkotiqBackend`; a non-future member
    of a role needs an override in `disconnected_backend.dart`
    (`test/backend/disconnected_backend_contract_test.dart`).

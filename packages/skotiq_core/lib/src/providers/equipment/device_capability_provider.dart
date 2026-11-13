@@ -35,7 +35,6 @@ import '../../backend/remote_host.dart';
 import '../../models/backend/device_capabilities.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../backend_provider.dart';
-import '../provider_reader.dart';
 import 'camera_state_provider.dart';
 import 'cover_calibrator_state_provider.dart';
 import 'dome_state_provider.dart';
@@ -212,19 +211,15 @@ final liveCoverCalibratorSnapshotsProvider =
 /// [liveCoverCalibratorSnapshotsProvider]. Returns the reading, or null when
 /// the device could not be read.
 Future<CoverCalibratorCapabilitySnapshot?> refreshCoverCalibratorSnapshot(
-  Object reader,
+  ProviderContainer container,
   String deviceId,
 ) async {
   if (deviceId.isEmpty) return null;
-  final fetcher = readProvider(
-    reader,
-    coverCalibratorCapabilityFetcherProvider,
+  final fetcher = container.read(coverCalibratorCapabilityFetcherProvider,
   );
   final snapshot = await fetcher(deviceId);
   if (snapshot == null) return null;
-  final live = readProvider(
-    reader,
-    liveCoverCalibratorSnapshotsProvider.notifier,
+  final live = container.read(liveCoverCalibratorSnapshotsProvider.notifier,
   );
   if (live.state[deviceId] != snapshot) {
     live.state = {...live.state, deviceId: snapshot};
@@ -259,7 +254,7 @@ final coverCalibratorStatusPollerProvider = Provider<void>((ref) {
       if (inFlight) return;
       inFlight = true;
       try {
-        await refreshCoverCalibratorSnapshot(ref, deviceId);
+        await refreshCoverCalibratorSnapshot(ref.container, deviceId);
       } on Object {
         // A failed read keeps the last reading; the next tick tries again.
       } finally {

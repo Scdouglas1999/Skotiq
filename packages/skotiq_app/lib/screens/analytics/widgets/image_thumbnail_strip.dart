@@ -13,7 +13,7 @@ import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/providers.dart'
     show imagingBackendProvider, isRemoteModeProvider;
 import 'package:skotiq_core/services.dart'
-    show imagingRecordsRepositoryProvider, FrameQualityAssessment, FrameQualityAssessmentService, FrameQualityLevel;
+    show imagingRecordsProvider, FrameQualityAssessment, FrameQualityAssessmentService, FrameQualityLevel;
 
 import '../../../utils/snackbar_helper.dart';
 import '../analytics_screen.dart' show dbSessionImagesProvider;

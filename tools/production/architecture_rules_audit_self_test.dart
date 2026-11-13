@@ -146,6 +146,38 @@ Future<void> main() async {
   );
 
   await check(
+    'a remoteHost read outside the host-role owner fails',
+    (root) => _write(
+      root,
+      'packages/skotiq_app/lib/screens/darkroom.dart',
+      'Object? pick(dynamic backend) => backend.remoteHost?.notes;\n',
+    ),
+    exitCode: 1,
+    stderrHas: [
+      '[host-store]',
+      'packages/skotiq_app/lib/screens/darkroom.dart:1: `remoteHost` read',
+      'hostRoleProvider',
+    ],
+  );
+
+  await check(
+    'the host-role owner and the mirror may read remoteHost',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/providers/host_role.dart',
+        'Object? host(dynamic backend) => backend.remoteHost;\n',
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/providers/runtime_mirror/mirror.dart',
+        'Object? mirror(dynamic backend) => backend.remoteHost?.runtimeMirror;\n',
+      );
+    },
+    exitCode: 0,
+  );
+
+  await check(
     'a backend class cast fails',
     (root) => _write(
       root,
@@ -750,7 +782,7 @@ Future<void> _cleanWorkspace(Directory root, File scope) async {
     'packages/skotiq_app/lib/screens/home.dart',
     "import 'package:skotiq_core/models.dart';\n"
         "import 'package:skotiq_ui/skotiq_ui.dart';\n"
-        'bool linked(Object b) => b.remoteHost != null;\n',
+        'bool linked(WidgetRef ref) => ref.watch(isRemoteModeProvider);\n',
   );
   await _write(
     root,

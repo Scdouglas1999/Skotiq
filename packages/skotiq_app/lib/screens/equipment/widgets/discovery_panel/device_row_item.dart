@@ -27,7 +27,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
   late final _assignments = ref.backendScopes(alive: () => mounted);
 
   bool _isDeviceConnected() {
-    final slot = readDeviceSlot(ref, widget.deviceType);
+    final slot = ref.read(widget.deviceType.slot.state);
     return slot.connectionState == DeviceConnectionState.connected &&
         _deviceIdsMatch(slot.deviceId, widget.device.activeDeviceId);
   }

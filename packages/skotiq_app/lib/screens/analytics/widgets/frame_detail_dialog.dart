@@ -10,7 +10,7 @@ import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/models.dart' show FrameGain, GainKind;
 import 'package:skotiq_core/providers.dart' show isRemoteModeProvider;
 import 'package:skotiq_core/services.dart'
-    show FrameQualityAssessment, imagingRecordsRepositoryProvider;
+    show FrameQualityAssessment, imagingRecordsProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/filter_label.dart';
@@ -319,7 +319,7 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
     try {
       // Through the repository, not the local DAO: in remote mode the write
       // has to reach the host that owns the row.
-      final repo = ref.read(imagingRecordsRepositoryProvider);
+      final repo = ref.read(imagingRecordsProvider);
       if (next) {
         await repo.acceptImage(widget.image.id);
       } else {

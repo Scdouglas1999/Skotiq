@@ -45,7 +45,7 @@ class DeviceCommands {
   /// start its profile listener, and no device can be in it.
   bool isSlotDevice(DeviceType type, String deviceId) {
     if (!_ref.exists(type.slot.state)) return false;
-    final slot = readDeviceSlot(_ref, type);
+    final slot = readDeviceSlot(_ref.container, type);
     return slot.connectionState == DeviceConnectionState.connected &&
         slot.deviceId == deviceId;
   }

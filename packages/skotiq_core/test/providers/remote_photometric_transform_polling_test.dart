@@ -52,7 +52,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
-        remotePhotometricTransformPollIntervalProvider.overrideWithValue(
+        remoteSciencePollIntervalProvider.overrideWithValue(
           const Duration(milliseconds: 5),
         ),
       ],

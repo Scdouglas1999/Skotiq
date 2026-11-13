@@ -32,4 +32,4 @@ Future<List<DeviceType>> saveSessionDevicesToProfile(
 /// The id of the device currently occupying [slot], or null when nothing is
 /// connected there.
 String? connectedDeviceIdForSlot(WidgetRef ref, DeviceType slot) =>
-    readDeviceSlot(ref, slot).deviceId;
+    ref.read(slot.slot.state).deviceId;

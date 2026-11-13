@@ -20,7 +20,7 @@ void main() {
 
   setUp(() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-    repo = SequenceRepository(db.sequencesDao);
+    repo = LocalSequenceRepository(db.sequencesDao);
   });
 
   tearDown(() async {

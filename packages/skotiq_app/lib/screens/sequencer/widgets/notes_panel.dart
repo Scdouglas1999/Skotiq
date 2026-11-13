@@ -76,7 +76,7 @@ Future<bool> confirmDeleteNote(
     ),
   );
   if (confirmed == true) {
-    await ref.read(notesRepositoryProvider).deleteNote(note.id);
+    await ref.read(notesJournalProvider).deleteNote(note.id);
     return true;
   }
   return false;

@@ -1,102 +1,136 @@
 part of '../remote_sync_handler.dart';
 
-/// Slave-only: mirror the master's per-frame exposure countdown by driving the
-/// same notifiers [ImagingService] drives on the host. The host capture loop
-/// never runs on a remote companion, so these imaging-category events are the
-/// slave's only source for the camera card's "Exposing" status and the
-/// remaining-time countdown. Payload keys match the host emitter
-/// (`progress`/`remainingSecs`), with snake_case fallbacks for the
-/// `ExposureStarted` frame fields.
-void _applyExposureMirror(
-  Object reader,
-  String eventType,
-  Map<String, dynamic> data,
-) {
-  final cameraNotifier = _read(reader, cameraStateProvider.notifier);
-  final progressNotifier = _read(reader, exposureProgressProvider.notifier);
-  switch (eventType) {
-    case 'ExposureStarted':
-    case 'ExposureStartedWithFrame':
-      final duration =
-          (data['durationSecs'] as num?)?.toDouble() ??
-          (data['duration_secs'] as num?)?.toDouble() ??
-          0.0;
-      final frameNumber =
-          (data['frameNumber'] as num?)?.toInt() ??
-          (data['frame_number'] as num?)?.toInt() ??
-          0;
-      final totalFrames =
-          (data['totalFrames'] as num?)?.toInt() ??
-          (data['total_frames'] as num?)?.toInt();
-      cameraNotifier.setExposing(true, progress: 0.0);
-      if (duration > 0) {
-        progressNotifier.startExposure(duration, frameNumber, totalFrames);
-      }
-      break;
-    case 'ExposureProgress':
-      final progress = (data['progress'] as num?)?.toDouble() ?? 0.0;
-      final remaining =
-          (data['remainingSecs'] as num?)?.toDouble() ??
-          (data['remaining_secs'] as num?)?.toDouble() ??
-          0.0;
-      // The slave does not know the configured exposure time locally, so derive
-      // elapsed defensively from progress + remaining.
-      final total = (progress > 0.0 && progress < 1.0)
-          ? remaining / (1.0 - progress)
-          : null;
-      final elapsed = total != null
-          ? (total - remaining).clamp(0.0, total).toDouble()
-          : 0.0;
-      cameraNotifier.setExposing(true, progress: progress);
-      progressNotifier.updateProgress(elapsed, remaining, progress * 100);
-      break;
-    case 'ExposureComplete':
-    case 'ExposureCancelled':
-    case 'ExposureFailed':
-      // The frame is over however it ended; a countdown left standing reads
-      // as an exposure still in flight on every ring that draws it.
-      cameraNotifier.setExposing(false);
-      progressNotifier.reset();
-      break;
+/// What an imaging event says about the exposure in flight.
+sealed class _ExposureChange {
+  const _ExposureChange();
+
+  static _ExposureChange? of(SkotiqEvent event) {
+    final typed = tryBridgeEventFromCoreEvent(event);
+    if (typed == null) return null;
+    final payload = typed.payload;
+    if (payload is! bridge.EventPayload_Imaging) return null;
+    return switch (payload.field0) {
+      bridge.ImagingEvent_ExposureStarted(:final durationSecs) =>
+        _ExposureBegan(durationSecs, frameNumber: 0),
+      bridge.ImagingEvent_ExposureStartedWithFrame(
+        :final durationSecs,
+        :final frameNumber,
+        :final totalFrames,
+      ) =>
+        _ExposureBegan(
+          durationSecs,
+          frameNumber: frameNumber,
+          totalFrames: totalFrames,
+        ),
+      bridge.ImagingEvent_ExposureProgress(
+        :final progress,
+        :final remainingSecs,
+      ) =>
+        _ExposureTick(progress, remainingSecs),
+      bridge.ImagingEvent_ExposureComplete() ||
+      bridge.ImagingEvent_ExposureCompleted() ||
+      bridge.ImagingEvent_ExposureCompletedWithFrame() ||
+      bridge.ImagingEvent_ExposureCancelled() ||
+      bridge.ImagingEvent_ExposureFailed() ||
+      bridge.ImagingEvent_ExposureFailedOld() => const _ExposureOver(),
+      _ => null,
+    };
   }
 }
 
-/// Exposures the host is showing because of [_applyForeignExposureOnHost],
-/// per provider container.
-final Expando<bool> _hostFollowsForeignExposure = Expando<bool>(
-  'hostFollowsForeignExposure',
-);
+final class _ExposureBegan extends _ExposureChange {
+  const _ExposureBegan(
+    this.durationSecs, {
+    required this.frameNumber,
+    this.totalFrames,
+  });
 
-/// Host only: show an exposure this process did not start.
+  final double durationSecs;
+  final int frameNumber;
+  final int? totalFrames;
+}
+
+final class _ExposureTick extends _ExposureChange {
+  const _ExposureTick(this.progress, this.remainingSecs);
+
+  /// 0 to 1.
+  final double progress;
+  final double remainingSecs;
+}
+
+/// The frame is over, however it ended.
+final class _ExposureOver extends _ExposureChange {
+  const _ExposureOver();
+}
+
+/// Show an exposure this process is not running: the camera card's
+/// "Exposing" and the countdown, driven as `ImagingService` drives them for a
+/// capture it runs itself.
+void _showExposure(ProviderContainer container, _ExposureChange change) {
+  final camera = container.read(cameraStateProvider.notifier);
+  final countdown = container.read(exposureProgressProvider.notifier);
+  switch (change) {
+    case _ExposureBegan():
+      camera.setExposing(true, progress: 0.0);
+      if (change.durationSecs > 0) {
+        countdown.startExposure(
+          change.durationSecs,
+          change.frameNumber,
+          change.totalFrames,
+        );
+      }
+    case _ExposureTick(:final progress, :final remainingSecs):
+      // The event carries no exposure time; work it out from the fraction
+      // done and the time left.
+      final total = (progress > 0.0 && progress < 1.0)
+          ? remainingSecs / (1.0 - progress)
+          : null;
+      final elapsed = total != null
+          ? (total - remainingSecs).clamp(0.0, total).toDouble()
+          : 0.0;
+      camera.setExposing(true, progress: progress);
+      countdown.updateProgress(elapsed, remainingSecs, progress * 100);
+    case _ExposureOver():
+      // A countdown left standing reads as an exposure still in flight.
+      camera.setExposing(false);
+      countdown.reset();
+  }
+}
+
+/// A linked client following every exposure its host runs.
+void _applyExposureMirror(ProviderContainer container, SkotiqEvent event) {
+  final change = _ExposureChange.of(event);
+  if (change != null) _showExposure(container, change);
+}
+
+/// Whether the host's window is showing an exposure it did not start.
+final _hostFollowsForeignExposureProvider = StateProvider<bool>((ref) => false);
+
+/// The host showing an exposure this process did not start.
 ///
 /// A capture the host runs itself (Snapshot, Loop, autofocus, a sequence)
 /// marks the camera exposing before the native exposure begins, so an
-/// `ExposureStarted` that finds the camera idle belongs to someone else: a
-/// linked client's snapshot or an API capture. Only those are followed, and
+/// exposure that starts while the camera reads idle belongs to someone else:
+/// a linked client's snapshot or an API capture. Only those are followed, and
 /// only from their start, so the host's own capture keeps sole control of
 /// its countdown.
-void _applyForeignExposureOnHost(
-  Object reader,
-  String eventType,
-  Map<String, dynamic> data,
-) {
-  final key = _read(reader, cameraStateProvider.notifier);
-  final following = _hostFollowsForeignExposure[key] == true;
-  switch (eventType) {
-    case 'ExposureStarted':
-    case 'ExposureStartedWithFrame':
-      if (!following && _read(reader, cameraStateProvider).isExposing) return;
-      _hostFollowsForeignExposure[key] = true;
-      _applyExposureMirror(reader, eventType, data);
-    case 'ExposureProgress':
-      if (following) _applyExposureMirror(reader, eventType, data);
-    case 'ExposureComplete':
-    case 'ExposureCancelled':
-    case 'ExposureFailed':
-      if (!following) return;
-      _hostFollowsForeignExposure[key] = null;
-      _applyExposureMirror(reader, eventType, data);
+void _applyForeignExposureOnHost(ProviderContainer container, SkotiqEvent event) {
+  final change = _ExposureChange.of(event);
+  if (change == null) return;
+  final following = container.read(_hostFollowsForeignExposureProvider.notifier);
+  switch (change) {
+    case _ExposureBegan():
+      if (!following.state && container.read(cameraStateProvider).isExposing) {
+        return;
+      }
+      following.state = true;
+    case _ExposureTick():
+      if (!following.state) return;
+    case _ExposureOver():
+      if (!following.state) return;
+      following.state = false;
   }
+  _showExposure(container, change);
 }
 
 /// The widest JPEG a linked client asks the host for when it follows the
@@ -152,8 +186,9 @@ class HostFrameHint {
   final int? purposeSteps;
 }
 
-final Expando<_RemoteFrameFetchState> _remoteFrameFetchStates =
-    Expando<_RemoteFrameFetchState>('remoteFrameFetchState');
+final _remoteFrameFetchStateProvider = Provider<_RemoteFrameFetchState>(
+  (ref) => _RemoteFrameFetchState(),
+);
 
 /// Remote-only: fetch the host's latest frame and publish it into
 /// `currentImageProvider` so the dashboard cockpit "current frame" tile (and
@@ -165,12 +200,11 @@ final Expando<_RemoteFrameFetchState> _remoteFrameFetchStates =
 /// the shared [CapturePreviewPublisher] so the remote source tag and background
 /// raw-pixel load behave identically to a local capture.
 Future<void> _publishRemoteCurrentFrame(
-  Object reader,
+  ProviderContainer container,
   SkotiqBackend backend,
 ) async {
-  if (!_isCurrentRemoteBackend(reader, backend)) return;
-  final fetchState = _remoteFrameFetchStates[reader] ??=
-      _RemoteFrameFetchState();
+  if (container.backendScopeOver(backend).isStale) return;
+  final fetchState = container.read(_remoteFrameFetchStateProvider);
   // Coalesce: if a fetch is already running, mark that another frame arrived
   // and let the current fetch re-run once on completion.
   if (fetchState.inFlight) {
@@ -182,7 +216,7 @@ Future<void> _publishRemoteCurrentFrame(
   try {
     // The imaging events do not carry a device id; resolve the connected
     // camera from local equipment state (mirrored from the host).
-    final cameraState = _read(reader, cameraStateProvider);
+    final cameraState = container.read(cameraStateProvider);
     final deviceId = cameraState.deviceId;
     if (deviceId == null ||
         cameraState.connectionState != DeviceConnectionState.connected) {
@@ -195,7 +229,7 @@ Future<void> _publishRemoteCurrentFrame(
       deviceId,
       maxWidth: kRemotePreviewMaxWidth,
     );
-    if (!_isCurrentRemoteBackend(reader, backend)) return;
+    if (container.backendScopeOver(backend).isStale) return;
     if (result == null) {
       // No frame cached host-side yet — leave the tile as-is.
       return;
@@ -210,8 +244,8 @@ Future<void> _publishRemoteCurrentFrame(
 
     // Mirror the operator's current exposure controls, but let the host's
     // reported exposure time win so the frame badge matches the real frame.
-    final baseSettings = _read(reader, exposureSettingsProvider);
-    final filterState = _read(reader, filterWheelStateProvider);
+    final baseSettings = container.read(exposureSettingsProvider);
+    final filterState = container.read(filterWheelStateProvider);
     final settings = ExposureSettings(
       exposureTime: result.exposureTime,
       gain: baseSettings.gain,
@@ -244,7 +278,7 @@ Future<void> _publishRemoteCurrentFrame(
 
     // A frame already on screen is not published again: that would clear its
     // raw pixels and download them a second time to redraw the same image.
-    final shown = _read(reader, currentImageProvider);
+    final shown = container.read(currentImageProvider);
     if (shown != null &&
         shown.previewSource == CapturePreviewSource.remote &&
         shown.capturedAt == imageData.capturedAt &&
@@ -257,17 +291,15 @@ Future<void> _publishRemoteCurrentFrame(
     // Publish through the shared publisher: it tags the source from the live
     // backend, schedules the background raw-pixel load, and writes both
     // `currentImageProvider` and `lastImageStatsProvider`.
-    if (!_isCurrentRemoteBackend(reader, backend)) return;
+    if (container.backendScopeOver(backend).isStale) return;
     // A frame the host announced is the host's to solve; marked before the
     // publish, whose listeners decide whether to solve it here.
     if (hinted) {
-      _read(reader, hostFrameSolvesProvider).mirroredFrame =
+      container.read(hostFrameSolvesProvider).mirroredFrame =
           imageData.capturedAt;
     }
-    _read(
-      reader,
-      capturePreviewPublisherProvider,
-    ).publish(reader, imageData, deviceId, loadRaw: !hinted);
+    container.read(capturePreviewPublisherProvider,
+    ).publish(container, imageData, deviceId, loadRaw: !hinted);
   } catch (_) {
     // Degrade gracefully: a failed/aborted fetch must never crash the event
     // pump or spam logs. The tile simply keeps its previous frame; the next
@@ -277,8 +309,8 @@ Future<void> _publishRemoteCurrentFrame(
     final pendingBackend = fetchState.pendingBackend;
     fetchState.pendingBackend = null;
     if (pendingBackend != null &&
-        _isCurrentRemoteBackend(reader, pendingBackend)) {
-      unawaited(_publishRemoteCurrentFrame(reader, pendingBackend));
+        container.backendScopeOver(pendingBackend).isCurrent) {
+      unawaited(_publishRemoteCurrentFrame(container, pendingBackend));
     }
   }
 }

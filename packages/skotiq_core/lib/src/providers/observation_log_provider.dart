@@ -2,8 +2,8 @@ import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'host_role.dart';
 
-import '../backend/remote_host.dart';
 import '../backend/roles/host_data/observation_log.dart';
 import '../database/daos/observation_logs_dao.dart';
 import '../database/database.dart';
@@ -19,10 +19,9 @@ final observationLogsDaoProvider = Provider<ObservationLogsDao>((ref) {
 
 /// The observation log of whichever machine is the imaging host: this
 /// process's database, or the linked host's.
-final observationLogProvider = Provider<ObservationLog>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.observationLog ??
-      ref.watch(observationLogsDaoProvider),
+final observationLogProvider = hostRoleProvider<ObservationLog>(
+  here: (ref) => ref.watch(observationLogsDaoProvider),
+  linked: (ref, host) => host.observationLog,
 );
 
 /// Reactive stream of all observation log entries (newest first).
