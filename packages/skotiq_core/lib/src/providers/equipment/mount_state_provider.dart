@@ -1,3 +1,5 @@
+import '../runtime_mirror/channels/device_slot_channel.dart';
+import '../runtime_mirror/client_runtime_mirror.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -127,9 +129,10 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
 
   void _startPositionPolling() {
     _stopPositionPolling();
-    // A companion reads the position from the imaging host, where every read
-    // is a driver round trip; it polls at a slower pace than the host itself.
     final companion = ref.read(isRemoteModeProvider);
+    if (_hostSendsReadings) return;
+    // A host from before the device channels is polled, at a slower pace
+    // than the host polls itself: every read is a driver round trip there.
     final interval = state.isSlewing
         ? (companion ? _companionSlewingPollInterval : _slewingPollInterval)
         : (companion ? _companionPollInterval : _normalPollInterval);
@@ -140,6 +143,19 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
     );
     _positionPollTimer = Timer.periodic(interval, (_) => _pollPosition());
   }
+
+  /// A linked host sends every reading of its mount and how its reads go
+  /// (the mount's device channel), so a client reads the mount itself only
+  /// right after a command ([refreshNow]).
+  bool get _hostSendsReadings =>
+      ref.read(isRemoteModeProvider) &&
+      ref
+          .read(clientRuntimeMirrorStateProvider)
+          .hostPublishes(_mountChannel.key);
+
+  static final _mountChannel = deviceSlotChannels.firstWhere(
+    (channel) => channel.slot.type == DeviceType.mount,
+  );
 
   void _stopPositionPolling() {
     if (_positionPollTimer != null) {
@@ -193,9 +209,11 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
         // connected mount or repopulate state after disconnect.
         return;
       }
-      ref
-          .read(deviceReadHealthProvider.notifier)
-          .recordSuccess(DeviceType.mount, deviceId);
+      if (!_hostSendsReadings) {
+        ref
+            .read(deviceReadHealthProvider.notifier)
+            .recordSuccess(DeviceType.mount, deviceId);
+      }
 
       updatePosition(
         status.rightAscension,
@@ -242,6 +260,7 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
       // marked stale here, and the host's heartbeat counts the failed reads
       // too and takes the mount through error and reconnect.
       if (mounted &&
+          !_hostSendsReadings &&
           state.deviceId == deviceId &&
           state.connectionState == DeviceConnectionState.connected) {
         ref

@@ -151,14 +151,14 @@ final hostRuntimeMirrorProvider = Provider<void>((ref) {
       final throttle = throttles[channel.key] = _ChannelThrottle(
         channel.minInterval,
       );
-      subscriptions.add(
-        channel.listen(ref, (_) {
-          throttle.schedule(
-            store.reportOriginFor(channel.key),
-            (origin) => publish(channel, origin),
-          );
-        }),
+      void changed() => throttle.schedule(
+        store.reportOriginFor(channel.key),
+        (origin) => publish(channel, origin),
       );
+      subscriptions.add(channel.listen(ref, (_) => changed()));
+      for (final also in channel.alsoEncodes) {
+        subscriptions.add(ref.listen<Object?>(also, (_, _) => changed()));
+      }
       publish(channel, null);
     }
   }

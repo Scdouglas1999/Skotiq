@@ -58,6 +58,10 @@ abstract class RuntimeMirrorChannel<T> {
   /// Its [apply] must leave a provider that already matches untouched.
   bool get reappliesOnReread => false;
 
+  /// Providers besides [source] that [encodeCurrent] reads; the host
+  /// publishes the channel again when one of them changes.
+  Iterable<ProviderListenable<Object?>> get alsoEncodes => const [];
+
   T readSource(ProviderContainer container) => container.read(source);
 
   Map<String, dynamic>? encodeCurrent(ProviderContainer container) =>
