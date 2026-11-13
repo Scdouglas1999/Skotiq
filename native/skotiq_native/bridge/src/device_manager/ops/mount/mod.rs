@@ -283,7 +283,6 @@ mod sim_mount_tests {
         mgr.mount_set_tracking_rate(device_id, 1)
             .await
             .expect("a mount that advertises can_set_tracking_rate must accept one");
-        assert_eq!(mgr.mount_get_tracking_rate(device_id).await.unwrap(), 1);
         assert_eq!(
             mgr.mount_get_status(device_id).await.unwrap().tracking_rate,
             Some(crate::device::TrackingRate::Lunar)

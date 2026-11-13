@@ -666,9 +666,11 @@ Future<void> _renameLegacyEntries(
 }
 
 /// Re-key secrets stored under the old product's namespace onto
-/// [newNamespace]. Idempotent: a re-run finds no old keys. Never throws —
-/// individual failures are logged and the old key is left so the value is
-/// not lost.
+/// [newNamespace]. Idempotent: a re-run finds no old keys. Never throws. The
+/// first failure ends the run with one warning: a store that refuses one key
+/// (no Secret Service running, a locked keyring) refuses them all, and every
+/// key not yet moved stays where it is, so nothing is lost and the next start
+/// tries again.
 ///
 /// [store] is the same triple of operations `flutter_secure_storage`
 /// performs. [fields] enumerates the logical keys to carry (the caller owns
@@ -695,11 +697,13 @@ Future<int> migrateLegacySecretsNamespace(
       await delete(oldKey);
       moved++;
     } catch (e) {
-      Log.error(
-        'legacy secrets re-key $field failed: $e',
+      Log.warning(
+        'Secrets saved by the old app name were not moved to the new one, '
+        'because the secret store could not be used ($field): $e',
         source: 'skotiq.legacy_migration',
         error: e,
       );
+      break;
     }
   }
   return moved;

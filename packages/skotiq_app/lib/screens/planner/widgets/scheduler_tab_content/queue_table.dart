@@ -142,13 +142,9 @@ class _QueueTable extends ConsumerWidget {
   }
 
   Future<void> _reevaluate(WidgetRef ref, {required String reason}) async {
-    if (ref.read(linkedHostPlanningProvider) case final hostPlanning?) {
-      await hostPlanning.controlScheduler('evaluate');
-      ref.invalidate(schedulerRemoteSnapshotProvider);
-      ref.invalidate(schedulerPreviewDecisionProvider);
-      return;
-    }
-    await ref.read(schedulerEngineProvider).evaluateNow(reason: reason);
+    await ref.read(schedulerControlProvider).evaluate(reason: reason);
+    ref.invalidate(schedulerRemoteSnapshotProvider);
+    ref.invalidate(schedulerPreviewDecisionProvider);
   }
 
   @override

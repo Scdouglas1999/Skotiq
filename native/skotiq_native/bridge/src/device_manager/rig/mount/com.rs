@@ -112,12 +112,6 @@ impl Mount for ComMount {
         mount.abort_slew().await.map_err(DeviceOpError::from)
     }
 
-    async fn stop(&self) -> Result<(), DeviceOpError> {
-        let mount = &self.mount;
-        let mount = mount.read().await;
-        mount.stop().await.map_err(DeviceOpError::from)
-    }
-
     async fn move_axis(&self, axis: i32, rate: f64) -> Result<(), DeviceOpError> {
         let mount = &self.mount;
         let mut mount = mount.write().await;
@@ -215,12 +209,6 @@ impl Mount for ComMount {
             .await
             .map(|caps| caps.can_set_park)
             .map_err(DeviceOpError::from)
-    }
-
-    async fn can_park(&self) -> Result<bool, DeviceOpError> {
-        let mount = &self.mount;
-        let mount = mount.read().await;
-        mount.can_park().await.map_err(DeviceOpError::from)
     }
 
     async fn sync(&self, ra: f64, dec: f64) -> Result<(), DeviceOpError> {
@@ -411,15 +399,6 @@ impl Mount for ComMount {
         let mut mount = mount.write().await;
         mount
             .set_tracking_rate_raw(rate)
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
-    async fn tracking_rate(&self) -> Result<i32, DeviceOpError> {
-        let mount = &self.mount;
-        let mount = mount.read().await;
-        mount
-            .get_tracking_rate_raw()
             .await
             .map_err(DeviceOpError::from)
     }

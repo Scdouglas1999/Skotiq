@@ -45,8 +45,8 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 // This crate provides the FFI bridge between Dart and the native Rust backend.
 // All public functions are exposed via flutter_rust_bridge.
 
-pub mod adaptive_polling;
-pub mod api;
+pub(crate) mod adaptive_polling;
+pub(crate) mod api;
 // the per-frame exposure-parameter apply logic (gain/offset/binning) is
 // platform-independent and lives here so it compiles and is regression-tested
 // on every platform; the Windows-only `ascom_wrapper` worker calls into it.
@@ -58,30 +58,28 @@ mod ascom_exposure_apply;
 mod ascom_wrapper;
 mod builtin_guider;
 mod depthlock_service;
-pub mod device;
-pub mod device_capabilities;
-pub mod device_id;
-pub mod device_manager;
+pub(crate) mod device;
+pub(crate) mod device_capabilities;
+pub(crate) mod device_id;
+pub(crate) mod device_manager;
 mod discovery;
 mod dispatch;
-pub mod error;
-pub mod event;
+pub(crate) mod error;
+pub(crate) mod event;
 mod filter_matching;
 mod frame_display;
 mod frame_header;
 mod guider;
 mod hotplug;
 mod last_frame;
+mod sequence_run;
 mod simulator;
-pub mod stacking_api;
-pub mod state;
-pub mod storage;
-pub mod timeout_ops;
-pub mod unified_device_ops;
+pub(crate) mod stacking_api;
+pub(crate) mod state;
+pub(crate) mod storage;
+pub(crate) mod timeout_ops;
+pub(crate) mod unified_device_ops;
 mod util;
-
-// `api` and `event` both carry `imaging` and `sequencer` submodules, so the
-// globs re-export those NAMES ambiguously. Nothing resolves them at the root.
 
 use crate::error::SkotiqError;
 use std::panic;

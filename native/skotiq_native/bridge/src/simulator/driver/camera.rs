@@ -267,21 +267,6 @@ impl Camera for SimCamera {
         Ok(())
     }
 
-    async fn set_binning(&self, bin_x: i32, bin_y: i32) -> Result<(), DeviceOpError> {
-        let device_id = self.device_id.as_str();
-        let cam = crate::simulator::camera::get_sim_camera_for(device_id);
-        let mut cam = cam.write().await;
-        if !cam.status.connected {
-            return Err(DeviceOpError::not_connected(
-                None,
-                crate::simulator::gate::not_connected_camera(),
-            ));
-        }
-        cam.status.bin_x = bin_x;
-        cam.status.bin_y = bin_y;
-        Ok(())
-    }
-
     async fn set_readout_mode(&self, _mode_index: i32) -> Result<(), DeviceOpError> {
         // `SimulatedCamera::status` has no readout-mode field and the
         // simulator advertises no readout modes, so there is no index
@@ -314,6 +299,9 @@ impl Camera for SimCamera {
     }
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+        if !get_sim_camera_for(device_id).read().await.status.connected {
+            return Err(crate::simulator::gate::not_connected_camera().into());
+        }
         let parsed = crate::device_id::cache::parse_device_id_cached(device_id)?;
         crate::simulator::capabilities::get_simulator_capabilities(&parsed).await
     }

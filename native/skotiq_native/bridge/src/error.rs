@@ -584,6 +584,3 @@ impl SkotiqError {
         serde_json::to_string(&self.to_error_info()).unwrap_or_else(|_| self.to_string())
     }
 }
-
-/// Result type alias for Skotiq operations
-pub type SkotiqResult<T> = Result<T, SkotiqError>;

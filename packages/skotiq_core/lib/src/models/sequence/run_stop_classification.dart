@@ -16,7 +16,8 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         SequencerStop_Cancelled,
         SequencerStop_Operator,
         SequencerStop_System,
-        SequencerStop_Trigger;
+        SequencerStop_Trigger,
+        SequencerTriggerAction;
 
 /// The notice the native executor sends with a cancelled run's `Error`.
 const String kSequenceCancelledNotice = 'Sequence cancelled';
@@ -59,11 +60,6 @@ bool isUnexplainedRunFailure(String message) {
       normalized == 'sequence failed' ||
       normalized == 'unknown error';
 }
-
-/// The one fired-trigger action that ends the run with the mount parked,
-/// spelled as the trigger monitor names it on `TriggerFired`. Every other
-/// action leaves the run going, or ends it without saying it parked.
-const String kParkAndAbortTriggerAction = 'ParkAndAbort';
 
 /// WHO ended the run, as the executor's decision rows name them.
 enum SequenceStopAuthor {
@@ -125,13 +121,14 @@ SequenceStopDecision? sequenceStopDecisionOf(SequencerStop? stop) =>
     };
 
 /// Read a `TriggerFired` event as stop authorship, or null when this fire did
-/// not end the run with the mount parked or names no trigger.
+/// not end the run with the mount parked (the one action that ends it so) or
+/// names no trigger.
 SequenceStopDecision? sequenceStopTriggerDecision({
   required String? triggerId,
   required String? triggerName,
-  required String? action,
+  required SequencerTriggerAction? action,
 }) {
-  if (action?.trim() != kParkAndAbortTriggerAction) return null;
+  if (action != SequencerTriggerAction.parkAndAbort) return null;
   return _triggerStop(triggerId, triggerName);
 }
 
