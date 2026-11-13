@@ -7,7 +7,7 @@
 
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
-use crate::device_manager::rig::camera::VendorCamera;
+use crate::device_manager::rig::camera::DriverCamera;
 use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
 use crate::device_manager::rig::focuser::DriverFocuser;
 use crate::device_manager::rig::mount::DriverMount;
@@ -81,7 +81,7 @@ impl DeviceManager {
                 );
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Camera(Arc::new(VendorCamera::new(&info.id, camera))),
+                    DeviceHandle::Camera(Arc::new(DriverCamera::vendor(&info.id, camera))),
                 );
                 tracing::info!("Connected to native camera: {}", info.name);
             }

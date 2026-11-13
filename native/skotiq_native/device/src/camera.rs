@@ -2,6 +2,11 @@
 
 use serde::{Deserialize, Serialize};
 
+/// A gain or offset in [`ImageMetadata`] that the camera could not report
+/// when the frame was read. Whoever writes the frame's header uses the value
+/// the exposure was configured with instead.
+pub const UNKNOWN_CAMERA_SETTING: i32 = -1;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CameraCapabilities {
     pub can_cool: bool,
@@ -33,6 +38,17 @@ pub enum LongExposureNoiseReduction {
     StaysOn,
     /// The body may have it, but the driver cannot reach the setting.
     Unreachable,
+}
+
+/// What a status poll shows of a camera: its state now, its sensor, and
+/// which of its settings can be changed.
+#[derive(Debug, Clone)]
+pub struct CameraReport {
+    pub status: CameraStatus,
+    pub sensor: SensorInfo,
+    pub can_cool: bool,
+    pub can_set_gain: bool,
+    pub can_set_offset: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

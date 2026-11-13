@@ -38,13 +38,13 @@ fn handle(
     client: Arc<RwLock<skotiq_indi::IndiClient>>,
     device_name: &str,
 ) -> Option<DeviceHandle> {
-    use crate::device_manager::rig::camera::IndiCameraHandle;
+    use crate::device_manager::rig::camera::DriverCamera;
     use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
     use crate::device_manager::rig::focuser::DriverFocuser;
     use crate::device_manager::rig::mount::DriverMount;
     use skotiq_indi::*;
     Some(match info.device_type {
-        DeviceType::Camera => DeviceHandle::Camera(Arc::new(IndiCameraHandle::new(
+        DeviceType::Camera => DeviceHandle::Camera(Arc::new(DriverCamera::indi(
             &info.id,
             client,
             device_name,

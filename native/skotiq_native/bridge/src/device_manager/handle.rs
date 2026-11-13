@@ -341,10 +341,10 @@ impl DeviceManager {
         device_id: &str,
         camera: Box<dyn skotiq_device::CameraDriver + Send + Sync>,
     ) {
-        use crate::device_manager::rig::camera::VendorCamera;
+        use crate::device_manager::rig::camera::DriverCamera;
         self.handles.insert(
             device_id,
-            DeviceHandle::Camera(Arc::new(VendorCamera::new(device_id, camera))),
+            DeviceHandle::Camera(Arc::new(DriverCamera::vendor(device_id, camera))),
         );
     }
 

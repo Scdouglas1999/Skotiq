@@ -12,6 +12,7 @@ async-trait.workspace = true
 tokio.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+chrono.workspace = true
 
 # XML parsing for INDI protocol
 quick-xml = { version = "0.31", features = ["async-tokio"] }

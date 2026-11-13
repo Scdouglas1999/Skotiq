@@ -17,6 +17,7 @@ mod errors;
 pub mod interfaces;
 pub mod members;
 pub mod observing_conditions;
+pub mod sensor_type;
 pub mod telescope;
 mod types;
 

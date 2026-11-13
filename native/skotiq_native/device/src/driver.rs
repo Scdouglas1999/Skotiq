@@ -73,9 +73,44 @@ pub trait ExposureAbort: Send + Sync {
 ///
 /// This trait provides all camera operations that native drivers must implement.
 /// Similar to NINA's ICameraDevice interface.
+///
+/// `heartbeat` and `report` are whole operations with a default body made
+/// of the single calls. A protocol that answers them with its own set of
+/// requests (Alpaca, INDI) overrides them; such a driver is a client of a
+/// server that keeps the state, cheap to clone, and every clone is the same
+/// camera.
 #[async_trait]
 pub trait CameraDriver: DeviceDriver {
+    /// What the driver knows of the camera's abilities without asking it. A
+    /// client of a server knows nothing that way and answers through
+    /// [`CameraDriver::report`].
     fn capabilities(&self) -> CameraCapabilities;
+
+    /// Whether the camera still answers. `Ok(false)`: it says it is not
+    /// connected. `Err`: the probe failed.
+    ///
+    /// The default reads the status, because every camera answers it; a
+    /// body without a thermometer (every DSLR and mirrorless camera)
+    /// answers a temperature read "not supported".
+    async fn heartbeat(&self) -> Result<bool, DriverError> {
+        if !self.is_connected() {
+            return Ok(false);
+        }
+        self.get_status().await.map(|_| true)
+    }
+
+    /// Everything a status poll shows, in one operation.
+    async fn report(&self) -> Result<CameraReport, DriverError> {
+        let status = self.get_status().await?;
+        let capabilities = self.capabilities();
+        Ok(CameraReport {
+            status,
+            sensor: self.get_sensor_info(),
+            can_cool: capabilities.can_cool,
+            can_set_gain: capabilities.can_set_gain,
+            can_set_offset: capabilities.can_set_offset,
+        })
+    }
 
     /// See [`ExposureAbort`]. `None` for a driver whose frame read is a
     /// single SDK call: an abort then reaches the camera when that call
@@ -126,6 +161,8 @@ pub trait CameraDriver: DeviceDriver {
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError>;
 
+    /// The sensor as the driver knows it without asking the camera; see
+    /// [`CameraDriver::capabilities`].
     fn get_sensor_info(&self) -> SensorInfo;
 
     /// Get available readout modes (vendor-specific)

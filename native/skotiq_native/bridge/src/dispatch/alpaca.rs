@@ -8,7 +8,7 @@
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::ascom::{AscomFilterWheel, AscomFocuser};
-use crate::device_manager::rig::camera::AlpacaCameraHandle;
+use crate::device_manager::rig::camera::DriverCamera;
 use crate::device_manager::rig::mount::DriverMount;
 use crate::device_manager::DeviceManager;
 use std::sync::Arc;
@@ -41,7 +41,10 @@ impl DeviceManager {
                 camera.connect().await.map_err(|e| e.to_string())?;
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Camera(Arc::new(AlpacaCameraHandle::new(&info.id, camera))),
+                    DeviceHandle::Camera(Arc::new(DriverCamera::alpaca(
+                        &info.id,
+                        skotiq_alpaca::AlpacaCameraDriver::new(camera),
+                    ))),
                 );
             }
             DeviceType::Mount => {

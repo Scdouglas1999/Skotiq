@@ -194,7 +194,7 @@ async fn connected_ccd_simulator() -> skotiq_indi::IndiClient {
 /// abort.
 #[tokio::test]
 async fn an_indi_camera_at_rest_with_a_duration_left_in_ccd_exposure_is_idle() {
-    use crate::device_manager::rig::camera::{Camera, IndiCameraHandle};
+    use crate::device_manager::rig::camera::{Camera, DriverCamera};
 
     let client = std::sync::Arc::new(tokio::sync::RwLock::new(connected_ccd_simulator().await));
     let duration = client
@@ -204,7 +204,7 @@ async fn an_indi_camera_at_rest_with_a_duration_left_in_ccd_exposure_is_idle() {
         .await;
     assert_eq!(duration, Some(1.0), "the recording has the idle duration");
 
-    let camera = IndiCameraHandle::new("indi:127.0.0.1:1:CCD Simulator", client, "CCD Simulator");
+    let camera = DriverCamera::indi("indi:127.0.0.1:1:CCD Simulator", client, "CCD Simulator");
     let status = camera.status().await.expect("status");
     assert_eq!(status.state, crate::device::CameraState::Idle);
 }
@@ -274,12 +274,12 @@ async fn exposing_ccd_simulator_on_a_busy_connection() -> skotiq_indi::IndiClien
 /// capture failed after 30 s with "Timeout waiting for INDI image BLOB".
 #[tokio::test]
 async fn an_indi_frame_is_read_while_other_devices_keep_the_connection_busy() {
-    use crate::device_manager::rig::camera::{Camera, IndiCameraHandle};
+    use crate::device_manager::rig::camera::{Camera, DriverCamera};
 
     let client = std::sync::Arc::new(tokio::sync::RwLock::new(
         exposing_ccd_simulator_on_a_busy_connection().await,
     ));
-    let camera = IndiCameraHandle::new("indi:127.0.0.1:1:CCD Simulator", client, "CCD Simulator");
+    let camera = DriverCamera::indi("indi:127.0.0.1:1:CCD Simulator", client, "CCD Simulator");
     camera
         .start_exposure(1.0, None, None, 1, 1, None, skotiq_device::FrameType::Light)
         .await
@@ -326,4 +326,70 @@ async fn a_connect_revives_a_pooled_connection_that_was_lost() {
         .await
         .expect("the server is up again");
     assert!(client.read().await.is_connected().await);
+}
+
+/// A CCD simulator that keeps what the client writes.
+async fn recording_ccd_simulator() -> (
+    skotiq_indi::IndiClient,
+    std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+) {
+    let definitions = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../indi/tests/drivers/ccd_simulator.after.xml"),
+    )
+    .expect("the recorded definitions");
+    let written = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let record = written.clone();
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let port = listener.local_addr().expect("address").port();
+    tokio::spawn(async move {
+        let (socket, _) = listener.accept().await.expect("accept");
+        let (reader, mut writer) = socket.into_split();
+        let mut lines = BufReader::new(reader).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if line.contains("<getProperties") {
+                let _ = writer.write_all(definitions.as_bytes()).await;
+            } else {
+                record.lock().expect("record").push(line);
+            }
+        }
+    });
+    let mut client = skotiq_indi::IndiClient::new("127.0.0.1", Some(port));
+    client.connect().await.expect("connect");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    while !client.has_property("CCD Simulator", "CCD_INFO").await {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "definitions arrived"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    (client, written)
+}
+
+/// The frame type of an exposure was never sent to an INDI camera, so a
+/// camera with a shutter took its darks and biases with the shutter open.
+#[tokio::test]
+async fn an_indi_camera_is_told_the_frame_type_before_it_exposes() {
+    use crate::device_manager::rig::camera::{Camera, DriverCamera};
+
+    let (client, written) = recording_ccd_simulator().await;
+    let client = std::sync::Arc::new(tokio::sync::RwLock::new(client));
+    let camera = DriverCamera::indi("indi:127.0.0.1:1:CCD Simulator", client, "CCD Simulator");
+    camera
+        .start_exposure(1.0, None, None, 1, 1, None, skotiq_device::FrameType::Dark)
+        .await
+        .expect("start");
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    let written = written.lock().expect("record").join("\n");
+    let frame_type = written
+        .find("name=\"CCD_FRAME_TYPE\"")
+        .unwrap_or_else(|| panic!("the frame type was sent: {written}"));
+    let exposure = written.find("name=\"CCD_EXPOSURE\"").expect("the exposure");
+    assert!(frame_type < exposure, "{written}");
+    let dark = written[frame_type..]
+        .find("<oneSwitch name=\"FRAME_DARK\">On</oneSwitch>")
+        .expect("dark is switched on");
+    assert!(frame_type + dark < exposure, "{written}");
 }
