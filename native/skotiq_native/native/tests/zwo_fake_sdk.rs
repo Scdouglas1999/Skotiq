@@ -227,6 +227,30 @@ async fn a_camera_without_16_bit_readout_connects_in_8_bit() {
     camera.disconnect().await.unwrap();
 }
 
+/// `ASI_TARGET_TEMP` and `ASI_COOLER_ON` in `ASIControlType`.
+const TARGET_TEMP: &str = "16";
+const COOLER_ON: &str = "17";
+
+/// A camera whose cooler cannot be read back may still be cooling from an
+/// earlier session, so its cooler is unknown until this connection sets it,
+/// never "off at -10 C".
+#[tokio::test]
+#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+async fn a_cooler_that_cannot_be_read_back_is_unknown_until_it_is_set() {
+    let mut camera = connected(COOLED_MONO).await;
+    std::env::set_var("FAKE_ASI_UNREADABLE", format!("{TARGET_TEMP},{COOLER_ON}"));
+    let before = camera.get_status().await;
+    let set = camera.set_cooler(true, Some(-15.0)).await;
+    let after = camera.get_status().await;
+    std::env::remove_var("FAKE_ASI_UNREADABLE");
+    let before = before.expect("status");
+    set.expect("cooler on");
+    let after = after.expect("status");
+    assert_eq!((before.cooler_on, before.target_temp), (None, None));
+    assert_eq!((after.cooler_on, after.target_temp), (Some(true), Some(-15.0)));
+    camera.disconnect().await.unwrap();
+}
+
 #[tokio::test]
 #[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
 async fn a_camera_unplugged_while_connected_reads_as_disconnected() {

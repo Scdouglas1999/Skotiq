@@ -2190,7 +2190,8 @@ mod fake_sdk_contract {
 // FAKE_ASI_MONO_BIN preset the way another program can leave them. Camera 2:
 // uncooled mono that reads out RAW8 only. FAKE_ASI_GONE=1 takes every camera
 // off the bus: the SDK lists none and answers a call on any id with
-// ASI_ERROR_INVALID_ID.
+// ASI_ERROR_INVALID_ID. FAKE_ASI_UNREADABLE lists control ids (comma
+// separated) whose reads answer ASI_ERROR_GENERAL_ERROR.
 // Every pixel holds 1000 + 256 * row + column of the binned sensor grid, so a
 // frame shows where on the sensor it was read.
 use std::ffi::{c_char, c_int, c_long, c_uchar};
@@ -2227,7 +2228,7 @@ fn env_value(name:&str)->Option<i64>{ std::env::var(name).ok().and_then(|v| v.pa
 #[no_mangle] pub extern "C" fn ASIOpenCamera(id:c_int)->c_int{if camera(id).is_some(){0}else{2}}
 #[no_mangle] pub extern "C" fn ASIInitCamera(id:c_int)->c_int{if camera(id).is_some(){0}else{2}}
 #[no_mangle] pub extern "C" fn ASICloseCamera(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn ASIGetControlValue(id:c_int,control_type:c_int,value:*mut c_long,is_auto:*mut c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; if value.is_null()||is_auto.is_null(){return 16;} let Some(caps)=control(cam,control_type) else {return 3;}; *is_auto=0; let preset=match control_type{9=>env_value("FAKE_ASI_FLIP"),18=>env_value("FAKE_ASI_MONO_BIN"),_=>None}; let stored=VALUES.lock().unwrap()[cam][control_type as usize]; *value=preset.or(stored).unwrap_or(caps.4) as c_long; 0 }
+#[no_mangle] pub unsafe extern "C" fn ASIGetControlValue(id:c_int,control_type:c_int,value:*mut c_long,is_auto:*mut c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; if value.is_null()||is_auto.is_null(){return 16;} let Some(caps)=control(cam,control_type) else {return 3;}; if std::env::var("FAKE_ASI_UNREADABLE").is_ok_and(|ids| ids.split(',').any(|id| id.trim()==control_type.to_string())){return 16;} *is_auto=0; let preset=match control_type{9=>env_value("FAKE_ASI_FLIP"),18=>env_value("FAKE_ASI_MONO_BIN"),_=>None}; let stored=VALUES.lock().unwrap()[cam][control_type as usize]; *value=preset.or(stored).unwrap_or(caps.4) as c_long; 0 }
 #[no_mangle] pub extern "C" fn ASISetControlValue(id:c_int,control_type:c_int,value:c_long,_is_auto:c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; let Some(caps)=control(cam,control_type) else {return 3;}; let clamped=(value as i64).clamp(caps.2,caps.3); VALUES.lock().unwrap()[cam][control_type as usize]=Some(clamped); 0 }
 #[no_mangle] pub extern "C" fn ASISetROIFormat(id:c_int,width:c_int,height:c_int,bin:c_int,img_type:c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; if !FORMATS[cam].contains(&img_type){return 9;} if !BINS[cam].contains(&bin)||width<=0||height<=0||width%8!=0||height%2!=0||width*bin>MAX_W[cam]||height*bin>MAX_H[cam]{return 8;} WIDTH[cam].store(width,Ordering::SeqCst); HEIGHT[cam].store(height,Ordering::SeqCst); BIN[cam].store(bin,Ordering::SeqCst); IMG_TYPE[cam].store(img_type,Ordering::SeqCst); START_X[cam].store((MAX_W[cam]/bin-width)/2,Ordering::SeqCst); START_Y[cam].store((MAX_H[cam]/bin-height)/2,Ordering::SeqCst); 0 }
 #[no_mangle] pub extern "C" fn ASISetStartPos(id:c_int,x:c_int,y:c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; let bin=BIN[cam].load(Ordering::SeqCst); if x<0||y<0||x+WIDTH[cam].load(Ordering::SeqCst)>MAX_W[cam]/bin||y+HEIGHT[cam].load(Ordering::SeqCst)>MAX_H[cam]/bin{return 10;} START_X[cam].store(x,Ordering::SeqCst); START_Y[cam].store(y,Ordering::SeqCst); 0 }
