@@ -26,6 +26,7 @@ export 'api/heartbeat.dart';
 export 'api/hotplug.dart';
 export 'api/imaging.dart';
 export 'api/init.dart';
+export 'api/live_stacking.dart';
 export 'api/mosaic.dart';
 export 'api/mount_guard.dart';
 export 'api/phd2.dart';

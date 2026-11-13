@@ -73,7 +73,6 @@ mod guider;
 mod hotplug;
 mod last_frame;
 mod simulator;
-pub mod stacking_api;
 pub mod state;
 pub mod storage;
 pub mod timeout_ops;
