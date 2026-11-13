@@ -9,9 +9,9 @@ extension _ProfileServiceBackends on ProfileService {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.value;
-    if (backend.remoteHost != null) {
-      final profiles = await backend.getProfiles();
+    final host = _hostProfiles;
+    if (host != null) {
+      final profiles = await host.getProfiles();
       _requireAuthority(operation);
       for (final profile in profiles) {
         if (int.tryParse(profile.id) == profileId) {
@@ -31,9 +31,9 @@ extension _ProfileServiceBackends on ProfileService {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.value;
-    if (backend.remoteHost != null) {
-      final active = await backend.getActiveProfile();
+    final host = _hostProfiles;
+    if (host != null) {
+      final active = await host.getActiveProfile();
       _requireAuthority(operation);
       return active != null
           ? EquipmentProfileModel.fromRemoteProfile(active)
@@ -56,9 +56,9 @@ extension _ProfileServiceBackends on ProfileService {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.value;
-    if (backend.remoteHost != null) {
-      final profiles = await backend.getProfiles();
+    final host = _hostProfiles;
+    if (host != null) {
+      final profiles = await host.getProfiles();
       _requireAuthority(operation);
       remote_profile.EquipmentProfile? defaultProfile;
       remote_profile.EquipmentProfile? activeProfile;
@@ -77,7 +77,7 @@ extension _ProfileServiceBackends on ProfileService {
       // Older hosts may omit isActive from list rows while still exposing the
       // authoritative active row on the dedicated endpoint. Never fall back
       // to a cached profile from the previous host.
-      final active = await backend.getActiveProfile();
+      final active = await host.getActiveProfile();
       _requireAuthority(operation);
       return active == null
           ? null
@@ -154,9 +154,9 @@ extension _ProfileServiceBackends on ProfileService {
     required _BackendAuthority authority,
   }) async {
     _requireAuthority(authority);
-    final backend = authority.value;
-    if (backend.remoteHost != null) {
-      final existingProfiles = await backend.getProfiles();
+    final host = _hostProfiles;
+    if (host != null) {
+      final existingProfiles = await host.getProfiles();
       _requireAuthority(authority);
       var name = data.name;
       var suffix = 1;
@@ -209,15 +209,15 @@ extension _ProfileServiceBackends on ProfileService {
         profileIcon: data.profileIcon,
         profileColor: data.profileColor,
       );
-      await backend.saveProfile(model.toRemoteProfile());
+      await host.saveProfile(model.toRemoteProfile());
       _requireAuthority(authority);
       _ref.invalidate(equipmentProfilesProvider);
-      final savedText = backend.remoteHost?.profiles.lastSavedProfileId;
+      final savedText = host.lastSavedProfileId;
       final savedId = savedText == null ? null : int.tryParse(savedText);
       if (savedId != null && savedId > 0) {
         return savedId;
       }
-      final refreshed = await backend.getProfiles();
+      final refreshed = await host.getProfiles();
       _requireAuthority(authority);
       for (final profile in refreshed) {
         if (profile.name == name) {

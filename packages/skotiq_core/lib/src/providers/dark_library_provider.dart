@@ -1,4 +1,3 @@
-import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show listEquals;
@@ -9,12 +8,14 @@ import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import 'package:skotiq_remote_protocol/wire_models.dart';
+import 'linked_host.dart';
+import 'host_role.dart';
+import '../errors/error_text.dart';
 import '../services/calibration_service.dart';
 import '../services/dark_library_service.dart';
 import '../settings/store_settings.dart';
 import '../utils/resilient_poll_stream.dart';
 import '../backend/remote_host.dart';
-import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'calibration_master_builder_provider.dart';
 import 'calibration_service_providers.dart';
@@ -42,28 +43,46 @@ final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
 final darkLibraryEntriesProvider = StreamProvider<List<DarkLibraryEntry>>((
   ref,
 ) {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.calibrationFrames;
-  if (remote != null) {
-    return _pollRemoteDarkEntries(remote);
-  }
-  return ref.watch(darkLibraryDaoProvider).watchAllEntries();
+  return ref.watch(_darkLibraryReadsProvider).watchEntries();
 });
+
+/// Reads of the dark library: this machine's table, or the linked host's.
+typedef _DarkLibraryReads = ({
+  Stream<List<DarkLibraryEntry>> Function() watchEntries,
+  Future<DarkLibraryStats> Function(List<DarkLibraryEntry> entries) stats,
+  Future<DarkLibrarySettingsSnapshot> Function(Ref ref) settings,
+});
+
+final _darkLibraryReadsProvider = hostRoleProvider<_DarkLibraryReads>(
+  here: (ref) {
+    final dao = ref.watch(darkLibraryDaoProvider);
+    return (
+      watchEntries: dao.watchAllEntries,
+      stats: (_) => dao.getStats(),
+      settings: (ref) async => DarkLibrarySettingsSnapshot.fromRows(
+        await ref.watch(allSettingsProvider.future),
+      ),
+    );
+  },
+  linked: (ref, host) {
+    final frames = host.calibrationFrames;
+    return (
+      watchEntries: () => _pollRemoteDarkEntries(frames),
+      stats: (entries) async => _statsFromEntries(entries),
+      settings: (_) async => DarkLibrarySettingsSnapshot.fromJson(
+        await frames.getDarkLibrarySettings(),
+      ),
+    );
+  },
+);
 
 /// Library statistics (refreshes when entries change).
 ///
-/// On a remote client the local DAO `getStats()` reads the empty slave DB, so
-/// derive the stats from the (remote-aware) entries stream instead.
+/// A linked client derives them from the host's entries; the host asks its
+/// own table.
 final darkLibraryStatsProvider = FutureProvider<DarkLibraryStats>((ref) async {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.calibrationFrames;
-  if (remote != null) {
-    final entries = await ref.watch(darkLibraryEntriesProvider.future);
-    return _statsFromEntries(entries);
-  }
-  // Depend on the entries stream so stats refresh on any change
-  ref.watch(darkLibraryEntriesProvider);
-  return ref.read(darkLibraryDaoProvider).getStats();
+  final entries = await ref.watch(darkLibraryEntriesProvider.future);
+  return ref.watch(_darkLibraryReadsProvider).stats(entries);
 });
 
 /// Polls the host's dark library and emits only on change.
@@ -204,21 +223,11 @@ class DarkLibrarySettingsSnapshot {
 
 final darkLibrarySettingsProvider =
     FutureProvider.autoDispose<DarkLibrarySettingsSnapshot>((ref) async {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.calibrationFrames;
-      if (remote != null) {
-        return DarkLibrarySettingsSnapshot.fromJson(
-          await remote.getDarkLibrarySettings(),
-        );
-      }
-      return DarkLibrarySettingsSnapshot.fromRows(
-        await ref.watch(allSettingsProvider.future),
-      );
+      return ref.watch(_darkLibraryReadsProvider).settings(ref);
     });
 
 final darkLibrarySettingsActionsProvider = Provider((ref) {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.calibrationFrames;
+  final remote = ref.watch(linkedHostCalibrationFramesProvider);
   return DarkLibrarySettingsActions(
     ref,
     remote: remote,
@@ -272,8 +281,7 @@ class DarkLibrarySettingsActions {
 /// StateNotifier for managing the dark library UI state.
 final darkLibraryNotifierProvider =
     StateNotifierProvider<DarkLibraryNotifier, DarkLibraryUiState>((ref) {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.calibrationFrames;
+      final remote = ref.watch(linkedHostCalibrationFramesProvider);
       return DarkLibraryNotifier(
         ref,
         remote: remote,

@@ -48,7 +48,8 @@ import 'device_service/profile_device_resolution.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/mount_site_reconciliation.dart';
 import '../providers/mount_site_provider.dart';
-import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_device_control.dart';
+import '../backend/roles/host_data/host_link.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/error_service_provider.dart';
 import '../providers/logging_service_provider.dart';
@@ -247,15 +248,30 @@ class DeviceService {
   /// The backend whose events this service is listening to.
   SkotiqBackend get eventSource => _backend;
 
+  /// The linked host's devices, or null where the devices are this
+  /// process's own.
+  final HostDeviceControl? _hostDevices;
+
   /// True on a companion: the imaging host owns every device, so this client
   /// never tears one down to clean up after its own failed request.
-  bool get _hostOwnsDevices => _backend.remoteHost != null;
+  bool get _hostOwnsDevices => _hostDevices != null;
 
   /// [attempts] is shared with whatever else writes device slots (see
-  /// `connectAttemptsProvider`).
-  DeviceService(this._ref, this._backend, {ConnectAttempts? attempts})
-    : _attempts = attempts ?? ConnectAttempts() {
-    _temperaturePoller = CameraTemperaturePoller(ref: _ref, backend: _backend);
+  /// `connectAttemptsProvider`). [hostDevices] and [hostLink] are the linked
+  /// host's, or null where the devices are this process's own.
+  DeviceService(
+    this._ref,
+    this._backend, {
+    ConnectAttempts? attempts,
+    HostDeviceControl? hostDevices,
+    HostLink? hostLink,
+  }) : _attempts = attempts ?? ConnectAttempts(),
+       _hostDevices = hostDevices {
+    _temperaturePoller = CameraTemperaturePoller(
+      ref: _ref,
+      backend: _backend,
+      hostLink: hostLink,
+    );
     _warmupController = CameraWarmupController(ref: _ref, backend: _backend);
     _phd2Launcher = Phd2Launcher(ref: _ref);
     // Construct the heartbeat router first so the reconnect coordinator
@@ -266,6 +282,7 @@ class DeviceService {
     _reconnectCoordinator = DeviceReconnectCoordinator(
       ref: _ref,
       backend: _backend,
+      hostOwnsRecovery: hostDevices != null,
       resumeSequence: resumeSequence,
       pauseSequence: pauseSequence,
       surfaceReconnecting: (deviceId, {int attempt = 0, int maxAttempts = 0}) =>
@@ -277,7 +294,11 @@ class DeviceService {
       connect: _connect,
       reconnectTarget: _reconnectTarget,
     );
-    _switchChannels = SwitchChannelService(ref: _ref, backend: _backend);
+    _switchChannels = SwitchChannelService(
+      ref: _ref,
+      backend: _backend,
+      hostDevices: hostDevices,
+    );
     DeviceServiceLifecycle.register(this);
     _initEventListening();
   }

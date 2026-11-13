@@ -54,7 +54,7 @@ void main() {
       final controller = StreamController<SkotiqEvent>();
       when(() => backend.eventStream).thenAnswer((_) => controller.stream);
 
-      final seam = BridgePostSessionSeam(backend);
+      final seam = BridgePostSessionSeam(backend: backend);
       // Subscribe (via toList) BEFORE emitting and await the terminal future:
       // calling asFuture() AFTER close() races the already-delivered done event
       // and hangs. toList() resolves deterministically when the stream is done.
@@ -106,7 +106,7 @@ void main() {
       final controller = StreamController<SkotiqEvent>();
       when(() => backend.eventStream).thenAnswer((_) => controller.stream);
 
-      final seam = BridgePostSessionSeam(backend);
+      final seam = BridgePostSessionSeam(backend: backend);
       final collected = seam.integrationProgress().toList();
 
       // `fraction` arriving as an int (num) must coerce to double; a missing

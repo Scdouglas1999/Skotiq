@@ -230,6 +230,12 @@ extension HostDataDispatch on SkotiqBackend {
   /// identity.
   RemoteHost? get remoteHost => _remoteHostOf(this);
 
+  /// True when this process is a client of an imaging host on another
+  /// machine, reached over the link. The question `isRemoteModeProvider`
+  /// answers, for code that holds the backend itself: a backend listener's
+  /// new value, or the backend an operation began on.
+  bool get linksToHost => this is NetworkBackend;
+
   /// True when this process has no imaging host at all: it was launched as a
   /// client and is not linked, or its link was given up. Every host call
   /// fails; screens show what to connect instead of loading.

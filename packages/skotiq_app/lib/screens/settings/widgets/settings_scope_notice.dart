@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -44,12 +43,11 @@ class SettingsScopeNotice extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final backend = ref.watch(backendProvider);
-    final linkedHost = backend.remoteHost;
-    if (linkedHost == null) return const SizedBox.shrink();
+    final hostLink = ref.watch(linkedHostLinkProvider);
+    if (hostLink == null) return const SizedBox.shrink();
     final colors = SkotiqColors.of(context);
     final text = onHost
-        ? 'Saved on the imaging host (${linkedHost.link.serverHost}). A change '
+        ? 'Saved on the imaging host (${hostLink.serverHost}). A change '
             'here changes the rig for everyone linked to it.'
         : 'Saved on this device only. The imaging host keeps its own.';
     return Padding(

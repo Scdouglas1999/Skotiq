@@ -199,8 +199,7 @@ final transientAlertStatesProvider =
     >((ref) {
       final settingsDao = ref.watch(settingsDaoProvider);
       final logger = ref.watch(loggingServiceProvider);
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.transients;
+      final remote = ref.watch(linkedHostTransientsProvider);
       return TransientAlertStatesNotifier(
         settingsDao: settingsDao,
         logger: logger,

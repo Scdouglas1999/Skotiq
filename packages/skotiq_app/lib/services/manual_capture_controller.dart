@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -300,7 +299,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
   /// On a client, Stop during the host's loop asks the host to stop it,
   /// whichever window started it.
   void stop() {
-    final hostNight = ref.read(backendProvider).remoteHost?.night;
+    final hostNight = ref.read(linkedHostNightProvider);
     if (hostNight != null && state.isLooping) {
       unawaited(
         hostNight.stopHostManualLoop().catchError((Object e) {
@@ -318,7 +317,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
   /// A client's Loop: the host runs it. Completes when the host's loop ends,
   /// or at once when the host refused or never started it.
   Future<void> _loopOnHost({void Function(String error)? onError}) async {
-    final hostNight = ref.read(backendProvider).remoteHost?.night;
+    final hostNight = ref.read(linkedHostNightProvider);
     if (hostNight == null) return;
     final ended = _remoteLoopEnded = Completer<void>();
     _remoteLoopSeen = ref.read(manualLoopStatusProvider).looping;

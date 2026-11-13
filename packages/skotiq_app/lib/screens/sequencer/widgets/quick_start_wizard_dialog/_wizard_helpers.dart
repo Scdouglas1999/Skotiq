@@ -231,15 +231,8 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
     var library = const <DbTarget>[];
     try {
-      // On a remote-client slave the local targets table is never populated
-      // (targets only arrive over the wire), so the search goes to the host's
-      // `/api/targets/search`; the host searches its own DAO.
-      if (host.value.remoteHost case final linkedHost?) {
-        final rows = await linkedHost.imagingRecords.searchTargets(query);
-        library = rows.map(DbTarget.fromJson).toList();
-      } else {
-        library = await ref.read(targetsDaoProvider).searchTargets(query);
-      }
+      library =
+          await ref.read(targetLibraryServiceProvider).searchTargets(query);
     } catch (e) {
       failure ??= e;
     }

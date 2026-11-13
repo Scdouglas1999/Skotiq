@@ -314,14 +314,13 @@ class _RemoteHomeAssistantFormState
       _error = null;
     });
     try {
-      final backend = ref.read(backendProvider);
-      final linkedHost = backend.remoteHost;
-      if (linkedHost == null) {
+      final hostNotifications = ref.read(linkedHostNotificationsProvider);
+      if (hostNotifications == null) {
         throw StateError('The imaging host is no longer connected.');
       }
       final replacement = _password.text;
       final updated =
-          await linkedHost.notifications.updateHomeAssistantHostSettings(
+          await hostNotifications.updateHomeAssistantHostSettings(
         config: HomeAssistantDiscoveryConfig(
           enabled: _enabled,
           deviceName: _deviceName.text.trim(),

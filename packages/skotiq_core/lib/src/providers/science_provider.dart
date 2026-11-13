@@ -23,7 +23,6 @@ import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'host_role.dart';
 import 'database_provider.dart';
-import '../backend/remote_host.dart';
 import '../backend/roles/host_data/science_products.dart';
 import 'session_provider.dart';
 import 'settings_provider.dart';

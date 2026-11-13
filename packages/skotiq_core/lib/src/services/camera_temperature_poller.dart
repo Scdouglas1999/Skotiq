@@ -11,7 +11,7 @@ import '../models/sequence/sequence_models.dart'
     show SequenceExecutionStateCapabilities;
 import '../providers/sequence/sequence_progress.dart'
     show sequenceExecutionStateProvider;
-import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_link.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/logging_service_provider.dart';
 
@@ -36,15 +36,21 @@ class CameraTemperaturePoller {
   CameraTemperaturePoller({
     required Ref ref,
     required SkotiqBackend backend,
+    HostLink? hostLink,
     Duration interval = const Duration(seconds: 5),
     Duration idleInterval = const Duration(seconds: 30),
   }) : _ref = ref,
        _backend = backend,
+       _hostLink = hostLink,
        _interval = interval,
        _idleInterval = idleInterval;
 
   final Ref _ref;
   final SkotiqBackend _backend;
+
+  /// The link to the camera's host, or null where the camera is this
+  /// process's own.
+  final HostLink? _hostLink;
 
   /// Poll cadence while the cooler is actively running — the sensor temperature
   /// is moving, so the UI wants frequent updates.
@@ -137,7 +143,7 @@ class CameraTemperaturePoller {
     // identical warning to the log every 5 s until the operator re-pairs.
     // Ticks keep rescheduling (each becomes a cheap flag check) so polling
     // resumes on its own once a reconnect clears the latch.
-    if (_backend.remoteHost?.link.isAuthTokenRejected == true) return;
+    if (_hostLink?.isAuthTokenRejected == true) return;
 
     try {
       final status = await _backend.getCameraStatus(deviceId);

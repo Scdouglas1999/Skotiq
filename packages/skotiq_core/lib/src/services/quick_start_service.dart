@@ -18,7 +18,6 @@ import '../providers/database_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/session_provider.dart' show sequenceCheckpointsDaoProvider;
 import '../utils/json_validation.dart';
-import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
 import 'logging_service.dart';
 part 'quick_start_service/quick_start_models.dart';

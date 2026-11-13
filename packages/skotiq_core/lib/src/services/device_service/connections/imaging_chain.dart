@@ -186,7 +186,7 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   /// On a remote client the host runs the ramp, next to the camera, so it
   /// continues when this client leaves and any client can cancel it.
   Future<CameraWarmupOutcome> _warmCamera({double ratePerMin = 2.0}) async {
-    final host = _backend.remoteHost?.devices;
+    final host = _hostDevices;
     if (host == null) {
       return _warmupController.start(ratePerMin: ratePerMin);
     }
@@ -209,7 +209,7 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   /// command next, which the host treats as replacing its warm-up, or are
   /// tearing this client down, which must leave the host's warm-up running.
   void _cancelWarmCamera({bool restorePriorSetting = true}) {
-    final host = _backend.remoteHost?.devices;
+    final host = _hostDevices;
     if (host == null) {
       _warmupController.cancel(restorePriorSetting: restorePriorSetting);
       return;

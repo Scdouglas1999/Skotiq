@@ -86,12 +86,12 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
     _hasChecked = true;
     final host = ref.backendScope(alive: () => mounted);
+    final hostControl = ref.read(linkedHostControlProvider);
 
     try {
       // A client joining a host mid-run is shown the live run. The host's
       // open session belongs to that run, and restoring a setup would move
       // the host's devices under it.
-      final hostControl = host.value.remoteHost?.control;
       if (hostControl != null && await hostControl.hostRunInFlight()) {
         ref.read(loggingServiceProvider).info(
               'The imaging host is running a sequence; skipping the startup '
@@ -104,7 +104,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
       // The host's own screen decides on its sessions; a client neither
       // resumes nor discards them.
-      if (host.value.remoteHost != null) return;
+      if (hostControl != null) return;
 
       // First priority: Check for crashed/interrupted sessions. The session
       // of a run whose checkpoint can be continued is that run: the checkpoint
@@ -500,7 +500,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
     final applied = <String>[];
     final failures = <String>[];
-    if (host.isStale || host.value.remoteHost != null) {
+    if (host.isStale) {
       return _SnapshotRestore(applied: applied, failures: failures);
     }
 

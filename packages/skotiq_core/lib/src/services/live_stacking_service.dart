@@ -4,10 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
-import '../backend/skotiq_backend.dart';
-import '../providers/backend_provider.dart';
 import '../services/logging_service.dart';
-import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_live_stack.dart';
 import '../providers/logging_service_provider.dart';
 
 class LiveStackingConfig {
@@ -293,23 +291,21 @@ typedef SaveStackMasterFits =
 /// The live stacking engine aligns and averages incoming frames in real time,
 /// providing a continuously improving preview for EAA and outreach.
 class LiveStackingService {
-  final SkotiqBackend _backend;
   final LoggingService _logger;
   final SaveStackMasterFits _saveFitsMaster;
 
+  /// The linked host's stacker, or null where the stacker is this process's.
+  /// When set every operation routes over `/api/stacking/*`: the local FFI
+  /// bridge's stacker is empty on a linked client.
+  final HostLiveStack? _remote;
+
   LiveStackingService(
     Ref ref, {
-    SkotiqBackend? backend,
+    HostLiveStack? host,
     SaveStackMasterFits? saveFitsMaster,
-  }) : _backend = backend ?? ref.read(backendProvider),
+  }) : _remote = host,
        _logger = ref.read(loggingServiceProvider),
        _saveFitsMaster = saveFitsMaster ?? bridge.apiStackingSaveMasterFits;
-
-  /// The active NetworkBackend when running as a remote client (tablet talking
-  /// to a headless appliance), else null. When non-null the stacker runs on the
-  /// HOST and every operation routes over `/api/stacking/*` rather than the
-  /// local FFI bridge (whose stacker is empty on a remote client).
-  HostLiveStack? get _remote => _backend.remoteHost?.liveStack;
 
   /// Arm host-side live stacking without a local reference frame: the next
   /// frame the host captures becomes the reference and subsequent frames are

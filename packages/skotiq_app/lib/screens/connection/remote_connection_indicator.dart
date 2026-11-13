@@ -82,7 +82,7 @@ class _RemoteConnectionIndicatorState
     extends ConsumerState<RemoteConnectionIndicator> {
   Duration? _latency;
   StreamSubscription<Duration>? _latencySubscription;
-  RemoteHost? _trackedBackend;
+  HostLink? _trackedLink;
 
   /// The link the latency and heartbeat readings come from; readings that
   /// arrive after a host change are dropped.
@@ -93,7 +93,7 @@ class _RemoteConnectionIndicatorState
   @override
   void initState() {
     super.initState();
-    _attachToBackend(ref.read(backendProvider));
+    _attachToLink(ref.read(linkedHostLinkProvider));
   }
 
   @override
@@ -103,37 +103,37 @@ class _RemoteConnectionIndicatorState
     super.dispose();
   }
 
-  /// Subscribe to the [latencyStream] of the currently active
-  /// [NetworkBackend]. Resubscribes when a backend swap happens
-  /// (connect / disconnect / reconnect creates a new instance).
-  void _attachToBackend(SkotiqBackend backend) {
-    if (identical(backend.remoteHost, _trackedBackend)) return;
+  /// Subscribe to the latency of the current link to the host. Resubscribes
+  /// when a backend swap happens (connect / disconnect / reconnect creates a
+  /// new instance).
+  void _attachToLink(HostLink? hostLink) {
+    if (identical(hostLink, _trackedLink)) return;
     final link = _links.beginLatest();
     _latencySubscription?.cancel();
     _latencySubscription = null;
     _answerTimer?.cancel();
     _answerTimer = null;
     _unansweredSeconds = null;
-    if (backend.remoteHost case final linkedHost?) {
-      _trackedBackend = linkedHost;
-      _latency = linkedHost.link.lastLatency;
+    if (hostLink != null) {
+      _trackedLink = hostLink;
+      _latency = hostLink.lastLatency;
       // The socket state alone said "Live" through a two-minute stall on a
       // failing Wi-Fi link: the connection stayed open while answers took
       // seconds to tens of seconds. Look at the heartbeat every second.
-      _unansweredSeconds = unansweredSecondsFor(linkedHost.link);
+      _unansweredSeconds = unansweredSecondsFor(hostLink);
       _answerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (link.isStale) return;
-        final seconds = unansweredSecondsFor(linkedHost.link);
+        final seconds = unansweredSecondsFor(hostLink);
         if (seconds != _unansweredSeconds) {
           setState(() => _unansweredSeconds = seconds);
         }
       });
-      _latencySubscription = linkedHost.link.latencyStream.listen((value) {
+      _latencySubscription = hostLink.latencyStream.listen((value) {
         if (link.isStale) return;
         setState(() => _latency = value);
       });
     } else {
-      _trackedBackend = null;
+      _trackedLink = null;
       if (_latency != null) {
         setState(() => _latency = null);
       }
@@ -142,17 +142,17 @@ class _RemoteConnectionIndicatorState
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<SkotiqBackend>(backendProvider, (_, next) {
-      _attachToBackend(next);
+    ref.listen<HostLink?>(linkedHostLinkProvider, (_, next) {
+      _attachToLink(next);
     });
-    final backend = ref.watch(backendProvider);
+    final hostLink = ref.watch(linkedHostLinkProvider);
 
-    if (backend.remoteHost case final linkedHost?) {
+    if (hostLink != null) {
       return StreamBuilder<BackendConnectionState>(
-        stream: linkedHost.link.connectionStateStream,
-        initialData: linkedHost.link.connectionState,
+        stream: hostLink.connectionStateStream,
+        initialData: hostLink.connectionState,
         builder: (context, snap) {
-          final wsState = snap.data ?? linkedHost.link.connectionState;
+          final wsState = snap.data ?? hostLink.connectionState;
           var status = _statusForBackendState(wsState);
           if (status == RemoteConnectionStatus.connected &&
               _unansweredSeconds != null) {
@@ -161,7 +161,7 @@ class _RemoteConnectionIndicatorState
           return _build(
             context,
             status,
-            hostAddress: linkedHost.link.serverHost,
+            hostAddress: hostLink.serverHost,
           );
         },
       );
@@ -465,8 +465,8 @@ class _RemoteConnectionSheetState
   Future<void> _handleReconnect() async {
     if (_reconnecting) return;
     final reconnect = _reconnects.beginLatest();
-    final linkedHost = reconnect.value.remoteHost;
-    if (linkedHost == null) {
+    final hostLink = ref.read(linkedHostLinkProvider);
+    if (hostLink == null) {
       if (mounted) {
         context.showInfoSnackBar(
           'No remote server is selected. Reconnect first.',
@@ -476,7 +476,7 @@ class _RemoteConnectionSheetState
     }
     setState(() => _reconnecting = true);
     try {
-      await linkedHost.link.reconnectNow();
+      await hostLink.reconnectNow();
     } catch (e) {
       if (mounted && reconnect.isCurrent) {
         context.showErrorSnackBar('Reconnect failed: ${userFacingError(e)}');
@@ -504,17 +504,17 @@ class _RemoteConnectionSheetState
     final theme = Theme.of(context);
     final colors = SkotiqColors.of(context);
     final activeBackend = ref.watch(backendProvider);
-    final backend = activeBackend.remoteHost;
+    final hostLink = ref.watch(linkedHostLinkProvider);
     final unansweredSeconds =
-        backend == null ? null : unansweredSecondsFor(backend.link);
-    var status = backend == null
+        hostLink == null ? null : unansweredSecondsFor(hostLink);
+    var status = hostLink == null
         ? RemoteConnectionStatus.notConnected
-        : _statusForConnectionState(backend.link.connectionState);
+        : _statusForConnectionState(hostLink.connectionState);
     if (status == RemoteConnectionStatus.connected &&
         unansweredSeconds != null) {
       status = RemoteConnectionStatus.notAnswering;
     }
-    final latency = backend?.link.lastLatency;
+    final latency = hostLink?.lastLatency;
     final linkedLaunch = ref.watch(remoteLaunchTargetProvider);
     final canSwitch = canSwitchRole(ref);
 
@@ -543,7 +543,7 @@ class _RemoteConnectionSheetState
                       ),
                     ),
                     Text(
-                      _description(status, backend, unansweredSeconds),
+                      _description(status, hostLink, unansweredSeconds),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -554,12 +554,12 @@ class _RemoteConnectionSheetState
             ],
           ),
           const SizedBox(height: 24),
-          if (backend != null) ...[
+          if (hostLink != null) ...[
             if (linkedLaunch?.name != null &&
-                linkedLaunch!.name != backend.link.serverHost)
+                linkedLaunch!.name != hostLink.serverHost)
               _row(theme, colors, 'Computer', linkedLaunch.name!),
-            _row(theme, colors, 'Host', backend.link.serverHost),
-            _row(theme, colors, 'Port', backend.link.serverPort.toString()),
+            _row(theme, colors, 'Host', hostLink.serverHost),
+            _row(theme, colors, 'Port', hostLink.serverPort.toString()),
           ],
           if (latency != null && status == RemoteConnectionStatus.connected)
             _row(
@@ -569,7 +569,7 @@ class _RemoteConnectionSheetState
               '${(latency.inMicroseconds / 1000.0).round()} ms',
             ),
           const SizedBox(height: 16),
-          if (backend != null && status != RemoteConnectionStatus.notConnected)
+          if (hostLink != null && status != RemoteConnectionStatus.notConnected)
             SizedBox(
               width: double.infinity,
               child: SkotiqButton(
@@ -617,7 +617,7 @@ class _RemoteConnectionSheetState
                 ),
               ),
             ),
-          ] else if (backend == null &&
+          ] else if (hostLink == null &&
               !activeBackend.hasNoHost &&
               canSwitch)
             Padding(
@@ -636,7 +636,7 @@ class _RemoteConnectionSheetState
                 ),
               ),
             ),
-          if (backend != null &&
+          if (hostLink != null &&
               linkedLaunch == null &&
               (status == RemoteConnectionStatus.connected ||
                   status == RemoteConnectionStatus.notAnswering))
@@ -793,18 +793,18 @@ class _RemoteConnectionSheetState
 
   String _description(
     RemoteConnectionStatus status,
-    RemoteHost? backend,
+    HostLink? hostLink,
     int? unansweredSeconds,
   ) {
     switch (status) {
       case RemoteConnectionStatus.connected:
-        return 'Connected to ${backend?.link.serverHost ?? "server"}';
+        return 'Connected to ${hostLink?.serverHost ?? "server"}';
       case RemoteConnectionStatus.notAnswering:
-        return '${backend?.link.serverHost ?? "The host"} has not answered for '
+        return '${hostLink?.serverHost ?? "The host"} has not answered for '
             '${unansweredSeconds ?? 0} s. What this screen shows may be out '
             'of date until it answers again.';
       case RemoteConnectionStatus.connecting:
-        return 'Connecting to ${backend?.link.serverHost ?? "server"}...';
+        return 'Connecting to ${hostLink?.serverHost ?? "server"}...';
       case RemoteConnectionStatus.reconnecting:
         return 'Attempting to reconnect...';
       case RemoteConnectionStatus.serverOffline:

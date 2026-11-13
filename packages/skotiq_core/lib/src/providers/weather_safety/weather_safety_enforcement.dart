@@ -29,7 +29,7 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
     // client nor disconnected UI-only mode may execute the host's local
     // SafeRig workflow.
     final backend = _ref.read(backendProvider);
-    if (backend.hasNoHost || backend.remoteHost != null) {
+    if (backend.hasNoHost || _ref.read(isRemoteModeProvider)) {
       return false;
     }
     if (_enforceInFlight) return false;

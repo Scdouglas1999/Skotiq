@@ -130,6 +130,7 @@ void main() {
     coordinator = DeviceReconnectCoordinator(
       ref: container.read(_refProvider),
       backend: backend,
+      hostOwnsRecovery: false,
       resumeSequence: () async {},
       pauseSequence: () async {},
       surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},

@@ -362,6 +362,7 @@ void main() {
         (ref) => DeviceReconnectCoordinator(
           ref: ref,
           backend: mockBackend,
+          hostOwnsRecovery: false,
           resumeSequence: () async {},
           pauseSequence: () async {},
           surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
@@ -417,6 +418,7 @@ void main() {
       coordinator = DeviceReconnectCoordinator(
         ref: ref,
         backend: mockBackend,
+        hostOwnsRecovery: false,
         resumeSequence: () async {},
         pauseSequence: () async {},
         surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
@@ -480,6 +482,7 @@ void main() {
       coordinator = DeviceReconnectCoordinator(
         ref: ref,
         backend: mockBackend,
+        hostOwnsRecovery: false,
         resumeSequence: () async {},
         pauseSequence: () async {},
         surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},

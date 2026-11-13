@@ -1,15 +1,16 @@
-import '../async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/remote_host.dart';
+import '../linked_host.dart';
+import '../async_scope.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../services/remote_sequence_editor_sync_lifecycle.dart';
 import '../../services/sequence_file_service.dart';
 import '../../services/sequence_repository.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../sequence_provider.dart';
 import '../logging_service_provider.dart';
@@ -123,7 +124,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
     }
 
     final backend = ref.read(backendProvider);
-    if (backend.remoteHost == null) return;
+    if (!ref.read(isRemoteModeProvider)) return;
 
     final operation = _persistRemoteSequence(
       ref,
@@ -175,7 +176,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
       return;
     }
     final backend = ref.read(backendProvider);
-    final runState = backend.remoteHost?.runState;
+    final runState = ref.read(linkedHostRunStateProvider);
     if (runState == null || !ref.read(canEditSequenceProvider)) {
       syncState.writePending = false;
       return;
@@ -224,7 +225,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
   late final RemoteSequencePreSwapFlush preSwapFlush;
   preSwapFlush = (outgoingBackend, {required requireSuccess}) async {
-    if (isDisposed || outgoingBackend.remoteHost == null) return;
+    if (isDisposed || !outgoingBackend.linksToHost) return;
     if (ref.backendScopeOver(outgoingBackend).isStale) return;
     await flushPending(reason: 'backend_swap', drainLatest: true);
     if (requireSuccess &&
@@ -252,15 +253,14 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
       writeThroughTimer = null;
       syncState.reset();
     }
-    if (next.remoteHost == null) {
+    if (!next.linksToHost) {
       debounce?.cancel();
       debounce = null;
     }
   });
 
   ref.listen<Sequence?>(currentSequenceProvider, (previous, next) {
-    final backend = ref.read(backendProvider);
-    if (backend.remoteHost == null) return;
+    if (!ref.read(isRemoteModeProvider)) return;
     if (!identical(next, syncState.appliedFromHost) &&
         ref.read(canEditSequenceProvider)) {
       syncState.writePending = true;

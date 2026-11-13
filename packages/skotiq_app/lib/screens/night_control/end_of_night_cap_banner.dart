@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -21,7 +20,7 @@ class EndOfNightCapBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // On a linked client the calibration runs on the imaging host: show the
     // host's request and answer it there.
-    final remote = ref.watch(backendProvider).remoteHost?.night;
+    final remote = ref.watch(linkedHostNightProvider);
     final status = remote != null
         ? ref.watch(hostEndOfNightStatusProvider)
         : ref.watch(endOfNightCalibrationProvider);

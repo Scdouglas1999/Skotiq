@@ -61,8 +61,8 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
   Future<void> _loadMore() async {
     if (!mounted || _loading || _exhausted) return;
     final load = _pageLoads.begin();
-    final linkedHost = load.value.remoteHost;
-    if (linkedHost == null) {
+    final hostRecords = ref.read(linkedHostImagingRecordsProvider);
+    if (hostRecords == null) {
       setState(() {
         _notLinked = true;
         _loading = false;
@@ -77,7 +77,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
       _error = null;
     });
     try {
-      final page = await linkedHost.imagingRecords.fetchSequenceRuns(
+      final page = await hostRecords.fetchSequenceRuns(
         limit: _pageSize,
         offset: requestOffset,
       );
@@ -147,10 +147,11 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-      if (previous != null && !identical(previous, next)) {
-        unawaited(_refresh());
-      }
+    ref.listen<HostImagingRecords?>(linkedHostImagingRecordsProvider, (
+      previous,
+      next,
+    ) {
+      if (!identical(previous, next)) unawaited(_refresh());
     });
     final colors = SkotiqColors.of(context);
     return Scaffold(

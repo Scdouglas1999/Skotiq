@@ -259,7 +259,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
     final authority = ref.watch(backendProvider);
-    final isRemoteController = authority.remoteHost != null;
+    final isRemoteController = ref.watch(isRemoteModeProvider);
     final credentialsHidden = hostRefusesAdminOnly(ref);
     final AsyncValue<PushNotificationConfig>? pushConfigAsync =
         isRemoteController ? null : ref.watch(pushNotificationConfigProvider);

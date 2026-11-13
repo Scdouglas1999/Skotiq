@@ -82,14 +82,10 @@ List<BackupListEntry> parseRemoteBackupList(List<Map<String, dynamic>> rows) {
 }
 
 /// Stable identity of a backend, used to reject a slow list result or a row
-/// action after the user has switched host or mode mid-flight. Remote backends
-/// key on `host:port` (a reconnect to a different rig yields a different token);
-/// every non-network backend shares the `local` token. A row loaded against
-/// one token must never dispatch its action against a different one — that is
-/// how an old row would otherwise target the current host.
-String backendBackupToken(SkotiqBackend backend) {
-  final linkedHost = backend.remoteHost;
-  return linkedHost != null
-      ? 'remote:${identityHashCode(backend)}:${linkedHost.link.address}'
-      : 'local:${identityHashCode(backend)}';
-}
+/// action after the user has switched host or mode mid-flight. Every backend
+/// instance has its own token, so a reconnect to the same rig is a new owner.
+/// A row loaded against one token must never dispatch its action against a
+/// different one — that is how an old row would otherwise target the current
+/// host.
+String backendBackupToken(SkotiqBackend backend) =>
+    '${backend.runtimeType}:${identityHashCode(backend)}';

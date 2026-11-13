@@ -16,7 +16,7 @@ import '../providers/settings_provider.dart';
 import '../utils/json_validation.dart';
 import 'device_service.dart';
 import 'optical_train_limits.dart';
-import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_profiles.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/device_service_providers.dart';
 import '../providers/async_scope.dart';
@@ -29,7 +29,12 @@ part 'profile_service/profile_backends.dart';
 class ProfileService {
   final Ref _ref;
 
-  ProfileService(this._ref);
+  /// The linked host's profiles, or null where the profiles are in this
+  /// process's database.
+  final HostProfiles? _hostProfiles;
+
+  ProfileService(this._ref, {HostProfiles? hostProfiles})
+    : _hostProfiles = hostProfiles;
 
   /// Read through the container: a continuation that outlives a backend swap
   /// must not touch this service's own `Ref`.
@@ -41,39 +46,19 @@ class ProfileService {
   /// Load and activate a profile, optionally connecting devices
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {
     final authority = _authority;
-    final backend = authority.value;
-    if (backend.remoteHost != null) {
-      await backend.loadProfile(profileId.toString());
-      _requireAuthority(authority);
-      _ref.invalidate(equipmentProfilesProvider);
-      if (autoConnect) {
-        final profile = await _getProfileModelById(
-          profileId,
-          authority: authority,
-        );
-        if (profile != null) {
-          await _connectProfileDevicesFromModel(profile);
-          _requireAuthority(authority);
-        }
-      }
-      return;
-    }
-
-    // Route activation through the single, remote-aware notifier authority so
-    // the local path updates SQLite AND write-throughs the active row into the
-    // native executor store (rather than a bare DAO write that the Rust
-    // sequencer never sees). The notifier refreshes provider state itself.
+    // The notifier is the one activation writer: the host's load endpoint on
+    // a linked client; here SQLite and the native executor store together, so
+    // the Rust sequencer never runs a profile the UI does not show.
     await _profilesNotifier.setActiveProfile(profileId);
     _requireAuthority(authority);
 
     if (autoConnect) {
-      final dao = _ref.read(equipmentProfilesDaoProvider);
-      final profile = await dao.getProfileById(profileId);
-      _requireAuthority(authority);
+      final profile = await _getProfileModelById(
+        profileId,
+        authority: authority,
+      );
       if (profile != null) {
-        await _connectProfileDevicesFromModel(
-          EquipmentProfileModel.fromDatabase(profile),
-        );
+        await _connectProfileDevicesFromModel(profile);
         _requireAuthority(authority);
       }
     }
@@ -167,10 +152,10 @@ class ProfileService {
 
   Future<String> exportAllProfilesToJson() async {
     final authority = _authority;
-    final backend = authority.value;
+    final host = _hostProfiles;
     final List<ProfileExportData> exportData;
-    if (backend.remoteHost != null) {
-      final profiles = await backend.getProfiles();
+    if (host != null) {
+      final profiles = await host.getProfiles();
       _requireAuthority(authority);
       exportData = profiles
           .map(
@@ -255,31 +240,15 @@ class ProfileService {
 
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final authority = _authority;
-    if (authority.value.remoteHost != null) {
-      final id = await _profilesNotifier.duplicateProfile(sourceId, newName);
-      _requireAuthority(authority);
-      return id;
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-    final id = await dao.duplicateProfile(sourceId, newName);
+    final id = await _profilesNotifier.duplicateProfile(sourceId, newName);
     _requireAuthority(authority);
-    _ref.invalidate(equipmentProfilesProvider);
     return id;
   }
 
   Future<void> deleteProfile(int profileId) async {
     final authority = _authority;
-    if (authority.value.remoteHost != null) {
-      await _profilesNotifier.deleteProfile(profileId);
-      _requireAuthority(authority);
-      return;
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-    await dao.deleteProfile(profileId);
+    await _profilesNotifier.deleteProfile(profileId);
     _requireAuthority(authority);
-    _ref.invalidate(equipmentProfilesProvider);
   }
 
   /// Assign [devices] (slot type to device id) in a profile, leaving every

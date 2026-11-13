@@ -190,15 +190,14 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   }
 
   void _setNetworkHeartbeatPaused(bool paused) {
-    final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
-    if (linkedHost == null) {
+    final hostLink = ref.read(linkedHostLinkProvider);
+    if (hostLink == null) {
       return;
     }
     if (paused) {
-      linkedHost.link.pauseWebSocketHeartbeatForAppLifecycle();
+      hostLink.pauseWebSocketHeartbeatForAppLifecycle();
     } else {
-      linkedHost.link.resumeWebSocketHeartbeatForAppLifecycle();
+      hostLink.resumeWebSocketHeartbeatForAppLifecycle();
     }
   }
 
@@ -221,32 +220,27 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
     if (!Platform.isIOS && !Platform.isAndroid) {
       return;
     }
-    final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
-    if (linkedHost == null) {
+    final hostLink = ref.read(linkedHostLinkProvider);
+    if (hostLink == null) {
       return;
     }
     final deviceId = await MobilePairingService.deviceId();
     final service = _pushRegistration ??= PushRegistrationService();
-    await service.ensureRegistered(
-      backend: linkedHost.link,
-      deviceId: deviceId,
-    );
+    await service.ensureRegistered(backend: hostLink, deviceId: deviceId);
   }
 
   void _startConnectionMonitor() {
     _stopConnectionMonitor();
     // A live session again: the next drop starts its backoff from the top.
     _lostSessionRetryAttempt = 0;
-    final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
-    if (linkedHost == null) {
+    final hostLink = ref.read(linkedHostLinkProvider);
+    if (hostLink == null) {
       // Only NetworkBackend exposes the WS heartbeat. Other backends
       // either run locally (FfiBackend) or are explicitly disconnected.
       return;
     }
 
-    _connectionStateSubscription = linkedHost.link.connectionStateStream.listen((
+    _connectionStateSubscription = hostLink.connectionStateStream.listen((
       state,
     ) {
       if (!mounted) return;
@@ -295,10 +289,8 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
           }
           _disconnectGraceTimer ??= Timer(_connectionGracePeriod, () async {
             if (!mounted) return;
-            final current = ref.read(backendProvider);
-            if (current.remoteHost == null ||
-                linkedHost.link.connectionState ==
-                    BackendConnectionState.connected) {
+            if (!ref.read(isRemoteModeProvider) ||
+                hostLink.connectionState == BackendConnectionState.connected) {
               return;
             }
             Log.error(

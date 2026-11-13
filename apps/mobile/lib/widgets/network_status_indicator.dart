@@ -90,14 +90,14 @@ class _NetworkStatusIndicatorState
     extends ConsumerState<NetworkStatusIndicator> {
   Duration? _latency;
   StreamSubscription<Duration>? _latencySubscription;
-  RemoteHost? _trackedBackend;
+  HostLink? _trackedLink;
   int _backendGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     // Seed and subscribe against whatever backend is currently active.
-    _attachToBackend(ref.read(backendProvider));
+    _attachToLink(ref.read(linkedHostLinkProvider));
   }
 
   @override
@@ -107,26 +107,26 @@ class _NetworkStatusIndicatorState
     super.dispose();
   }
 
-  void _attachToBackend(SkotiqBackend backend) {
-    if (identical(backend.remoteHost, _trackedBackend)) return;
+  void _attachToLink(HostLink? hostLink) {
+    if (identical(hostLink, _trackedLink)) return;
     final generation = ++_backendGeneration;
     _latencySubscription?.cancel();
     _latencySubscription = null;
-    if (backend.remoteHost case final linkedHost?) {
-      _trackedBackend = linkedHost;
+    if (hostLink != null) {
+      _trackedLink = hostLink;
       // Seed with the last observed value so the UI doesn't flash empty
       // immediately after a backend swap.
-      _latency = linkedHost.link.lastLatency;
-      _latencySubscription = linkedHost.link.latencyStream.listen((value) {
+      _latency = hostLink.lastLatency;
+      _latencySubscription = hostLink.latencyStream.listen((value) {
         if (!mounted ||
             generation != _backendGeneration ||
-            !identical(_trackedBackend, linkedHost)) {
+            !identical(_trackedLink, hostLink)) {
           return;
         }
         setState(() => _latency = value);
       });
     } else {
-      _trackedBackend = null;
+      _trackedLink = null;
       if (_latency != null) {
         _latency = null;
       }
@@ -138,8 +138,8 @@ class _NetworkStatusIndicatorState
     // Rebuild + re-attach whenever the backend instance changes (connect,
     // disconnect, swap). `ref.listen` keeps the StreamSubscription scoped
     // to the live backend so we don't leak handlers across reconnects.
-    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-      _attachToBackend(next);
+    ref.listen<HostLink?>(linkedHostLinkProvider, (previous, next) {
+      _attachToLink(next);
     });
 
     final backend = ref.watch(backendProvider);
@@ -166,14 +166,14 @@ class _NetworkStatusIndicatorState
     // When the backend itself is a NetworkBackend we also want to rebuild
     // on every connectionState transition so the indicator follows the
     // grace-window UX. StreamBuilder handles that for us.
-    if (backend.remoteHost case final linkedHost?) {
+    if (ref.watch(linkedHostLinkProvider) case final hostLink?) {
       return StreamBuilder<BackendConnectionState>(
-        stream: linkedHost.link.connectionStateStream,
-        initialData: linkedHost.link.connectionState,
+        stream: hostLink.connectionStateStream,
+        initialData: hostLink.connectionState,
         builder: (context, wsSnap) {
-          final wsState = wsSnap.data ?? linkedHost.link.connectionState;
+          final wsState = wsSnap.data ?? hostLink.connectionState;
           final combined = _combine(wsState, osState);
-          return _renderIndicator(context, combined, osState, backend: linkedHost);
+          return _renderIndicator(context, combined, osState, backend: hostLink);
         },
       );
     }
@@ -214,16 +214,16 @@ class _NetworkStatusIndicatorState
 
   /// Classify how the active backend reaches the server (LAN vs tailnet).
   /// Returns [_TransportTier.none] when there is no NetworkBackend.
-  static _TransportTier _transportTier(RemoteHost? backend) {
+  static _TransportTier _transportTier(HostLink? backend) {
     if (backend == null) return _TransportTier.none;
-    return backend.link.isRemoteHost ? _TransportTier.tailscale : _TransportTier.lan;
+    return backend.isRemoteHost ? _TransportTier.tailscale : _TransportTier.lan;
   }
 
   Widget _renderIndicator(
     BuildContext context,
     _CombinedConnectionStatus status,
     NetworkServiceState osState, {
-    required RemoteHost? backend,
+    required HostLink? backend,
   }) {
     final transport = _transportTier(backend);
     return GestureDetector(
@@ -259,7 +259,7 @@ class _NetworkStatusIndicatorState
     BuildContext context,
     _CombinedConnectionStatus status,
     NetworkServiceState osState,
-    RemoteHost? backend,
+    HostLink? backend,
     _TransportTier transport,
   ) {
     final color = _statusColor(context, status);
@@ -410,7 +410,7 @@ class _NetworkStatusIndicatorState
     BuildContext context,
     _CombinedConnectionStatus status,
     NetworkServiceState osState,
-    RemoteHost? backend,
+    HostLink? backend,
   ) {
     final colors = SkotiqColors.of(context);
     showModalBottomSheet(
@@ -475,7 +475,7 @@ class _ConnectionDetailsSheet extends ConsumerStatefulWidget {
   final _CombinedConnectionStatus status;
   final NetworkServiceState osState;
   final Duration? latency;
-  final RemoteHost? backend;
+  final HostLink? backend;
 
   const _ConnectionDetailsSheet({
     required this.status,
@@ -498,8 +498,8 @@ class _ConnectionDetailsSheetState
   Future<void> _handleReconnectNow() async {
     if (_reconnecting) return;
     final activeBackend = ref.read(backendProvider);
-    final linkedHost = activeBackend.remoteHost;
-    if (linkedHost == null) {
+    final hostLink = ref.read(linkedHostLinkProvider);
+    if (hostLink == null) {
       if (mounted) {
         context.showInfoSnackBar(
           'No remote server is selected. Reconnect first.',
@@ -510,7 +510,7 @@ class _ConnectionDetailsSheetState
     final backend = activeBackend;
     setState(() => _reconnecting = true);
     try {
-      await linkedHost.link.reconnectNow();
+      await hostLink.reconnectNow();
     } catch (e) {
       if (mounted && ref.backendScopeOver(backend).isCurrent) {
         context.showErrorSnackBar('Reconnect failed: $e');
@@ -662,9 +662,9 @@ class _ConnectionDetailsSheetState
           if (widget.backend != null)
             _DetailRow(
               label: 'Reachable via',
-              value: widget.backend!.link.isRemoteHost
-                  ? 'Tailscale (${widget.backend!.link.serverHost})'
-                  : 'LAN (${widget.backend!.link.serverHost})',
+              value: widget.backend!.isRemoteHost
+                  ? 'Tailscale (${widget.backend!.serverHost})'
+                  : 'LAN (${widget.backend!.serverHost})',
             ),
 
           if (widget.latency != null &&

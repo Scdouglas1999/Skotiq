@@ -38,14 +38,13 @@ class CheckpointAttemptFailure {
   });
 }
 
-/// Whether [backend] is a remote host whose run is in flight. Its checkpoint
-/// is then that live run's, so a client joining it is shown the run and is
-/// never offered to recover it.
+/// Whether the linked host ([hostControl], null where the imaging host is
+/// this process) has a run in flight. Its checkpoint is then that live run's,
+/// so a client joining it is shown the run and is never offered to recover
+/// it.
 @visibleForTesting
-Future<bool> hostRunHoldsCheckpoint(SequencerBackend backend) async {
-  final hostControl = backend.remoteHost?.control;
-  return hostControl != null && await hostControl.hostRunInFlight();
-}
+Future<bool> hostRunHoldsCheckpoint(HostControlSession? hostControl) async =>
+    hostControl != null && await hostControl.hostRunInFlight();
 
 /// Whether launch offers to recover [info]'s run: only a run the app died
 /// under. A run that was stopped, failed or ended early keeps its checkpoint

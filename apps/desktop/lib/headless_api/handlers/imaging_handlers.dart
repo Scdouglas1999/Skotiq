@@ -230,16 +230,13 @@ class ImagingHandlers implements RouteSource {
     return jsonOk({'width': fits.width, 'height': fits.height});
   }
 
+  /// Detects again through the host's own provider, so this window and
+  /// every linked client show what the asking client is told.
   Future<Response> handleDetectPlateSolvers(Request request) async {
-    final backend = container.read(imagingBackendProvider);
-    final detection = await backend.detectPlateSolvers();
-    return jsonOk({
-      'astapPath': detection.astapPath,
-      'astrometryPath': detection.astrometryPath,
-      'catalogName': detection.catalogName,
-      'catalogMagnitudeLimit': detection.catalogMagnitudeLimit,
-      'catalogPath': detection.catalogPath,
-    });
+    final detection = await container.refresh(
+      plateSolverDetectionProvider.future,
+    );
+    return jsonOk(detection.toJson());
   }
 
   /// Runs the solver at `executablePath` to read its version. A request
@@ -283,12 +280,7 @@ class ImagingHandlers implements RouteSource {
   Future<Response> handleGetPlateSolverConfig(Request request) async {
     final backend = container.read(imagingBackendProvider);
     final pref = await backend.getPlateSolverConfig();
-    return jsonOk({
-      'astapPath': pref.astapPath,
-      'astrometryPath': pref.astrometryPath,
-      'catalogPath': pref.catalogPath,
-      'solverChoice': pref.choice.serialized,
-    });
+    return jsonOk(pref.toJson());
   }
 
   Future<Response> handleSetPlateSolverConfig(Request request) async {
@@ -324,6 +316,11 @@ class ImagingHandlers implements RouteSource {
         'astrometryPath': AdminOnly.hostProgram,
     });
     await backend.setPlateSolverConfig(pref);
+    // The host's providers read the saved preference and detect with its
+    // paths again; the plate-solver channel tells every linked client.
+    container
+      ..invalidate(plateSolverPreferenceProvider)
+      ..invalidate(plateSolverDetectionProvider);
     return jsonOk({'status': 'saved'});
   }
 

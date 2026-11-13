@@ -9,6 +9,7 @@ import '../providers/equipment_provider.dart';
 import 'device_exceptions.dart';
 import 'error_service.dart';
 import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_device_control.dart';
 import '../providers/error_service_provider.dart';
 import '../providers/logging_service_provider.dart';
 
@@ -55,12 +56,19 @@ typedef SwitchBridgeSetValueFn =
 /// MUST call [resetHooks] in `tearDown` to avoid leaking state between
 /// tests.
 class SwitchChannelService {
-  SwitchChannelService({required Ref ref, required SkotiqBackend backend})
-    : _ref = ref,
-      _backend = backend;
+  /// [hostDevices] is the linked host's, or null where the switch is this
+  /// process's own.
+  SwitchChannelService({
+    required Ref ref,
+    required SkotiqBackend backend,
+    HostDeviceControl? hostDevices,
+  }) : _ref = ref,
+       _backend = backend,
+       _hostDevices = hostDevices;
 
   final Ref _ref;
   final SkotiqBackend _backend;
+  final HostDeviceControl? _hostDevices;
   int _refreshGeneration = 0;
 
   bool _stillOwnsDevice(String deviceId) {
@@ -184,7 +192,7 @@ class SwitchChannelService {
       // channels over REST (`GET /api/switch/status?deviceId=`) instead of the
       // FFI bridge. Without this branch the per-channel panel stays empty on a
       // remote client even though the rig has a switch device connected.
-      final host = _backend.remoteHost?.devices;
+      final host = _hostDevices;
       if (host != null) {
         await _refreshChannelsRemote(host, deviceId, notifier, generation);
         return;
@@ -491,7 +499,7 @@ class SwitchChannelService {
 
     if (!_usesBridge) {
       // Remote path: write the channel over REST (`POST /api/switch/set`).
-      final host = _backend.remoteHost?.devices;
+      final host = _hostDevices;
       if (host != null) {
         try {
           await host.setSwitch(
@@ -616,7 +624,7 @@ class SwitchChannelService {
       throw StateError('The active switch connection changed.');
     }
 
-    final host = _backend.remoteHost?.devices;
+    final host = _hostDevices;
     try {
       if (host != null && !switchBridgeBypassBackendCheck) {
         await host.setSwitch(

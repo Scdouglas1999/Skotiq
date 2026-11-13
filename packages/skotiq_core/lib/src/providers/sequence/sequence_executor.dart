@@ -1,9 +1,10 @@
-import '../async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../linked_host.dart';
+import '../async_scope.dart';
 import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
@@ -346,7 +347,7 @@ class SequenceExecutor {
     _acquireLaunchLatch();
     try {
       final backend = _backend;
-      final host = backend.remoteHost;
+      final host = _ref.read(linkedHostRunStateProvider);
       if (host != null) {
         await _startOnHost(backend, host);
         return;
@@ -452,12 +453,12 @@ class SequenceExecutor {
   /// sees into the host's editor and asks the host to start it, which runs the
   /// host's own pre-flight and records. A plan restored from the host's
   /// checkpoint is already in the host's executor and is started as it is.
-  Future<void> _startOnHost(SkotiqBackend backend, RemoteHost host) async {
+  Future<void> _startOnHost(SkotiqBackend backend, HostRunState host) async {
     if (!_hostRestoreAwaitingStart) {
       _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
       final sequence = _ref.read(currentSequenceProvider);
       if (sequence == null) throw _noSequenceLoaded();
-      await host.runState.putOpenEditorSequence(
+      await host.putOpenEditorSequence(
         _ref.read(sequenceFileServiceProvider).sequenceToMap(sequence),
         databaseId: sequence.databaseId,
         isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
@@ -469,7 +470,8 @@ class SequenceExecutor {
       _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
     }
     _logger.info(
-      'Started the run on the imaging host ${host.link.serverHost}',
+      'Started the run on the imaging host '
+      '${_ref.read(linkedHostLinkProvider)?.serverHost}',
       source: 'SequenceExecutor',
     );
     await _reflectHostRunState(backend);
@@ -479,16 +481,14 @@ class SequenceExecutor {
   /// finalizes its run and session records.
   Future<void> _stopOnHost(
     SkotiqBackend backend,
-    RemoteHost host, {
+    HostRunState host, {
     required bool preserveCheckpoint,
   }) async {
     final before = _ref.read(sequenceExecutionStateProvider);
     if (!before.canStop) return;
     _setExecutionState(SequenceExecutionState.stopping);
     try {
-      await host.runState.sequencerStopOnHost(
-        preserveCheckpoint: preserveCheckpoint,
-      );
+      await host.sequencerStopOnHost(preserveCheckpoint: preserveCheckpoint);
     } catch (_) {
       _setExecutionState(before);
       rethrow;
@@ -1732,7 +1732,7 @@ class SequenceExecutor {
   Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
     _ensureBackendAuthority();
     final backend = _backend;
-    final host = backend.remoteHost;
+    final host = _ref.read(linkedHostRunStateProvider);
     if (host != null) {
       return _stopOnHost(backend, host, preserveCheckpoint: preserveCheckpoint);
     }
@@ -2014,7 +2014,7 @@ class SequenceExecutor {
     _acquireLaunchLatch();
     try {
       final backend = _backend;
-      if (backend.remoteHost != null) {
+      if (_ref.read(isRemoteModeProvider)) {
         // The host restores its own checkpoint into its executor and editor;
         // the next start continues it there.
         await backend.resumeFromCheckpoint();

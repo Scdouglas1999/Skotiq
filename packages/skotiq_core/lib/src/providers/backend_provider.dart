@@ -395,10 +395,9 @@ final backendProvider = StateNotifierProvider<BackendNotifier, SkotiqBackend>((
 
 /// Provider to check if we're in remote (network) mode
 /// When true, file paths refer to the server filesystem, not local
-final isRemoteModeProvider = Provider<bool>((ref) {
-  final backend = ref.watch(backendProvider);
-  return backend.remoteHost != null;
-});
+final isRemoteModeProvider = Provider<bool>(
+  (ref) => ref.watch(backendProvider).linksToHost,
+);
 
 /// True when this process was LAUNCHED as a thin client of a remote imaging
 /// host — the desktop's `--remote-host` flag — rather than as the machine that

@@ -2,7 +2,6 @@ import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
@@ -161,8 +160,7 @@ const PushNotificationConfig _failClosedPushConfig = PushNotificationConfig(
 final pushNotificationServiceProvider = Provider<PushNotificationService>((
   ref,
 ) {
-  final backend = ref.watch(backendProvider);
-  if (backend.remoteHost != null) {
+  if (ref.watch(isRemoteModeProvider)) {
     // A controller neither serves paired phones nor owns the host's push
     // configuration. Keep its broadcaster inert and do not initialize an
     // unrelated controller-side config authority merely because the shared

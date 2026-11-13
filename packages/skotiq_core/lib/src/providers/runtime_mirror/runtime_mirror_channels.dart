@@ -21,6 +21,7 @@ import 'channels/meridian_flip_channel.dart';
 import 'channels/notice_acks_channel.dart';
 import 'channels/open_plan_channel.dart';
 import 'channels/plate_solve_channel.dart';
+import 'channels/plate_solver_setup_channel.dart';
 import 'channels/run_record_channel.dart';
 import 'channels/scheduled_start_channel.dart';
 import 'channels/sequence_run_channel.dart';
@@ -41,6 +42,7 @@ final runtimeMirrorChannelsProvider =
         const GuiderStatusChannel(),
         const OpenPlanChannel(),
         const PlateSolveChannel(),
+        const PlateSolverSetupChannel(),
         const CenteringStatusChannel(),
         const CenteringResultChannel(),
         const AutofocusResultChannel(),

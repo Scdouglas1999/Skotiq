@@ -37,22 +37,20 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
   String? _loadError;
   String? _pollError;
   Timer? _poll;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  ProviderSubscription<HostUpdates?>? _hostSubscription;
   int _loadGeneration = 0;
   int _backendGeneration = 0;
   int _nextStatusRequest = 0;
   int _lastAppliedStatusRequest = 0;
   int? _statusRefreshInFlightGeneration;
 
-  RemoteHost? get _backend {
-    return ref.read(backendProvider).remoteHost;
-  }
+  HostUpdates? get _host => ref.read(linkedHostUpdatesProvider);
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    _hostSubscription = ref.listenManual<HostUpdates?>(
+      linkedHostUpdatesProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
         _backendGeneration++;
@@ -65,10 +63,10 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
           _status = null;
           _loadError = null;
           _pollError = null;
-          _loading = next.remoteHost != null;
+          _loading = next != null;
           _busy = false;
         });
-        if (next.remoteHost != null) unawaited(_refresh());
+        if (next != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -78,7 +76,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     _poll?.cancel();
     super.dispose();
   }
@@ -95,9 +93,9 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       state == 'checking' || state == 'downloading';
 
   Future<void> _refresh() async {
-    final backend = _backend;
+    final host = _host;
     final generation = ++_loadGeneration;
-    if (backend == null) {
+    if (host == null) {
       if (!mounted) return;
       _poll?.cancel();
       _poll = null;
@@ -119,9 +117,9 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       // poll that completes while this full refresh is in flight may render
       // briefly, but can never overwrite the final snapshot.
       final statusRequest = ++_nextStatusRequest;
-      final version = await backend.updates.getSystemVersion();
-      final status = await backend.updates.getUpdateStatus();
-      if (!_isCurrentLoad(backend, generation)) return;
+      final version = await host.getSystemVersion();
+      final status = await host.getUpdateStatus();
+      if (!_isCurrentLoad(host, generation)) return;
       if (statusRequest < _lastAppliedStatusRequest) return;
       _lastAppliedStatusRequest = statusRequest;
       setState(() {
@@ -142,7 +140,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
         _poll = null;
       }
     } catch (e) {
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (!_isCurrentLoad(host, generation)) return;
       // The `/api/system/update/*` + version routes are only registered when
       // the appliance has an update server configured; otherwise they 404.
       // Surface that as a clear "not enabled" note rather than a raw error.
@@ -159,12 +157,12 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     }
   }
 
-  bool _isCurrentLoad(RemoteHost backend, int generation) =>
-      mounted && generation == _loadGeneration && identical(_backend, backend);
+  bool _isCurrentLoad(HostUpdates host, int generation) =>
+      mounted && generation == _loadGeneration && identical(_host, host);
 
   Future<void> _refreshStatusOnly() async {
-    final backend = _backend;
-    if (backend == null) return;
+    final host = _host;
+    if (host == null) return;
     final backendGeneration = _backendGeneration;
     // Timer.periodic does not await its callback. Keep at most one status GET
     // in flight per connected host so a slow appliance cannot accumulate a
@@ -175,11 +173,11 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     _statusRefreshInFlightGeneration = backendGeneration;
     final request = ++_nextStatusRequest;
     try {
-      final status = await backend.updates.getUpdateStatus();
+      final status = await host.getUpdateStatus();
       if (!mounted ||
           backendGeneration != _backendGeneration ||
           request < _lastAppliedStatusRequest ||
-          !identical(_backend, backend)) {
+          !identical(_host, host)) {
         return;
       }
       _lastAppliedStatusRequest = request;
@@ -194,7 +192,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     } catch (e) {
       if (!mounted ||
           backendGeneration != _backendGeneration ||
-          !identical(_backend, backend)) {
+          !identical(_host, host)) {
         return;
       }
       // Keep the last valid snapshot, but never hide a broken monitoring
@@ -218,15 +216,15 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
 
   Future<void> _run(
     String label,
-    Future<Object?> Function(RemoteHost backend) action, {
-    RemoteHost? expectedBackend,
+    Future<Object?> Function(HostUpdates host) action, {
+    HostUpdates? expectedHost,
     String? acceptedMessage,
     String Function(Object? result)? describeResult,
   }) async {
     if (_busy) return;
-    final backend = expectedBackend ?? _backend;
-    if (backend == null || !identical(_backend, backend)) {
-      if (mounted && expectedBackend != null) {
+    final host = expectedHost ?? _host;
+    if (host == null || !identical(_host, host)) {
+      if (mounted && expectedHost != null) {
         context.showErrorSnackBar(
           '$label canceled because the connected rig changed.',
         );
@@ -238,8 +236,8 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       // Keep the whole command on the backend captured at admission. A host
       // switch between tap and dispatch must never update the newly-selected
       // rig.
-      final result = await action(backend);
-      if (mounted && identical(_backend, backend)) {
+      final result = await action(host);
+      if (mounted && identical(_host, host)) {
         context.showSuccessSnackBar(
           describeResult?.call(result) ??
               acceptedMessage ??
@@ -252,20 +250,20 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
         unawaited(_refreshStatusOnly());
       }
     } catch (e) {
-      if (mounted && identical(_backend, backend)) {
+      if (mounted && identical(_host, host)) {
         context.showErrorSnackBar('$label failed: ${userFacingError(e)}');
       }
     } finally {
-      if (mounted && identical(_backend, backend)) {
+      if (mounted && identical(_host, host)) {
         setState(() => _busy = false);
       }
     }
   }
 
   Future<void> _confirmApply() async {
-    final backend = _backend;
+    final host = _host;
     final stagedVersion = _status?.stagedVersion ?? 'the staged update';
-    if (backend == null) return;
+    if (host == null) return;
     final confirmed = await ConfirmDialog.show(
       context: context,
       title: 'Apply $stagedVersion?',
@@ -276,7 +274,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     );
     if (!confirmed || !mounted) return;
     final current = await _revalidateCommand(
-      backend,
+      host,
       'Apply',
       (status) =>
           !_isInProgress(status.state) &&
@@ -284,12 +282,12 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       invalidMessage: 'The selected update is no longer staged.',
     );
     if (current == null) return;
-    await _run('Apply', _doApply, expectedBackend: backend);
+    await _run('Apply', _doApply, expectedHost: host);
   }
 
   Future<void> _confirmRollback() async {
-    final backend = _backend;
-    if (backend == null) return;
+    final host = _host;
+    if (host == null) return;
     final confirmed = await ConfirmDialog.show(
       context: context,
       title: 'Roll back this rig?',
@@ -300,19 +298,19 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     );
     if (!confirmed || !mounted) return;
     final current = await _revalidateCommand(
-      backend,
+      host,
       'Rollback',
       (status) => !_isInProgress(status.state) && status.rollbackAvailable,
       invalidMessage: 'A rollback restore point is no longer available.',
     );
     if (current == null) return;
-    await _run('Rollback', _doRollback, expectedBackend: backend);
+    await _run('Rollback', _doRollback, expectedHost: host);
   }
 
   Future<void> _confirmDiscard() async {
-    final backend = _backend;
+    final host = _host;
     final stagedVersion = _status?.stagedVersion ?? 'the staged update';
-    if (backend == null) return;
+    if (host == null) return;
     final confirmed = await ConfirmDialog.show(
       context: context,
       title: 'Discard $stagedVersion?',
@@ -323,7 +321,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     );
     if (!confirmed || !mounted) return;
     final current = await _revalidateCommand(
-      backend,
+      host,
       'Discard',
       (status) =>
           !_isInProgress(status.state) &&
@@ -334,13 +332,13 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     await _run(
       'Discard',
       _doDiscard,
-      expectedBackend: backend,
+      expectedHost: host,
       acceptedMessage: 'Staged update discarded',
     );
   }
 
   Future<RemoteUpdateStatus?> _revalidateCommand(
-    RemoteHost backend,
+    HostUpdates host,
     String label,
     bool Function(RemoteUpdateStatus status) isStillValid, {
     required String invalidMessage,
@@ -348,10 +346,10 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     final backendGeneration = _backendGeneration;
     final request = ++_nextStatusRequest;
     try {
-      final status = await backend.updates.getUpdateStatus();
+      final status = await host.getUpdateStatus();
       if (!mounted ||
           backendGeneration != _backendGeneration ||
-          !identical(_backend, backend)) {
+          !identical(_host, host)) {
         if (mounted) {
           context.showErrorSnackBar(
             '$label canceled because the connected rig changed.',
@@ -372,7 +370,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       }
       return status;
     } catch (e) {
-      if (mounted && identical(_backend, backend)) {
+      if (mounted && identical(_host, host)) {
         context.showErrorSnackBar(
           '$label canceled because the rig state could not be verified: ${userFacingError(e)}',
         );
@@ -384,13 +382,13 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final backend = _backend;
+    final host = ref.watch(linkedHostUpdatesProvider);
 
     return SettingsPage(
       title: 'Appliance updates',
       description: 'Check for, stage, and apply updates to the connected rig',
       children: [
-        if (backend == null)
+        if (host == null)
           _InfoCard(
             colors: colors,
             icon: LucideIcons.info,
@@ -736,29 +734,29 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     };
   }
 
-  Future<RemoteJob> _doCheck(RemoteHost backend) {
-    return backend.updates.checkForUpdate();
+  Future<RemoteJob> _doCheck(HostUpdates host) {
+    return host.checkForUpdate();
   }
 
-  Future<RemoteJob> _doDownload(RemoteHost backend) {
-    return backend.updates.downloadUpdate();
+  Future<RemoteJob> _doDownload(HostUpdates host) {
+    return host.downloadUpdate();
   }
 
-  Future<RemoteJob> _doApply(RemoteHost backend) {
-    return backend.updates.applyUpdate();
+  Future<RemoteJob> _doApply(HostUpdates host) {
+    return host.applyUpdate();
   }
 
-  Future<RemoteJob> _doRollback(RemoteHost backend) {
-    return backend.updates.rollbackUpdate();
+  Future<RemoteJob> _doRollback(HostUpdates host) {
+    return host.rollbackUpdate();
   }
 
   /// The ids of the jobs the host cancelled; empty when nothing was in flight.
-  Future<List<String>> _doAbort(RemoteHost backend) {
-    return backend.updates.abortUpdate();
+  Future<List<String>> _doAbort(HostUpdates host) {
+    return host.abortUpdate();
   }
 
-  Future<void> _doDiscard(RemoteHost backend) {
-    return backend.updates.discardStagedUpdate();
+  Future<void> _doDiscard(HostUpdates host) {
+    return host.discardStagedUpdate();
   }
 }
 

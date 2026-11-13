@@ -2,13 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/imaging/imaging_models.dart';
 import '../models/imaging/frame_files.dart';
 import 'backend_provider.dart';
+import 'linked_host.dart';
 import '../services/imaging_service.dart';
 
 final imagingServiceProvider = Provider<ImagingService>((ref) {
   // Capture is backend-owned. Rebuild the service when the active host
   // changes so callers can use service identity as an authority boundary.
   ref.watch(backendProvider);
-  final service = ImagingService(ref);
+  final service = ImagingService(
+    ref,
+    hostFiles: ref.watch(linkedHostFilesProvider),
+    hostRecords: ref.watch(linkedHostImagingRecordsProvider),
+  );
   ref.onDispose(service.retire);
   return service;
 });

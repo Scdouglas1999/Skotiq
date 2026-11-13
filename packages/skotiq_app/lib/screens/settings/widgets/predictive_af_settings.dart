@@ -15,7 +15,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -41,7 +40,7 @@ class PredictiveAfSettingsPage extends ConsumerStatefulWidget {
 class _PredictiveAfSettingsPageState
     extends ConsumerState<PredictiveAfSettingsPage> {
   StreamSubscription<DriftStatus>? _driftSub;
-  ProviderSubscription<SkotiqBackend>? _backendSub;
+  ProviderSubscription<PredictiveAfSettingsController>? _hostSub;
   ProviderSubscription<EquipmentProfileModel?>? _profileSub;
   String? _latestDriftWarning;
   Future<PredictiveAfSettingsSnapshot>? _snapshotFuture;
@@ -54,7 +53,11 @@ class _PredictiveAfSettingsPageState
   @override
   void initState() {
     super.initState();
-    _backendSub = ref.listenManual<SkotiqBackend>(backendProvider, (
+    // The settings' store, not the backend: a backend listener runs before
+    // the providers derived from the backend are rebuilt, so the reads below
+    // would still see the previous host.
+    _hostSub = ref.listenManual<PredictiveAfSettingsController>(
+        predictiveAfSettingsControllerProvider, (
       previous,
       next,
     ) {
@@ -142,7 +145,7 @@ class _PredictiveAfSettingsPageState
   void dispose() {
     _driftRevision++;
     _driftSub?.cancel();
-    _backendSub?.close();
+    _hostSub?.close();
     _profileSub?.close();
     super.dispose();
   }

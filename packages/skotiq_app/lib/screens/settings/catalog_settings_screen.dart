@@ -204,8 +204,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
     setState(() => _isLoading = true);
 
     try {
-      final backend = ref.read(backendProvider);
-      final rig = backend.remoteHost?.catalogs;
+      final rig = ref.read(linkedHostCatalogsProvider);
       final statuses = await Future.wait<CatalogStatus>([
         CatalogManager.instance.status(SkyCatalog.stars),
         CatalogManager.instance.status(SkyCatalog.dso),

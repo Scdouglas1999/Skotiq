@@ -1,9 +1,11 @@
-import 'async_scope.dart';
-import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/backend/event_types.dart';
+import 'linked_host.dart';
+import 'async_scope.dart';
+import '../errors/error_text.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/defect_map.dart';
 import '../models/equipment/equipment_models.dart';
@@ -63,7 +65,7 @@ class DefectMapQuery {
 final defectMapStatusProvider =
     FutureProvider.family<DefectMapStatus?, DefectMapQuery>((ref, query) async {
       final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.calibrationFrames;
+      final remote = ref.watch(linkedHostCalibrationFramesProvider);
       if (remote != null) {
         final subscription = backend.eventStream.listen((event) {
           if (event.eventType == hostStateChangedEventType &&
@@ -619,11 +621,14 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
   Future<void>? _remoteLoad;
   final Completer<void> _loadedCompleter = Completer<void>();
 
-  DefectMapSettingsNotifier(this._ref, {RemoteHost? host})
-    : _remote = host?.calibrationFrames,
-      super(const DefectMapSettings(isLoading: true)) {
-    if (host != null) {
-      _remoteEventSub = host.events.listen(
+  DefectMapSettingsNotifier(
+    this._ref, {
+    HostCalibrationFrames? remote,
+    Stream<SkotiqEvent> Function()? hostEvents,
+  }) : _remote = remote,
+       super(const DefectMapSettings(isLoading: true)) {
+    if (hostEvents != null) {
+      _remoteEventSub = hostEvents().listen(
         (event) {
           if (event.eventType != hostStateChangedEventType ||
               event.data['entityType'] != HostMutationEntity.settings ||
@@ -769,8 +774,11 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
 
 final defectMapSettingsProvider =
     StateNotifierProvider<DefectMapSettingsNotifier, DefectMapSettings>((ref) {
-      final backend = ref.watch(backendProvider);
-      return DefectMapSettingsNotifier(ref, host: backend.remoteHost);
+      return DefectMapSettingsNotifier(
+        ref,
+        remote: ref.watch(linkedHostCalibrationFramesProvider),
+        hostEvents: ref.watch(linkedHostEventsProvider),
+      );
     });
 
 /// Seed the live sequencer's defect-correction state from the authoritative

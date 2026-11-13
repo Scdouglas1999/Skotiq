@@ -49,6 +49,7 @@ import 'settings_provider.dart';
 // generates EventPayload_Guiding / EventPayload_Equipment as part-of-library
 // classes, so a plain import surfaces them here).
 import 'package:skotiq_bridge/skotiq_bridge.dart';
+import 'linked_host.dart';
 import '../services/end_of_night_calibration/eon_trigger.dart'
     show EonEndReason;
 import '../settings/app_settings_state.g.dart';
@@ -217,8 +218,7 @@ final schedulerPreviewDecisionProvider =
       // provider is invalidated by the on-connect hydrate and by scheduler
       // events (hydrateRemoteSessionState / _applySequencerEvent), so the banner
       // tracks the host live rather than computing a wrong local answer.
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.planning;
+      final remote = ref.watch(linkedHostPlanningProvider);
       if (remote != null) {
         return remote.getSchedulerPreview();
       }

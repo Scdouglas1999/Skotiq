@@ -79,9 +79,9 @@ class _RemoteDirectoryPickerDialogState
     final scope = _hostScopes.beginLatest();
     _lastRequestedPath = path;
 
-    final linkedHost = scope.value.remoteHost;
+    final hostFiles = ref.read(linkedHostFilesProvider);
 
-    if (linkedHost == null) {
+    if (hostFiles == null) {
       setState(() {
         _loading = false;
         _loadError =
@@ -98,7 +98,7 @@ class _RemoteDirectoryPickerDialogState
 
     try {
       final listing =
-          await linkedHost.files.browseRemoteDirectories(path: path);
+          await hostFiles.browseRemoteDirectories(path: path);
       // A host change has already said so on screen (see build).
       if (scope.isStale) return;
       setState(() {
@@ -125,8 +125,8 @@ class _RemoteDirectoryPickerDialogState
     if (selectedPath == null) {
       return;
     }
-    final linkedHost = scope.value.remoteHost;
-    if (linkedHost == null) {
+    final hostFiles = ref.read(linkedHostFilesProvider);
+    if (hostFiles == null) {
       setState(() {
         _validationError =
             'The imaging host is disconnected. Reconnect and try again.';
@@ -141,7 +141,7 @@ class _RemoteDirectoryPickerDialogState
 
     Map<String, dynamic> validation;
     try {
-      validation = await linkedHost.files.validateRemoteDirectory(
+      validation = await hostFiles.validateRemoteDirectory(
         selectedPath,
         mustExist: true,
         mustBeWritable: true,

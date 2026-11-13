@@ -1,9 +1,10 @@
-import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'linked_host.dart';
+import 'async_scope.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import 'database_provider.dart';

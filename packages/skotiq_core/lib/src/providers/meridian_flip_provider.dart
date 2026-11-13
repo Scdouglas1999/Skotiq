@@ -10,6 +10,8 @@ import '../models/meridian_flip_event.dart';
 import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
 import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
+import '../models/backend/event_types.dart';
+import 'linked_host.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
@@ -71,11 +73,12 @@ final globalMeridianFlipSettingsProvider =
       GlobalMeridianFlipSettingsNotifier,
       MeridianFlipSettings
     >((ref) {
-      final host = ref.watch(backendProvider).remoteHost;
+      final remote = ref.watch(linkedHostRigSettingsProvider);
       return GlobalMeridianFlipSettingsNotifier(
         ref,
-        database: host != null ? null : ref.watch(databaseProvider),
-        host: host,
+        database: remote != null ? null : ref.watch(databaseProvider),
+        remote: remote,
+        hostEvents: ref.watch(linkedHostEventsProvider),
       );
     });
 
@@ -98,14 +101,15 @@ class GlobalMeridianFlipSettingsNotifier
   GlobalMeridianFlipSettingsNotifier(
     this._ref, {
     required SkotiqDatabase? database,
-    required RemoteHost? host,
+    required HostRigSettings? remote,
+    required Stream<SkotiqEvent> Function()? hostEvents,
   }) : _database = database,
-       _remote = host?.rigSettings,
+       _remote = remote,
        super(const MeridianFlipSettings()) {
     _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
         const AsyncLoading();
-    if (host != null) {
-      _remoteEventSubscription = host.events.listen(
+    if (hostEvents != null) {
+      _remoteEventSubscription = hostEvents().listen(
         (event) {
           if (event.eventType != hostStateChangedEventType ||
               event.data['entityType'] != HostMutationEntity.settings ||

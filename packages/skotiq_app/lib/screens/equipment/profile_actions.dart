@@ -235,7 +235,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       // Keep the undo payload in the authority that owns it. A remote profile
       // is already fully represented by [deletedProfile], while a local
       // profile retains the service's versioned JSON for an exact restore.
-      final deletedProfileJson = operation.value.remoteHost != null
+      final deletedProfileJson = ref.read(isRemoteModeProvider)
           ? null
           : await ref.read(profileServiceProvider).exportProfileToJson(
                 profileId,
@@ -485,7 +485,7 @@ Future<void> restoreDeletedProfile(
 
   try {
     final int restoredId;
-    if (deletedOn.value.remoteHost != null) {
+    if (container.read(isRemoteModeProvider)) {
       final notifier = container.read(equipmentProfilesProvider.notifier);
       restoredId = await notifier.saveProfile(
         deletedProfile.toInsertionCopy(name: deletedProfile.name),

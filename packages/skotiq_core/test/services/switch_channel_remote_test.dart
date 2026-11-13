@@ -25,7 +25,11 @@ ProviderContainer _container(_MockNetworkBackend backend) => ProviderContainer(
 
 Provider<SwitchChannelService> _serviceProvider(_MockNetworkBackend backend) =>
     Provider<SwitchChannelService>(
-      (ref) => SwitchChannelService(ref: ref, backend: backend),
+      (ref) => SwitchChannelService(
+        ref: ref,
+        backend: backend,
+        hostDevices: backend,
+      ),
     );
 
 void main() {

@@ -156,14 +156,8 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<PlateSolverDetection> detectPlateSolvers() async {
-    final response = await _get(ImagingApi.detectPlateSolvers);
-    return PlateSolverDetection(
-      astapPath: response['astapPath'] as String?,
-      astrometryPath: response['astrometryPath'] as String?,
-      catalogName: response['catalogName'] as String?,
-      catalogMagnitudeLimit: (response['catalogMagnitudeLimit'] as num?)
-          ?.toDouble(),
-      catalogPath: response['catalogPath'] as String?,
+    return PlateSolverDetection.fromJson(
+      await _get(ImagingApi.detectPlateSolvers),
     );
   }
 
@@ -182,14 +176,8 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<PlateSolverPreference> getPlateSolverConfig() async {
-    final response = await _get(ImagingApi.getPlateSolverConfig);
-    return PlateSolverPreference(
-      astapPath: (response['astapPath'] as String?) ?? '',
-      astrometryPath: (response['astrometryPath'] as String?) ?? '',
-      catalogPath: (response['catalogPath'] as String?) ?? '',
-      choice: PlateSolverChoice.fromSerialized(
-        (response['solverChoice'] as String?) ?? 'auto',
-      ),
+    return PlateSolverPreference.fromJson(
+      await _get(ImagingApi.getPlateSolverConfig),
     );
   }
 

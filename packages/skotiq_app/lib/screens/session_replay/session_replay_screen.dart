@@ -35,27 +35,25 @@ class SessionReplayScreen extends ConsumerStatefulWidget {
 
 class _SessionReplayScreenState extends ConsumerState<SessionReplayScreen> {
   SessionReplayDataSource? _dataSource;
-  RemoteHost? _dataSourceHost;
+  HostImagingRecords? _dataSourceHost;
 
   /// The data source for [host], kept while the host stays the same so the
   /// notifier family keeps its state across rebuilds.
-  SessionReplayDataSource? _resolveDataSource(RemoteHost? host) {
+  SessionReplayDataSource? _resolveDataSource(HostImagingRecords? host) {
     final override = widget.dataSourceOverride;
     if (override != null) return override;
     if (host == null) return null;
     final existing = _dataSource;
     if (existing != null && identical(_dataSourceHost, host)) return existing;
     _dataSourceHost = host;
-    return _dataSource = NetworkSessionReplayDataSource(
-      backend: host.imagingRecords,
-    );
+    return _dataSource = NetworkSessionReplayDataSource(backend: host);
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final dataSource = _resolveDataSource(
-      ref.watch(backendProvider.select((b) => b.remoteHost)),
+      ref.watch(linkedHostImagingRecordsProvider),
     );
     return Scaffold(
       backgroundColor: colors.background,

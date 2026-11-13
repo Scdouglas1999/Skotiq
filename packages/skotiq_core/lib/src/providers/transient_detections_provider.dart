@@ -11,13 +11,13 @@ import '../database/database.dart';
 import '../services/sky_atlas/sky_atlas_service.dart' show defaultAtlasRoot;
 import '../services/transients/first_light_service.dart';
 import '../services/transients/transient_submission_service.dart';
-import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import 'backend_provider.dart';
 import 'remote_snapshot_stream.dart';
 import 'sky_atlas_provider.dart'
     show isAtlasChangingEvent, remoteAtlasRefetchMinInterval;
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'linked_host.dart';
 import 'logging_service_provider.dart';
 import 'science/photometric_catalog_service_provider.dart';
 import 'transients/difference_image_seam_provider.dart';
@@ -142,7 +142,7 @@ TransientDetectionRow transientDetectionFromWireJson(
 final firstLightCandidatesProvider =
     StreamProvider<List<TransientDetectionRow>>((ref) {
       final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.transients;
+      final remote = ref.watch(linkedHostTransientsProvider);
       if (remote != null) {
         return _remoteFirstLightStream(
           ref,
@@ -241,8 +241,7 @@ typedef FirstLightCropQuery = ({
 /// captured, or a scan that produced none) so the UI falls back to the schematic.
 final firstLightCropProvider = FutureProvider.autoDispose
     .family<Uint8List?, FirstLightCropQuery>((ref, query) async {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.transients;
+      final remote = ref.watch(linkedHostTransientsProvider);
       if (remote != null) {
         try {
           final bytes = await remote.getFirstLightCrop(
@@ -287,8 +286,7 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
       ref,
       query,
     ) async {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.transients;
+      final remote = ref.watch(linkedHostTransientsProvider);
       final List<TransientDetectionRow> rows;
       if (remote != null) {
         final raw = await remote.getFirstLightHistory(
@@ -329,8 +327,7 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
 /// local DB directly. Exposed as a callback the discovery surface invokes from
 /// a card action so both desktop and mobile share one triage path.
 final firstLightTriageProvider = Provider<FirstLightTriage>((ref) {
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.transients;
+  final remote = ref.watch(linkedHostTransientsProvider);
   if (remote != null) {
     // Remote (slave) triage: the host applies the reviewed/dismissed flag, but
     // the remote feed is a debounced REST snapshot that otherwise only re-fetches

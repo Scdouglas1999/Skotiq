@@ -73,7 +73,6 @@ class _QueueTable extends ConsumerWidget {
     // will also fire — `evaluateNow` waits, the listeners don't.
     await _reevaluate(
       ref,
-      authority: host.value,
       reason: 'row removed from scheduler',
     );
   }
@@ -132,7 +131,6 @@ class _QueueTable extends ConsumerWidget {
     ref.invalidate(allIntegrationGoalsProvider);
     await _reevaluate(
       ref,
-      authority: host.value,
       reason: 'scheduler queue cleared',
     );
   }
@@ -143,14 +141,9 @@ class _QueueTable extends ConsumerWidget {
     );
   }
 
-  Future<void> _reevaluate(
-    WidgetRef ref, {
-    required String reason,
-    SkotiqBackend? authority,
-  }) async {
-    final backend = authority ?? ref.read(backendProvider);
-    if (backend?.remoteHost case final linkedHost?) {
-      await linkedHost.planning.controlScheduler('evaluate');
+  Future<void> _reevaluate(WidgetRef ref, {required String reason}) async {
+    if (ref.read(linkedHostPlanningProvider) case final hostPlanning?) {
+      await hostPlanning.controlScheduler('evaluate');
       ref.invalidate(schedulerRemoteSnapshotProvider);
       ref.invalidate(schedulerPreviewDecisionProvider);
       return;

@@ -1,10 +1,11 @@
-import 'async_scope.dart';
-import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'linked_host.dart';
+import 'async_scope.dart';
+import '../errors/error_text.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../services/live_stacking_service.dart';
@@ -138,9 +139,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       // appear under the new connection. A remote host keeps stacking when a
       // companion disconnects, but a local stack owns a process-wide native
       // singleton and must be released before the replacement host can use it.
-      final localService = authority.remoteHost != null
-          ? null
-          : _sessionService;
+      final localService = _sessionService;
       final starting = _startInFlight;
       _invalidateSession();
       state = LiveStackingState(config: state.config);
@@ -249,7 +248,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (stopping != null) await stopping;
 
     final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.liveStack;
+    final remote = _ref.read(linkedHostLiveStackProvider);
     if (remote == null) {
       state = state.copyWith(
         status: LiveStackingStatus.error,
@@ -309,7 +308,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 
   Future<void> _pollRemoteResult(int generation, SkotiqBackend backend) async {
-    final remote = backend.remoteHost?.liveStack;
+    final remote = _remoteSessionBackend;
     if (remote == null ||
         _remotePollInFlight ||
         !_isCurrentSession(generation, backend) ||
@@ -370,7 +369,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (remote == null ||
         authority == null ||
         state.status != LiveStackingStatus.running ||
-        !identical(remote, authority.remoteHost?.liveStack) ||
+        !identical(remote, _ref.read(linkedHostLiveStackProvider)) ||
         _ref.backendScopeOver(authority).isStale) {
       return;
     }
@@ -403,7 +402,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
     final generation = ++_sessionGeneration;
     _sessionAuthority = authority;
-    final remote = authority.remoteHost?.liveStack;
+    final remote = _ref.read(linkedHostLiveStackProvider);
     _remoteSessionBackend = remote;
     final service = remote != null ? null : _service;
     _sessionService = service;
