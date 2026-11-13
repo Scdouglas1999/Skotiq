@@ -4,6 +4,8 @@ repository: https://github.com/Scdouglas1999/Skotiq
 packages:
   - apps/*
   - packages/*
+  # Shipped in the desktop and mobile apps (remote access through a relay).
+  - tools/skotiq_relay
 
 command:
   version:
