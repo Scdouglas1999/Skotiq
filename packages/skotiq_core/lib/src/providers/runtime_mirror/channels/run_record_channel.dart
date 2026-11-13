@@ -20,6 +20,7 @@ typedef RunRecordSnapshot = ({
   bool lastEndedPlanLoaded,
   SequenceStopDecision? stopEvidence,
   DateTime? runStartedAt,
+  SequenceRunStats? stats,
 });
 
 final _runRecordSnapshotProvider = Provider<RunRecordSnapshot>((ref) {
@@ -35,14 +36,15 @@ final _runRecordSnapshotProvider = Provider<RunRecordSnapshot>((ref) {
         ),
     stopEvidence: ref.watch(sequenceStopEvidenceProvider),
     runStartedAt: ref.watch(runStartedAtProvider),
+    stats: ref.watch(liveSequenceStatsProvider),
   );
 });
 
 /// Wire name of [RunRecordChannel].
 const String runRecordChannelKey = 'runRecord';
 
-/// What the host remembers about the run that ended: how it ended, which
-/// session holds its frames, its counters, and when it started.
+/// What the host remembers about the run: how it ended, which session holds
+/// its frames, its counters as they stand, and when it started.
 ///
 /// The host's Tonight keeps a finished night on screen from these, but each
 /// app only learned them by watching the run end, so a client that connected
@@ -83,6 +85,8 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
       // while it is connected and listening; the host always knows.
       'stop': _encodeStop(value.stopEvidence),
       'runStartedAt': value.runStartedAt?.toUtc().millisecondsSinceEpoch,
+      // The run's vitals as they stand: the session vitals tile.
+      'stats': _encodeStats(value.stats),
     };
   }
 
@@ -129,6 +133,7 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
     if (value.containsKey('stop')) {
       run.setStopEvidence(_decodeStop(value['stop']));
     }
+    run.setStats(_decodeStats(value['stats']));
   }
 }
 

@@ -49,3 +49,14 @@ static SIM_SINGLETON_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 pub(crate) fn sim_singleton_test_lock() -> &'static Mutex<()> {
     SIM_SINGLETON_TEST_LOCK.get_or_init(|| Mutex::new(()))
 }
+
+/// Registers a simulated device and connects it the way the app does, so
+/// it has a handle.
+#[cfg(test)]
+pub(crate) async fn register_connected(
+    manager: &crate::device_manager::DeviceManager,
+    info: crate::device::DeviceInfo,
+) {
+    manager.connect_simulator(&info).await.expect("simulator connects");
+    manager.register_device(info, false).await;
+}

@@ -210,30 +210,17 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     final comparisonObjects = <({String objectId, StarMeasurement star})>[];
 
     try {
-      final fits = await apiReadFitsFile(filePath: imagePath);
-      // Canonical TAN projection — same implementation the catalog
-      // overlay and science backend use (services/wcs).
-      final solved = SolvedWcs(
-        raHours: wcs.raHours,
-        decDegrees: wcs.decDegrees,
-        rotationDeg: wcs.rotationDegrees,
-        pixelScaleArcsec: wcs.pixelScaleArcsecPerPixel,
-        imageWidth: fits.width,
-        imageHeight: fits.height,
-        cd1_1: wcs.cd1_1,
-        cd1_2: wcs.cd1_2,
-        cd2_1: wcs.cd2_1,
-        cd2_2: wcs.cd2_2,
-        aOrder: wcs.aOrder,
-        bOrder: wcs.bOrder,
-        aCoeffs: wcs.aCoeffs,
-        bCoeffs: wcs.bCoeffs,
-        apOrder: wcs.apOrder,
-        bpOrder: wcs.bpOrder,
-        apCoeffs: wcs.apCoeffs,
-        bpCoeffs: wcs.bpCoeffs,
-      );
-      final projection = solved.isValid ? GnomonicProjection(solved) : null;
+      final size = (await readFrameHeader(imagePath)).imageSize;
+      final solved = size == null
+          ? null
+          : SolvedWcs.ofSolution(
+              wcs,
+              imageWidth: size.width,
+              imageHeight: size.height,
+            );
+      final projection = solved != null && solved.isValid
+          ? GnomonicProjection(solved)
+          : null;
       final targetPixel = projection
           ?.worldToPixel(
             raDegrees: selection.target!.raDegrees,
@@ -471,7 +458,6 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       return null;
     }
     final distortion = await _imagesRepo.getStoredWcsDistortion(image.id);
-    final sip = decodeSolvedSip(distortion?.sip);
     return WcsSolution(
       raHours: image.solvedRa!,
       decDegrees: image.solvedDec!,
@@ -484,14 +470,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       cd1_2: distortion?.cd1_2,
       cd2_1: distortion?.cd2_1,
       cd2_2: distortion?.cd2_2,
-      aOrder: sip?.aOrder ?? 0,
-      bOrder: sip?.bOrder ?? 0,
-      aCoeffs: sip?.aCoeffs ?? const [],
-      bCoeffs: sip?.bCoeffs ?? const [],
-      apOrder: sip?.apOrder ?? 0,
-      bpOrder: sip?.bpOrder ?? 0,
-      apCoeffs: sip?.apCoeffs ?? const [],
-      bpCoeffs: sip?.bpCoeffs ?? const [],
+      sip: decodeSolvedSip(distortion?.sip) ?? noSipTerms,
     );
   }
 
@@ -540,21 +519,22 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       var fieldWidth = 1.0;
       var fieldHeight = 1.0;
       try {
-        final fits = await apiReadFitsFile(filePath: imagePath);
-        fieldWidth = (fits.width * pixelScale / 3600.0)
-            .clamp(0.05, 40.0)
-            .toDouble();
-        fieldHeight = (fits.height * pixelScale / 3600.0)
-            .clamp(0.05, 40.0)
-            .toDouble();
+        final size = (await readFrameHeader(imagePath)).imageSize;
+        if (size != null) {
+          fieldWidth = (size.width * pixelScale / 3600.0)
+              .clamp(0.05, 40.0)
+              .toDouble();
+          fieldHeight = (size.height * pixelScale / 3600.0)
+              .clamp(0.05, 40.0)
+              .toDouble();
+        }
       } catch (error, stack) {
         _logger.warning(
-          'Unable to derive field size from FITS for stored WCS ($imagePath): $error\n$stack',
+          'Unable to derive field size from the frame header for stored WCS ($imagePath): $error\n$stack',
           source: 'ScienceProcessingService',
         );
       }
       final distortion = stored;
-      final sip = decodeSolvedSip(distortion?.sip);
       return WcsSolution(
         raHours: image.solvedRa!,
         decDegrees: image.solvedDec!,
@@ -567,14 +547,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
         cd1_2: distortion?.cd1_2,
         cd2_1: distortion?.cd2_1,
         cd2_2: distortion?.cd2_2,
-        aOrder: sip?.aOrder ?? 0,
-        bOrder: sip?.bOrder ?? 0,
-        aCoeffs: sip?.aCoeffs ?? const [],
-        bCoeffs: sip?.bCoeffs ?? const [],
-        apOrder: sip?.apOrder ?? 0,
-        bpOrder: sip?.bpOrder ?? 0,
-        apCoeffs: sip?.apCoeffs ?? const [],
-        bpCoeffs: sip?.bpCoeffs ?? const [],
+        sip: decodeSolvedSip(distortion?.sip) ?? noSipTerms,
       );
     }
 
@@ -597,16 +570,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
         solvedCd1_2: solved.cd1_2,
         solvedCd2_1: solved.cd2_1,
         solvedCd2_2: solved.cd2_2,
-        solvedSip: encodeSolvedSip(
-          aOrder: solved.aOrder,
-          bOrder: solved.bOrder,
-          aCoeffs: solved.aCoeffs,
-          bCoeffs: solved.bCoeffs,
-          apOrder: solved.apOrder,
-          bpOrder: solved.bpOrder,
-          apCoeffs: solved.apCoeffs,
-          bpCoeffs: solved.bpCoeffs,
-        ),
+        solvedSip: encodeSolvedSip(solved.sip),
       );
     }
 
@@ -620,17 +584,17 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     required db.DbCapturedImage? capturedImage,
     required WcsSolution? wcs,
   }) async {
-    FitsReadResult? fits;
+    FrameHeader? header;
     try {
-      fits = await apiReadFitsFile(filePath: imagePath);
+      header = await readFrameHeader(imagePath);
     } catch (error, stack) {
       _logger.warning(
-        'FITS metadata read failed for $imagePath. Continuing only with trusted DB metadata: $error\n$stack',
+        'Frame header read failed for $imagePath. Continuing only with trusted DB metadata: $error\n$stack',
         source: 'ScienceProcessingService',
       );
     }
 
-    final fitsCapturedAt = tryParseUtcTimestamp(fits?.dateObs);
+    final fitsCapturedAt = tryParseUtcTimestamp(header?.string('DATE-OBS'));
     final capturedAt = capturedImage?.capturedAt ?? fitsCapturedAt;
     if (capturedAt == null) {
       throw StateError(
@@ -638,16 +602,17 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       );
     }
 
-    final exposureRaw = capturedImage?.exposureDuration ?? fits?.exposureTime;
+    final exposureRaw =
+        capturedImage?.exposureDuration ?? header?.number('EXPTIME');
     if (exposureRaw == null || !exposureRaw.isFinite || exposureRaw <= 0.0) {
       throw StateError(
         'Exposure duration unavailable for $imagePath. Need captured image metadata or FITS exposure time.',
       );
     }
     final exposureSeconds = exposureRaw.clamp(0.001, 1e6).toDouble();
-    final filterName = capturedImage?.filter ?? fits?.filter;
-    final width = fits?.width ?? 0;
-    final height = fits?.height ?? 0;
+    final filterName = capturedImage?.filter ?? header?.string('FILTER');
+    final width = header?.imageSize?.width ?? 0;
+    final height = header?.imageSize?.height ?? 0;
 
     double? airmass;
     if (capturedImage != null) {

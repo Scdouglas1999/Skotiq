@@ -37,11 +37,10 @@ use std::time::Instant;
 
 // Import native traits for connect/disconnect and live filter-wheel queries.
 
-pub(crate) mod alpaca;
 #[cfg(windows)]
 pub(crate) mod ascom;
 pub(crate) mod cache;
-pub(crate) mod indi;
+pub(crate) mod driver;
 #[cfg(test)]
 mod tests;
 pub mod types;

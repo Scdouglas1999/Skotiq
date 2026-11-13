@@ -174,18 +174,14 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     }
   }
 
-  /// Mutating catalog routes are admin-scope on the appliance. A device paired
-  /// with the default scope got a bare "Access denied: Token scope is not
-  /// permitted for this endpoint", which reads as a product bug instead of the
-  /// re-pair it actually needs.
+  /// Mutating catalog routes are admin-scope on the appliance; a device
+  /// paired with less needs to be paired again, not a bug report.
   static String _describeFailure(Object error) {
-    final text = userFacingError(error);
-    if (text.contains('Token scope is not permitted') ||
-        text.contains('Access denied')) {
+    if (isAccessLevelRefusal(error)) {
       return 'this device is paired without admin access. Re-pair it with '
           'Admin access on the rig to manage appliance catalogs.';
     }
-    return text;
+    return userFacingError(error);
   }
 
   Future<void> _downloadCatalog(RemoteAvailableCatalog catalog) {

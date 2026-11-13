@@ -74,7 +74,6 @@ mod hotplug;
 mod last_frame;
 mod sequence_run;
 mod simulator;
-pub(crate) mod stacking_api;
 pub(crate) mod state;
 pub(crate) mod storage;
 pub(crate) mod timeout_ops;

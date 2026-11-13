@@ -4,9 +4,7 @@ use crate::simulator::camera::{get_sim_camera, get_sim_camera_for};
 /// Connect a simulated camera under `device_id` the way the Equipment screen
 /// does: registered with the device manager, singleton marked connected.
 async fn attach_sim_camera(device_id: &str) {
-    get_device_manager()
-        .register_device(
-            crate::device::DeviceInfo {
+    crate::simulator::register_connected(get_device_manager(), crate::device::DeviceInfo {
                 id: device_id.to_string(),
                 name: "Simulated Camera".to_string(),
                 device_type: crate::device::DeviceType::Camera,
@@ -16,10 +14,7 @@ async fn attach_sim_camera(device_id: &str) {
                 serial_number: None,
                 unique_id: None,
                 display_name: "Simulated Camera".to_string(),
-            },
-            false,
-        )
-        .await;
+            }).await;
     get_sim_camera_for(device_id).write().await.status.connected = true;
 }
 

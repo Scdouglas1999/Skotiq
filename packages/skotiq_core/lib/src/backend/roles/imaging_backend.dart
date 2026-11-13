@@ -7,7 +7,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
 import '../../models/autofocus_progress.dart' show StarCrop;
 import '../../models/backend/backend_types.dart';
 import '../../models/imaging/imaging_models.dart' show CapturedImage;
-import '../../services/science/fits_header_writer.dart' show FitsKeywordWrite;
+import '../../models/imaging/fits_keyword_write.dart';
 import '../../models/plate_solver.dart'
     show PlateSolverDetection, PlateSolverInfo, PlateSolverPreference;
 

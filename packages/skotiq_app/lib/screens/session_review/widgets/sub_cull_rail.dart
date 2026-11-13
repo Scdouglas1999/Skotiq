@@ -240,11 +240,7 @@ class _SubCullRailState extends ConsumerState<SubCullRail> {
             'Curve is out of date — re-integrate to refresh before culling';
         break;
     }
-    SkotiqToastHelper.show(
-      context: context,
-      message: message,
-      severity: SkotiqAlertSeverity.info,
-    );
+    context.showInfoSnackBar(message);
   }
 
   @override

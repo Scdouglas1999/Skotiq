@@ -1,18 +1,26 @@
 //! What each camera driver says about its cooler, against the fake vendor SDKs
-//! (`*_FAKE_SDK` in `native_driver_tests.rs`). A camera is set cooling, the
-//! driver let go of it, and a new driver connects, as when Skotiq restarts
-//! mid-night: a driver whose SDK reads the cooler back reports what the camera
-//! holds; one whose SDK cannot reports it unknown, never off.
-//!
-//! Run one vendor per process with only that vendor's fake on the loader path:
-//! `tests/fake_sdk_linux/build_fakes.py <dir>`, then
-//! `LD_LIBRARY_PATH=<dir>/<vendor> cargo test --release -p skotiq_native --test cooler_state_fake_sdk -- --ignored <vendor>`.
-//! (FLI is covered in `fli_fake_sdk.rs`.)
+//! (`tests/fake_sdk/`). A camera is set cooling, the driver let go of it, and a
+//! new driver connects, as when Skotiq restarts mid-night: a driver whose SDK
+//! reads the cooler back reports what the camera holds; one whose SDK cannot
+//! reports it unknown, never off. Each vendor runs in a child process of its own
+//! with only its fake on the loader path. (FLI is covered in `fli_fake_sdk.rs`.)
 
-#![cfg(unix)]
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{CameraDriver, CameraStatus, DeviceDriver, DriverError};
 use skotiq_native::vendor::{atik, moravian, player_one, qhy, svbony, touptek, zwo};
+
+#[test]
+fn every_driver_reports_the_cooler_its_camera_holds() {
+    for (vendor, libraries) in harness::CAMERA_FAKES {
+        if vendor != "fli" {
+            harness::FakeSdk::build(vendor, libraries).run_ignored(&format!("{vendor}_"), &[]);
+        }
+    }
+}
 
 /// What a driver's SDK can say about the cooler.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -83,7 +91,7 @@ where
 }
 
 #[tokio::test]
-#[ignore = "needs the ZWO fake on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by every_driver_reports_the_cooler_its_camera_holds"]
 async fn zwo_reports_the_cooler_the_camera_holds() {
     let ids: Vec<i32> = zwo::discover_devices()
         .await
@@ -100,7 +108,7 @@ async fn zwo_reports_the_cooler_the_camera_holds() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by every_driver_reports_the_cooler_its_camera_holds"]
 async fn player_one_reports_the_cooler_the_camera_holds() {
     let ids: Vec<i32> = player_one::discover_devices()
         .await
@@ -123,7 +131,7 @@ async fn player_one_reports_the_cooler_the_camera_holds() {
 /// A Touptek camera opens cooling at its model's own set-point (the fake's
 /// 0 C), whatever the last session set, and the driver reports that.
 #[tokio::test]
-#[ignore = "needs the Touptek fake on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by every_driver_reports_the_cooler_its_camera_holds"]
 async fn touptek_reports_the_cooler_the_camera_holds() {
     let count = touptek::discover_devices_for_brand("OGMA")
         .await
@@ -142,7 +150,7 @@ async fn touptek_reports_the_cooler_the_camera_holds() {
 }
 
 #[tokio::test]
-#[ignore = "needs the SVBony fake on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by every_driver_reports_the_cooler_its_camera_holds"]
 async fn svbony_reports_the_cooler_the_camera_holds() {
     let ids: Vec<i32> = svbony::discover_devices()
         .await
@@ -165,7 +173,7 @@ async fn svbony_reports_the_cooler_the_camera_holds() {
 /// Atik warms the camera up when it lets go of it, and the camera's flags then
 /// say so.
 #[tokio::test]
-#[ignore = "needs the Atik fake on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by every_driver_reports_the_cooler_its_camera_holds"]
 async fn atik_reports_the_cooler_the_camera_holds() {
     let ids: Vec<i32> = atik::discover_devices()
         .await
@@ -182,7 +190,7 @@ async fn atik_reports_the_cooler_the_camera_holds() {
 }
 
 #[tokio::test]
-#[ignore = "needs the QHY fake on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by every_driver_reports_the_cooler_its_camera_holds"]
 async fn qhy_reports_a_cooler_it_cannot_read_as_unknown() {
     let ids: Vec<String> = qhy::discover_devices()
         .await
@@ -203,7 +211,7 @@ async fn qhy_reports_a_cooler_it_cannot_read_as_unknown() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Moravian fake on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by every_driver_reports_the_cooler_its_camera_holds"]
 async fn moravian_reports_a_cooler_it_cannot_read_as_unknown() {
     let addresses: Vec<String> = moravian::discover_devices()
         .await

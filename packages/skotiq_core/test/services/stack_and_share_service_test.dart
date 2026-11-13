@@ -50,6 +50,8 @@ import 'package:skotiq_core/src/services/stacking_engine_seam.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/providers/live_stacking_service_provider.dart';
 import 'package:skotiq_core/src/providers/stack_light_selector_provider.dart';
+import 'package:skotiq_core/src/providers/calibration_service_providers.dart';
+import 'package:skotiq_core/src/services/calibration_service.dart';
 
 /// A record of every call the orchestrator makes through the stacking seam, in
 /// order, so tests can assert the path taken (file vs data) and that stop was
@@ -1085,6 +1087,51 @@ void main() {
         expect(engine.stopCount, 1);
       },
     );
+    test('master flat and bias are handed to calibration by path, whatever '
+        'their format', () async {
+      // A PixInsight master is an XISF file; the frames below are no FITS.
+      final dir = await Directory.systemTemp.createTemp('stack_share_masters');
+      addTearDown(() => dir.delete(recursive: true));
+      final flat = File('${dir.path}/master_flat.xisf')
+        ..writeAsBytesSync('XISF0100'.codeUnits);
+      final bias = File('${dir.path}/master_bias.xisf')
+        ..writeAsBytesSync('XISF0100'.codeUnits);
+      final engine = _FakeStackingEngine();
+      final live = _FakeLiveStacking(
+        followerCounts: const [2],
+        finalResult: _integrated(stackedFrameCount: 2),
+      );
+      final calibration = <String>[];
+      final c = container(
+        selection: _selection(followerCount: 1),
+        liveStacking: live,
+        extra: [
+          allSettingsProvider.overrideWith(
+            (ref) => Stream.value({
+              'calibration.master_flat_path': flat.path,
+              'calibration.master_bias_path': bias.path,
+            }),
+          ),
+          calibrationServiceProvider.overrideWith(
+            (ref) => _RecordingCalibration(ref, calibration),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      await c.read(allSettingsProvider.future);
+      expect(c.read(calibrationSettingsProvider).masterFlatPath, flat.path);
+
+      await StackAndShareService(c.read(_refProvider), engine: engine).run(
+        sessionId: sessionId,
+        config: const StackAndShareConfig(
+          applyCalibration: true,
+          autoStretch: false,
+        ),
+      );
+
+      expect(calibration, everyElement('flat ${flat.path} bias ${bias.path}'));
+      expect(calibration, hasLength(2));
+    });
   });
 
   group('OSC / color orchestration', () {
@@ -1471,6 +1518,27 @@ void main() {
 /// accepting the rest. Every rejection path in stacking.rs (too few stars, too
 /// few matches, residual over the ceiling) behaves this way; none of them come
 /// back as an `Ok` with an unadvanced stacked count.
+/// Records the calibration frames each light is calibrated with and passes
+/// the light through.
+class _RecordingCalibration extends CalibrationService {
+  _RecordingCalibration(super.ref, this.calls);
+
+  final List<String> calls;
+
+  @override
+  Future<Uint16List> calibrateData({
+    required int width,
+    required int height,
+    required List<int> lightData,
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
+  }) async {
+    calls.add('flat $flatPath bias $biasPath');
+    return Uint16List.fromList(lightData);
+  }
+}
+
 class _RejectingLiveStacking extends _FakeLiveStacking {
   _RejectingLiveStacking({
     required this.rejectPaths,

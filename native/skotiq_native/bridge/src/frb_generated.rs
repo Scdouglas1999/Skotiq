@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 722662679;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1858074738;
 
 // Section: executor
 
@@ -354,37 +354,40 @@ fn wire__crate__api__imaging__api_calculate_auto_stretch_impl(
     )
 }
 fn wire__crate__api__imaging__api_calibrate_image_data_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     width: impl CstDecode<u32>,
     height: impl CstDecode<u32>,
     light_data: impl CstDecode<Vec<u16>>,
-    dark_data: impl CstDecode<Option<Vec<u16>>>,
-    flat_data: impl CstDecode<Option<Vec<u16>>>,
-    bias_data: impl CstDecode<Option<Vec<u16>>>,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
+    dark_path: impl CstDecode<Option<String>>,
+    flat_path: impl CstDecode<Option<String>>,
+    bias_path: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "api_calibrate_image_data",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let api_width = width.cst_decode();
             let api_height = height.cst_decode();
             let api_light_data = light_data.cst_decode();
-            let api_dark_data = dark_data.cst_decode();
-            let api_flat_data = flat_data.cst_decode();
-            let api_bias_data = bias_data.cst_decode();
-            transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                let output_ok = crate::api::imaging::api_calibrate_image_data(
-                    api_width,
-                    api_height,
-                    api_light_data,
-                    api_dark_data,
-                    api_flat_data,
-                    api_bias_data,
-                )?;
-                Ok(output_ok)
-            })())
+            let api_dark_path = dark_path.cst_decode();
+            let api_flat_path = flat_path.cst_decode();
+            let api_bias_path = bias_path.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok = crate::api::imaging::api_calibrate_image_data(
+                        api_width,
+                        api_height,
+                        api_light_data,
+                        api_dark_path,
+                        api_flat_path,
+                        api_bias_path,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -1163,37 +1166,7 @@ fn wire__crate__api__finishing_enhance__api_deconvolve_preview_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_defect_map_apply_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    camera_id: impl CstDecode<String>,
-    apply_during_capture: impl CstDecode<bool>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_defect_map_apply",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_camera_id = camera_id.cst_decode();
-            let api_apply_during_capture = apply_during_capture.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::imaging::api_defect_map_apply(
-                            api_camera_id,
-                            api_apply_during_capture,
-                        )
-                        .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__imaging__api_defect_map_build_impl(
+fn wire__crate__api__defect_map__api_defect_map_build_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     camera_id: impl CstDecode<String>,
     dark_frame_paths: impl CstDecode<Vec<String>>,
@@ -1212,7 +1185,7 @@ fn wire__crate__api__imaging__api_defect_map_build_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::imaging::api_defect_map_build(
+                        let output_ok = crate::api::defect_map::api_defect_map_build(
                             api_camera_id,
                             api_dark_frame_paths,
                             api_sensor_temperature_celsius,
@@ -1226,7 +1199,7 @@ fn wire__crate__api__imaging__api_defect_map_build_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_defect_map_clear_impl(
+fn wire__crate__api__defect_map__api_defect_map_clear_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     camera_id: impl CstDecode<String>,
     width: impl CstDecode<u32>,
@@ -1247,7 +1220,7 @@ fn wire__crate__api__imaging__api_defect_map_clear_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::imaging::api_defect_map_clear(
+                        let output_ok = crate::api::defect_map::api_defect_map_clear(
                             api_camera_id,
                             api_width,
                             api_height,
@@ -1262,7 +1235,7 @@ fn wire__crate__api__imaging__api_defect_map_clear_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_defect_map_get_status_impl(
+fn wire__crate__api__defect_map__api_defect_map_get_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     camera_id: impl CstDecode<String>,
     width: impl CstDecode<u32>,
@@ -1283,11 +1256,59 @@ fn wire__crate__api__imaging__api_defect_map_get_status_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::imaging::api_defect_map_get_status(
+                        let output_ok = crate::api::defect_map::api_defect_map_get_status(
                             api_camera_id,
                             api_width,
                             api_height,
                             api_sensor_temperature_celsius,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__defect_map__api_defect_map_set_correction_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    camera_id: impl CstDecode<String>,
+    width: impl CstDecode<u32>,
+    height: impl CstDecode<u32>,
+    sensor_temperature_celsius: impl CstDecode<f64>,
+    enabled: impl CstDecode<bool>,
+    method: impl CstDecode<String>,
+    kernel_diameter: impl CstDecode<u8>,
+    save_original: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_defect_map_set_correction",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_camera_id = camera_id.cst_decode();
+            let api_width = width.cst_decode();
+            let api_height = height.cst_decode();
+            let api_sensor_temperature_celsius = sensor_temperature_celsius.cst_decode();
+            let api_enabled = enabled.cst_decode();
+            let api_method = method.cst_decode();
+            let api_kernel_diameter = kernel_diameter.cst_decode();
+            let api_save_original = save_original.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok = crate::api::defect_map::api_defect_map_set_correction(
+                            api_camera_id,
+                            api_width,
+                            api_height,
+                            api_sensor_temperature_celsius,
+                            api_enabled,
+                            api_method,
+                            api_kernel_diameter,
+                            api_save_original,
                         )
                         .await?;
                         Ok(output_ok)
@@ -3604,26 +3625,6 @@ fn wire__crate__api__phd2__api_launch_phd2_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_live_stacking_config_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_live_stacking_config_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok =
-                        Result::<_, ()>::Ok(crate::api::imaging::ApiLiveStackingConfig::default())?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__storage__api_load_profile_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     profile_id: impl CstDecode<String>,
@@ -4632,6 +4633,31 @@ fn wire__crate__api__imaging__api_read_frame_cutouts_impl(
         },
     )
 }
+fn wire__crate__api__frame_file__api_read_frame_header_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    file_path: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_read_frame_header",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_file_path = file_path.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::frame_file::api_read_frame_header(api_file_path).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__finishing_enhance__api_reduce_stars_preview_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     args_json: impl CstDecode<String>,
@@ -5139,54 +5165,6 @@ fn wire__crate__api__secondary_rig__api_secondary_rig_stop_impl(
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
                         let output_ok = crate::api::secondary_rig::api_secondary_rig_stop().await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__imaging__api_sequencer_apply_defect_map_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    camera_id: impl CstDecode<String>,
-    width: impl CstDecode<u32>,
-    height: impl CstDecode<u32>,
-    sensor_temperature_celsius: impl CstDecode<f64>,
-    enabled: impl CstDecode<bool>,
-    method: impl CstDecode<String>,
-    kernel_diameter: impl CstDecode<u8>,
-    save_original: impl CstDecode<bool>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_sequencer_apply_defect_map",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_camera_id = camera_id.cst_decode();
-            let api_width = width.cst_decode();
-            let api_height = height.cst_decode();
-            let api_sensor_temperature_celsius = sensor_temperature_celsius.cst_decode();
-            let api_enabled = enabled.cst_decode();
-            let api_method = method.cst_decode();
-            let api_kernel_diameter = kernel_diameter.cst_decode();
-            let api_save_original = save_original.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::imaging::api_sequencer_apply_defect_map(
-                            api_camera_id,
-                            api_width,
-                            api_height,
-                            api_sensor_temperature_celsius,
-                            api_enabled,
-                            api_method,
-                            api_kernel_diameter,
-                            api_save_original,
-                        )
-                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -6088,7 +6066,7 @@ fn wire__crate__api__sky_atlas__regions__api_sky_atlas_region_info_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_add_frame_impl(
+fn wire__crate__api__live_stacking__api_stacking_add_frame_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     image_path: impl CstDecode<String>,
 ) {
@@ -6102,14 +6080,15 @@ fn wire__crate__api__imaging__api_stacking_add_frame_impl(
             let api_image_path = image_path.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_stacking_add_frame(api_image_path)?;
+                    let output_ok =
+                        crate::api::live_stacking::api_stacking_add_frame(api_image_path)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_add_frame_from_data_impl(
+fn wire__crate__api__live_stacking__api_stacking_add_frame_from_data_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     width: impl CstDecode<u32>,
     height: impl CstDecode<u32>,
@@ -6127,7 +6106,7 @@ fn wire__crate__api__imaging__api_stacking_add_frame_from_data_impl(
             let api_data = data.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_stacking_add_frame_from_data(
+                    let output_ok = crate::api::live_stacking::api_stacking_add_frame_from_data(
                         api_width, api_height, api_data,
                     )?;
                     Ok(output_ok)
@@ -6136,7 +6115,7 @@ fn wire__crate__api__imaging__api_stacking_add_frame_from_data_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_frame_count_impl(
+fn wire__crate__api__live_stacking__api_stacking_frame_count_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -6147,13 +6126,13 @@ fn wire__crate__api__imaging__api_stacking_frame_count_impl(
         move || {
             transform_result_dco::<_, _, ()>((move || {
                 let output_ok =
-                    Result::<_, ()>::Ok(crate::api::imaging::api_stacking_frame_count())?;
+                    Result::<_, ()>::Ok(crate::api::live_stacking::api_stacking_frame_count())?;
                 Ok(output_ok)
             })())
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_get_result_impl(
+fn wire__crate__api__live_stacking__api_stacking_get_result_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -6165,14 +6144,14 @@ fn wire__crate__api__imaging__api_stacking_get_result_impl(
         move || {
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_stacking_get_result()?;
+                    let output_ok = crate::api::live_stacking::api_stacking_get_result()?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_get_stats_impl(
+fn wire__crate__api__live_stacking__api_stacking_get_stats_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -6184,14 +6163,14 @@ fn wire__crate__api__imaging__api_stacking_get_stats_impl(
         move || {
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_stacking_get_stats()?;
+                    let output_ok = crate::api::live_stacking::api_stacking_get_stats()?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_is_active_impl(
+fn wire__crate__api__live_stacking__api_stacking_is_active_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -6201,13 +6180,14 @@ fn wire__crate__api__imaging__api_stacking_is_active_impl(
         },
         move || {
             transform_result_dco::<_, _, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(crate::api::imaging::api_stacking_is_active())?;
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::live_stacking::api_stacking_is_active())?;
                 Ok(output_ok)
             })())
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_reset_impl(
+fn wire__crate__api__live_stacking__api_stacking_reset_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -6219,14 +6199,14 @@ fn wire__crate__api__imaging__api_stacking_reset_impl(
         move || {
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_stacking_reset()?;
+                    let output_ok = crate::api::live_stacking::api_stacking_reset()?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_save_master_fits_impl(
+fn wire__crate__api__live_stacking__api_stacking_save_master_fits_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     file_path: impl CstDecode<String>,
 ) {
@@ -6242,7 +6222,7 @@ fn wire__crate__api__imaging__api_stacking_save_master_fits_impl(
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
                         let output_ok =
-                            crate::api::imaging::api_stacking_save_master_fits(api_file_path)
+                            crate::api::live_stacking::api_stacking_save_master_fits(api_file_path)
                                 .await?;
                         Ok(output_ok)
                     })()
@@ -6252,10 +6232,10 @@ fn wire__crate__api__imaging__api_stacking_save_master_fits_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_start_impl(
+fn wire__crate__api__live_stacking__api_stacking_start_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     reference_image_path: impl CstDecode<String>,
-    config: impl CstDecode<crate::api::imaging::ApiLiveStackingConfig>,
+    config: impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -6268,7 +6248,7 @@ fn wire__crate__api__imaging__api_stacking_start_impl(
             let api_config = config.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_stacking_start(
+                    let output_ok = crate::api::live_stacking::api_stacking_start(
                         api_reference_image_path,
                         api_config,
                     )?;
@@ -6278,12 +6258,12 @@ fn wire__crate__api__imaging__api_stacking_start_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_start_from_data_impl(
+fn wire__crate__api__live_stacking__api_stacking_start_from_data_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     width: impl CstDecode<u32>,
     height: impl CstDecode<u32>,
     data: impl CstDecode<Vec<u16>>,
-    config: impl CstDecode<crate::api::imaging::ApiLiveStackingConfig>,
+    config: impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -6298,7 +6278,7 @@ fn wire__crate__api__imaging__api_stacking_start_from_data_impl(
             let api_config = config.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_stacking_start_from_data(
+                    let output_ok = crate::api::live_stacking::api_stacking_start_from_data(
                         api_width, api_height, api_data, api_config,
                     )?;
                     Ok(output_ok)
@@ -6307,7 +6287,7 @@ fn wire__crate__api__imaging__api_stacking_start_from_data_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_stacking_stop_impl(
+fn wire__crate__api__live_stacking__api_stacking_stop_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -6319,7 +6299,7 @@ fn wire__crate__api__imaging__api_stacking_stop_impl(
         move || {
             move |context| {
                 transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_stacking_stop()?;
+                    let output_ok = crate::api::live_stacking::api_stacking_stop()?;
                     Ok(output_ok)
                 })())
             }
@@ -6627,10 +6607,10 @@ fn wire__crate__api__devices__switch__api_switch_set_value_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_update_frame_cards_impl(
+fn wire__crate__api__frame_file__api_update_frame_cards_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     file_path: impl CstDecode<String>,
-    cards: impl CstDecode<Vec<crate::api::imaging::FrameCardUpdate>>,
+    cards: impl CstDecode<Vec<crate::api::frame_file::FrameCardUpdate>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -6644,9 +6624,11 @@ fn wire__crate__api__imaging__api_update_frame_cards_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::imaging::api_update_frame_cards(api_file_path, api_cards)
-                                .await?;
+                        let output_ok = crate::api::frame_file::api_update_frame_cards(
+                            api_file_path,
+                            api_cards,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -6670,6 +6652,34 @@ fn wire__crate__api__storage__api_update_settings_impl(
                 let output_ok = crate::api::storage::api_update_settings(api_settings)?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__frame_file__api_write_frame_wcs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    file_path: impl CstDecode<String>,
+    wcs: impl CstDecode<crate::api::frame_file::FrameWcs>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_write_frame_wcs",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_file_path = file_path.cst_decode();
+            let api_wcs = wcs.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::frame_file::api_write_frame_wcs(api_file_path, api_wcs)
+                                .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
         },
     )
 }
@@ -7541,7 +7551,7 @@ impl SseDecode for crate::api::depthlock::ApiAcquisitionSettings {
     }
 }
 
-impl SseDecode for crate::api::imaging::ApiDefectMapStatus {
+impl SseDecode for crate::api::defect_map::ApiDefectMapStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_cameraId = <String>::sse_decode(deserializer);
@@ -7552,7 +7562,7 @@ impl SseDecode for crate::api::imaging::ApiDefectMapStatus {
         let mut var_lastRebuiltUnixSeconds = <i64>::sse_decode(deserializer);
         let mut var_applyDuringCapture = <bool>::sse_decode(deserializer);
         let mut var_storedOnDisk = <bool>::sse_decode(deserializer);
-        return crate::api::imaging::ApiDefectMapStatus {
+        return crate::api::defect_map::ApiDefectMapStatus {
             camera_id: var_cameraId,
             width: var_width,
             height: var_height,
@@ -7817,7 +7827,7 @@ impl SseDecode for crate::api::depthlock::ApiDepthReport {
     }
 }
 
-impl SseDecode for crate::api::imaging::ApiLiveStackingConfig {
+impl SseDecode for crate::api::live_stacking::ApiLiveStackingConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_sigmaClipEnabled = <bool>::sse_decode(deserializer);
@@ -7829,7 +7839,7 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingConfig {
         let mut var_sensorMode = <String>::sse_decode(deserializer);
         let mut var_bayerPattern = <Option<String>>::sse_decode(deserializer);
         let mut var_demosaicQuality = <String>::sse_decode(deserializer);
-        return crate::api::imaging::ApiLiveStackingConfig {
+        return crate::api::live_stacking::ApiLiveStackingConfig {
             sigma_clip_enabled: var_sigmaClipEnabled,
             sigma_clip_threshold: var_sigmaClipThreshold,
             max_match_stars: var_maxMatchStars,
@@ -7843,14 +7853,14 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingConfig {
     }
 }
 
-impl SseDecode for crate::api::imaging::ApiLiveStackingMaster {
+impl SseDecode for crate::api::live_stacking::ApiLiveStackingMaster {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_filePath = <String>::sse_decode(deserializer);
         let mut var_stackedFrameCount = <u32>::sse_decode(deserializer);
         let mut var_totalIntegrationSecs = <f64>::sse_decode(deserializer);
         let mut var_dateObs = <String>::sse_decode(deserializer);
-        return crate::api::imaging::ApiLiveStackingMaster {
+        return crate::api::live_stacking::ApiLiveStackingMaster {
             file_path: var_filePath,
             stacked_frame_count: var_stackedFrameCount,
             total_integration_secs: var_totalIntegrationSecs,
@@ -7859,15 +7869,16 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingMaster {
     }
 }
 
-impl SseDecode for crate::api::imaging::ApiLiveStackingResult {
+impl SseDecode for crate::api::live_stacking::ApiLiveStackingResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_width = <u32>::sse_decode(deserializer);
         let mut var_height = <u32>::sse_decode(deserializer);
         let mut var_channels = <u32>::sse_decode(deserializer);
         let mut var_data = <Vec<u16>>::sse_decode(deserializer);
-        let mut var_stats = <crate::api::imaging::ApiLiveStackingStats>::sse_decode(deserializer);
-        return crate::api::imaging::ApiLiveStackingResult {
+        let mut var_stats =
+            <crate::api::live_stacking::ApiLiveStackingStats>::sse_decode(deserializer);
+        return crate::api::live_stacking::ApiLiveStackingResult {
             width: var_width,
             height: var_height,
             channels: var_channels,
@@ -7877,7 +7888,7 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingResult {
     }
 }
 
-impl SseDecode for crate::api::imaging::ApiLiveStackingStats {
+impl SseDecode for crate::api::live_stacking::ApiLiveStackingStats {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_stackedFrameCount = <u32>::sse_decode(deserializer);
@@ -7889,7 +7900,7 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingStats {
         let mut var_otherFilterFrames = <u32>::sse_decode(deserializer);
         let mut var_lastOtherFilter = <Option<String>>::sse_decode(deserializer);
         let mut var_filter = <Option<String>>::sse_decode(deserializer);
-        return crate::api::imaging::ApiLiveStackingStats {
+        return crate::api::live_stacking::ApiLiveStackingStats {
             stacked_frame_count: var_stackedFrameCount,
             total_frames_attempted: var_totalFramesAttempted,
             rejected_alignment_failures: var_rejectedAlignmentFailures,
@@ -9434,7 +9445,21 @@ impl SseDecode for crate::event::sequencer::FrameCaptureMetadata {
     }
 }
 
-impl SseDecode for crate::api::imaging::FrameCardUpdate {
+impl SseDecode for crate::api::frame_file::FrameCard {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_keyword = <String>::sse_decode(deserializer);
+        let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_number = <Option<f64>>::sse_decode(deserializer);
+        return crate::api::frame_file::FrameCard {
+            keyword: var_keyword,
+            text: var_text,
+            number: var_number,
+        };
+    }
+}
+
+impl SseDecode for crate::api::frame_file::FrameCardUpdate {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_keyword = <String>::sse_decode(deserializer);
@@ -9442,12 +9467,24 @@ impl SseDecode for crate::api::imaging::FrameCardUpdate {
         let mut var_intValue = <Option<i64>>::sse_decode(deserializer);
         let mut var_doubleValue = <Option<f64>>::sse_decode(deserializer);
         let mut var_comment = <Option<String>>::sse_decode(deserializer);
-        return crate::api::imaging::FrameCardUpdate {
+        return crate::api::frame_file::FrameCardUpdate {
             keyword: var_keyword,
             string_value: var_stringValue,
             int_value: var_intValue,
             double_value: var_doubleValue,
             comment: var_comment,
+        };
+    }
+}
+
+impl SseDecode for crate::api::frame_file::FrameHeaderRead {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_cards = <Vec<crate::api::frame_file::FrameCard>>::sse_decode(deserializer);
+        let mut var_wcs = <Option<crate::api::frame_file::FrameWcs>>::sse_decode(deserializer);
+        return crate::api::frame_file::FrameHeaderRead {
+            cards: var_cards,
+            wcs: var_wcs,
         };
     }
 }
@@ -9463,6 +9500,46 @@ impl SseDecode for crate::device::FrameType {
             3 => crate::device::FrameType::Bias,
             4 => crate::device::FrameType::DarkFlat,
             _ => unreachable!("Invalid variant for FrameType: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::frame_file::FrameWcs {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_crval1 = <f64>::sse_decode(deserializer);
+        let mut var_crval2 = <f64>::sse_decode(deserializer);
+        let mut var_crpix1 = <f64>::sse_decode(deserializer);
+        let mut var_crpix2 = <f64>::sse_decode(deserializer);
+        let mut var_cd11 = <f64>::sse_decode(deserializer);
+        let mut var_cd12 = <f64>::sse_decode(deserializer);
+        let mut var_cd21 = <f64>::sse_decode(deserializer);
+        let mut var_cd22 = <f64>::sse_decode(deserializer);
+        let mut var_aOrder = <u32>::sse_decode(deserializer);
+        let mut var_bOrder = <u32>::sse_decode(deserializer);
+        let mut var_aCoeffs = <Vec<f64>>::sse_decode(deserializer);
+        let mut var_bCoeffs = <Vec<f64>>::sse_decode(deserializer);
+        let mut var_apOrder = <u32>::sse_decode(deserializer);
+        let mut var_bpOrder = <u32>::sse_decode(deserializer);
+        let mut var_apCoeffs = <Vec<f64>>::sse_decode(deserializer);
+        let mut var_bpCoeffs = <Vec<f64>>::sse_decode(deserializer);
+        return crate::api::frame_file::FrameWcs {
+            crval1: var_crval1,
+            crval2: var_crval2,
+            crpix1: var_crpix1,
+            crpix2: var_crpix2,
+            cd1_1: var_cd11,
+            cd1_2: var_cd12,
+            cd2_1: var_cd21,
+            cd2_2: var_cd22,
+            a_order: var_aOrder,
+            b_order: var_bOrder,
+            a_coeffs: var_aCoeffs,
+            b_coeffs: var_bCoeffs,
+            ap_order: var_apOrder,
+            bp_order: var_bpOrder,
+            ap_coeffs: var_apCoeffs,
+            bp_coeffs: var_bpCoeffs,
         };
     }
 }
@@ -9925,13 +10002,27 @@ impl SseDecode for Vec<crate::api::imaging::FocusDataPoint> {
     }
 }
 
-impl SseDecode for Vec<crate::api::imaging::FrameCardUpdate> {
+impl SseDecode for Vec<crate::api::frame_file::FrameCard> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::imaging::FrameCardUpdate>::sse_decode(
+            ans_.push(<crate::api::frame_file::FrameCard>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::frame_file::FrameCardUpdate> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::frame_file::FrameCardUpdate>::sse_decode(
                 deserializer,
             ));
         }
@@ -10465,11 +10556,11 @@ impl SseDecode for Option<crate::api::depthlock::ApiAcquisitionSettings> {
     }
 }
 
-impl SseDecode for Option<crate::api::imaging::ApiDefectMapStatus> {
+impl SseDecode for Option<crate::api::defect_map::ApiDefectMapStatus> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::imaging::ApiDefectMapStatus>::sse_decode(
+            return Some(<crate::api::defect_map::ApiDefectMapStatus>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -10590,6 +10681,17 @@ impl SseDecode for Option<f64> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<f64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::frame_file::FrameWcs> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::frame_file::FrameWcs>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -10793,17 +10895,6 @@ impl SseDecode for Option<Vec<String>> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<Vec<String>>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<Vec<u16>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<Vec<u16>>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -12725,7 +12816,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiAcquisitionSett
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiDefectMapStatus {
+impl flutter_rust_bridge::IntoDart for crate::api::defect_map::ApiDefectMapStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.camera_id.into_into_dart().into_dart(),
@@ -12743,13 +12834,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiDefectMapStatus {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::imaging::ApiDefectMapStatus
+    for crate::api::defect_map::ApiDefectMapStatus
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiDefectMapStatus>
-    for crate::api::imaging::ApiDefectMapStatus
+impl flutter_rust_bridge::IntoIntoDart<crate::api::defect_map::ApiDefectMapStatus>
+    for crate::api::defect_map::ApiDefectMapStatus
 {
-    fn into_into_dart(self) -> crate::api::imaging::ApiDefectMapStatus {
+    fn into_into_dart(self) -> crate::api::defect_map::ApiDefectMapStatus {
         self
     }
 }
@@ -13026,7 +13117,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::depthlock::ApiDepthReport>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingConfig {
+impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackingConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.sigma_clip_enabled.into_into_dart().into_dart(),
@@ -13043,18 +13134,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingConfi
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::imaging::ApiLiveStackingConfig
+    for crate::api::live_stacking::ApiLiveStackingConfig
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiLiveStackingConfig>
-    for crate::api::imaging::ApiLiveStackingConfig
+impl flutter_rust_bridge::IntoIntoDart<crate::api::live_stacking::ApiLiveStackingConfig>
+    for crate::api::live_stacking::ApiLiveStackingConfig
 {
-    fn into_into_dart(self) -> crate::api::imaging::ApiLiveStackingConfig {
+    fn into_into_dart(self) -> crate::api::live_stacking::ApiLiveStackingConfig {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingMaster {
+impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackingMaster {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.file_path.into_into_dart().into_dart(),
@@ -13066,18 +13157,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingMaste
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::imaging::ApiLiveStackingMaster
+    for crate::api::live_stacking::ApiLiveStackingMaster
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiLiveStackingMaster>
-    for crate::api::imaging::ApiLiveStackingMaster
+impl flutter_rust_bridge::IntoIntoDart<crate::api::live_stacking::ApiLiveStackingMaster>
+    for crate::api::live_stacking::ApiLiveStackingMaster
 {
-    fn into_into_dart(self) -> crate::api::imaging::ApiLiveStackingMaster {
+    fn into_into_dart(self) -> crate::api::live_stacking::ApiLiveStackingMaster {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingResult {
+impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackingResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.width.into_into_dart().into_dart(),
@@ -13090,18 +13181,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingResul
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::imaging::ApiLiveStackingResult
+    for crate::api::live_stacking::ApiLiveStackingResult
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiLiveStackingResult>
-    for crate::api::imaging::ApiLiveStackingResult
+impl flutter_rust_bridge::IntoIntoDart<crate::api::live_stacking::ApiLiveStackingResult>
+    for crate::api::live_stacking::ApiLiveStackingResult
 {
-    fn into_into_dart(self) -> crate::api::imaging::ApiLiveStackingResult {
+    fn into_into_dart(self) -> crate::api::live_stacking::ApiLiveStackingResult {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingStats {
+impl flutter_rust_bridge::IntoDart for crate::api::live_stacking::ApiLiveStackingStats {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.stacked_frame_count.into_into_dart().into_dart(),
@@ -13122,13 +13213,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingStats
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::imaging::ApiLiveStackingStats
+    for crate::api::live_stacking::ApiLiveStackingStats
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::ApiLiveStackingStats>
-    for crate::api::imaging::ApiLiveStackingStats
+impl flutter_rust_bridge::IntoIntoDart<crate::api::live_stacking::ApiLiveStackingStats>
+    for crate::api::live_stacking::ApiLiveStackingStats
 {
-    fn into_into_dart(self) -> crate::api::imaging::ApiLiveStackingStats {
+    fn into_into_dart(self) -> crate::api::live_stacking::ApiLiveStackingStats {
         self
     }
 }
@@ -14658,7 +14749,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::FrameCaptureMeta
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::imaging::FrameCardUpdate {
+impl flutter_rust_bridge::IntoDart for crate::api::frame_file::FrameCard {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.keyword.into_into_dart().into_dart(),
+            self.text.into_into_dart().into_dart(),
+            self.number.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::frame_file::FrameCard
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameCard>
+    for crate::api::frame_file::FrameCard
+{
+    fn into_into_dart(self) -> crate::api::frame_file::FrameCard {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::frame_file::FrameCardUpdate {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.keyword.into_into_dart().into_dart(),
@@ -14671,13 +14784,34 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::FrameCardUpdate {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::imaging::FrameCardUpdate
+    for crate::api::frame_file::FrameCardUpdate
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::FrameCardUpdate>
-    for crate::api::imaging::FrameCardUpdate
+impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameCardUpdate>
+    for crate::api::frame_file::FrameCardUpdate
 {
-    fn into_into_dart(self) -> crate::api::imaging::FrameCardUpdate {
+    fn into_into_dart(self) -> crate::api::frame_file::FrameCardUpdate {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::frame_file::FrameHeaderRead {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.cards.into_into_dart().into_dart(),
+            self.wcs.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::frame_file::FrameHeaderRead
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameHeaderRead>
+    for crate::api::frame_file::FrameHeaderRead
+{
+    fn into_into_dart(self) -> crate::api::frame_file::FrameHeaderRead {
         self
     }
 }
@@ -14697,6 +14831,41 @@ impl flutter_rust_bridge::IntoDart for crate::device::FrameType {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::device::FrameType {}
 impl flutter_rust_bridge::IntoIntoDart<crate::device::FrameType> for crate::device::FrameType {
     fn into_into_dart(self) -> crate::device::FrameType {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::frame_file::FrameWcs {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.crval1.into_into_dart().into_dart(),
+            self.crval2.into_into_dart().into_dart(),
+            self.crpix1.into_into_dart().into_dart(),
+            self.crpix2.into_into_dart().into_dart(),
+            self.cd1_1.into_into_dart().into_dart(),
+            self.cd1_2.into_into_dart().into_dart(),
+            self.cd2_1.into_into_dart().into_dart(),
+            self.cd2_2.into_into_dart().into_dart(),
+            self.a_order.into_into_dart().into_dart(),
+            self.b_order.into_into_dart().into_dart(),
+            self.a_coeffs.into_into_dart().into_dart(),
+            self.b_coeffs.into_into_dart().into_dart(),
+            self.ap_order.into_into_dart().into_dart(),
+            self.bp_order.into_into_dart().into_dart(),
+            self.ap_coeffs.into_into_dart().into_dart(),
+            self.bp_coeffs.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::frame_file::FrameWcs
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameWcs>
+    for crate::api::frame_file::FrameWcs
+{
+    fn into_into_dart(self) -> crate::api::frame_file::FrameWcs {
         self
     }
 }
@@ -17310,7 +17479,7 @@ impl SseEncode for crate::api::depthlock::ApiAcquisitionSettings {
     }
 }
 
-impl SseEncode for crate::api::imaging::ApiDefectMapStatus {
+impl SseEncode for crate::api::defect_map::ApiDefectMapStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.camera_id, serializer);
@@ -17472,7 +17641,7 @@ impl SseEncode for crate::api::depthlock::ApiDepthReport {
     }
 }
 
-impl SseEncode for crate::api::imaging::ApiLiveStackingConfig {
+impl SseEncode for crate::api::live_stacking::ApiLiveStackingConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.sigma_clip_enabled, serializer);
@@ -17487,7 +17656,7 @@ impl SseEncode for crate::api::imaging::ApiLiveStackingConfig {
     }
 }
 
-impl SseEncode for crate::api::imaging::ApiLiveStackingMaster {
+impl SseEncode for crate::api::live_stacking::ApiLiveStackingMaster {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.file_path, serializer);
@@ -17497,18 +17666,18 @@ impl SseEncode for crate::api::imaging::ApiLiveStackingMaster {
     }
 }
 
-impl SseEncode for crate::api::imaging::ApiLiveStackingResult {
+impl SseEncode for crate::api::live_stacking::ApiLiveStackingResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.width, serializer);
         <u32>::sse_encode(self.height, serializer);
         <u32>::sse_encode(self.channels, serializer);
         <Vec<u16>>::sse_encode(self.data, serializer);
-        <crate::api::imaging::ApiLiveStackingStats>::sse_encode(self.stats, serializer);
+        <crate::api::live_stacking::ApiLiveStackingStats>::sse_encode(self.stats, serializer);
     }
 }
 
-impl SseEncode for crate::api::imaging::ApiLiveStackingStats {
+impl SseEncode for crate::api::live_stacking::ApiLiveStackingStats {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.stacked_frame_count, serializer);
@@ -18673,7 +18842,16 @@ impl SseEncode for crate::event::sequencer::FrameCaptureMetadata {
     }
 }
 
-impl SseEncode for crate::api::imaging::FrameCardUpdate {
+impl SseEncode for crate::api::frame_file::FrameCard {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.keyword, serializer);
+        <String>::sse_encode(self.text, serializer);
+        <Option<f64>>::sse_encode(self.number, serializer);
+    }
+}
+
+impl SseEncode for crate::api::frame_file::FrameCardUpdate {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.keyword, serializer);
@@ -18681,6 +18859,14 @@ impl SseEncode for crate::api::imaging::FrameCardUpdate {
         <Option<i64>>::sse_encode(self.int_value, serializer);
         <Option<f64>>::sse_encode(self.double_value, serializer);
         <Option<String>>::sse_encode(self.comment, serializer);
+    }
+}
+
+impl SseEncode for crate::api::frame_file::FrameHeaderRead {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::frame_file::FrameCard>>::sse_encode(self.cards, serializer);
+        <Option<crate::api::frame_file::FrameWcs>>::sse_encode(self.wcs, serializer);
     }
 }
 
@@ -18700,6 +18886,28 @@ impl SseEncode for crate::device::FrameType {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::frame_file::FrameWcs {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.crval1, serializer);
+        <f64>::sse_encode(self.crval2, serializer);
+        <f64>::sse_encode(self.crpix1, serializer);
+        <f64>::sse_encode(self.crpix2, serializer);
+        <f64>::sse_encode(self.cd1_1, serializer);
+        <f64>::sse_encode(self.cd1_2, serializer);
+        <f64>::sse_encode(self.cd2_1, serializer);
+        <f64>::sse_encode(self.cd2_2, serializer);
+        <u32>::sse_encode(self.a_order, serializer);
+        <u32>::sse_encode(self.b_order, serializer);
+        <Vec<f64>>::sse_encode(self.a_coeffs, serializer);
+        <Vec<f64>>::sse_encode(self.b_coeffs, serializer);
+        <u32>::sse_encode(self.ap_order, serializer);
+        <u32>::sse_encode(self.bp_order, serializer);
+        <Vec<f64>>::sse_encode(self.ap_coeffs, serializer);
+        <Vec<f64>>::sse_encode(self.bp_coeffs, serializer);
     }
 }
 
@@ -19088,12 +19296,22 @@ impl SseEncode for Vec<crate::api::imaging::FocusDataPoint> {
     }
 }
 
-impl SseEncode for Vec<crate::api::imaging::FrameCardUpdate> {
+impl SseEncode for Vec<crate::api::frame_file::FrameCard> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::imaging::FrameCardUpdate>::sse_encode(item, serializer);
+            <crate::api::frame_file::FrameCard>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::frame_file::FrameCardUpdate> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::frame_file::FrameCardUpdate>::sse_encode(item, serializer);
         }
     }
 }
@@ -19458,12 +19676,12 @@ impl SseEncode for Option<crate::api::depthlock::ApiAcquisitionSettings> {
     }
 }
 
-impl SseEncode for Option<crate::api::imaging::ApiDefectMapStatus> {
+impl SseEncode for Option<crate::api::defect_map::ApiDefectMapStatus> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::api::imaging::ApiDefectMapStatus>::sse_encode(value, serializer);
+            <crate::api::defect_map::ApiDefectMapStatus>::sse_encode(value, serializer);
         }
     }
 }
@@ -19564,6 +19782,16 @@ impl SseEncode for Option<f64> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <f64>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::frame_file::FrameWcs> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::frame_file::FrameWcs>::sse_encode(value, serializer);
         }
     }
 }
@@ -19736,16 +19964,6 @@ impl SseEncode for Option<Vec<String>> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <Vec<String>>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<Vec<u16>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <Vec<u16>>::sse_encode(value, serializer);
         }
     }
 }
@@ -21367,10 +21585,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::imaging::ApiDefectMapStatus> for wire_cst_api_defect_map_status {
+    impl CstDecode<crate::api::defect_map::ApiDefectMapStatus> for wire_cst_api_defect_map_status {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::ApiDefectMapStatus {
-            crate::api::imaging::ApiDefectMapStatus {
+        fn cst_decode(self) -> crate::api::defect_map::ApiDefectMapStatus {
+            crate::api::defect_map::ApiDefectMapStatus {
                 camera_id: self.camera_id.cst_decode(),
                 width: self.width.cst_decode(),
                 height: self.height.cst_decode(),
@@ -21538,10 +21756,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::imaging::ApiLiveStackingConfig> for wire_cst_api_live_stacking_config {
+    impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>
+        for wire_cst_api_live_stacking_config
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::ApiLiveStackingConfig {
-            crate::api::imaging::ApiLiveStackingConfig {
+        fn cst_decode(self) -> crate::api::live_stacking::ApiLiveStackingConfig {
+            crate::api::live_stacking::ApiLiveStackingConfig {
                 sigma_clip_enabled: self.sigma_clip_enabled.cst_decode(),
                 sigma_clip_threshold: self.sigma_clip_threshold.cst_decode(),
                 max_match_stars: self.max_match_stars.cst_decode(),
@@ -21554,10 +21774,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::imaging::ApiLiveStackingMaster> for wire_cst_api_live_stacking_master {
+    impl CstDecode<crate::api::live_stacking::ApiLiveStackingMaster>
+        for wire_cst_api_live_stacking_master
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::ApiLiveStackingMaster {
-            crate::api::imaging::ApiLiveStackingMaster {
+        fn cst_decode(self) -> crate::api::live_stacking::ApiLiveStackingMaster {
+            crate::api::live_stacking::ApiLiveStackingMaster {
                 file_path: self.file_path.cst_decode(),
                 stacked_frame_count: self.stacked_frame_count.cst_decode(),
                 total_integration_secs: self.total_integration_secs.cst_decode(),
@@ -21565,10 +21787,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::imaging::ApiLiveStackingResult> for wire_cst_api_live_stacking_result {
+    impl CstDecode<crate::api::live_stacking::ApiLiveStackingResult>
+        for wire_cst_api_live_stacking_result
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::ApiLiveStackingResult {
-            crate::api::imaging::ApiLiveStackingResult {
+        fn cst_decode(self) -> crate::api::live_stacking::ApiLiveStackingResult {
+            crate::api::live_stacking::ApiLiveStackingResult {
                 width: self.width.cst_decode(),
                 height: self.height.cst_decode(),
                 channels: self.channels.cst_decode(),
@@ -21577,10 +21801,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::imaging::ApiLiveStackingStats> for wire_cst_api_live_stacking_stats {
+    impl CstDecode<crate::api::live_stacking::ApiLiveStackingStats>
+        for wire_cst_api_live_stacking_stats
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::ApiLiveStackingStats {
-            crate::api::imaging::ApiLiveStackingStats {
+        fn cst_decode(self) -> crate::api::live_stacking::ApiLiveStackingStats {
+            crate::api::live_stacking::ApiLiveStackingStats {
                 stacked_frame_count: self.stacked_frame_count.cst_decode(),
                 total_frames_attempted: self.total_frames_attempted.cst_decode(),
                 rejected_alignment_failures: self.rejected_alignment_failures.cst_decode(),
@@ -21682,11 +21908,11 @@ mod io {
             CstDecode::<crate::api::depthlock::ApiAcquisitionSettings>::cst_decode(*wrap).into()
         }
     }
-    impl CstDecode<crate::api::imaging::ApiDefectMapStatus> for *mut wire_cst_api_defect_map_status {
+    impl CstDecode<crate::api::defect_map::ApiDefectMapStatus> for *mut wire_cst_api_defect_map_status {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::ApiDefectMapStatus {
+        fn cst_decode(self) -> crate::api::defect_map::ApiDefectMapStatus {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::imaging::ApiDefectMapStatus>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::defect_map::ApiDefectMapStatus>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::api::depthlock::ApiDepthForecast> for *mut wire_cst_api_depth_forecast {
@@ -21719,13 +21945,13 @@ mod io {
             CstDecode::<crate::api::depthlock::ApiDepthReport>::cst_decode(*wrap).into()
         }
     }
-    impl CstDecode<crate::api::imaging::ApiLiveStackingConfig>
+    impl CstDecode<crate::api::live_stacking::ApiLiveStackingConfig>
         for *mut wire_cst_api_live_stacking_config
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::ApiLiveStackingConfig {
+        fn cst_decode(self) -> crate::api::live_stacking::ApiLiveStackingConfig {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::imaging::ApiLiveStackingConfig>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::live_stacking::ApiLiveStackingConfig>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::api::depthlock::ApiReferenceGeometry>
@@ -21882,6 +22108,13 @@ mod io {
         fn cst_decode(self) -> crate::event::sequencer::FrameCaptureMetadata {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::event::sequencer::FrameCaptureMetadata>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::api::frame_file::FrameWcs> for *mut wire_cst_frame_wcs {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::frame_file::FrameWcs {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::frame_file::FrameWcs>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::event::guiding::GuidingEvent> for *mut wire_cst_guiding_event {
@@ -23007,15 +23240,57 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::imaging::FrameCardUpdate> for wire_cst_frame_card_update {
+    impl CstDecode<crate::api::frame_file::FrameCard> for wire_cst_frame_card {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::FrameCardUpdate {
-            crate::api::imaging::FrameCardUpdate {
+        fn cst_decode(self) -> crate::api::frame_file::FrameCard {
+            crate::api::frame_file::FrameCard {
+                keyword: self.keyword.cst_decode(),
+                text: self.text.cst_decode(),
+                number: self.number.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::frame_file::FrameCardUpdate> for wire_cst_frame_card_update {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::frame_file::FrameCardUpdate {
+            crate::api::frame_file::FrameCardUpdate {
                 keyword: self.keyword.cst_decode(),
                 string_value: self.string_value.cst_decode(),
                 int_value: self.int_value.cst_decode(),
                 double_value: self.double_value.cst_decode(),
                 comment: self.comment.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::frame_file::FrameHeaderRead> for wire_cst_frame_header_read {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::frame_file::FrameHeaderRead {
+            crate::api::frame_file::FrameHeaderRead {
+                cards: self.cards.cst_decode(),
+                wcs: self.wcs.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::frame_file::FrameWcs> for wire_cst_frame_wcs {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::frame_file::FrameWcs {
+            crate::api::frame_file::FrameWcs {
+                crval1: self.crval1.cst_decode(),
+                crval2: self.crval2.cst_decode(),
+                crpix1: self.crpix1.cst_decode(),
+                crpix2: self.crpix2.cst_decode(),
+                cd1_1: self.cd1_1.cst_decode(),
+                cd1_2: self.cd1_2.cst_decode(),
+                cd2_1: self.cd2_1.cst_decode(),
+                cd2_2: self.cd2_2.cst_decode(),
+                a_order: self.a_order.cst_decode(),
+                b_order: self.b_order.cst_decode(),
+                a_coeffs: self.a_coeffs.cst_decode(),
+                b_coeffs: self.b_coeffs.cst_decode(),
+                ap_order: self.ap_order.cst_decode(),
+                bp_order: self.bp_order.cst_decode(),
+                ap_coeffs: self.ap_coeffs.cst_decode(),
+                bp_coeffs: self.bp_coeffs.cst_decode(),
             }
         }
     }
@@ -23341,9 +23616,21 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::imaging::FrameCardUpdate>> for *mut wire_cst_list_frame_card_update {
+    impl CstDecode<Vec<crate::api::frame_file::FrameCard>> for *mut wire_cst_list_frame_card {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::imaging::FrameCardUpdate> {
+        fn cst_decode(self) -> Vec<crate::api::frame_file::FrameCard> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::frame_file::FrameCardUpdate>>
+        for *mut wire_cst_list_frame_card_update
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::frame_file::FrameCardUpdate> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -25926,6 +26213,20 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_frame_card {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                keyword: core::ptr::null_mut(),
+                text: core::ptr::null_mut(),
+                number: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_frame_card {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_frame_card_update {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -25938,6 +26239,46 @@ mod io {
         }
     }
     impl Default for wire_cst_frame_card_update {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_frame_header_read {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                cards: core::ptr::null_mut(),
+                wcs: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_frame_header_read {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_frame_wcs {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                crval1: Default::default(),
+                crval2: Default::default(),
+                crpix1: Default::default(),
+                crpix2: Default::default(),
+                cd1_1: Default::default(),
+                cd1_2: Default::default(),
+                cd2_1: Default::default(),
+                cd2_2: Default::default(),
+                a_order: Default::default(),
+                b_order: Default::default(),
+                a_coeffs: core::ptr::null_mut(),
+                b_coeffs: core::ptr::null_mut(),
+                ap_order: Default::default(),
+                bp_order: Default::default(),
+                ap_coeffs: core::ptr::null_mut(),
+                bp_coeffs: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_frame_wcs {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -27137,15 +27478,16 @@ mod io {
 
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_calibrate_image_data(
+        port_: i64,
         width: u32,
         height: u32,
         light_data: *mut wire_cst_list_prim_u_16_loose,
-        dark_data: *mut wire_cst_list_prim_u_16_strict,
-        flat_data: *mut wire_cst_list_prim_u_16_strict,
-        bias_data: *mut wire_cst_list_prim_u_16_strict,
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        dark_path: *mut wire_cst_list_prim_u_8_strict,
+        flat_path: *mut wire_cst_list_prim_u_8_strict,
+        bias_path: *mut wire_cst_list_prim_u_8_strict,
+    ) {
         wire__crate__api__imaging__api_calibrate_image_data_impl(
-            width, height, light_data, dark_data, flat_data, bias_data,
+            port_, width, height, light_data, dark_path, flat_path, bias_path,
         )
     }
 
@@ -27514,22 +27856,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_apply(
-        port_: i64,
-        camera_id: *mut wire_cst_list_prim_u_8_strict,
-        apply_during_capture: bool,
-    ) {
-        wire__crate__api__imaging__api_defect_map_apply_impl(port_, camera_id, apply_during_capture)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_build(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__defect_map__api_defect_map_build(
         port_: i64,
         camera_id: *mut wire_cst_list_prim_u_8_strict,
         dark_frame_paths: *mut wire_cst_list_String,
         sensor_temperature_celsius: f64,
     ) {
-        wire__crate__api__imaging__api_defect_map_build_impl(
+        wire__crate__api__defect_map__api_defect_map_build_impl(
             port_,
             camera_id,
             dark_frame_paths,
@@ -27538,14 +27871,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_clear(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__defect_map__api_defect_map_clear(
         port_: i64,
         camera_id: *mut wire_cst_list_prim_u_8_strict,
         width: u32,
         height: u32,
         sensor_temperature_celsius: f64,
     ) {
-        wire__crate__api__imaging__api_defect_map_clear_impl(
+        wire__crate__api__defect_map__api_defect_map_clear_impl(
             port_,
             camera_id,
             width,
@@ -27555,19 +27888,44 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_get_status(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__defect_map__api_defect_map_get_status(
         port_: i64,
         camera_id: *mut wire_cst_list_prim_u_8_strict,
         width: u32,
         height: u32,
         sensor_temperature_celsius: f64,
     ) {
-        wire__crate__api__imaging__api_defect_map_get_status_impl(
+        wire__crate__api__defect_map__api_defect_map_get_status_impl(
             port_,
             camera_id,
             width,
             height,
             sensor_temperature_celsius,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__defect_map__api_defect_map_set_correction(
+        port_: i64,
+        camera_id: *mut wire_cst_list_prim_u_8_strict,
+        width: u32,
+        height: u32,
+        sensor_temperature_celsius: f64,
+        enabled: bool,
+        method: *mut wire_cst_list_prim_u_8_strict,
+        kernel_diameter: u8,
+        save_original: bool,
+    ) {
+        wire__crate__api__defect_map__api_defect_map_set_correction_impl(
+            port_,
+            camera_id,
+            width,
+            height,
+            sensor_temperature_celsius,
+            enabled,
+            method,
+            kernel_diameter,
+            save_original,
         )
     }
 
@@ -28342,13 +28700,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_live_stacking_config_default(
-        port_: i64,
-    ) {
-        wire__crate__api__imaging__api_live_stacking_config_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_load_profile(
         port_: i64,
         profile_id: *mut wire_cst_list_prim_u_8_strict,
@@ -28719,6 +29070,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__frame_file__api_read_frame_header(
+        port_: i64,
+        file_path: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__frame_file__api_read_frame_header_impl(port_, file_path)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_reduce_stars_preview(
         port_: i64,
         args_json: *mut wire_cst_list_prim_u_8_strict,
@@ -28892,31 +29251,6 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__secondary_rig__api_secondary_rig_stop_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_sequencer_apply_defect_map(
-        port_: i64,
-        camera_id: *mut wire_cst_list_prim_u_8_strict,
-        width: u32,
-        height: u32,
-        sensor_temperature_celsius: f64,
-        enabled: bool,
-        method: *mut wire_cst_list_prim_u_8_strict,
-        kernel_diameter: u8,
-        save_original: bool,
-    ) {
-        wire__crate__api__imaging__api_sequencer_apply_defect_map_impl(
-            port_,
-            camera_id,
-            width,
-            height,
-            sensor_temperature_celsius,
-            enabled,
-            method,
-            kernel_diameter,
-            save_original,
-        )
     }
 
     #[unsafe(no_mangle)]
@@ -29325,91 +29659,97 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_add_frame(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame(
         port_: i64,
         image_path: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__imaging__api_stacking_add_frame_impl(port_, image_path)
+        wire__crate__api__live_stacking__api_stacking_add_frame_impl(port_, image_path)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_add_frame_from_data(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data(
         port_: i64,
         width: u32,
         height: u32,
         data: *mut wire_cst_list_prim_u_16_loose,
     ) {
-        wire__crate__api__imaging__api_stacking_add_frame_from_data_impl(port_, width, height, data)
+        wire__crate__api__live_stacking__api_stacking_add_frame_from_data_impl(
+            port_, width, height, data,
+        )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_frame_count(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_frame_count(
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__imaging__api_stacking_frame_count_impl()
+        wire__crate__api__live_stacking__api_stacking_frame_count_impl()
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_get_result(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_result(
         port_: i64,
     ) {
-        wire__crate__api__imaging__api_stacking_get_result_impl(port_)
+        wire__crate__api__live_stacking__api_stacking_get_result_impl(port_)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_get_stats(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats(
         port_: i64,
     ) {
-        wire__crate__api__imaging__api_stacking_get_stats_impl(port_)
+        wire__crate__api__live_stacking__api_stacking_get_stats_impl(port_)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_is_active(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_is_active(
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__imaging__api_stacking_is_active_impl()
+        wire__crate__api__live_stacking__api_stacking_is_active_impl()
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_reset(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset(
         port_: i64,
     ) {
-        wire__crate__api__imaging__api_stacking_reset_impl(port_)
+        wire__crate__api__live_stacking__api_stacking_reset_impl(port_)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_save_master_fits(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_save_master_fits(
         port_: i64,
         file_path: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__imaging__api_stacking_save_master_fits_impl(port_, file_path)
+        wire__crate__api__live_stacking__api_stacking_save_master_fits_impl(port_, file_path)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_start(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start(
         port_: i64,
         reference_image_path: *mut wire_cst_list_prim_u_8_strict,
         config: *mut wire_cst_api_live_stacking_config,
     ) {
-        wire__crate__api__imaging__api_stacking_start_impl(port_, reference_image_path, config)
+        wire__crate__api__live_stacking__api_stacking_start_impl(
+            port_,
+            reference_image_path,
+            config,
+        )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_start_from_data(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_from_data(
         port_: i64,
         width: u32,
         height: u32,
         data: *mut wire_cst_list_prim_u_16_loose,
         config: *mut wire_cst_api_live_stacking_config,
     ) {
-        wire__crate__api__imaging__api_stacking_start_from_data_impl(
+        wire__crate__api__live_stacking__api_stacking_start_from_data_impl(
             port_, width, height, data, config,
         )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_stop(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop(
         port_: i64,
     ) {
-        wire__crate__api__imaging__api_stacking_stop_impl(port_)
+        wire__crate__api__live_stacking__api_stacking_stop_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -29543,12 +29883,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_update_frame_cards(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__frame_file__api_update_frame_cards(
         port_: i64,
         file_path: *mut wire_cst_list_prim_u_8_strict,
         cards: *mut wire_cst_list_frame_card_update,
     ) {
-        wire__crate__api__imaging__api_update_frame_cards_impl(port_, file_path, cards)
+        wire__crate__api__frame_file__api_update_frame_cards_impl(port_, file_path, cards)
     }
 
     #[unsafe(no_mangle)]
@@ -29556,6 +29896,15 @@ mod io {
         settings: *mut wire_cst_app_settings,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
         wire__crate__api__storage__api_update_settings_impl(settings)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__frame_file__api_write_frame_wcs(
+        port_: i64,
+        file_path: *mut wire_cst_list_prim_u_8_strict,
+        wcs: *mut wire_cst_frame_wcs,
+    ) {
+        wire__crate__api__frame_file__api_write_frame_wcs_impl(port_, file_path, wcs)
     }
 
     #[unsafe(no_mangle)]
@@ -29927,6 +30276,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_frame_wcs() -> *mut wire_cst_frame_wcs
+    {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wire_cst_frame_wcs::new_with_null_ptr())
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_guiding_event(
     ) -> *mut wire_cst_guiding_event {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -30272,6 +30627,20 @@ mod io {
         let wrap = wire_cst_list_focus_data_point {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_focus_data_point>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_frame_card(
+        len: i32,
+    ) -> *mut wire_cst_list_frame_card {
+        let wrap = wire_cst_list_frame_card {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_frame_card>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -31615,12 +31984,45 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_frame_card {
+        keyword: *mut wire_cst_list_prim_u_8_strict,
+        text: *mut wire_cst_list_prim_u_8_strict,
+        number: *mut f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_frame_card_update {
         keyword: *mut wire_cst_list_prim_u_8_strict,
         string_value: *mut wire_cst_list_prim_u_8_strict,
         int_value: *mut i64,
         double_value: *mut f64,
         comment: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_frame_header_read {
+        cards: *mut wire_cst_list_frame_card,
+        wcs: *mut wire_cst_frame_wcs,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_frame_wcs {
+        crval1: f64,
+        crval2: f64,
+        crpix1: f64,
+        crpix2: f64,
+        cd1_1: f64,
+        cd1_2: f64,
+        cd2_1: f64,
+        cd2_2: f64,
+        a_order: u32,
+        b_order: u32,
+        a_coeffs: *mut wire_cst_list_prim_f_64_strict,
+        b_coeffs: *mut wire_cst_list_prim_f_64_strict,
+        ap_order: u32,
+        bp_order: u32,
+        ap_coeffs: *mut wire_cst_list_prim_f_64_strict,
+        bp_coeffs: *mut wire_cst_list_prim_f_64_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -31885,6 +32287,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_focus_data_point {
         ptr: *mut wire_cst_focus_data_point,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_frame_card {
+        ptr: *mut wire_cst_frame_card,
         len: i32,
     }
     #[repr(C)]

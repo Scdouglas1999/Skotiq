@@ -3,8 +3,8 @@
 // guidingStopReason "tracking_limit_hold" and /api/phd2/status its
 // stopReason, but the client set its stop reason only from live StopReason
 // events, so a client that joined later read "Guider needs a look, not
-// looping" with no reason. The run's warnings were mirrored into the live
-// stats already; this pins that too.
+// looping" with no reason. The run's warnings reach the live stats on the
+// host's run-record channel; this pins that too.
 
 import 'dart:async';
 
@@ -77,6 +77,22 @@ Future<ProviderContainer> _hydrate(
           'state': 'stopped',
           'stopReason': guiderStopReason,
         },
+      ),
+      // The run's vitals as the host's run-record channel carries them.
+      HostRuntimeUpdate(
+        channel: runRecordChannelKey,
+        revision: 1,
+        value: const RunRecordChannel().encode((
+          terminal: null,
+          imagingRun: null,
+          lastEnded: null,
+          lastEndedPlanLoaded: false,
+          stopEvidence: null,
+          runStartedAt: null,
+          stats: status.runVitals == null
+              ? null
+              : SequenceRunStats.fromRemoteVitals(status.runVitals!),
+        )),
       ),
     ],
   );

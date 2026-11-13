@@ -333,9 +333,7 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
     let _globals = polar_globals_test_lock().lock().await;
     let _frame = SimFrameGuard::pin(SimMountFrame::OfDate);
     let mount_id = "sim_mount_polar_rotation";
-    get_device_manager()
-        .register_device(
-            DeviceInfo {
+    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
                 id: mount_id.to_string(),
                 name: "Simulated Mount".to_string(),
                 device_type: DeviceType::Mount,
@@ -345,10 +343,7 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
                 serial_number: None,
                 unique_id: None,
                 display_name: "Simulated Mount".to_string(),
-            },
-            false,
-        )
-        .await;
+            }).await;
     crate::simulator::mount::cancel_sim_slew().await;
 
     // Three hours west of the meridian at Dec 60 of date, like run 1.
@@ -422,9 +417,7 @@ async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
     let _globals = polar_globals_test_lock().lock().await;
     let _frame = SimFrameGuard::pin(SimMountFrame::OfDate);
     let mount_id = "sim_mount_polar_pole_region";
-    get_device_manager()
-        .register_device(
-            DeviceInfo {
+    crate::simulator::register_connected(get_device_manager(), DeviceInfo {
                 id: mount_id.to_string(),
                 name: "Simulated Mount".to_string(),
                 device_type: DeviceType::Mount,
@@ -434,10 +427,7 @@ async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
                 serial_number: None,
                 unique_id: None,
                 display_name: "Simulated Mount".to_string(),
-            },
-            false,
-        )
-        .await;
+            }).await;
     crate::simulator::mount::cancel_sim_slew().await;
     {
         let mut mount = get_sim_mount().write().await;

@@ -2,15 +2,24 @@
 //!
 //! The fake (`tests/fake_sdk_linux/touptek_independent.c`) was written from
 //! `toupcam.h` 60.33015 and the INDI toupbase and NINA drivers, separately from
-//! the driver and from `touptek_fake_sdk.rs`. Run with
-//! `tests/fake_sdk_linux/run_touptek_independent.sh`.
+//! the driver and from `touptek_fake_sdk.rs`. It holds one open camera per
+//! process, so the tests run in one child process, one at a time.
 
 #![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{CameraDriver, DeviceDriver, ExposureParams, FrameType, SubFrame};
 use skotiq_native::vendor::touptek::{discover_devices_for_brand, TouptekCamera};
 use std::ffi::{c_char, c_int, c_longlong, c_uint, CStr, CString};
 use std::sync::OnceLock;
+
+#[test]
+fn touptek_driver_against_the_independent_fake() {
+    harness::FakeSdk::build("touptek_independent", &[harness::TOUPTEK_INDEPENDENT])
+        .run_ignored("", &[]);
+}
 
 const MONO: u64 = 0x10;
 const ROI_HARDWARE: u64 = 0x8;
@@ -170,7 +179,7 @@ async fn take(camera: &mut TouptekCamera, params: ExposureParams) -> skotiq_devi
 /// (INDI toupbase stops the camera around RAW and bit depth changes), and the
 /// raw format is read after the bit depth is chosen.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn connect_sets_the_stream_up_before_it_starts() {
     let fake = fake();
     let cam = fake.camera(COOLED_MONO_12, 64, 48, 12);
@@ -212,7 +221,7 @@ fn connect_sets_the_stream_up_before_it_starts() {
 
 /// Frames arrive top row first and hold the sensor's own 12-bit values.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn a_frame_is_the_sensor_top_row_first_at_its_own_bit_depth() {
     let fake = fake();
     for upside_down in [0, 1] {
@@ -237,7 +246,7 @@ fn a_frame_is_the_sensor_top_row_first_at_its_own_bit_depth() {
 /// An SDK that does not know OPTION_UPSIDE_DOWN keeps its platform default
 /// (top row first off Windows, toupcam.h 0x23), and subframes land where asked.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn an_sdk_without_the_row_order_option_gives_upright_frames_and_subframes() {
     let fake = fake();
     let cam = fake.camera(COOLED_MONO_12, 64, 48, 12);
@@ -269,7 +278,7 @@ fn an_sdk_without_the_row_order_option_gives_upright_frames_and_subframes() {
 /// Binning is the SDK's digital binning (OPTION_BINNING), offered by INDI and
 /// NINA on every model; it does not depend on FLAG_BINSKIP_SUPPORTED.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn a_camera_without_bin_skip_modes_bins() {
     let fake = fake();
     fake.camera(COOLED_MONO_12, 64, 48, 12);
@@ -292,7 +301,7 @@ fn a_camera_without_bin_skip_modes_bins() {
 /// A binned subframe is sent in unbinned sensor pixels, even and at least 8
 /// (toupcam.h put_Roi), and the delivered frame is the requested binned size.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn a_binned_subframe_reads_the_region_asked_for() {
     let fake = fake();
     fake.camera(COOLED_MONO_12, 64, 48, 12);
@@ -321,7 +330,7 @@ fn a_binned_subframe_reads_the_region_asked_for() {
 /// The offset is the camera's black level in ADU of its bit depth, at most
 /// 31 << (bits - 8), and frames record what the camera used.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn the_offset_is_the_black_level() {
     let fake = fake();
     let cam = fake.camera(COOLED_MONO_12, 64, 48, 12);
@@ -344,7 +353,7 @@ fn the_offset_is_the_black_level() {
 /// frame after its readout (toupcam.h OPTION_TRIGGER_CANCEL_MODE); that frame
 /// must not be delivered as the next exposure.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn a_late_cancelled_frame_is_not_the_next_exposure() {
     let fake = fake();
     let cam = fake.camera(COOLED_MONO_12, 64, 48, 12);
@@ -368,7 +377,7 @@ fn a_late_cancelled_frame_is_not_the_next_exposure() {
 
 /// The cooler is reported as the camera has it at connect, set-point included.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn the_cooler_reads_as_the_camera_has_it() {
     let fake = fake();
     let cam = fake.camera(COOLED_MONO_12, 64, 48, 12);
@@ -392,7 +401,7 @@ fn the_cooler_reads_as_the_camera_has_it() {
 
 /// An uncooled 8-bit camera without a thermometer stays connected and reads 8-bit samples.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn an_uncooled_8_bit_camera_works() {
     let fake = fake();
     fake.camera(TRIGGER_SOFTWARE | ROI_HARDWARE, 32, 16, 8);
@@ -408,7 +417,7 @@ fn an_uncooled_8_bit_camera_works() {
 
 /// Filter wheels and focusers the SDK enumerates are not cameras.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn discovery_lists_only_cameras() {
     let fake = fake();
     fake.camera(COOLED_MONO_12, 64, 48, 12);
@@ -425,7 +434,7 @@ fn discovery_lists_only_cameras() {
 /// EVENT_TRIGGERFAIL ("trigger failed, for example bad frame data or timeout",
 /// SDK manual) ends the exposure at once instead of after the frame timeout.
 #[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+#[ignore = "run by touptek_driver_against_the_independent_fake"]
 fn a_failed_trigger_fails_the_exposure_at_once() {
     let fake = fake();
     let cam = fake.camera(COOLED_MONO_12, 64, 48, 12);

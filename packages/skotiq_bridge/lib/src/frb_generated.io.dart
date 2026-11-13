@@ -5,6 +5,7 @@
 
 import 'api/connection.dart';
 import 'api/darkroom/entrypoints.dart';
+import 'api/defect_map.dart';
 import 'api/depthlock.dart';
 import 'api/devices/camera.dart';
 import 'api/devices/cover_calibrator.dart';
@@ -22,11 +23,13 @@ import 'api/event_stream.dart';
 import 'api/finishing_analyze.dart';
 import 'api/finishing_combine.dart';
 import 'api/finishing_enhance.dart';
+import 'api/frame_file.dart';
 import 'api/guiding.dart';
 import 'api/heartbeat.dart';
 import 'api/hotplug.dart';
 import 'api/imaging.dart';
 import 'api/init.dart';
+import 'api/live_stacking.dart';
 import 'api/mosaic.dart';
 import 'api/mount_guard.dart';
 import 'api/phd2.dart';
@@ -253,6 +256,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrameCaptureMetadata dco_decode_box_autoadd_frame_capture_metadata(
     dynamic raw,
   );
+
+  @protected
+  FrameWcs dco_decode_box_autoadd_frame_wcs(dynamic raw);
 
   @protected
   GuidingEvent dco_decode_box_autoadd_guiding_event(dynamic raw);
@@ -487,10 +493,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrameCaptureMetadata dco_decode_frame_capture_metadata(dynamic raw);
 
   @protected
+  FrameCard dco_decode_frame_card(dynamic raw);
+
+  @protected
   FrameCardUpdate dco_decode_frame_card_update(dynamic raw);
 
   @protected
+  FrameHeaderRead dco_decode_frame_header_read(dynamic raw);
+
+  @protected
   FrameType dco_decode_frame_type(dynamic raw);
+
+  @protected
+  FrameWcs dco_decode_frame_wcs(dynamic raw);
 
   @protected
   GuideStarImage dco_decode_guide_star_image(dynamic raw);
@@ -545,6 +560,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<FocusDataPoint> dco_decode_list_focus_data_point(dynamic raw);
+
+  @protected
+  List<FrameCard> dco_decode_list_frame_card(dynamic raw);
 
   @protected
   List<FrameCardUpdate> dco_decode_list_frame_card_update(dynamic raw);
@@ -699,6 +717,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  FrameWcs? dco_decode_opt_box_autoadd_frame_wcs(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_i_32(dynamic raw);
 
   @protected
@@ -754,9 +775,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String>? dco_decode_opt_list_String(dynamic raw);
-
-  @protected
-  Uint16List? dco_decode_opt_list_prim_u_16_strict(dynamic raw);
 
   @protected
   PierSide dco_decode_pier_side(dynamic raw);
@@ -1177,6 +1195,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  FrameWcs sse_decode_box_autoadd_frame_wcs(SseDeserializer deserializer);
+
+  @protected
   GuidingEvent sse_decode_box_autoadd_guiding_event(
     SseDeserializer deserializer,
   );
@@ -1467,10 +1488,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  FrameCard sse_decode_frame_card(SseDeserializer deserializer);
+
+  @protected
   FrameCardUpdate sse_decode_frame_card_update(SseDeserializer deserializer);
 
   @protected
+  FrameHeaderRead sse_decode_frame_header_read(SseDeserializer deserializer);
+
+  @protected
   FrameType sse_decode_frame_type(SseDeserializer deserializer);
+
+  @protected
+  FrameWcs sse_decode_frame_wcs(SseDeserializer deserializer);
 
   @protected
   GuideStarImage sse_decode_guide_star_image(SseDeserializer deserializer);
@@ -1535,6 +1565,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<FocusDataPoint> sse_decode_list_focus_data_point(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<FrameCard> sse_decode_list_frame_card(SseDeserializer deserializer);
 
   @protected
   List<FrameCardUpdate> sse_decode_list_frame_card_update(
@@ -1725,6 +1758,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  FrameWcs? sse_decode_opt_box_autoadd_frame_wcs(SseDeserializer deserializer);
+
+  @protected
   int? sse_decode_opt_box_autoadd_i_32(SseDeserializer deserializer);
 
   @protected
@@ -1796,11 +1832,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String>? sse_decode_opt_list_String(SseDeserializer deserializer);
-
-  @protected
-  Uint16List? sse_decode_opt_list_prim_u_16_strict(
-    SseDeserializer deserializer,
-  );
 
   @protected
   PierSide sse_decode_pier_side(SseDeserializer deserializer);
@@ -2313,6 +2344,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_frame_wcs> cst_encode_box_autoadd_frame_wcs(
+    FrameWcs raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_frame_wcs();
+    cst_api_fill_to_wire_frame_wcs(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_guiding_event> cst_encode_box_autoadd_guiding_event(
     GuidingEvent raw,
   ) {
@@ -2707,6 +2748,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_frame_card> cst_encode_list_frame_card(
+    List<FrameCard> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_frame_card(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_frame_card(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_frame_card_update>
   cst_encode_list_frame_card_update(List<FrameCardUpdate> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -3055,6 +3108,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_frame_wcs> cst_encode_opt_box_autoadd_frame_wcs(
+    FrameWcs? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? ffi.nullptr : cst_encode_box_autoadd_frame_wcs(raw);
+  }
+
+  @protected
   ffi.Pointer<ffi.Int32> cst_encode_opt_box_autoadd_i_32(int? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_i_32(raw);
@@ -3196,13 +3257,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_list_String(raw);
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_list_prim_u_16_strict>
-  cst_encode_opt_list_prim_u_16_strict(Uint16List? raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return raw == null ? ffi.nullptr : cst_encode_list_prim_u_16_strict(raw);
   }
 
   @protected
@@ -3747,6 +3801,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_frame_capture_metadata> wireObj,
   ) {
     cst_api_fill_to_wire_frame_capture_metadata(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_frame_wcs(
+    FrameWcs apiObj,
+    ffi.Pointer<wire_cst_frame_wcs> wireObj,
+  ) {
+    cst_api_fill_to_wire_frame_wcs(apiObj, wireObj.ref);
   }
 
   @protected
@@ -4991,6 +5053,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_frame_card(
+    FrameCard apiObj,
+    wire_cst_frame_card wireObj,
+  ) {
+    wireObj.keyword = cst_encode_String(apiObj.keyword);
+    wireObj.text = cst_encode_String(apiObj.text);
+    wireObj.number = cst_encode_opt_box_autoadd_f_64(apiObj.number);
+  }
+
+  @protected
   void cst_api_fill_to_wire_frame_card_update(
     FrameCardUpdate apiObj,
     wire_cst_frame_card_update wireObj,
@@ -5000,6 +5072,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.int_value = cst_encode_opt_box_autoadd_i_64(apiObj.intValue);
     wireObj.double_value = cst_encode_opt_box_autoadd_f_64(apiObj.doubleValue);
     wireObj.comment = cst_encode_opt_String(apiObj.comment);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_frame_header_read(
+    FrameHeaderRead apiObj,
+    wire_cst_frame_header_read wireObj,
+  ) {
+    wireObj.cards = cst_encode_list_frame_card(apiObj.cards);
+    wireObj.wcs = cst_encode_opt_box_autoadd_frame_wcs(apiObj.wcs);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_frame_wcs(
+    FrameWcs apiObj,
+    wire_cst_frame_wcs wireObj,
+  ) {
+    wireObj.crval1 = cst_encode_f_64(apiObj.crval1);
+    wireObj.crval2 = cst_encode_f_64(apiObj.crval2);
+    wireObj.crpix1 = cst_encode_f_64(apiObj.crpix1);
+    wireObj.crpix2 = cst_encode_f_64(apiObj.crpix2);
+    wireObj.cd1_1 = cst_encode_f_64(apiObj.cd11);
+    wireObj.cd1_2 = cst_encode_f_64(apiObj.cd12);
+    wireObj.cd2_1 = cst_encode_f_64(apiObj.cd21);
+    wireObj.cd2_2 = cst_encode_f_64(apiObj.cd22);
+    wireObj.a_order = cst_encode_u_32(apiObj.aOrder);
+    wireObj.b_order = cst_encode_u_32(apiObj.bOrder);
+    wireObj.a_coeffs = cst_encode_list_prim_f_64_strict(apiObj.aCoeffs);
+    wireObj.b_coeffs = cst_encode_list_prim_f_64_strict(apiObj.bCoeffs);
+    wireObj.ap_order = cst_encode_u_32(apiObj.apOrder);
+    wireObj.bp_order = cst_encode_u_32(apiObj.bpOrder);
+    wireObj.ap_coeffs = cst_encode_list_prim_f_64_strict(apiObj.apCoeffs);
+    wireObj.bp_coeffs = cst_encode_list_prim_f_64_strict(apiObj.bpCoeffs);
   }
 
   @protected
@@ -7493,6 +7597,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_frame_wcs(
+    FrameWcs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_guiding_event(
     GuidingEvent self,
     SseSerializer serializer,
@@ -7865,13 +7975,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_frame_card(FrameCard self, SseSerializer serializer);
+
+  @protected
   void sse_encode_frame_card_update(
     FrameCardUpdate self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_frame_header_read(
+    FrameHeaderRead self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_frame_type(FrameType self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frame_wcs(FrameWcs self, SseSerializer serializer);
 
   @protected
   void sse_encode_guide_star_image(
@@ -7957,6 +8079,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_focus_data_point(
     List<FocusDataPoint> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_frame_card(
+    List<FrameCard> self,
     SseSerializer serializer,
   );
 
@@ -8213,6 +8341,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_frame_wcs(
+    FrameWcs? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_i_32(int? self, SseSerializer serializer);
 
   @protected
@@ -8298,12 +8432,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_list_String(List<String>? self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_opt_list_prim_u_16_strict(
-    Uint16List? self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_pier_side(PierSide self, SseSerializer serializer);
@@ -8942,34 +9070,37 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  WireSyncRust2DartDco wire__crate__api__imaging__api_calibrate_image_data(
+  void wire__crate__api__imaging__api_calibrate_image_data(
+    int port_,
     int width,
     int height,
     ffi.Pointer<wire_cst_list_prim_u_16_loose> light_data,
-    ffi.Pointer<wire_cst_list_prim_u_16_strict> dark_data,
-    ffi.Pointer<wire_cst_list_prim_u_16_strict> flat_data,
-    ffi.Pointer<wire_cst_list_prim_u_16_strict> bias_data,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> dark_path,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> flat_path,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> bias_path,
   ) {
     return _wire__crate__api__imaging__api_calibrate_image_data(
+      port_,
       width,
       height,
       light_data,
-      dark_data,
-      flat_data,
-      bias_data,
+      dark_path,
+      flat_path,
+      bias_path,
     );
   }
 
   late final _wire__crate__api__imaging__api_calibrate_image_dataPtr =
       _lookup<
         ffi.NativeFunction<
-          WireSyncRust2DartDco Function(
+          ffi.Void Function(
+            ffi.Int64,
             ffi.Uint32,
             ffi.Uint32,
             ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-            ffi.Pointer<wire_cst_list_prim_u_16_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_16_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_16_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
       >(
@@ -8978,13 +9109,14 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__imaging__api_calibrate_image_data =
       _wire__crate__api__imaging__api_calibrate_image_dataPtr
           .asFunction<
-            WireSyncRust2DartDco Function(
+            void Function(
+              int,
               int,
               int,
               ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-              ffi.Pointer<wire_cst_list_prim_u_16_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_16_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_16_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
 
@@ -9970,41 +10102,13 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__imaging__api_defect_map_apply(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
-    bool apply_during_capture,
-  ) {
-    return _wire__crate__api__imaging__api_defect_map_apply(
-      port_,
-      camera_id,
-      apply_during_capture,
-    );
-  }
-
-  late final _wire__crate__api__imaging__api_defect_map_applyPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Bool,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_apply');
-  late final _wire__crate__api__imaging__api_defect_map_apply =
-      _wire__crate__api__imaging__api_defect_map_applyPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
-          >();
-
-  void wire__crate__api__imaging__api_defect_map_build(
+  void wire__crate__api__defect_map__api_defect_map_build(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
     ffi.Pointer<wire_cst_list_String> dark_frame_paths,
     double sensor_temperature_celsius,
   ) {
-    return _wire__crate__api__imaging__api_defect_map_build(
+    return _wire__crate__api__defect_map__api_defect_map_build(
       port_,
       camera_id,
       dark_frame_paths,
@@ -10012,7 +10116,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__imaging__api_defect_map_buildPtr =
+  late final _wire__crate__api__defect_map__api_defect_map_buildPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -10022,9 +10126,11 @@ class RustLibWire implements BaseWire {
             ffi.Double,
           )
         >
-      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_build');
-  late final _wire__crate__api__imaging__api_defect_map_build =
-      _wire__crate__api__imaging__api_defect_map_buildPtr
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__defect_map__api_defect_map_build',
+      );
+  late final _wire__crate__api__defect_map__api_defect_map_build =
+      _wire__crate__api__defect_map__api_defect_map_buildPtr
           .asFunction<
             void Function(
               int,
@@ -10034,14 +10140,14 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__imaging__api_defect_map_clear(
+  void wire__crate__api__defect_map__api_defect_map_clear(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
     int width,
     int height,
     double sensor_temperature_celsius,
   ) {
-    return _wire__crate__api__imaging__api_defect_map_clear(
+    return _wire__crate__api__defect_map__api_defect_map_clear(
       port_,
       camera_id,
       width,
@@ -10050,47 +10156,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__imaging__api_defect_map_clearPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint32,
-            ffi.Uint32,
-            ffi.Double,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_clear');
-  late final _wire__crate__api__imaging__api_defect_map_clear =
-      _wire__crate__api__imaging__api_defect_map_clearPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              int,
-              double,
-            )
-          >();
-
-  void wire__crate__api__imaging__api_defect_map_get_status(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
-    int width,
-    int height,
-    double sensor_temperature_celsius,
-  ) {
-    return _wire__crate__api__imaging__api_defect_map_get_status(
-      port_,
-      camera_id,
-      width,
-      height,
-      sensor_temperature_celsius,
-    );
-  }
-
-  late final _wire__crate__api__imaging__api_defect_map_get_statusPtr =
+  late final _wire__crate__api__defect_map__api_defect_map_clearPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -10102,10 +10168,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_get_status',
+        'frbgen_skotiq_bridge_wire__crate__api__defect_map__api_defect_map_clear',
       );
-  late final _wire__crate__api__imaging__api_defect_map_get_status =
-      _wire__crate__api__imaging__api_defect_map_get_statusPtr
+  late final _wire__crate__api__defect_map__api_defect_map_clear =
+      _wire__crate__api__defect_map__api_defect_map_clearPtr
           .asFunction<
             void Function(
               int,
@@ -10113,6 +10179,106 @@ class RustLibWire implements BaseWire {
               int,
               int,
               double,
+            )
+          >();
+
+  void wire__crate__api__defect_map__api_defect_map_get_status(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
+    int width,
+    int height,
+    double sensor_temperature_celsius,
+  ) {
+    return _wire__crate__api__defect_map__api_defect_map_get_status(
+      port_,
+      camera_id,
+      width,
+      height,
+      sensor_temperature_celsius,
+    );
+  }
+
+  late final _wire__crate__api__defect_map__api_defect_map_get_statusPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+            ffi.Uint32,
+            ffi.Double,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__defect_map__api_defect_map_get_status',
+      );
+  late final _wire__crate__api__defect_map__api_defect_map_get_status =
+      _wire__crate__api__defect_map__api_defect_map_get_statusPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+              double,
+            )
+          >();
+
+  void wire__crate__api__defect_map__api_defect_map_set_correction(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
+    int width,
+    int height,
+    double sensor_temperature_celsius,
+    bool enabled,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> method,
+    int kernel_diameter,
+    bool save_original,
+  ) {
+    return _wire__crate__api__defect_map__api_defect_map_set_correction(
+      port_,
+      camera_id,
+      width,
+      height,
+      sensor_temperature_celsius,
+      enabled,
+      method,
+      kernel_diameter,
+      save_original,
+    );
+  }
+
+  late final _wire__crate__api__defect_map__api_defect_map_set_correctionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+            ffi.Uint32,
+            ffi.Double,
+            ffi.Bool,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint8,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__defect_map__api_defect_map_set_correction',
+      );
+  late final _wire__crate__api__defect_map__api_defect_map_set_correction =
+      _wire__crate__api__defect_map__api_defect_map_set_correctionPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+              double,
+              bool,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              bool,
             )
           >();
 
@@ -12343,18 +12509,6 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__phd2__api_launch_phd2Ptr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__imaging__api_live_stacking_config_default(int port_) {
-    return _wire__crate__api__imaging__api_live_stacking_config_default(port_);
-  }
-
-  late final _wire__crate__api__imaging__api_live_stacking_config_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_live_stacking_config_default',
-      );
-  late final _wire__crate__api__imaging__api_live_stacking_config_default =
-      _wire__crate__api__imaging__api_live_stacking_config_defaultPtr
-          .asFunction<void Function(int)>();
-
   void wire__crate__api__storage__api_load_profile(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> profile_id,
@@ -13374,6 +13528,33 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__frame_file__api_read_frame_header(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
+  ) {
+    return _wire__crate__api__frame_file__api_read_frame_header(
+      port_,
+      file_path,
+    );
+  }
+
+  late final _wire__crate__api__frame_file__api_read_frame_headerPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__frame_file__api_read_frame_header',
+      );
+  late final _wire__crate__api__frame_file__api_read_frame_header =
+      _wire__crate__api__frame_file__api_read_frame_headerPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__finishing_enhance__api_reduce_stars_preview(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
@@ -13917,64 +14098,6 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__secondary_rig__api_secondary_rig_stop =
       _wire__crate__api__secondary_rig__api_secondary_rig_stopPtr
           .asFunction<void Function(int)>();
-
-  void wire__crate__api__imaging__api_sequencer_apply_defect_map(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
-    int width,
-    int height,
-    double sensor_temperature_celsius,
-    bool enabled,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> method,
-    int kernel_diameter,
-    bool save_original,
-  ) {
-    return _wire__crate__api__imaging__api_sequencer_apply_defect_map(
-      port_,
-      camera_id,
-      width,
-      height,
-      sensor_temperature_celsius,
-      enabled,
-      method,
-      kernel_diameter,
-      save_original,
-    );
-  }
-
-  late final _wire__crate__api__imaging__api_sequencer_apply_defect_mapPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint32,
-            ffi.Uint32,
-            ffi.Double,
-            ffi.Bool,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint8,
-            ffi.Bool,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_sequencer_apply_defect_map',
-      );
-  late final _wire__crate__api__imaging__api_sequencer_apply_defect_map =
-      _wire__crate__api__imaging__api_sequencer_apply_defect_mapPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              int,
-              double,
-              bool,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              bool,
-            )
-          >();
 
   void
   wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config(
@@ -14986,17 +15109,17 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__imaging__api_stacking_add_frame(
+  void wire__crate__api__live_stacking__api_stacking_add_frame(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> image_path,
   ) {
-    return _wire__crate__api__imaging__api_stacking_add_frame(
+    return _wire__crate__api__live_stacking__api_stacking_add_frame(
       port_,
       image_path,
     );
   }
 
-  late final _wire__crate__api__imaging__api_stacking_add_framePtr =
+  late final _wire__crate__api__live_stacking__api_stacking_add_framePtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -15005,21 +15128,21 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_add_frame',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame',
       );
-  late final _wire__crate__api__imaging__api_stacking_add_frame =
-      _wire__crate__api__imaging__api_stacking_add_framePtr
+  late final _wire__crate__api__live_stacking__api_stacking_add_frame =
+      _wire__crate__api__live_stacking__api_stacking_add_framePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__imaging__api_stacking_add_frame_from_data(
+  void wire__crate__api__live_stacking__api_stacking_add_frame_from_data(
     int port_,
     int width,
     int height,
     ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
   ) {
-    return _wire__crate__api__imaging__api_stacking_add_frame_from_data(
+    return _wire__crate__api__live_stacking__api_stacking_add_frame_from_data(
       port_,
       width,
       height,
@@ -15027,7 +15150,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__imaging__api_stacking_add_frame_from_dataPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_add_frame_from_dataPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -15038,10 +15161,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_add_frame_from_data',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data',
       );
-  late final _wire__crate__api__imaging__api_stacking_add_frame_from_data =
-      _wire__crate__api__imaging__api_stacking_add_frame_from_dataPtr
+  late final _wire__crate__api__live_stacking__api_stacking_add_frame_from_data =
+      _wire__crate__api__live_stacking__api_stacking_add_frame_from_dataPtr
           .asFunction<
             void Function(
               int,
@@ -15051,77 +15174,79 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  WireSyncRust2DartDco wire__crate__api__imaging__api_stacking_frame_count() {
-    return _wire__crate__api__imaging__api_stacking_frame_count();
+  WireSyncRust2DartDco
+  wire__crate__api__live_stacking__api_stacking_frame_count() {
+    return _wire__crate__api__live_stacking__api_stacking_frame_count();
   }
 
-  late final _wire__crate__api__imaging__api_stacking_frame_countPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_frame_countPtr =
       _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_frame_count',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_frame_count',
       );
-  late final _wire__crate__api__imaging__api_stacking_frame_count =
-      _wire__crate__api__imaging__api_stacking_frame_countPtr
+  late final _wire__crate__api__live_stacking__api_stacking_frame_count =
+      _wire__crate__api__live_stacking__api_stacking_frame_countPtr
           .asFunction<WireSyncRust2DartDco Function()>();
 
-  void wire__crate__api__imaging__api_stacking_get_result(int port_) {
-    return _wire__crate__api__imaging__api_stacking_get_result(port_);
+  void wire__crate__api__live_stacking__api_stacking_get_result(int port_) {
+    return _wire__crate__api__live_stacking__api_stacking_get_result(port_);
   }
 
-  late final _wire__crate__api__imaging__api_stacking_get_resultPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_get_resultPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_get_result',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_result',
       );
-  late final _wire__crate__api__imaging__api_stacking_get_result =
-      _wire__crate__api__imaging__api_stacking_get_resultPtr
+  late final _wire__crate__api__live_stacking__api_stacking_get_result =
+      _wire__crate__api__live_stacking__api_stacking_get_resultPtr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__imaging__api_stacking_get_stats(int port_) {
-    return _wire__crate__api__imaging__api_stacking_get_stats(port_);
+  void wire__crate__api__live_stacking__api_stacking_get_stats(int port_) {
+    return _wire__crate__api__live_stacking__api_stacking_get_stats(port_);
   }
 
-  late final _wire__crate__api__imaging__api_stacking_get_statsPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_get_statsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_get_stats',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats',
       );
-  late final _wire__crate__api__imaging__api_stacking_get_stats =
-      _wire__crate__api__imaging__api_stacking_get_statsPtr
+  late final _wire__crate__api__live_stacking__api_stacking_get_stats =
+      _wire__crate__api__live_stacking__api_stacking_get_statsPtr
           .asFunction<void Function(int)>();
 
-  WireSyncRust2DartDco wire__crate__api__imaging__api_stacking_is_active() {
-    return _wire__crate__api__imaging__api_stacking_is_active();
+  WireSyncRust2DartDco
+  wire__crate__api__live_stacking__api_stacking_is_active() {
+    return _wire__crate__api__live_stacking__api_stacking_is_active();
   }
 
-  late final _wire__crate__api__imaging__api_stacking_is_activePtr =
+  late final _wire__crate__api__live_stacking__api_stacking_is_activePtr =
       _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_is_active',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_is_active',
       );
-  late final _wire__crate__api__imaging__api_stacking_is_active =
-      _wire__crate__api__imaging__api_stacking_is_activePtr
+  late final _wire__crate__api__live_stacking__api_stacking_is_active =
+      _wire__crate__api__live_stacking__api_stacking_is_activePtr
           .asFunction<WireSyncRust2DartDco Function()>();
 
-  void wire__crate__api__imaging__api_stacking_reset(int port_) {
-    return _wire__crate__api__imaging__api_stacking_reset(port_);
+  void wire__crate__api__live_stacking__api_stacking_reset(int port_) {
+    return _wire__crate__api__live_stacking__api_stacking_reset(port_);
   }
 
-  late final _wire__crate__api__imaging__api_stacking_resetPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_resetPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_reset',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset',
       );
-  late final _wire__crate__api__imaging__api_stacking_reset =
-      _wire__crate__api__imaging__api_stacking_resetPtr
+  late final _wire__crate__api__live_stacking__api_stacking_reset =
+      _wire__crate__api__live_stacking__api_stacking_resetPtr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__imaging__api_stacking_save_master_fits(
+  void wire__crate__api__live_stacking__api_stacking_save_master_fits(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
   ) {
-    return _wire__crate__api__imaging__api_stacking_save_master_fits(
+    return _wire__crate__api__live_stacking__api_stacking_save_master_fits(
       port_,
       file_path,
     );
   }
 
-  late final _wire__crate__api__imaging__api_stacking_save_master_fitsPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_save_master_fitsPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -15130,27 +15255,27 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_save_master_fits',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_save_master_fits',
       );
-  late final _wire__crate__api__imaging__api_stacking_save_master_fits =
-      _wire__crate__api__imaging__api_stacking_save_master_fitsPtr
+  late final _wire__crate__api__live_stacking__api_stacking_save_master_fits =
+      _wire__crate__api__live_stacking__api_stacking_save_master_fitsPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__imaging__api_stacking_start(
+  void wire__crate__api__live_stacking__api_stacking_start(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> reference_image_path,
     ffi.Pointer<wire_cst_api_live_stacking_config> config,
   ) {
-    return _wire__crate__api__imaging__api_stacking_start(
+    return _wire__crate__api__live_stacking__api_stacking_start(
       port_,
       reference_image_path,
       config,
     );
   }
 
-  late final _wire__crate__api__imaging__api_stacking_startPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_startPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -15159,9 +15284,11 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_api_live_stacking_config>,
           )
         >
-      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_start');
-  late final _wire__crate__api__imaging__api_stacking_start =
-      _wire__crate__api__imaging__api_stacking_startPtr
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_start =
+      _wire__crate__api__live_stacking__api_stacking_startPtr
           .asFunction<
             void Function(
               int,
@@ -15170,14 +15297,14 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__imaging__api_stacking_start_from_data(
+  void wire__crate__api__live_stacking__api_stacking_start_from_data(
     int port_,
     int width,
     int height,
     ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
     ffi.Pointer<wire_cst_api_live_stacking_config> config,
   ) {
-    return _wire__crate__api__imaging__api_stacking_start_from_data(
+    return _wire__crate__api__live_stacking__api_stacking_start_from_data(
       port_,
       width,
       height,
@@ -15186,7 +15313,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__imaging__api_stacking_start_from_dataPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_start_from_dataPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -15198,10 +15325,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_start_from_data',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_from_data',
       );
-  late final _wire__crate__api__imaging__api_stacking_start_from_data =
-      _wire__crate__api__imaging__api_stacking_start_from_dataPtr
+  late final _wire__crate__api__live_stacking__api_stacking_start_from_data =
+      _wire__crate__api__live_stacking__api_stacking_start_from_dataPtr
           .asFunction<
             void Function(
               int,
@@ -15212,16 +15339,16 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__imaging__api_stacking_stop(int port_) {
-    return _wire__crate__api__imaging__api_stacking_stop(port_);
+  void wire__crate__api__live_stacking__api_stacking_stop(int port_) {
+    return _wire__crate__api__live_stacking__api_stacking_stop(port_);
   }
 
-  late final _wire__crate__api__imaging__api_stacking_stopPtr =
+  late final _wire__crate__api__live_stacking__api_stacking_stopPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_stop',
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop',
       );
-  late final _wire__crate__api__imaging__api_stacking_stop =
-      _wire__crate__api__imaging__api_stacking_stopPtr
+  late final _wire__crate__api__live_stacking__api_stacking_stop =
+      _wire__crate__api__live_stacking__api_stacking_stopPtr
           .asFunction<void Function(int)>();
 
   void
@@ -15584,19 +15711,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__imaging__api_update_frame_cards(
+  void wire__crate__api__frame_file__api_update_frame_cards(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
     ffi.Pointer<wire_cst_list_frame_card_update> cards,
   ) {
-    return _wire__crate__api__imaging__api_update_frame_cards(
+    return _wire__crate__api__frame_file__api_update_frame_cards(
       port_,
       file_path,
       cards,
     );
   }
 
-  late final _wire__crate__api__imaging__api_update_frame_cardsPtr =
+  late final _wire__crate__api__frame_file__api_update_frame_cardsPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -15606,10 +15733,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_update_frame_cards',
+        'frbgen_skotiq_bridge_wire__crate__api__frame_file__api_update_frame_cards',
       );
-  late final _wire__crate__api__imaging__api_update_frame_cards =
-      _wire__crate__api__imaging__api_update_frame_cardsPtr
+  late final _wire__crate__api__frame_file__api_update_frame_cards =
+      _wire__crate__api__frame_file__api_update_frame_cardsPtr
           .asFunction<
             void Function(
               int,
@@ -15634,6 +15761,40 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__storage__api_update_settingsPtr
           .asFunction<
             WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_app_settings>)
+          >();
+
+  void wire__crate__api__frame_file__api_write_frame_wcs(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
+    ffi.Pointer<wire_cst_frame_wcs> wcs,
+  ) {
+    return _wire__crate__api__frame_file__api_write_frame_wcs(
+      port_,
+      file_path,
+      wcs,
+    );
+  }
+
+  late final _wire__crate__api__frame_file__api_write_frame_wcsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_frame_wcs>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__frame_file__api_write_frame_wcs',
+      );
+  late final _wire__crate__api__frame_file__api_write_frame_wcs =
+      _wire__crate__api__frame_file__api_write_frame_wcsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_frame_wcs>,
+            )
           >();
 
   void wire__crate__api__devices__camera__get_camera_status(
@@ -16498,6 +16659,17 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_frame_capture_metadata> Function()
           >();
 
+  ffi.Pointer<wire_cst_frame_wcs> cst_new_box_autoadd_frame_wcs() {
+    return _cst_new_box_autoadd_frame_wcs();
+  }
+
+  late final _cst_new_box_autoadd_frame_wcsPtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<wire_cst_frame_wcs> Function()>>(
+        'frbgen_skotiq_bridge_cst_new_box_autoadd_frame_wcs',
+      );
+  late final _cst_new_box_autoadd_frame_wcs = _cst_new_box_autoadd_frame_wcsPtr
+      .asFunction<ffi.Pointer<wire_cst_frame_wcs> Function()>();
+
   ffi.Pointer<wire_cst_guiding_event> cst_new_box_autoadd_guiding_event() {
     return _cst_new_box_autoadd_guiding_event();
   }
@@ -17075,6 +17247,19 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_focus_data_point = _cst_new_list_focus_data_pointPtr
       .asFunction<ffi.Pointer<wire_cst_list_focus_data_point> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_frame_card> cst_new_list_frame_card(int len) {
+    return _cst_new_list_frame_card(len);
+  }
+
+  late final _cst_new_list_frame_cardPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_frame_card> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_frame_card');
+  late final _cst_new_list_frame_card = _cst_new_list_frame_cardPtr
+      .asFunction<ffi.Pointer<wire_cst_list_frame_card> Function(int)>();
+
   ffi.Pointer<wire_cst_list_frame_card_update> cst_new_list_frame_card_update(
     int len,
   ) {
@@ -17450,13 +17635,6 @@ final class wire_cst_stretch_params_api extends ffi.Struct {
 }
 
 final class wire_cst_list_prim_u_16_loose extends ffi.Struct {
-  external ffi.Pointer<ffi.Uint16> ptr;
-
-  @ffi.Int32()
-  external int len;
-}
-
-final class wire_cst_list_prim_u_16_strict extends ffi.Struct {
   external ffi.Pointer<ffi.Uint16> ptr;
 
   @ffi.Int32()
@@ -17942,6 +18120,59 @@ final class wire_cst_app_settings extends ffi.Struct {
 
   @ffi.Bool()
   external bool auto_connect;
+}
+
+final class wire_cst_list_prim_f_64_strict extends ffi.Struct {
+  external ffi.Pointer<ffi.Double> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
+final class wire_cst_frame_wcs extends ffi.Struct {
+  @ffi.Double()
+  external double crval1;
+
+  @ffi.Double()
+  external double crval2;
+
+  @ffi.Double()
+  external double crpix1;
+
+  @ffi.Double()
+  external double crpix2;
+
+  @ffi.Double()
+  external double cd1_1;
+
+  @ffi.Double()
+  external double cd1_2;
+
+  @ffi.Double()
+  external double cd2_1;
+
+  @ffi.Double()
+  external double cd2_2;
+
+  @ffi.Uint32()
+  external int a_order;
+
+  @ffi.Uint32()
+  external int b_order;
+
+  external ffi.Pointer<wire_cst_list_prim_f_64_strict> a_coeffs;
+
+  external ffi.Pointer<wire_cst_list_prim_f_64_strict> b_coeffs;
+
+  @ffi.Uint32()
+  external int ap_order;
+
+  @ffi.Uint32()
+  external int bp_order;
+
+  external ffi.Pointer<wire_cst_list_prim_f_64_strict> ap_coeffs;
+
+  external ffi.Pointer<wire_cst_list_prim_f_64_strict> bp_coeffs;
 }
 
 final class wire_cst_api_defect_map_status extends ffi.Struct {
@@ -20161,6 +20392,21 @@ final class wire_cst_list_focus_data_point extends ffi.Struct {
   external int len;
 }
 
+final class wire_cst_frame_card extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> keyword;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> text;
+
+  external ffi.Pointer<ffi.Double> number;
+}
+
+final class wire_cst_list_frame_card extends ffi.Struct {
+  external ffi.Pointer<wire_cst_frame_card> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_mount_guard_status extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
 
@@ -20181,8 +20427,8 @@ final class wire_cst_list_mount_guard_status extends ffi.Struct {
   external int len;
 }
 
-final class wire_cst_list_prim_f_64_strict extends ffi.Struct {
-  external ffi.Pointer<ffi.Double> ptr;
+final class wire_cst_list_prim_u_16_strict extends ffi.Struct {
+  external ffi.Pointer<ffi.Uint16> ptr;
 
   @ffi.Int32()
   external int len;
@@ -20929,6 +21175,12 @@ final class wire_cst_focuser_status extends ffi.Struct {
 
   @ffi.Bool()
   external bool has_temperature;
+}
+
+final class wire_cst_frame_header_read extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_frame_card> cards;
+
+  external ffi.Pointer<wire_cst_frame_wcs> wcs;
 }
 
 final class wire_cst_guide_star_image extends ffi.Struct {

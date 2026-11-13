@@ -485,6 +485,7 @@ void main() {
       darkroom: darkroom,
       photometry: DawnPhotometryResolver(
         coneSearch: (centre, radius, {maxMagnitude}) async => catalog,
+        readHeader: (_) async => FrameHeader(const {}),
       ),
       delivery: DeliveryService(
         targets: DeliveryTargetsDao(db),
@@ -1724,6 +1725,7 @@ void main() {
       darkroom: crashDarkroom,
       photometry: DawnPhotometryResolver(
         coneSearch: (centre, radius, {maxMagnitude}) async => const [],
+        readHeader: (_) async => FrameHeader(const {}),
       ),
       delivery: DeliveryService(
         targets: DeliveryTargetsDao(second),

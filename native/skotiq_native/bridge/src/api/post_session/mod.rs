@@ -12,9 +12,9 @@ use skotiq_processing::post_session::report::{report_to, PassReport};
 
 pub mod entrypoints;
 
-/// Puts what a running pass reports on the event bus, where Dart reads it as
-/// `IntegrationProgress` and `IntegrationTelemetry`.
-fn publish_pass_reports() {
+/// Puts what every running pass reports on the event bus, where Dart reads it
+/// as `IntegrationProgress` and `IntegrationTelemetry`.
+pub(crate) fn publish_pass_reports() {
     report_to(publish);
 }
 

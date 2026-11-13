@@ -39,14 +39,6 @@ class _ControlledDefectMapService extends DefectMapService {
   }
 
   @override
-  Future<void> apply({
-    required String cameraId,
-    required bool applyDuringCapture,
-  }) async {
-    calls.add('preference:$applyDuringCapture');
-  }
-
-  @override
   Future<DefectMapStatus?> getStatus({
     required String cameraId,
     required int width,
@@ -66,6 +58,9 @@ class _ControlledDefectMapService extends DefectMapService {
     required bool saveOriginal,
   }) async {
     calls.add('runtime:$enabled:${method.wireValue}:${kernel.diameter}');
+    if (enabled && currentStatus?.storedOnDisk != true) {
+      throw StateError('No defect map is stored for $cameraId.');
+    }
   }
 }
 
@@ -178,7 +173,13 @@ void main() {
       darkFramePaths: const ['/dark-1.fits'],
       sensorTemperatureCelsius: -10,
     );
-    await notifier.setApplyDuringCapture(cameraId: 'camera', apply: true);
+    await notifier.setApplyDuringCapture(
+      cameraId: 'camera',
+      apply: false,
+      width: 100,
+      height: 100,
+      sensorTemperatureCelsius: -10,
+    );
     expect(container.read(defectMapNotifierProvider).isBuilding, isTrue);
 
     service.buildGates.single.complete(_status(33));
@@ -188,7 +189,7 @@ void main() {
     expect(state.statusMessage, contains('33 defective pixels'));
   });
 
-  test('missing current-bucket map cannot persist an enabled toggle', () async {
+  test('enabling without a stored map shows the refusal', () async {
     late _ControlledDefectMapService service;
     final container = ProviderContainer(
       overrides: [
@@ -214,14 +215,14 @@ void main() {
           sensorTemperatureCelsius: -10,
         );
 
-    expect(service.calls, isEmpty);
+    expect(service.calls, ['runtime:true:median:3']);
     expect(
       container.read(defectMapNotifierProvider).errorMessage,
-      contains('No defect map exists'),
+      contains('No defect map is stored'),
     );
   });
 
-  test('disabling clears runtime before persisting the preference', () async {
+  test('disabling turns correction off in one call', () async {
     late _ControlledDefectMapService service;
     final container = ProviderContainer(
       overrides: [
@@ -247,7 +248,7 @@ void main() {
           sensorTemperatureCelsius: -10,
         );
 
-    expect(service.calls, ['runtime:false:median:3', 'preference:false']);
+    expect(service.calls, ['runtime:false:median:3']);
   });
 
   test(

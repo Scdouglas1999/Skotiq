@@ -3,10 +3,14 @@
 //! The fake (`tests/fake_sdk_linux/gphoto2_independent.c`) was written from
 //! libgphoto2 2.5.34 (its headers and the sources of the widget, abilities and
 //! camera code and of the ptp2 camlib's config.c and library.c) and the INDI gphoto
-//! driver, separately from the driver and from `gphoto2_fake_sdk.rs`. Run with
-//! `tests/fake_sdk_linux/run_gphoto2_independent.sh`.
+//! driver, separately from the driver and from `gphoto2_fake_sdk.rs`. The fake
+//! keeps its cameras in static state, so the tests run in one child process, one
+//! at a time.
 
 #![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{
     BayerPattern, CameraDriver, DeviceDriver, ExposureParams, FrameType, LongExposureNoiseReduction,
@@ -14,6 +18,12 @@ use skotiq_device::{
 use skotiq_native::vendor::gphoto2::GPhoto2Camera;
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::sync::OnceLock;
+
+#[test]
+fn gphoto2_driver_against_the_independent_fake() {
+    harness::FakeSdk::build("gphoto2_independent", &[harness::GPHOTO2_INDEPENDENT])
+        .run_ignored("", &[]);
+}
 
 struct Fake {
     _lib: libloading::Library,
@@ -145,7 +155,7 @@ async fn expose(
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn each_of_two_bodies_opens_on_its_own_port() {
     let f = fake();
     f.reset();
@@ -160,7 +170,7 @@ fn each_of_two_bodies_opens_on_its_own_port() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn a_replugged_body_is_found_on_its_new_port() {
     let f = fake();
     f.reset();
@@ -172,7 +182,7 @@ fn a_replugged_body_is_found_on_its_new_port() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn the_gain_is_the_body_iso_read_at_connect_and_its_own_list() {
     let f = fake();
     f.reset();
@@ -201,7 +211,7 @@ fn the_gain_is_the_body_iso_read_at_connect_and_its_own_list() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn long_exposure_noise_reduction_is_switched_off_at_connect() {
     let f = fake();
     f.reset();
@@ -229,7 +239,7 @@ fn long_exposure_noise_reduction_is_switched_off_at_connect() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn a_timed_frame_records_the_speed_and_iso_the_camera_used() {
     let f = fake();
     f.reset();
@@ -254,7 +264,7 @@ fn a_timed_frame_records_the_speed_and_iso_the_camera_used() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn a_sub_second_request_between_speeds_takes_the_nearest_speed_not_bulb() {
     let f = fake();
     f.reset();
@@ -275,7 +285,7 @@ fn a_sub_second_request_between_speeds_takes_the_nearest_speed_not_bulb() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn canon_bulb_presses_and_releases_eosremoterelease_and_records_the_open_time() {
     let f = fake();
     f.reset();
@@ -299,7 +309,7 @@ fn canon_bulb_presses_and_releases_eosremoterelease_and_records_the_open_time() 
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn nikon_bulb_uses_the_bulb_toggle_with_shutterspeed2_on_bulb() {
     let f = fake();
     f.reset();
@@ -323,7 +333,7 @@ fn nikon_bulb_uses_the_bulb_toggle_with_shutterspeed2_on_bulb() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn nikon_shutterspeed2_fractions_are_read_as_seconds() {
     let f = fake();
     f.reset();
@@ -342,7 +352,7 @@ fn nikon_shutterspeed2_fractions_are_read_as_seconds() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn a_frame_kept_on_the_memory_card_stays_there() {
     let f = fake();
     f.reset();
@@ -367,7 +377,7 @@ fn a_frame_kept_on_the_memory_card_stays_there() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn a_frame_in_the_camera_memory_is_deleted_after_it_is_read() {
     let f = fake();
     f.reset();
@@ -385,7 +395,7 @@ fn a_frame_in_the_camera_memory_is_deleted_after_it_is_read() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn a_body_with_no_pure_raw_reads_the_raw_of_its_raw_and_jpeg_pair() {
     let f = fake();
     f.reset();
@@ -412,7 +422,7 @@ fn a_body_with_no_pure_raw_reads_the_raw_of_its_raw_and_jpeg_pair() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn a_long_request_with_no_bulb_in_the_mode_says_to_turn_the_dial() {
     let f = fake();
     f.reset();
@@ -427,7 +437,7 @@ fn a_long_request_with_no_bulb_in_the_mode_says_to_turn_the_dial() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn an_aborted_bulb_frame_is_closed_and_discarded() {
     let f = fake();
     f.reset();
@@ -447,7 +457,7 @@ fn an_aborted_bulb_frame_is_closed_and_discarded() {
 }
 
 #[test]
-#[ignore = "needs the independent fake libgphoto2; run_gphoto2_independent.sh"]
+#[ignore = "run by gphoto2_driver_against_the_independent_fake"]
 fn a_body_unplugged_between_frames_fails_its_next_exposure_in_words() {
     let f = fake();
     f.reset();

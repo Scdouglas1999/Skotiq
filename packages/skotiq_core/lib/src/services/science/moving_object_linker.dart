@@ -1,11 +1,11 @@
-import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 
 import '../../models/science/science_models.dart';
 import '../../utils/utc_timestamp.dart';
-import '../calibration/fits_header_reader.dart';
+import '../frame_header.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show SkotiqError;
 
 /// Image size and timing from a frame's header, read without decoding the
 /// pixels.
@@ -38,28 +38,20 @@ class FitsFrameSummary {
 /// Read the header of the FITS or XISF frame at [path]; null when the file is
 /// not a readable frame.
 Future<FitsFrameSummary?> readFitsFrameSummary(String path) async {
-  final Map<String, String> cards;
+  final FrameHeader header;
   try {
-    cards = await const FitsHeaderReader().readPrimaryHeader(path);
-  } on FileSystemException {
-    return null;
-  } on FormatException {
+    header = await readFrameHeader(path);
+  } on SkotiqError {
     return null;
   }
-  final w = FitsHeaderReader.intValue(cards, 'NAXIS1');
-  final h = FitsHeaderReader.intValue(cards, 'NAXIS2');
-  if (w == null || h == null) return null;
+  final size = header.imageSize;
+  if (size == null) return null;
   return FitsFrameSummary(
-    width: w,
-    height: h,
-    dateObs: tryParseUtcTimestamp(
-      FitsHeaderReader.stringValue(cards, 'DATE-OBS'),
-    ),
-    exposureSeconds: FitsHeaderReader.firstDouble(cards, const [
-      'EXPTIME',
-      'EXPOSURE',
-    ]),
-    filter: FitsHeaderReader.stringValue(cards, 'FILTER'),
+    width: size.width,
+    height: size.height,
+    dateObs: tryParseUtcTimestamp(header.string('DATE-OBS')),
+    exposureSeconds: header.firstNumber(const ['EXPTIME', 'EXPOSURE']),
+    filter: header.string('FILTER'),
   );
 }
 

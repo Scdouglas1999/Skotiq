@@ -52,41 +52,15 @@ class CatalogOverlayQuery {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is CatalogOverlayQuery &&
-        wcs.raHours == other.wcs.raHours &&
-        wcs.decDegrees == other.wcs.decDegrees &&
-        wcs.rotationDeg == other.wcs.rotationDeg &&
-        wcs.pixelScaleArcsec == other.wcs.pixelScaleArcsec &&
-        wcs.imageWidth == other.wcs.imageWidth &&
-        wcs.imageHeight == other.wcs.imageHeight &&
-        wcs.cd1_1 == other.wcs.cd1_1 &&
-        wcs.cd1_2 == other.wcs.cd1_2 &&
-        wcs.cd2_1 == other.wcs.cd2_1 &&
-        wcs.cd2_2 == other.wcs.cd2_2 &&
-        wcs.mirrored == other.wcs.mirrored &&
-        wcs.aOrder == other.wcs.aOrder &&
+        wcs == other.wcs &&
         magnitudeLimit == other.magnitudeLimit &&
         includeStars == other.includeStars &&
         includeDsos == other.includeDsos;
   }
 
   @override
-  int get hashCode => Object.hash(
-    wcs.raHours,
-    wcs.decDegrees,
-    wcs.rotationDeg,
-    wcs.pixelScaleArcsec,
-    wcs.imageWidth,
-    wcs.imageHeight,
-    wcs.cd1_1,
-    wcs.cd1_2,
-    wcs.cd2_1,
-    wcs.cd2_2,
-    wcs.mirrored,
-    wcs.aOrder,
-    magnitudeLimit,
-    includeStars,
-    includeDsos,
-  );
+  int get hashCode =>
+      Object.hash(wcs, magnitudeLimit, includeStars, includeDsos);
 }
 
 /// Future provider that runs the catalog overlay query asynchronously

@@ -18,14 +18,6 @@ use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
 use crate::protocol::{names::*, CcdFrameType};
 
-/// Bayer / CFA pattern parsed from INDI `CCD_CFA`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IndiBayerPattern {
-    pub pattern: String,
-    pub offset_x: Option<i32>,
-    pub offset_y: Option<i32>,
-}
-
 /// Active CCD readout mode (element name + on-state).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndiReadoutMode {
@@ -302,6 +294,7 @@ impl IndiCamera {
         let mut client = self.client.write().await;
         client.enable_blob(&self.device_name).await
     }
+
     // Sensor information (CCD_INFO property)
 
     /// Get sensor width in pixels
@@ -322,32 +315,6 @@ impl IndiCamera {
             .get_number(&self.device_name, CCD_INFO, CCD_MAX_Y)
             .await
             // Why: INDI wire f64 -> i32 sensor height. Same bounds as width.
-            .map(|v| v as i32)
-    }
-
-    /// Get pixel size X in microns
-    pub async fn get_pixel_size_x(&self) -> Option<f64> {
-        let client = self.client.read().await;
-        client
-            .get_number(&self.device_name, CCD_INFO, CCD_PIXEL_SIZE_X)
-            .await
-    }
-
-    /// Get pixel size Y in microns
-    pub async fn get_pixel_size_y(&self) -> Option<f64> {
-        let client = self.client.read().await;
-        client
-            .get_number(&self.device_name, CCD_INFO, CCD_PIXEL_SIZE_Y)
-            .await
-    }
-
-    pub async fn get_bits_per_pixel(&self) -> Option<i32> {
-        let client = self.client.read().await;
-        client
-            .get_number(&self.device_name, CCD_INFO, CCD_BITSPERPIXEL)
-            .await
-            // Why: INDI wire f64 -> i32 bit depth (typically 8/10/12/14/16/32).
-            // f64 -> i32 saturates per Rust 1.45 spec.
             .map(|v| v as i32)
     }
 
@@ -458,70 +425,6 @@ impl IndiCamera {
             limits.min.map(|v| v as i32).unwrap_or(0),
             limits.max.map(|v| v as i32).unwrap_or(0),
         ))
-    }
-
-    /// Maximum ADU from `CCD_MAX_PIXEL_VALUE` or `CCD_INFO/CCD_MAX_PIXEL`.
-    pub async fn get_max_adu(&self) -> Option<i32> {
-        let client = self.client.read().await;
-        if let Some(v) = client
-            .get_number(&self.device_name, CCD_MAX_PIXEL_VALUE, CCD_MAX_PIXEL_VALUE)
-            .await
-        {
-            return Some(v as i32);
-        }
-        client
-            .get_number(&self.device_name, CCD_INFO, CCD_MAX_PIXEL)
-            .await
-            .map(|v| v as i32)
-    }
-
-    /// Sensor type from `CCD_SENSOR_TYPE` (first switch that is On).
-    pub async fn get_sensor_type(&self) -> Option<String> {
-        let client = self.client.read().await;
-        let prop = client
-            .get_property(&self.device_name, CCD_SENSOR_TYPE)
-            .await?;
-        for element in &prop.elements {
-            if client
-                .get_switch(&self.device_name, CCD_SENSOR_TYPE, element)
-                .await
-                .unwrap_or(false)
-            {
-                return Some(element.clone());
-            }
-        }
-        None
-    }
-
-    /// Bayer pattern from `CCD_CFA` or legacy `CCD_BAYER_PATTERN`.
-    pub async fn get_bayer_pattern(&self) -> Option<IndiBayerPattern> {
-        let client = self.client.read().await;
-        if client.has_property(&self.device_name, CCD_CFA).await {
-            let pattern = client
-                .get_property_value(&self.device_name, CCD_CFA, CFA_TYPE)
-                .await?;
-            let offset_x = client
-                .get_number(&self.device_name, CCD_CFA, CFA_OFFSET_X)
-                .await
-                .map(|v| v as i32);
-            let offset_y = client
-                .get_number(&self.device_name, CCD_CFA, CFA_OFFSET_Y)
-                .await
-                .map(|v| v as i32);
-            return Some(IndiBayerPattern {
-                pattern,
-                offset_x,
-                offset_y,
-            });
-        }
-        client
-            .get_property_value(&self.device_name, CCD_BAYER_PATTERN, BAYERPAT)
-            .await
-            .map(|pattern| IndiBayerPattern {
-                pattern,
-                offset_x: None,
-                offset_y: None,
-            })
     }
 
     /// Available readout modes from `CCD_READ_MODE` or `CCD_READOUT_MODE`.

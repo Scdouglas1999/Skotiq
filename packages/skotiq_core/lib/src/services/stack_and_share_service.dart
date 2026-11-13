@@ -229,14 +229,10 @@ class StackAndShareService {
       _ensureSameHost();
       final targetId = session?.targetId;
 
-      // Pre-resolve calibration inputs once when calibration is enabled: the
-      // master flat / bias are shared across every frame, so load them a single
-      // time rather than per-frame.
-      _CalibrationContext? calibration;
-      if (config.applyCalibration) {
-        calibration = await _buildCalibrationContext();
-        _ensureSameHost();
-      }
+      // The master flat / bias are shared across every frame.
+      final calibration = config.applyCalibration
+          ? _buildCalibrationContext()
+          : null;
 
       // Resolve the OSC / colour intent ONCE for the whole run, off the
       // reference frame, before any engine work. The live stacker fixes the

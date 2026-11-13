@@ -194,17 +194,16 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
 
     // Load calibration masters once (shared across all subs).
     //
-    // DRIZZLE CALIBRATION CONTRACT: the drizzle must calibrate each sub with the
-    // SAME dark/flat/bias the standard integrate pass applied — otherwise the
-    // drizzled FITS that `_runDrizzle` swaps in as THE persisted master would be
-    // a raw, uncalibrated deposit (amp glow, hot pixels, vignetting, dust). We
-    // read the masters with `read_frame` (NOT the auto-debayering `read_image`):
-    // calibration is per-raw-pixel and must run on the same single-channel
-    // geometry the (raw, Bayer or mono) sub carries, before any debayer/warp.
+    // The drizzle calibrates each sub with the same dark/flat/bias, by the same
+    // rule, as the standard integrate pass: the drizzled FITS `_runDrizzle`
+    // keeps as the master must not be an uncalibrated deposit. Calibration runs
+    // on the raw (Bayer or mono) sub, before any debayer or warp.
     let calibrate = args.calibration.is_active();
-    let dark = load_optional_master(&args.calibration.dark, "dark")?;
-    let flat = load_optional_flat_raw(&args.calibration.flat)?;
-    let bias = load_optional_master(&args.calibration.bias, "bias")?;
+    let masters = crate::post_session::LightCalibration::load(
+        &args.calibration.dark,
+        &args.calibration.flat,
+        &args.calibration.bias,
+    )?;
 
     // The native `DrizzleFrame`/`BayerDrizzleFrame` borrow their pixel buffer
     // and transform by reference (`&'a [f64]`, `&'a TransformModel`). We must
@@ -245,23 +244,13 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
             patterns.push(geometry.effective);
         }
 
-        // Calibrate the (raw) sub before depositing its drops.
-        //
-        // Same helpers `integrate_session` uses: dark/flat/bias via
-        // `calibrate_frame`, then the per-sub self-derived cosmetic repair. This
-        // runs on the raw single-channel (Bayer) or RGB/mono buffer, before the
-        // drizzle warp, so a hot pixel / pedestal / vignette is removed once, at
-        // the source — exactly as the standard integrate pass does it. Without
-        // this, `_runDrizzle` would persist an UNcalibrated master as canonical.
+        // Calibrate the raw sub, then the per-sub cosmetic repair, before
+        // depositing its drops, as `integrate_session` does.
         if calibrate {
-            if dark.is_some() || flat.is_some() || bias.is_some() {
-                image = crate::post_session::helpers::calibrate_with_flat_state(
-                    &image,
-                    dark.as_ref(),
-                    flat.as_ref(),
-                    bias.as_ref(),
-                )
-                .map_err(|e| format!("calibration of '{}' failed: {e}", fa.fits_path))?;
+            if !masters.is_empty() {
+                image = masters
+                    .apply(&image)
+                    .map_err(|e| format!("calibration of '{}' failed: {e}", fa.fits_path))?;
             }
             if args.calibration.cosmetic_correction {
                 // Operates per-channel in place; the report is advisory.
@@ -485,44 +474,6 @@ fn decode_image_f64(image: &ImageData, path: &str) -> Result<Vec<f64>, String> {
 }
 
 // Shared helpers
-
-/// Read an optional calibration master by path. Empty / `None` → `Ok(None)`.
-///
-/// Reads with [`read_frame`] (NOT the auto-debayering `read_image`): the drizzle
-/// calibration runs on the raw, single-channel (Bayer) or RGB/mono sub geometry,
-/// so the master must keep the same raw layout. Mirrors the `load_optional_master`
-/// in [`crate::post_session`]; duplicated here so this module stays
-/// self-contained (its sibling is private to that module).
-fn load_optional_master(path: &Option<String>, label: &str) -> Result<Option<ImageData>, String> {
-    match path {
-        Some(p) if !p.trim().is_empty() => {
-            let (image, _header) = read_frame(Path::new(p))
-                .map_err(|e| format!("failed to read {label} master '{p}': {e:?}"))?;
-            Ok(Some(image))
-        }
-        _ => Ok(None),
-    }
-}
-
-/// [`load_optional_master`] for a flat, keeping whether its pedestal is
-/// already removed (read from its header) so a corrected master flat is not
-/// bias-subtracted again.
-fn load_optional_flat_raw(
-    path: &Option<String>,
-) -> Result<Option<crate::post_session::helpers::FlatMaster>, String> {
-    match path {
-        Some(p) if !p.trim().is_empty() => {
-            let (image, header) = read_frame(Path::new(p))
-                .map_err(|e| format!("failed to read flat master '{p}': {e:?}"))?;
-            let pedestal = crate::post_session::masters::flat_pedestal_state(&image, Some(&header));
-            Ok(Some(crate::post_session::helpers::FlatMaster {
-                image,
-                pedestal,
-            }))
-        }
-        _ => Ok(None),
-    }
-}
 
 #[cfg(test)]
 mod tests {

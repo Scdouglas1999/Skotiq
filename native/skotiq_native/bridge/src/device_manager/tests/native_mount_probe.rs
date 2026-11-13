@@ -103,8 +103,8 @@ impl MountDriver for SerialMount {
     async fn can_pulse_guide(&self) -> bool {
         true
     }
-    async fn can_set_tracking_rate(&self) -> bool {
-        true
+    async fn tracking_rates(&self) -> Vec<TrackingRate> {
+        vec![TrackingRate::Sidereal]
     }
     async fn get_side_of_pier(&self) -> Result<PierSide, DriverError> {
         Ok(PierSide::Unknown)

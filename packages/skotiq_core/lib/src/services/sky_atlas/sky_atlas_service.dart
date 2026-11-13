@@ -10,7 +10,8 @@ import '../../database/database.dart';
 import '../../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
 import '../../settings/store_settings.dart';
 import '../logging_service.dart';
-import '../wcs/gnomonic_projection.dart';
+import '../../database/daos/images_dao.dart' show StoredWcsDistortion;
+import '../wcs/plate_solve_data_from_result.dart' show storedFrameWcs;
 import 'sky_atlas_models.dart';
 import 'sky_atlas_seam.dart';
 import '../../utils/skotiq_data_directory.dart';
@@ -396,7 +397,7 @@ class SkyAtlasService {
     required DbCapturedImage image,
     required int imageWidth,
     required int imageHeight,
-    SolvedWcsDistortion distortion = const SolvedWcsDistortion(),
+    StoredWcsDistortion? distortion,
     AtlasInterp interp = AtlasInterp.lanczos3,
   }) async {
     final enabled = _autoFoldEnabled;
@@ -406,37 +407,14 @@ class SkyAtlasService {
     // A rejected frame (trailed, clouded, defocused) would degrade the deep
     // template every later frame is compared against.
     if (!image.isAccepted) return null;
-    if (!image.isPlateSolved ||
-        image.solvedRa == null ||
-        image.solvedDec == null) {
-      return null;
-    }
     if (image.filePath.trim().isEmpty) return null;
-    if (imageWidth <= 0 || imageHeight <= 0) return null;
-
-    final solvedWcs = SolvedWcs(
-      raHours: image.solvedRa!,
-      decDegrees: image.solvedDec!,
-      rotationDeg: image.solvedRotation ?? 0.0,
-      pixelScaleArcsec: image.solvedPixelScale ?? 0.0,
+    final solvedWcs = storedFrameWcs(
+      image,
+      stored: distortion,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      cd1_1: distortion.cd1_1,
-      cd1_2: distortion.cd1_2,
-      cd2_1: distortion.cd2_1,
-      cd2_2: distortion.cd2_2,
-      aOrder: distortion.aOrder,
-      bOrder: distortion.bOrder,
-      aCoeffs: distortion.aCoeffs,
-      bCoeffs: distortion.bCoeffs,
-      apOrder: distortion.apOrder,
-      bpOrder: distortion.bpOrder,
-      apCoeffs: distortion.apCoeffs,
-      bpCoeffs: distortion.bpCoeffs,
     );
-    // A solve with neither a CD matrix nor a positive pixel scale cannot yield
-    // an invertible geometry; skip rather than feeding the native fold garbage.
-    if (!solvedWcs.hasCdMatrix && solvedWcs.pixelScaleArcsec <= 0) return null;
+    if (solvedWcs == null) return null;
 
     final frame = SolvedFrameRef.fromSolvedWcs(
       framePath: image.filePath,

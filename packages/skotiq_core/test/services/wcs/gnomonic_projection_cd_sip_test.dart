@@ -112,10 +112,16 @@ void main() {
         cd1_2: 0.0,
         cd2_1: 0.0,
         cd2_2: 4.0e-4,
-        aOrder: order,
-        bOrder: order,
-        aCoeffs: aCoeffs,
-        bCoeffs: bCoeffs,
+        sip: (
+          aOrder: order,
+          bOrder: order,
+          aCoeffs: aCoeffs,
+          bCoeffs: bCoeffs,
+          apOrder: 0,
+          bpOrder: 0,
+          apCoeffs: const [],
+          bpCoeffs: const [],
+        ),
       );
       final proj = GnomonicProjection(wcs);
 
@@ -156,14 +162,16 @@ void main() {
         cd1_2: 0.0,
         cd2_1: 0.0,
         cd2_2: 5.5e-4,
-        aOrder: order,
-        bOrder: order,
-        aCoeffs: aCoeffs,
-        bCoeffs: bCoeffs,
-        apOrder: order,
-        bpOrder: order,
-        apCoeffs: apCoeffs,
-        bpCoeffs: bpCoeffs,
+        sip: (
+          aOrder: order,
+          bOrder: order,
+          aCoeffs: aCoeffs,
+          bCoeffs: bCoeffs,
+          apOrder: order,
+          bpOrder: order,
+          apCoeffs: apCoeffs,
+          bpCoeffs: bpCoeffs,
+        ),
       );
       final proj = GnomonicProjection(wcs);
       expect(wcs.hasInverseSip, isTrue);

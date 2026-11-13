@@ -18,7 +18,9 @@ export 'src/models/settings/app_settings.dart';
 export 'src/models/errors/server_error.dart';
 export 'src/models/imaging/imaging_models.dart';
 export 'src/models/imaging/naming_pattern.dart';
+export 'src/models/imaging/fits_keyword_write.dart';
 export 'src/models/imaging/frame_files.dart';
+export 'src/models/imaging/sip_terms.dart';
 export 'src/models/imaging/camera_preset.dart';
 export 'src/models/imaging/auto_stretch_settings.dart';
 // Stack-and-Share Loop (component C7): config, progress, result, export models.
@@ -151,7 +153,6 @@ export 'src/models/backend/platform_capabilities.dart';
 export 'src/models/backend/remote_api_compatibility.dart';
 export 'src/models/backend/backend_connection_state.dart';
 export 'src/models/backend/remote_catalog_models.dart';
-export 'src/models/backend/remote_science_bundle.dart';
 export 'src/models/backend/remote_session_status.dart';
 export 'src/models/backend/remote_stacked_result.dart';
 export 'src/models/backend/remote_update_models.dart';

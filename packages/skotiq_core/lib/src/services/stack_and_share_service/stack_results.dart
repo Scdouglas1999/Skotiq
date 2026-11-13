@@ -100,16 +100,16 @@ class StackedRgbaResult {
 }
 
 /// Per-run, shared calibration inputs: the dark-match tolerances and the
-/// already-loaded master flat / bias pixels (null when not configured).
+/// master flat / bias paths (null when not configured).
 class _CalibrationContext {
   final DarkLibraryMatchTolerances tolerances;
-  final Uint16List? flatData;
-  final Uint16List? biasData;
+  final String? flatPath;
+  final String? biasPath;
 
   const _CalibrationContext({
     required this.tolerances,
-    required this.flatData,
-    required this.biasData,
+    required this.flatPath,
+    required this.biasPath,
   });
 }
 

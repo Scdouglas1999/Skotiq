@@ -347,6 +347,32 @@ pub(crate) fn bayer_from_asi_index(index: i32) -> BayerPattern {
     }
 }
 
+/// Full-scale ADU of a 16-bit pixel container holding samples of a
+/// `bit_depth`-bit ADC, as the ASI-style SDKs (ZWO, Player One, SVBony)
+/// deliver them in their 16-bit raw format.
+///
+/// These SDKs left-justify sub-16-bit samples into the 16-bit buffer, so a
+/// 12-bit ADC produces values that are multiples of 16 spanning `0 ..= 4095 <<
+/// 4` (65520), NOT `0 ..= 4095`. Measured on a live ASI1600MM-Cool: a
+/// nowhere-near-saturated 2 ms frame read min 3856, max 5792, median 4464
+/// (every one a multiple of 16), and a saturated frame clipped at 65504
+/// (`4094 << 4`); an SV305 shows the same signature. Reporting
+/// `(1 << bit_depth) - 1` makes the camera status claim `maxAdu: 4095` for a
+/// camera whose frames reach 65504, a 16x error that puts every
+/// percent-of-full-scale consumer (flat-frame targets above all) out of reach.
+///
+/// `bit_depth >= 16` needs no shift. `bit_depth == 0` means the SDK never
+/// populated the property; the container's own ceiling is the answer then,
+/// not 0, which would say "this camera cannot produce any signal".
+pub(crate) fn raw16_container_max_adu(bit_depth: u32) -> u32 {
+    const CONTAINER_BITS: u32 = 16;
+    const CONTAINER_MAX: u32 = u16::MAX as u32;
+    if bit_depth == 0 || bit_depth >= CONTAINER_BITS {
+        return CONTAINER_MAX;
+    }
+    (((1u32 << bit_depth) - 1) << (CONTAINER_BITS - bit_depth)) & CONTAINER_MAX
+}
+
 /// A raw vendor SDK device handle held by a driver.
 ///
 /// The pointer is opaque: a driver never dereferences it, it only hands it
@@ -461,6 +487,58 @@ mod tests {
         for index in [-1, 0, 1, 2, 3, 4, 99] {
             assert_eq!(bayer_from_asi_index(index), legacy(index));
         }
+    }
+
+    // Pixel-container full scale.
+
+    #[test]
+    fn raw16_container_max_adu_accounts_for_left_justification() {
+        // 12-bit ASI1600MM/ASI183/ASI294, SV305: 4095 << 4.
+        assert_eq!(raw16_container_max_adu(12), 65520);
+        // 14-bit ASI2600/ASI6200: 16383 << 2.
+        assert_eq!(raw16_container_max_adu(14), 65532);
+        // 10-bit: 1023 << 6.
+        assert_eq!(raw16_container_max_adu(10), 65472);
+        // 8-bit sensor read out in Raw16: 255 << 8.
+        assert_eq!(raw16_container_max_adu(8), 65280);
+        // A true 16-bit sensor (IMX455/IMX571 class) needs no shift.
+        assert_eq!(raw16_container_max_adu(16), 65535);
+    }
+
+    /// Every ceiling is a value a `u16` sample can hold and lies on the
+    /// sample grid of a left-justified ADC.
+    #[test]
+    fn raw16_container_max_adu_is_a_reachable_u16_sample() {
+        for bit_depth in 1..=16u32 {
+            let max = raw16_container_max_adu(bit_depth);
+            assert!(
+                max <= u16::MAX as u32,
+                "bit_depth {bit_depth} produced {max}, outside the u16 container"
+            );
+            let step = 1u32 << (16 - bit_depth.min(16));
+            assert_eq!(
+                max % step,
+                0,
+                "bit_depth {bit_depth}: {max} is not a multiple of the {step}-ADU sample step"
+            );
+        }
+    }
+
+    #[test]
+    fn raw16_container_max_adu_unknown_bit_depth_falls_back_to_container() {
+        assert_eq!(raw16_container_max_adu(0), 65535);
+        assert_eq!(raw16_container_max_adu(32), 65535);
+        assert_eq!(raw16_container_max_adu(u32::MAX), 65535);
+    }
+
+    /// The imaging pipeline's saturation threshold (65024 = 4064 << 4) sits
+    /// just under the 12-bit ceiling, so saturation on the most common astro
+    /// sensor class is detected; the live ASI1600MM clip at 65504 is flagged.
+    #[test]
+    fn raw16_container_max_adu_agrees_with_pipeline_saturation_threshold() {
+        let twelve_bit_ceiling = raw16_container_max_adu(12);
+        assert!(65024 < twelve_bit_ceiling);
+        assert!(65024 <= 65504 && 65504 <= twelve_bit_ceiling);
     }
 
     #[test]

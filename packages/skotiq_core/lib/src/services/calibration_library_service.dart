@@ -16,7 +16,7 @@ import '../models/calibration/shared_calibration_models.dart';
 import '../models/collaboration/collaboration_models.dart';
 import '../providers/async_scope.dart';
 import 'calibration/calibration_selection.dart';
-import 'calibration/fits_header_reader.dart';
+import 'frame_header.dart';
 import 'calibration/shared_calibration_library.dart';
 import 'logging_service.dart';
 part 'calibration_library_service/remote_acceptance.dart';
@@ -48,7 +48,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
     required FlatLibraryDao flatLibraryDao,
     required CalibrationTagsDao tagsDao,
     Ref? ref,
-    this.headerReader = const FitsHeaderReader(),
+    this.readHeader = readFrameHeader,
     this.thresholds = CalibrationStalenessThresholds.defaults,
     RemoteCalibrationLibrary? remoteLibrary,
     Future<String> Function()? sharedMasterDirResolver,
@@ -85,7 +85,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
   /// Null in wirings without settings, which match on the defaults.
   final DarkLibraryMatchTolerances Function()? _darkTolerances;
 
-  final FitsHeaderReader headerReader;
+  final FrameHeaderReader readHeader;
   final CalibrationStalenessThresholds thresholds;
   final DateTime Function() _now;
 

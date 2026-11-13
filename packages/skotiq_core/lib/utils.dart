@@ -3,6 +3,7 @@
 /// Exports only files under `src/utils/`.
 library;
 
+export 'src/utils/endpoint_sanitizer.dart';
 export 'src/utils/device_id.dart' show isValidDeviceIdFormat;
 // Single source of truth for device-identity logic: parsing, canonicalization,
 // matching, and id-pattern friendly-name fallback.

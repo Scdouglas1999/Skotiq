@@ -1,21 +1,22 @@
 //! The Player One drivers against the fake SDK that models PlayerOneCamera.h and
-//! PlayerOnePW.h (`PLAYER_ONE_FAKE_SDK` / `PLAYER_ONE_PW_FAKE_SDK` in
-//! `native_driver_tests.rs`).
-//!
-//! The tests share one loaded SDK, so they run in one process, one at a time:
-//!
-//! ```sh
-//! python3 native/tests/fake_sdk_linux/build_fakes.py /tmp/fakes
-//! cargo test --release -p skotiq_native --test player_one_fake_sdk --no-run
-//! LD_LIBRARY_PATH=/tmp/fakes/player_one <test binary> --ignored --test-threads 1
-//! ```
+//! PlayerOnePW.h (`tests/fake_sdk/player_one.rs`, `player_one_pw.rs`). The tests
+//! share one loaded SDK, so they run in one child process, one at a time.
 
-#![cfg(unix)]
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{CameraDriver, CameraState, DeviceDriver, DriverError, FilterWheelDriver};
 use skotiq_device::{ExposureParams, FrameType, ImageData, SubFrame};
 use skotiq_native::vendor::player_one::{self, PlayerOneCamera, PlayerOneFilterWheel};
 use std::time::Duration;
+
+#[test]
+fn player_one_drivers_against_the_fake_sdk() {
+    harness::FakeSdk::build("player_one", &[harness::PLAYER_ONE, harness::PLAYER_ONE_PW])
+        .run_ignored("", &[]);
+}
 
 const COOLED_MONO: i32 = 101;
 const UNCOOLED_COLOR: i32 = 202;
@@ -54,7 +55,7 @@ async fn take(camera: &mut PlayerOneCamera, params: ExposureParams) -> ImageData
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by player_one_drivers_against_the_fake_sdk"]
 async fn a_camera_connects_without_a_scan_first_and_names_its_model_and_serial() {
     // A profile connects at startup by the saved id; nothing has scanned yet.
     // Runs first: libtest orders tests by name.
@@ -66,7 +67,7 @@ async fn a_camera_connects_without_a_scan_first_and_names_its_model_and_serial()
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by player_one_drivers_against_the_fake_sdk"]
 async fn frames_follow_one_another_and_the_camera_is_idle_between_them() {
     let mut camera = connected(COOLED_MONO).await;
     for _ in 0..3 {
@@ -79,7 +80,7 @@ async fn frames_follow_one_another_and_the_camera_is_idle_between_them() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by player_one_drivers_against_the_fake_sdk"]
 async fn the_requested_binning_and_subframe_are_what_the_frame_is_and_says() {
     let mut camera = connected(COOLED_MONO).await;
 
@@ -124,7 +125,7 @@ async fn the_requested_binning_and_subframe_are_what_the_frame_is_and_says() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by player_one_drivers_against_the_fake_sdk"]
 async fn a_color_subframe_starts_on_the_bayer_cell_the_header_names() {
     let mut camera = connected(UNCOOLED_COLOR).await;
     let roi = SubFrame {
@@ -141,7 +142,7 @@ async fn a_color_subframe_starts_on_the_bayer_cell_the_header_names() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by player_one_drivers_against_the_fake_sdk"]
 async fn exposures_beyond_the_microsecond_control_run_for_their_full_length() {
     let mut camera = connected(COOLED_MONO).await;
     camera
@@ -164,7 +165,7 @@ async fn exposures_beyond_the_microsecond_control_run_for_their_full_length() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by player_one_drivers_against_the_fake_sdk"]
 async fn the_cooler_takes_the_nearest_whole_degree_and_publishes_its_range() {
     let mut camera = connected(COOLED_MONO).await;
     camera.set_cooler(true, Some(-12.6)).await.unwrap();
@@ -177,7 +178,7 @@ async fn the_cooler_takes_the_nearest_whole_degree_and_publishes_its_range() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by player_one_drivers_against_the_fake_sdk"]
 async fn the_wheel_reports_moving_instead_of_failing_and_keeps_its_names() {
     let mut wheel = PlayerOneFilterWheel::new(WHEEL);
     wheel
@@ -204,7 +205,7 @@ async fn the_wheel_reports_moving_instead_of_failing_and_keeps_its_names() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+#[ignore = "run by player_one_drivers_against_the_fake_sdk"]
 async fn sensor_modes_are_offered_and_the_frame_names_the_one_it_used() {
     let mut camera = connected(COOLED_MONO).await;
     assert!(camera.capabilities().supports_readout_modes);

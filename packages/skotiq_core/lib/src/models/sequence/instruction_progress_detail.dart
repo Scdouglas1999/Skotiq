@@ -15,6 +15,10 @@ const String kGenericProgressDetailKind = 'Generic';
 sealed class InstructionProgressDetail extends Equatable {
   const InstructionProgressDetail();
 
+  /// The kind and fields as the sequencer sends them, which
+  /// [InstructionProgressDetail.fromStructuredData] reads back.
+  ({String detailKind, Map<String, Object?> detailJson}) get wire;
+
   factory InstructionProgressDetail.fromStructuredData({
     required String detailKind,
     required Object? detailJson,
@@ -75,6 +79,12 @@ class ExposureInstructionProgressDetail extends InstructionProgressDetail {
   });
 
   @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'Exposure',
+    detailJson: {'frame': frame, 'total': total, 'duration_secs': durationSecs},
+  );
+
+  @override
   List<Object?> get props => [frame, total, durationSecs];
 }
 
@@ -96,6 +106,18 @@ class CenterInstructionProgressDetail extends InstructionProgressDetail {
     this.solvedRaHours,
     this.solvedDecDegrees,
   });
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'Center',
+    detailJson: {
+      'attempt': attempt,
+      'max_attempts': maxAttempts,
+      'last_separation_arcsec': lastSeparationArcsec,
+      'solved_ra_hours': solvedRaHours,
+      'solved_dec_degrees': solvedDecDegrees,
+    },
+  );
 
   @override
   List<Object?> get props => [
@@ -122,6 +144,17 @@ class AutofocusInstructionProgressDetail extends InstructionProgressDetail {
   });
 
   @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'Autofocus',
+    detailJson: {
+      'step': step,
+      'total_steps': totalSteps,
+      'current_hfr': currentHfr,
+      'star_count': starCount,
+    },
+  );
+
+  @override
   List<Object?> get props => [step, totalSteps, currentHfr, starCount];
 }
 
@@ -136,6 +169,16 @@ class ThermalInstructionProgressDetail extends InstructionProgressDetail {
     this.targetTempC,
     this.coolerPowerPercent,
   });
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'Thermal',
+    detailJson: {
+      'current_temp_c': currentTempC,
+      'target_temp_c': targetTempC,
+      'cooler_power_percent': coolerPowerPercent,
+    },
+  );
 
   @override
   List<Object?> get props => [currentTempC, targetTempC, coolerPowerPercent];
@@ -154,6 +197,16 @@ class MeridianFlipRetryProgressDetail extends InstructionProgressDetail {
   });
 
   @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'MeridianFlipRetry',
+    detailJson: {
+      'failed_attempt': failedAttempt,
+      'max_attempts': maxAttempts,
+      'retry_in_secs': retryInSecs,
+    },
+  );
+
+  @override
   List<Object?> get props => [failedAttempt, maxAttempts, retryInSecs];
 }
 
@@ -165,6 +218,10 @@ class UnknownInstructionProgressDetail extends InstructionProgressDetail {
     required this.kind,
     required this.rawJson,
   });
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire =>
+      (detailKind: kind, detailJson: rawJson);
 
   @override
   List<Object?> get props => [kind, rawJson];
