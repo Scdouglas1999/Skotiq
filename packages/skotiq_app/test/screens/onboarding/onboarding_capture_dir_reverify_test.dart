@@ -216,10 +216,8 @@ void main() {
         ),
         // The local probe must never be consulted for a host path — if the step
         // fell through to it, this would fail the test loudly.
-        hostFoldersProvider.overrideWithValue(FakeHostFolders(
-          onCheck: (path, host) => host != null
-              ? const HostFolders().check(path, host: host)
-              : throw StateError('local probe ran for a host path'),
+        localFoldersProvider.overrideWithValue(FakeHostFolders(
+          onCheck: (path) => throw StateError('local probe ran for a host path'),
         )),
       ],
     );

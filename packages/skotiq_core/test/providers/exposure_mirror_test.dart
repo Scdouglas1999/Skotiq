@@ -165,6 +165,46 @@ void main() {
     });
   }
 
+  test('the run\'s own exposure events do not move a linked client\'s camera',
+      () async {
+    final backend = slaveBackend();
+    addTearDown(backend.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        inMemoryDatabaseOverride(),
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, backend),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    SkotiqEvent runEvent(String type, [Map<String, dynamic> data = const {}]) =>
+        SkotiqEvent(
+          timestamp: 0,
+          severity: EventSeverity.info,
+          category: EventCategory.sequencer,
+          eventType: type,
+          data: data,
+        );
+
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
+        'progress': 0.5,
+        'remainingSecs': 30.0,
+      }));
+    applySequencerEventToSequenceProviders(
+      container.read,
+      runEvent('ExposureCompleted', {'frame': 1}),
+    );
+    expect(container.read(cameraStateProvider).isExposing, isTrue);
+
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureComplete', const {}));
+    applySequencerEventToSequenceProviders(
+      container.read,
+      runEvent('ExposureStarted', {'frame': 1, 'duration_secs': 60.0}),
+    );
+    expect(container.read(cameraStateProvider).isExposing, isFalse);
+  });
+
   test(
     'exposure events are IGNORED on the host path (no network backend)',
     () async {

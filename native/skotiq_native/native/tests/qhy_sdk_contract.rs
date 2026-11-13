@@ -330,6 +330,22 @@ mod sdk_contract {
         cam.disconnect().await.unwrap();
     }
 
+    /// The SDK cannot read the cooler back and the set-point stops being
+    /// resent at disconnect, so a connection knows only what it commanded.
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "run by qhy_driver_against_the_fake_sdk"]
+    async fn a_new_connection_does_not_claim_a_cooler_it_is_not_driving() {
+        let _fake = Fake::new();
+        let mut cam = connected(COLOR_CMOS).await;
+        cam.set_cooler(true, Some(-10.0)).await.unwrap();
+        cam.disconnect().await.unwrap();
+
+        cam.connect().await.expect("reconnect");
+        let status = cam.get_status().await.unwrap();
+        assert_eq!((status.cooler_on, status.target_temp), (None, None));
+        cam.disconnect().await.unwrap();
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "run by qhy_driver_against_the_fake_sdk"]
     async fn the_cooler_setpoint_is_sent_every_second_while_cooling() {

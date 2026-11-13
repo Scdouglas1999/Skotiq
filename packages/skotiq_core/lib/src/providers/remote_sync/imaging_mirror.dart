@@ -97,7 +97,9 @@ void _showExposure(ProviderContainer container, _ExposureChange change) {
   }
 }
 
-/// A linked client following every exposure its host runs.
+/// A linked client following every exposure its host runs. Of what the host
+/// sends, only these events set the camera's "Exposing" and the countdown;
+/// its device readings and its run's events do not.
 void _applyExposureMirror(ProviderContainer container, SkotiqEvent event) {
   final change = _ExposureChange.of(event);
   if (change != null) _showExposure(container, change);

@@ -70,7 +70,7 @@ void main() {
     var pickCalls = 0;
     final writes = <String>[];
     final h = _container(
-      picker: ({required host, required initialPath}) {
+      picker: ({required initialPath}) {
         expect(initialPath, '/host-a/captures');
         pickCalls++;
         return pickCalls == 1 ? firstPick.future : secondPick.future;
@@ -111,7 +111,7 @@ void main() {
     var pickCalls = 0;
     final writes = <String>[];
     final h = _container(
-      picker: ({required host, required initialPath}) async {
+      picker: ({required initialPath}) async {
         pickCalls++;
         if (pickCalls == 1) throw StateError('directory service unavailable');
         return '/host/recovered';
