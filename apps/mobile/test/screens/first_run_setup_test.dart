@@ -708,9 +708,12 @@ class _NoAdminBackend extends NetworkBackend {
     : super(serverHost: '127.0.0.1', autoConnectWebSocket: false);
 
   // What the transport throws for the host's scope-denial body.
-  static SkotiqError get _refused => SkotiqError.fromString(
-    'Access denied: Token scope is not permitted for this endpoint: this '
-    'credential holds control on filesystem, and admin is required.',
+  static const ServerError _refused = ServerError(
+    code: 'insufficient_scope',
+    message:
+        'Token scope is not permitted for this endpoint: this credential '
+        'holds control on filesystem, and admin is required.',
+    httpStatus: 403,
   );
 
   @override

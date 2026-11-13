@@ -20,8 +20,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as dbm;
-import 'package:skotiq_core/src/services/local_imaging_records.dart'
-    show firstLightScanWcs;
 
 /// Atlas fold seam that records the frame WCS the fold was dispatched with.
 class _RecordingFoldSeam implements SkyAtlasSeam {
@@ -121,12 +119,7 @@ void main() {
     () async {
       final image = await seedSolvedLight();
 
-      final wcs = firstLightScanWcs(
-        image: image,
-        imageWidth: 1000,
-        imageHeight: 800,
-        distortion: const SolvedWcsDistortion(),
-      );
+      final wcs = storedFrameWcs(image, imageWidth: 1000, imageHeight: 800)!;
 
       expect(
         wcs.raHours,
@@ -143,12 +136,7 @@ void main() {
       'same row', () async {
     final image = await seedSolvedLight();
 
-    final scanWcs = firstLightScanWcs(
-      image: image,
-      imageWidth: 1000,
-      imageHeight: 800,
-      distortion: const SolvedWcsDistortion(),
-    );
+    final scanWcs = storedFrameWcs(image, imageWidth: 1000, imageHeight: 800)!;
 
     await atlasService.autoFoldCapturedImage(
       image: image,

@@ -22,7 +22,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:skotiq_core/services.dart' show sanitizeEndpointForDisplay;
+import 'package:skotiq_core/utils.dart' show sanitizeEndpointForDisplay;
 import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:shelf/shelf.dart';
 

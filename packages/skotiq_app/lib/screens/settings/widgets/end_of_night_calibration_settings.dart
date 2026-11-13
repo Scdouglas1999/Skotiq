@@ -16,6 +16,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 final endOfNightSettingsProvider = FutureProvider.autoDispose<EonSettings>(
   (ref) => EonSettings.load(ref.watch(settingsDaoProvider)),
@@ -54,11 +55,7 @@ class _EndOfNightCalibrationSettingsState
       await ref.read(settingsDaoProvider).setSettings(updated.toStorage());
     } catch (e) {
       if (mounted) {
-        SkotiqToastHelper.show(
-          context: context,
-          message: userFacingError(e),
-          severity: SkotiqAlertSeverity.error,
-        );
+        context.showErrorSnackBar(userFacingError(e));
       }
     }
     ref.invalidate(endOfNightSettingsProvider);

@@ -276,9 +276,8 @@ class HeadlessAuthPolicy {
   /// The 403 body for a grant that does not cover [route]. It names the
   /// resource and level so a fine-grained token's holder can see what is
   /// missing; the coarse scope fields are added only when the coarse scope is
-  /// itself too low. Paired clients match on `error` and the leading clause
-  /// of `message` to tell a scope refusal from any other denial, so both keep
-  /// their exact text.
+  /// itself too low. Clients tell it from any other refusal by its code; the
+  /// web pages read the named requirement.
   static Map<String, Object?> scopeDenialBody({
     required HeadlessAuthGrant grant,
     required ApiRoute route,
@@ -292,21 +291,23 @@ class HeadlessAuthPolicy {
     final heldLevelName = grant.isAdmin
         ? 'admin'
         : headlessAccessLevelName(grant.levelFor(capability.resource));
-    final body = <String, Object?>{
-      'error': 'Access denied',
-      'message':
+    return ApiErrorBody(
+      code: ApiErrorBody.insufficientScope,
+      message:
           'Token scope is not permitted for this endpoint: this credential '
           'holds $heldLevelName on $resourceName, and $requiredLevelName is '
           'required.',
-      'requiredResource': resourceName,
-      'requiredLevel': requiredLevelName,
-      'tokenLevel': heldLevelName,
-    };
-    if (_rank(grant.coarseScope) < _rank(requiredScope)) {
-      body['requiredScope'] = headlessTokenScopeName(requiredScope);
-      body['tokenScope'] = headlessTokenScopeName(grant.coarseScope);
-    }
-    return body;
+      layout: ApiErrorLayout.codeAsError,
+      details: {
+        'requiredResource': resourceName,
+        'requiredLevel': requiredLevelName,
+        'tokenLevel': heldLevelName,
+        if (_rank(grant.coarseScope) < _rank(requiredScope)) ...{
+          'requiredScope': headlessTokenScopeName(requiredScope),
+          'tokenScope': headlessTokenScopeName(grant.coarseScope),
+        },
+      },
+    ).toJson();
   }
 
   static int _rank(HeadlessTokenScope scope) => scope.index;

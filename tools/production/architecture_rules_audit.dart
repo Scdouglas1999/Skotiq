@@ -29,10 +29,10 @@ import 'src/audit_scope.dart';
 ///                       utils/, tours/, localization/ and the route table
 ///                       in router/) import no screen and none of the files
 ///                       that put the app together.
-///   app-feedback        A snackbar is shown through skotiq_app's
-///                       utils/snackbar_helper.dart, which places it clear of
-///                       the shell's bottom chrome; no other library code
-///                       calls `showSnackBar`.
+///   app-feedback        A transient notice is a snackbar shown through
+///                       skotiq_app's utils/snackbar_helper.dart, which places
+///                       it clear of the shell's bottom chrome; no other
+///                       library code calls `showSnackBar` or shows a toast.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -865,12 +865,28 @@ String _hostStoreArea(String path) {
   return inLib.length > 1 ? '$package/${inLib.first}' : package;
 }
 
+/// A linked half read into a named argument, directly or through a local:
+/// `remote: ref.watch(linkedHostPlanningProvider)`, or
+/// `final remote = ref.watch(linkedHostCalibrationFramesProvider);` and later
+/// `remote: remote`. The class it is handed to does the work itself on a host
+/// and forwards it otherwise, with an `if` per member: the store choice
+/// hostRoleProvider owns, made again inside the class.
+final _linkedHalfArgument = RegExp(
+  r'\b\w+:\s*ref\.(?:watch|read)\(\s*linkedHost\w+Provider\s*\)\s*[,)]',
+);
+final _linkedHalfLocal = RegExp(
+  r'\bfinal\s+(\w+)\s*=\s*ref\.(?:watch|read)\(\s*linkedHost\w+Provider\s*\)',
+);
+
 List<_Site> _hostStoreSites(List<String> files) {
   final out = <_Site>[];
   for (final path in files) {
     if (_mayReadRemoteHost(path)) continue;
     final source = _readText(path);
-    if (!source.contains('.remoteHost')) continue;
+    final readsRemoteHost = source.contains('.remoteHost');
+    final readsLinkedHalf =
+        path.startsWith(_coreLib) && source.contains('linkedHost');
+    if (!readsRemoteHost && !readsLinkedHalf) continue;
     final code = _blankDart(source);
     for (final m in _remoteHostRead.allMatches(code)) {
       out.add(
@@ -878,6 +894,24 @@ List<_Site> _hostStoreSites(List<String> files) {
           _hostStoreArea(path),
           '$path:${_lineOf(code, m.start) + 1}',
           '`remoteHost` read outside the host-role owner',
+        ),
+      );
+    }
+    if (!readsLinkedHalf) continue;
+    final handed = <int>{
+      for (final m in _linkedHalfArgument.allMatches(code)) m.start,
+      for (final local in _linkedHalfLocal.allMatches(code))
+        for (final use in RegExp(
+          '\\b\\w+:\\s*${local[1]}\\s*[,)]',
+        ).allMatches(code, local.end))
+          use.start,
+    };
+    for (final offset in handed) {
+      out.add(
+        _Site(
+          _hostStoreArea(path),
+          '$path:${_lineOf(code, offset) + 1}',
+          'a linked half handed to a class that picks the store itself',
         ),
       );
     }
@@ -965,10 +999,16 @@ String? _coreTarget(String from, String uri) {
 
 final _showSnackBarCall = RegExp(r'\.showSnackBar\s*\(');
 
+/// A toast: a second transient notice beside the snackbar, as
+/// `SomeToast.show(...)`, `SomeToastHelper.showInOverlay(...)` or
+/// `showToast(...)`.
+final _showToastCall = RegExp(
+  r'\b\w*Toast\w*\.show\w*\s*\(|\bshow\w*Toast\s*\(',
+);
+
 /// Library code of skotiq_app and the apps, where a snackbar reaches a user.
 bool _isAppLibrary(String path) =>
-    path.startsWith(_appLib) ||
-    RegExp(r'^apps/[^/]+/lib/').hasMatch(path);
+    path.startsWith(_appLib) || RegExp(r'^apps/[^/]+/lib/').hasMatch(path);
 
 List<_Violation> _checkAppFeedback(List<String> files) {
   final out = <_Violation>[];
@@ -977,12 +1017,19 @@ List<_Violation> _checkAppFeedback(List<String> files) {
     final lines = _readLines(path);
     for (var i = 0; i < lines.length; i++) {
       final code = lines[i].split('//').first;
-      if (!_showSnackBarCall.hasMatch(code)) continue;
+      final String what;
+      if (_showSnackBarCall.hasMatch(code)) {
+        what = 'calls showSnackBar directly';
+      } else if (_showToastCall.hasMatch(code)) {
+        what = 'shows a toast';
+      } else {
+        continue;
+      }
       out.add(
         _Violation(
           _Rule.appFeedback,
           '$path:${i + 1}',
-          'calls showSnackBar directly',
+          what,
           _appFeedbackInstead,
         ),
       );

@@ -161,21 +161,42 @@ Future<void> main() async {
   );
 
   await check(
-    'the host-role owner and the mirror may read remoteHost',
-    (root) async {
-      await _write(
-        root,
-        'packages/skotiq_core/lib/src/providers/host_role.dart',
-        'Object? host(dynamic backend) => backend.remoteHost;\n',
-      );
-      await _write(
-        root,
-        'packages/skotiq_core/lib/src/providers/runtime_mirror/mirror.dart',
-        'Object? mirror(dynamic backend) => backend.remoteHost?.runtimeMirror;\n',
-      );
-    },
-    exitCode: 0,
+    'a linked half handed to a class in core fails, directly or through a '
+    'local',
+    (root) => _write(
+      root,
+      'packages/skotiq_core/lib/src/providers/planning_provider.dart',
+      'final a = Provider((ref) => ProjectService(\n'
+          '  remote: ref.watch(linkedHostPlanningProvider),\n'
+          '));\n'
+          'final b = Provider((ref) {\n'
+          '  final remote = ref.watch(linkedHostCalibrationFramesProvider);\n'
+          '  return DarkLibraryNotifier(ref, remote: remote);\n'
+          '});\n'
+          'final c = Provider((ref) => ref.watch(linkedHostLinkProvider) != null);\n',
+    ),
+    exitCode: 1,
+    stderrHas: [
+      '[host-store]',
+      'planning_provider.dart:2: a linked half handed to a class',
+      'planning_provider.dart:6: a linked half handed to a class',
+    ],
   );
+
+  await check('the host-role owner and the mirror may read remoteHost', (
+    root,
+  ) async {
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/providers/host_role.dart',
+      'Object? host(dynamic backend) => backend.remoteHost;\n',
+    );
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/providers/runtime_mirror/mirror.dart',
+      'Object? mirror(dynamic backend) => backend.remoteHost?.runtimeMirror;\n',
+    );
+  }, exitCode: 0);
 
   await check(
     'a backend class cast fails',
@@ -534,40 +555,48 @@ Future<void> main() async {
         'void g(ScaffoldMessengerState messenger) =>\n'
             "    messenger..hideCurrentSnackBar()..showSnackBar(bar);\n",
       );
+      await _write(
+        root,
+        'packages/skotiq_app/lib/screens/darkroom/export_sheet.dart',
+        'void h(BuildContext context) {\n'
+            "  SkotiqToastHelper.show(context: context, message: 'Exported');\n"
+            "  showToast('Exported');\n"
+            '}\n',
+      );
     },
     exitCode: 1,
     stderrHas: [
       '[app-feedback]',
       'capture_panel.dart:2: calls showSnackBar directly',
       'pairing_screen.dart:2: calls showSnackBar directly',
+      'export_sheet.dart:2: shows a toast',
+      'export_sheet.dart:3: shows a toast',
       'Where it goes instead: Show it with context.showInfoSnackBar',
     ],
   );
 
-  await check(
-    'the feedback helper, its callers, tests and comments pass',
-    (root) async {
-      await _write(
-        root,
-        'packages/skotiq_app/lib/utils/snackbar_helper.dart',
-        'void _show(ScaffoldMessengerState m, SnackBar bar) =>\n'
-            '    m.showSnackBar(bar);\n',
-      );
-      await _write(
-        root,
-        'packages/skotiq_app/lib/screens/imaging/capture_panel.dart',
-        '// Not `ScaffoldMessenger.of(context).showSnackBar(...)`.\n'
-            'void f(BuildContext context) =>\n'
-            "    context.showInfoSnackBar('Saved');\n",
-      );
-      await _write(
-        root,
-        'packages/skotiq_app/test/capture_panel_test.dart',
-        'void t(ScaffoldMessengerState m) => m.showSnackBar(bar);\n',
-      );
-    },
-    exitCode: 0,
-  );
+  await check('the feedback helper, its callers, tests and comments pass', (
+    root,
+  ) async {
+    await _write(
+      root,
+      'packages/skotiq_app/lib/utils/snackbar_helper.dart',
+      'void _show(ScaffoldMessengerState m, SnackBar bar) =>\n'
+          '    m.showSnackBar(bar);\n',
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/lib/screens/imaging/capture_panel.dart',
+      '// Not `ScaffoldMessenger.of(context).showSnackBar(...)`.\n'
+          'void f(BuildContext context) =>\n'
+          "    context.showInfoSnackBar('Saved');\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/test/capture_panel_test.dart',
+      'void t(ScaffoldMessengerState m) => m.showSnackBar(bar);\n',
+    );
+  }, exitCode: 0);
 
   await check('screens, the router and start-up importing screens, and shared '
       'folders importing each other pass', (root) async {

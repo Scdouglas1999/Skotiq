@@ -104,12 +104,12 @@ class _Service extends DarkroomBuildService {
             tagsDao: CalibrationTagsDao(db),
           ),
           masters: IntegratedMastersDao(db),
-          readHeader: (_) async => {
+          readHeader: (_) async => FrameHeader({
             'INSTRUME': 'ZWO ASI294MM Pro',
             'TELESCOP': '10" Newt',
-            'NAXIS1': '4656',
-            'NAXIS2': '3520',
-          },
+            'NAXIS1': 4656,
+            'NAXIS2': 3520,
+          }),
         );
 
   @override

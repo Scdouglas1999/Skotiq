@@ -164,11 +164,14 @@ Read the nearest existing example first and copy its shape. Every recipe ends wi
 ### 3.6 Event
 1. Rust: the variant in the right enum under `native/skotiq_native/bridge/src/event/`, emitted where
    the fact happens; regenerate FRB.
-2. Dart today has three places, keep them in step: `packages/skotiq_core/lib/src/backend/ffi_backend/event_mapping.dart`
-   (bridge event -> `SkotiqEvent`), the host forwards it to clients (fan-out only in
-   `apps/desktop/lib/headless_api_server/server_lifecycle.dart` `_subscribeToBackendEvents`), and the
-   client rebuilds it in `backend/bridge_event_mapper.dart` (add the type to
-   `_faithfulCoreEventTypes`, or a linked client sees a placeholder).
+2. Dart: `dart run packages/skotiq_bridge/tool/generate_event_wire.dart` regenerates the event
+   codec (`packages/skotiq_bridge/lib/src/event_wire/event_wire.g.dart`), its round-trip samples
+   and the web pages' table of event types (`apps/desktop/web_run_watch/js/wire-events.js`); a
+   wire name that differs from the Rust one goes in `tool/event_wire_spec.dart`. The host
+   forwards events to clients in `apps/desktop/lib/headless_api_server/server_lifecycle.dart`
+   `_subscribeToBackendEvents`; a client reads the typed event with `typedEventFromWire`
+   (`backend/bridge_event_codec.dart`). Code that asks which event it holds switches over the
+   typed event, never over the event type text.
 3. Consumers watch `skotiqEventsProvider` (`providers/event_provider.dart`). Prefer an event to a
    poll; a poll of host data goes through `HostPoll`.
 
@@ -201,7 +204,9 @@ Copy a converted role: `backend/roles/host_data/observing_lists_store.dart` (loc
    (`linkedOnlyProvider`), null where the host is this process: a card, banner or action that exists
    only for a linked host watches it and builds nothing on null, and a class that does the work
    itself here and forwards it to the host otherwise is handed the half by its provider (a
-   constructor parameter, null = here). A yes/no question that is not about data ("are the host's
+   constructor parameter, null = here). The host-store audit counts these hand-offs in core and
+   the count only goes down: data both sides keep is a role (step 1), never a half and an `if`
+   per member. A yes/no question that is not about data ("are the host's
    files on this machine") reads `isRemoteModeProvider`; code holding the backend itself asks
    `backend.linksToHost`.
 3. The host side is an API endpoint (3.2). Do not add members to `SkotiqBackend`; a non-future member

@@ -41,14 +41,9 @@ abstract class MobileNotificationSink {
   Future<void> notifySequenceComplete(String targetName, int imageCount);
   Future<void> notifySequenceFailed(String targetName, String errorMessage);
   Future<void> notifyMeridianFlip(String targetName, DateTime flipTime);
-  Future<void> notifyLowDiskSpace(double remainingGB);
+  Future<void> notifyLowDiskSpace(String message);
   Future<void> notifyLowBattery(int percentage);
-  Future<void> notifySafety({
-    required String title,
-    required String body,
-    String? eventType,
-  });
-  Future<void> notifyMountParked(String reason);
+  Future<void> notifySafety({required String title, required String body});
   Future<void> notifyGuidingLost(String reason);
   Future<void> notifyExposureFailed(String errorMessage);
   Future<void> notifyAutofocusFailed();

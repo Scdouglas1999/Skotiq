@@ -182,7 +182,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   ) {
     final body = _errorBody(statusCode, responseBody);
     if (statusCode == HttpStatus.forbidden &&
-        body?.message == ApiErrorBody.invalidTokenMessage) {
+        body?.code == ApiErrorBody.invalidToken) {
       _latchAuthRejection('$method $endpoint');
     }
     return ServerError(
@@ -253,7 +253,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     final rejected = _rejectedAuthToken;
     if (rejected != null && rejected == authToken) {
       throw const ServerError(
-        code: 'invalid_auth_token',
+        code: ApiErrorBody.invalidToken,
         message:
             'Access denied: Invalid authentication token (not retried — '
             'the host rejected this token)',
@@ -318,9 +318,8 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     Error.throwWithStackTrace(lastError!, lastStackTrace!);
   }
 
-  /// The request path of [endpoint] below `/api/`, with its `<name>`
-  /// parameters taken from [path]. [sends] is the verb the calling helper
-  /// puts on the wire.
+  /// The request path of [endpoint], with its `<name>` parameters taken from
+  /// [path]. [sends] is the verb the calling helper puts on the wire.
   String _endpointPath(
     ApiEndpoint endpoint,
     ApiMethod sends, [
@@ -330,11 +329,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     if (route.method != sends) {
       throw StateError('${route.signature} is not sent as ${sends.wireName}');
     }
-    final filled = route.fill(path);
-    if (!filled.startsWith(_NetworkBackendTransport._apiPrefix)) {
-      throw StateError('${route.signature} is not an API route');
-    }
-    return filled.substring(_NetworkBackendTransport._apiPrefix.length);
+    return route.fill(path);
   }
 
   Map<String, String>? _queryStrings(Map<String, dynamic>? query) =>
