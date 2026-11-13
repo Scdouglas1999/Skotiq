@@ -288,6 +288,10 @@
       "skotiq_app/screens/night_control": {
         "count": 1,
         "reason": "hostNightHistoryProvider in Tonight's data layer reads the host's night history through remoteHost; it moves onto linkedHostNightProvider with that layer's rework. The count only goes down."
+      },
+      "skotiq_core/providers": {
+        "count": 25,
+        "reason": "Linked halves handed to a class that does the work here and forwards it to the host otherwise. Data both sides keep belongs on a hostRoleProvider and is to be converted: planning (project, target constraint, integration goal, scheduler queue services and the candidate loader), dark library, defect maps, live stacking, calibration settings and transient alert settings/states. Host-only forwarding (device commands, files, imaging records, events, profiles, post-session, meridian flip) is the pattern skill section 3.8.2 describes. The count only goes down."
       }
     }
   }

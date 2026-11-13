@@ -499,10 +499,9 @@ void main() {
 
     expect(find.text('Discord test message sent.'), findsOneWidget);
 
-    // The success toast schedules a 4s auto-dismiss Timer (SkotiqToast).
-    // Pump past it so the overlay entry removes itself and no Timer is left
+    // Pump past the success snackbar's time on screen so no Timer is left
     // pending when the widget tree is torn down (which would fail the test).
-    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(seconds: 11));
     await _pumpFrames(tester, frames: 20);
   });
 

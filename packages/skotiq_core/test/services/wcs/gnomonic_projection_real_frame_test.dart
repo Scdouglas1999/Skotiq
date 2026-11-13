@@ -38,14 +38,16 @@ SolvedWcs _wcs(Map<String, dynamic> f, {bool sip = true}) {
     cd1_2: cd[1],
     cd2_1: cd[2],
     cd2_2: cd[3],
-    aOrder: sip ? f['aOrder'] as int : 0,
-    bOrder: sip ? f['bOrder'] as int : 0,
-    aCoeffs: sip ? _doubles(f['a']) : const [],
-    bCoeffs: sip ? _doubles(f['b']) : const [],
-    apOrder: sip ? f['apOrder'] as int : 0,
-    bpOrder: sip ? f['bpOrder'] as int : 0,
-    apCoeffs: sip ? _doubles(f['ap']) : const [],
-    bpCoeffs: sip ? _doubles(f['bp']) : const [],
+    sip: (
+      aOrder: sip ? f['aOrder'] as int : 0,
+      bOrder: sip ? f['bOrder'] as int : 0,
+      aCoeffs: sip ? _doubles(f['a']) : const [],
+      bCoeffs: sip ? _doubles(f['b']) : const [],
+      apOrder: sip ? f['apOrder'] as int : 0,
+      bpOrder: sip ? f['bpOrder'] as int : 0,
+      apCoeffs: sip ? _doubles(f['ap']) : const [],
+      bpCoeffs: sip ? _doubles(f['bp']) : const [],
+    ),
   );
 }
 

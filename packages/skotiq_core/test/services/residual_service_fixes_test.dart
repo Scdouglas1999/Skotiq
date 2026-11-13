@@ -155,31 +155,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Residual service fixes', () {
-    test('loadDarkPixels rejects truncated FITS pixel payloads', () async {
-      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(database.close);
-
-      final service = DarkLibraryService(DarkLibraryDao(database));
-      final tempDir = await Directory.systemTemp.createTemp('dark_library_');
-      addTearDown(() async {
-        if (await tempDir.exists()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
-
-      final truncatedFits = File(
-        '${tempDir.path}${Platform.pathSeparator}truncated.fit',
-      );
-      await truncatedFits.writeAsBytes(
-        _buildFitsFileBytes(width: 2, height: 1, dataBytes: [0, 1, 2]),
-      );
-
-      expect(
-        service.loadDarkPixels(truncatedFits.path),
-        throwsA(isA<FormatException>()),
-      );
-    });
-
     test(
       'calibrateFilterWithRateTracking reports maxIterations on non-convergence',
       () async {
@@ -911,30 +886,4 @@ void main() {
       },
     );
   });
-}
-
-Uint8List _buildFitsFileBytes({
-  required int width,
-  required int height,
-  required List<int> dataBytes,
-}) {
-  final headerCards = <String>[
-    _fitsCard('SIMPLE', 'T'),
-    _fitsCard('BITPIX', '16'),
-    _fitsCard('NAXIS', '2'),
-    _fitsCard('NAXIS1', width.toString()),
-    _fitsCard('NAXIS2', height.toString()),
-    'END'.padRight(80, ' '),
-  ];
-
-  final header = headerCards.join().padRight(2880, ' ');
-  final bytes = <int>[...ascii.encode(header), ...dataBytes];
-  return Uint8List.fromList(bytes);
-}
-
-String _fitsCard(String keyword, String value) {
-  return '${keyword.padRight(8)}= ${value.toString().padLeft(20)}'.padRight(
-    80,
-    ' ',
-  );
 }

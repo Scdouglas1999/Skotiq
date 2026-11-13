@@ -9,6 +9,8 @@ import '../services/framing_survey_fetcher.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanelCenter, mosaicPanelCenters;
 
 import 'linked_host.dart';
 import '../errors/error_text.dart';
@@ -617,82 +619,44 @@ class FramingNotifier extends StateNotifier<FramingState> {
 
     final (fovWidth, fovHeight) = fov;
     final config = state.mosaicConfig;
-
-    // Calculate step size accounting for overlap
     final overlapFactor = 1 - (config.overlapPercent / 100);
-    final stepWidthDeg = fovWidth * overlapFactor;
-    final stepHeightDeg = fovHeight * overlapFactor;
 
-    final totalWidthDeg = fovWidth + (config.columns - 1) * stepWidthDeg;
-    final totalHeightDeg = fovHeight + (config.rows - 1) * stepHeightDeg;
+    // The mosaic is a capture plan around where the telescope will point, so
+    // panels are built around the effective AIM (the dragged reticle
+    // position), not the view-center target. They coincide whenever the box
+    // has not been dragged off-center.
+    final centers = mosaicPanelCenters(
+      centerRaHours: state.effectiveAimRaHours!,
+      centerDecDegrees: state.effectiveAimDecDegrees!,
+      stepRaDegrees: fovWidth * overlapFactor,
+      stepDecDegrees: fovHeight * overlapFactor,
+      columns: config.columns,
+      rows: config.rows,
+      rotationDegrees: state.rotation,
+    );
 
-    // Center coordinates: the mosaic is a capture plan around where the
-    // telescope will point, so panels are built around the effective AIM (the
-    // dragged reticle position), not the view-center target. They coincide
-    // whenever the box has not been dragged off-center.
-    final centerRa = state.effectiveAimRaHours!;
-    final centerDec = state.effectiveAimDecDegrees!;
+    // The canvas numbers rows from the top (north) and columns from the left
+    // (east), while the grid's index starts in the south-west.
+    MosaicPanelCenter centerAt(int row, int column) => centers[
+        (config.rows - 1 - row) * config.columns + (config.columns - 1 - column)];
 
-    // Frame rotation, applied to each panel's tangent-plane offset with the
-    // same convention as mosaicPanelCenters so the listed coords match the
-    // rotated on-sky grid and the project MosaicService.generatePanels creates.
-    final rotation = state.rotation;
-    final rotRad = rotation * math.pi / 180;
-    final cosRot = math.cos(rotRad);
-    final sinRot = math.sin(rotRad);
-
-    // Calculate starting corner offset from center
-    final startRaOffset = -totalWidthDeg / 2 + fovWidth / 2;
-    final startDecOffset = totalHeightDeg / 2 - fovHeight / 2;
-
-    // Generate panels in capture order
+    // Panels in capture order.
     final panels = <FramingMosaicPanel>[];
-    int panelIndex = 0;
-
     for (int row = 0; row < config.rows; row++) {
       final actualRow = _getActualRow(row, config);
-
       for (int col = 0; col < config.columns; col++) {
         final actualCol = _getActualCol(col, row, config);
-
-        // Panel offset from center in the tangent plane (east/north degrees),
-        // rotated by the frame rotation before the cos(dec) RA compression.
-        // Columns run left to right on screen, and east is left, so the
-        // first column is the eastmost.
-        final eastOffsetDeg = -(startRaOffset + actualCol * stepWidthDeg);
-        final northOffsetDeg = startDecOffset - actualRow * stepHeightDeg;
-
-        final double rotatedEastDeg;
-        final double rotatedNorthDeg;
-        if (rotation != 0.0) {
-          rotatedEastDeg = eastOffsetDeg * cosRot - northOffsetDeg * sinRot;
-          rotatedNorthDeg = eastOffsetDeg * sinRot + northOffsetDeg * cosRot;
-        } else {
-          rotatedEastDeg = eastOffsetDeg;
-          rotatedNorthDeg = northOffsetDeg;
-        }
-
-        // Note: RA offset needs to account for declination (cos(dec) factor)
-        final decRad = centerDec * math.pi / 180;
-        final cosDec = math.cos(decRad);
-        final raOffsetHours =
-            rotatedEastDeg / 15 / (cosDec.abs() > 0.01 ? cosDec : 0.01);
-
-        final panelRa = (centerRa + raOffsetHours) % 24;
-        final panelDec = (centerDec + rotatedNorthDeg).clamp(-90.0, 90.0);
-
+        final center = centerAt(actualRow, actualCol);
         panels.add(
           FramingMosaicPanel(
-            index: panelIndex,
+            index: panels.length,
             column: actualCol,
             row: actualRow,
-            centerRaHours: panelRa,
-            centerDecDegrees: panelDec,
-            name: 'Panel ${panelIndex + 1} ($actualCol,$actualRow)',
+            centerRaHours: center.raHours,
+            centerDecDegrees: center.decDegrees,
+            name: 'Panel ${panels.length + 1} ($actualCol,$actualRow)',
           ),
         );
-
-        panelIndex++;
       }
     }
 

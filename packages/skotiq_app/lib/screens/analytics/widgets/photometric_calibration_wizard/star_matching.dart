@@ -290,7 +290,6 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     if (!_isCurrentOperation(generation, authority)) return const [];
     final distortion = await imagesDao.getStoredWcsDistortion(image.id);
     if (!_isCurrentOperation(generation, authority)) return const [];
-    final sip = decodeSolvedSip(distortion?.sip);
     final wcs = WcsSolution(
       raHours: image.solvedRa!,
       decDegrees: image.solvedDec!,
@@ -303,14 +302,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
       cd1_2: distortion?.cd1_2,
       cd2_1: distortion?.cd2_1,
       cd2_2: distortion?.cd2_2,
-      aOrder: sip?.aOrder ?? 0,
-      bOrder: sip?.bOrder ?? 0,
-      aCoeffs: sip?.aCoeffs ?? const [],
-      bCoeffs: sip?.bCoeffs ?? const [],
-      apOrder: sip?.apOrder ?? 0,
-      bpOrder: sip?.bpOrder ?? 0,
-      apCoeffs: sip?.apCoeffs ?? const [],
-      bpCoeffs: sip?.bpCoeffs ?? const [],
+      sip: decodeSolvedSip(distortion?.sip) ?? noSipTerms,
     );
 
     // calibrateFramePhotometry requires a real frame context (it refuses a
@@ -373,25 +365,10 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     if (!_isCurrentOperation(generation, authority)) return const [];
     // Canonical TAN projection (services/wcs in skotiq_core) — the
     // same implementation the science pipeline and catalog overlay use.
-    final solvedWcs = SolvedWcs(
-      raHours: wcs.raHours,
-      decDegrees: wcs.decDegrees,
-      rotationDeg: wcs.rotationDegrees,
-      pixelScaleArcsec: wcs.pixelScaleArcsecPerPixel,
+    final solvedWcs = SolvedWcs.ofSolution(
+      wcs,
       imageWidth: imageSize.width.round(),
       imageHeight: imageSize.height.round(),
-      cd1_1: wcs.cd1_1,
-      cd1_2: wcs.cd1_2,
-      cd2_1: wcs.cd2_1,
-      cd2_2: wcs.cd2_2,
-      aOrder: wcs.aOrder,
-      bOrder: wcs.bOrder,
-      aCoeffs: wcs.aCoeffs,
-      bCoeffs: wcs.bCoeffs,
-      apOrder: wcs.apOrder,
-      bpOrder: wcs.bpOrder,
-      apCoeffs: wcs.apCoeffs,
-      bpCoeffs: wcs.bpCoeffs,
     );
     if (!solvedWcs.isValid) {
       throw StateError(
@@ -574,9 +551,8 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     if (!_isCurrentOperation(generation, authority)) {
       throw StateError('Photometric calibration operation was retired.');
     }
-    final fits = await ref
-        .read(imagingBackendProvider)
-        .readFitsFile(filePath: filePath);
+    final fits =
+        await ref.read(imagingBackendProvider).readFitsFile(filePath: filePath);
     return (width: fits.width.toDouble(), height: fits.height.toDouble());
   }
 }

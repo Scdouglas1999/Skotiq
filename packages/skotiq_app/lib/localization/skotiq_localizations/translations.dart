@@ -1288,8 +1288,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeWhyMountCannot': 'This mount does not support it',
     'nightScopeWhyRunTargetOnly':
         "During a run, Slew & center only goes to the run's target",
-    'nightScopeErrStopGuiding':
-        'Guiding did not stop, so the mount was not moved: {error}',
     'nightScopeErrCenter': 'Centering failed',
     'nightScopeCentered': 'Centered',
     'nightScopeCenteredWithin': 'Centered within {arcsec}"',
@@ -2941,8 +2939,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeWhyMountCannot': 'Esta montura no lo admite',
     'nightScopeWhyRunTargetOnly':
         'Durante una sesión, Mover y centrar solo va al objetivo de la sesión',
-    'nightScopeErrStopGuiding':
-        'El guiado no se detuvo, así que la montura no se movió: {error}',
     'nightScopeErrCenter': 'Falló el centrado',
     'nightScopeCentered': 'Centrado',
     'nightScopeCenteredWithin': 'Centrado a menos de {arcsec}"',

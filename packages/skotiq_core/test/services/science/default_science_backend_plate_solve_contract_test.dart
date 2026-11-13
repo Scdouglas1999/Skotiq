@@ -1,9 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show FrameCard, FrameHeaderRead, RustLib, RustLibApi;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -20,6 +21,8 @@ class _Backend extends Mock implements SkotiqBackend {
   @override
   void dispose() {}
 }
+
+class _Native extends Mock implements RustLibApi {}
 
 class _BackendNotifier extends BackendNotifier {
   _BackendNotifier(super.ref, SkotiqBackend backend) {
@@ -64,6 +67,25 @@ PlateSolveResult _result({double fieldWidth = 2, double fieldHeight = 1.5}) =>
     );
 
 void main() {
+  // The native frame reader: every frame here is 4656 x 3520.
+  final native = _Native();
+  setUpAll(() {
+    when(
+      () => native.crateApiFrameFileApiReadFrameHeader(
+        filePath: any(named: 'filePath'),
+      ),
+    ).thenAnswer(
+      (_) async => const FrameHeaderRead(
+        cards: [
+          FrameCard(keyword: 'NAXIS1', text: '4656', number: 4656),
+          FrameCard(keyword: 'NAXIS2', text: '3520', number: 3520),
+        ],
+      ),
+    );
+    RustLib.initMock(api: native);
+  });
+  tearDownAll(RustLib.dispose);
+
   test(
     'science solve converts RA units and forwards configured timeout',
     () async {
@@ -156,19 +178,7 @@ void main() {
     () async {
       // ASTAP writes NAXIS = 0 into its .wcs, so the native result carries a
       // zero field; the frame header still says 4656 x 3520.
-      final dir = Directory.systemTemp.createTempSync('sk_science_fov');
-      addTearDown(() => dir.deleteSync(recursive: true));
-      String card(String k, String v) =>
-          '${k.padRight(8)}= ${v.padLeft(20)}'.padRight(80);
-      final header = StringBuffer()
-        ..write(card('SIMPLE', 'T'))
-        ..write(card('BITPIX', '16'))
-        ..write(card('NAXIS', '2'))
-        ..write(card('NAXIS1', '4656'))
-        ..write(card('NAXIS2', '3520'))
-        ..write('END'.padRight(80));
-      final frame = File('${dir.path}/frame.fits')
-        ..writeAsStringSync(header.toString().padRight(2880));
+      const framePath = '/frames/frame.fits';
 
       final backend = _Backend();
       when(
@@ -192,7 +202,7 @@ void main() {
 
       final wcs = await container
           .read(scienceBackendProvider)
-          .solveForScience(frame.path, const SolveOptions());
+          .solveForScience(framePath, const SolveOptions());
 
       expect(wcs!.fieldWidthDegrees, closeTo(4656 * 1.2 / 3600, 1e-9));
       expect(wcs.fieldHeightDegrees, closeTo(3520 * 1.2 / 3600, 1e-9));

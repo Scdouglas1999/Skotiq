@@ -46,6 +46,8 @@ _PlateSolveData _$PlateSolveDataFromJson(Map<String, dynamic> json) =>
       cd2_1: (json['cd2_1'] as num?)?.toDouble(),
       cd2_2: (json['cd2_2'] as num?)?.toDouble(),
       sip: json['sip'] as String?,
+      referenceX: (json['referenceX'] as num?)?.toDouble(),
+      referenceY: (json['referenceY'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$PlateSolveDataToJson(_PlateSolveData instance) =>
@@ -63,6 +65,8 @@ Map<String, dynamic> _$PlateSolveDataToJson(_PlateSolveData instance) =>
       'cd2_1': instance.cd2_1,
       'cd2_2': instance.cd2_2,
       'sip': instance.sip,
+      'referenceX': instance.referenceX,
+      'referenceY': instance.referenceY,
     };
 
 _CelestialObjectAnnotation _$CelestialObjectAnnotationFromJson(

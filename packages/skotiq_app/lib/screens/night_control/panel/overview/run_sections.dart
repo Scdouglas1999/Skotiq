@@ -19,6 +19,7 @@ import '../../../../localization/skotiq_localizations.dart';
 import '../../data/plan/scheduler_provider.dart';
 import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
+import '../../../../utils/snackbar_helper.dart';
 
 String _seconds(double secs) =>
     DurationFormat.seconds(secs, style: DurationStyle.short);
@@ -390,15 +391,9 @@ class _NightBroadcastSectionState extends State<NightBroadcastSection> {
 
   Future<void> _copy(String url) async {
     final l10n = SkotiqLocalizations.of(context);
-    final overlay = Overlay.maybeOf(context);
+    final messenger = ScaffoldMessenger.maybeOf(context);
     await Clipboard.setData(ClipboardData(text: url));
-    if (overlay == null || !overlay.mounted) return;
-    SkotiqToastHelper.showInOverlay(
-      overlay: overlay,
-      message: l10n.text('nightBroadcastCopied'),
-      severity: SkotiqAlertSeverity.success,
-      duration: const Duration(seconds: 2),
-    );
+    messenger?.showSuccessSnackBar(l10n.text('nightBroadcastCopied'));
   }
 
   @override

@@ -6,33 +6,6 @@ mixin _GuidingStateFields on ConsumerState<GuidingScreen> {
   GraphYScale _yScale = GraphYScale.two;
   bool _showBrainPanel = false;
 
-  // Dither / settle parameters bound to GuideControlsPanel.
-  //
-  // These are a live cache of the CANONICAL persisted authority
-  // ([appSettingsProvider]): they are seeded from the persisted settle/dither
-  // settings on first build (see `_hydrateGuidingSettings`) and every edit is
-  // written straight back through the AppSettings notifier. Because the source
-  // of truth is the persisted store, the values survive navigation and full
-  // screen reconstruction, and a remote companion writes through the same
-  // canonical settings sync rather than spinning up a competing local store.
-  // The initial values below are placeholders only until hydration runs.
-  double _ditherAmount = 5.0;
-  bool _ditherRaOnly = false;
-  double _settlePixels = 1.5;
-  double _settleTime = 10.0;
-  double _settleTimeout = 60.0;
-
-  /// The persisted settings the controls last took their values from. Null
-  /// until the first build with settings, which seeds every control; after
-  /// that a control follows its setting whenever that setting changes, so a
-  /// change saved on a linked client or the host shows here at once.
-  AppSettingsState? _guidingSettingsSeen;
-
-  /// Saves from these controls still in flight, per setting. A setting with
-  /// one pending is not taken from the persisted value: that is an earlier
-  /// position of the same drag.
-  final Map<String, int> _guidingWritesPending = {};
-
   late TabController _tabController;
 
   /// True when the viewport cannot hold the three columns.

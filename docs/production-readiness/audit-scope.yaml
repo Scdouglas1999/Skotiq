@@ -14,6 +14,8 @@ runtime:
   include:
     - apps/*/lib/**
     - packages/*/lib/**
+    # The relay: shipped in the desktop and mobile apps.
+    - tools/skotiq_relay/lib/**
     - native/skotiq_native/**/src/**
   # Directory names, matched against whole path segments.
   exclude_dirs:
@@ -61,6 +63,5 @@ coverage:
     - server/skotiq_hub
     # Vendored icon font package.
     - third_party/lucide_icons
-    # Developer tools, not shipped in the app.
-    - tools/skotiq_relay
+    # Developer tool, not shipped in the app.
     - tools/update_server

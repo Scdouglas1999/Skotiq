@@ -171,7 +171,7 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
       final calibrator = _colorCalibrator;
       final solved = wcs == null
           ? null
-          : SolvedWcs.tryFromFitsCd(
+          : SolvedWcs.tryFromFits(
               crval1: wcs.crval1,
               crval2: wcs.crval2,
               crpix1: wcs.crpix1,

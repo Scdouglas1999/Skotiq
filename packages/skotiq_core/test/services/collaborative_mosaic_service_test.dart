@@ -22,6 +22,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show FrameWcs;
 import 'package:skotiq_core/services.dart';
 
 /// A minimal FITS primary header carrying a WCS solution so the service's
@@ -76,6 +77,45 @@ Uint8List fitsNoWcs() {
   return Uint8List.fromList(padded.codeUnits);
 }
 
+bool _sameBytes(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+/// The header the native frame reader gives each fixture file.
+Future<FrameHeader> fixtureHeader(String path) async {
+  final bytes = File(path).readAsBytesSync();
+  const size = {'NAXIS1': 100, 'NAXIS2': 80};
+  if (_sameBytes(bytes, fitsWithWcs())) {
+    return FrameHeader(
+      size,
+      astrometry: FrameWcs(
+        crval1: 300.0,
+        crval2: 30.0,
+        crpix1: 50.0,
+        crpix2: 40.0,
+        cd11: -0.0002,
+        cd12: 0.0,
+        cd21: 0.0,
+        cd22: 0.0002,
+        aOrder: 0,
+        bOrder: 0,
+        aCoeffs: Float64List(0),
+        bCoeffs: Float64List(0),
+        apOrder: 0,
+        bpOrder: 0,
+        apCoeffs: Float64List(0),
+        bpCoeffs: Float64List(0),
+      ),
+    );
+  }
+  if (_sameBytes(bytes, fitsNoWcs())) return FrameHeader(size);
+  throw FormatException('$path is no frame file');
+}
+
 /// A fake seam: `stitchMosaic` writes the requested output FITS so the service's
 /// pushMosaicOutput finds a real file, and returns a canned stitch result.
 class _FakeSeam implements PostSessionSeam {
@@ -114,9 +154,11 @@ void main() {
   late MosaicProjectService projectService;
   late _FakeSeam seam;
   late Directory tmp;
+  late List<(String, SolvedWcs)> stamped;
   final hub = Uri.parse('https://hub.example.org');
 
   setUp(() {
+    stamped = [];
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     projectsDao = MosaicProjectsDao(db);
     panelsDao = MosaicPanelsDao(db);
@@ -162,6 +204,8 @@ void main() {
         projectService: projectService,
         logger: LoggingService(),
         assemblyDirResolver: (mosaicId) async => '${tmp.path}/$mosaicId',
+        readHeader: fixtureHeader,
+        writeWcs: (path, wcs) async => stamped.add((path, wcs)),
         clientFactory: (c) => ConstellationClient(
           hubBaseUrl: c.hubBaseUrl,
           bearerToken: c.bearerToken,
@@ -454,6 +498,8 @@ void main() {
       projectService: projectService,
       logger: LoggingService(),
       assemblyDirResolver: (mosaicId) async => '${tmp.path}/$mosaicId',
+      readHeader: fixtureHeader,
+      writeWcs: (path, wcs) async => stamped.add((path, wcs)),
       clientFactory: (c) => ConstellationClient(
         hubBaseUrl: c.hubBaseUrl,
         bearerToken: c.bearerToken,
@@ -517,14 +563,16 @@ void main() {
     );
     expect(uploaded.uploaded, isTrue);
 
-    // The bytes that reached the hub now self-describe their WCS in the header.
-    final pushedText = String.fromCharCodes(pushedBytes!);
-    expect(pushedText.contains('CRVAL1'), isTrue);
-    expect(pushedText.contains('CD1_1'), isTrue);
-    expect(pushedText.contains('RA---TAN'), isTrue);
-    // And the on-disk master FITS was reconciled too (header now matches the DB).
-    final reread = await File(fits.path).readAsString();
-    expect(reread.contains('CRVAL1'), isTrue);
+    // The master file was given the persisted solution before its bytes
+    // went to the hub.
+    expect(pushedBytes, isNotNull);
+    final (stampedPath, wcs) = stamped.single;
+    expect(stampedPath, fits.path);
+    final terms = wcs.fitsTerms;
+    expect(terms.crval1, closeTo(300.0, 1e-9));
+    expect(terms.crval2, 30.0);
+    expect((terms.crpix1, terms.crpix2), (50.0, 40.0));
+    expect((terms.cd1_1, terms.cd2_2), (-0.0002, 0.0002));
   });
 
   test(
