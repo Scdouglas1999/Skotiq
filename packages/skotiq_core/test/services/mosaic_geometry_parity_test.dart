@@ -5,7 +5,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 /// Proves the imaging-side [MosaicService.generatePanels] and the planetarium
 /// preview [MosaicPlanner] share a single panel-layout source of truth: for an
 /// equivalent grid configuration they must produce bit-identical panel centers
-/// (RA hours + Dec degrees) in the same row-major order. If the two ever drift,
+/// (RA hours + Dec degrees) in the same capture order. If the two ever drift,
 /// this test fails — that is the whole point of unifying the geometry onto
 /// [mosaicPanelCenters].
 void main() {
@@ -50,7 +50,6 @@ void main() {
         ),
         rotation: rotationDeg,
       );
-      // panels is row-major (capture order is a separate index list).
       final previewPanels = plan.panels;
 
       expect(servicePanels.length, previewPanels.length);

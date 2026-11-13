@@ -21,6 +21,7 @@
 // injectable client factory (so it is exercised with a `package:http/testing`
 // MockClient) + a logger, kept DB-agnostic via resolvers.
 
+import 'package:skotiq_astro/skotiq_astro.dart' show mosaicPanelTargetName;
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -502,7 +503,7 @@ class CollaborativeMosaicService {
         final (panelWidth, panelHeight) = await _fitsImageSize(outPath);
         final newMasterId = await _mastersDao.insertMaster(
           targetId: project.targetId,
-          name: '${project.name} Panel ${panel.panelIndex + 1} (hub)',
+          name: '${mosaicPanelTargetName(project.name, panel.panelIndex)} (hub)',
           masterFitsPath: outPath,
           status: IntegratedMasterStatus.finalized,
           accumulationMode: AccumulationMode.batch,

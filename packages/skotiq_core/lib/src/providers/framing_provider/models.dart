@@ -87,7 +87,7 @@ class FramingState {
   final FramingMosaicConfig mosaicConfig;
 
   /// Generated mosaic panels (computed from config and target)
-  final List<FramingMosaicPanel> mosaicPanels;
+  final List<MosaicPanel> mosaicPanels;
 
   /// Currently selected panel index (-1 = none)
   final int selectedPanelIndex;
@@ -193,7 +193,7 @@ class FramingState {
     bool? showEquipmentFovOverlay,
     bool? mosaicEnabled,
     FramingMosaicConfig? mosaicConfig,
-    List<FramingMosaicPanel>? mosaicPanels,
+    List<MosaicPanel>? mosaicPanels,
     int? selectedPanelIndex,
     bool? showPanelNumbers,
     bool? showSequencePath,

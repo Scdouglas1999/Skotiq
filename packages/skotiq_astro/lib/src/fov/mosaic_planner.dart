@@ -22,13 +22,13 @@ class MosaicOverlap {
 }
 
 class PlanetariumMosaicPanel {
-  /// Panel index (0-based, row-major)
+  /// 0-based place in capture order (see [MosaicPanel]).
   final int index;
 
-  /// Row index (0-based)
+  /// 0-based row from the top of the grid as drawn.
   final int row;
 
-  /// Column index (0-based)
+  /// 0-based column from the left of the grid as drawn.
   final int column;
 
   final CelestialCoordinate center;
@@ -63,8 +63,8 @@ class PlanetariumMosaicPanel {
     this.label,
   });
 
-  /// Get panel name (e.g., "Panel 1", "A1", etc.)
-  String get name => label ?? 'Panel ${index + 1}';
+  /// The panel's name: its [label], or "Panel 3".
+  String get name => label ?? mosaicPanelName(index);
 
   /// Get corner coordinates (RA/Dec)
   List<CelestialCoordinate> get corners {
@@ -188,6 +188,7 @@ class MosaicPlan {
   /// Configuration used to generate this plan
   final PlanetariumMosaicConfig config;
 
+  /// The panels in capture order.
   final List<PlanetariumMosaicPanel> panels;
 
   final int rows;
@@ -200,9 +201,6 @@ class MosaicPlan {
   /// Effective total height after adding all panels
   final double effectiveHeight;
 
-  /// Panel capture order (indices)
-  List<int> captureOrder;
-
   MosaicPlan({
     required this.config,
     required this.panels,
@@ -210,8 +208,7 @@ class MosaicPlan {
     required this.columns,
     required this.effectiveWidth,
     required this.effectiveHeight,
-    List<int>? captureOrder,
-  }) : captureOrder = captureOrder ?? List.generate(panels.length, (i) => i);
+  });
 
   int get panelCount => panels.length;
 
@@ -227,31 +224,6 @@ class MosaicPlan {
   /// Get all panel corners for outline drawing
   List<List<CelestialCoordinate>> get panelOutlines {
     return panels.map((p) => p.corners).toList();
-  }
-
-  /// Reorder panels for optimal capture (minimize slew time)
-  void optimizeCaptureOrder({bool snakePattern = true}) {
-    if (snakePattern) {
-      // Snake pattern: left-to-right, then right-to-left alternating
-      captureOrder = [];
-      for (var row = 0; row < rows; row++) {
-        final rowPanels = panels.where((p) => p.row == row).toList();
-        rowPanels.sort((a, b) => a.column.compareTo(b.column));
-
-        if (row.isEven) {
-          captureOrder.addAll(rowPanels.map((p) => p.index));
-        } else {
-          captureOrder.addAll(rowPanels.reversed.map((p) => p.index));
-        }
-      }
-    } else {
-      // Default row-major order
-      captureOrder = List.generate(panels.length, (i) => i);
-    }
-  }
-
-  List<PlanetariumMosaicPanel> get panelsInCaptureOrder {
-    return captureOrder.map((i) => panels[i]).toList();
   }
 }
 
@@ -332,12 +304,12 @@ class MosaicPlanner {
             rotation: config.rotation,
             fovWidth: config.panelFovWidth,
             fovHeight: config.panelFovHeight,
-            priority: c.row * cols + c.col,
+            priority: c.index,
           ),
         )
         .toList();
 
-    final plan = MosaicPlan(
+    return MosaicPlan(
       config: config,
       panels: panels,
       rows: rows,
@@ -345,10 +317,6 @@ class MosaicPlanner {
       effectiveWidth: effectiveWidth,
       effectiveHeight: effectiveHeight,
     );
-
-    plan.optimizeCaptureOrder(snakePattern: true);
-
-    return plan;
   }
 
   static MosaicPlan generateRectangularMosaic({
@@ -395,7 +363,7 @@ class MosaicPlanner {
 
   static double totalSlewDistance(MosaicPlan plan) {
     var total = 0.0;
-    final orderedPanels = plan.panelsInCaptureOrder;
+    final orderedPanels = plan.panels;
 
     for (var i = 1; i < orderedPanels.length; i++) {
       total += slewDistance(orderedPanels[i - 1], orderedPanels[i]);
@@ -470,7 +438,7 @@ class MosaicPlanner {
 
 class MosaicExporter {
   static String toJson(MosaicPlan plan) {
-    final panels = plan.panelsInCaptureOrder
+    final panels = plan.panels
         .map(
           (p) => {
             'index': p.index,
@@ -510,7 +478,7 @@ class MosaicExporter {
     final buffer = StringBuffer();
     buffer.writeln('Panel,Row,Column,RA_Hours,RA_Degrees,Dec_Degrees,Rotation');
 
-    for (final panel in plan.panelsInCaptureOrder) {
+    for (final panel in plan.panels) {
       buffer.writeln(
         '${panel.name},${panel.row},${panel.column},'
         '${panel.center.ra.toStringAsFixed(6)},'

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicStartCorner;
 
 import '../../framing_provider.dart';
 import '../../../models/framing_models.dart';
@@ -93,10 +94,9 @@ class FramingGeometryChannel extends SharedStateChannel<FramingGeometry> {
         rows: requireInt(json, 'rows'),
         overlapPercent: requireDouble(json, 'overlapPercent'),
         serpentine: json['serpentine'] == true,
-        startCorner: MosaicStartCorner.values.firstWhere(
-          (c) => c.name == json['startCorner'],
-          orElse: () => MosaicStartCorner.topLeft,
-        ),
+        startCorner:
+            MosaicStartCorner.values.asNameMap()[json['startCorner']] ??
+            (throw const FormatException('Unknown mosaic start corner')),
         panelRotation: jsonDouble(json['panelRotation']),
       ),
     );

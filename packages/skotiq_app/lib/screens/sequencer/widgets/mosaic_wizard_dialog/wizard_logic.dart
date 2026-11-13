@@ -71,15 +71,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     }
   }
 
-  /// Compute panel positions for the visual planner.
-  ///
-  /// Delegates to the planetarium's `MosaicPlanner.generateRectangularMosaic`
-  /// for the actual spherical geometry — that ensures the on-screen
-  /// preview matches the framing-view's mosaic overlay (the
-  /// planetarium uses the same planner to render its own mosaic
-  /// preview). The wizard then maps those panels into the local
-  /// `_PanelPosition` shape and overlays the user's enable/disable
-  /// toggles.
+  /// Panel positions for the visual planner: the panels the sequence will
+  /// have ([MosaicService.generatePanels]), numbered as Framing numbers them.
   ///
   /// The geometry is memoised on its inputs; the disabled-state overlay is a
   /// cheap per-call post-map (it can change every tap without recomputing the
@@ -90,34 +83,9 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
         '$_panelsVertical|$_panelsHorizontal';
     var geometry = _cachedGeometry;
     if (geometry == null || _cachedGeometryKey != key) {
-      final overlapFraction = _overlapPercent / 100.0;
-      final panelFovWidthDeg = _panelWidthArcmin / 60.0;
-      final panelFovHeightDeg = _panelHeightArcmin / 60.0;
-
-      final plan = planetarium.MosaicPlanner.generateRectangularMosaic(
-        center: planetarium.CelestialCoordinate(
-          ra: _centerRa,
-          dec: _centerDec,
-        ),
-        rows: _panelsVertical,
-        columns: _panelsHorizontal,
-        panelFovWidth: panelFovWidthDeg,
-        panelFovHeight: panelFovHeightDeg,
-        overlap: planetarium.MosaicOverlap(
-          horizontal: overlapFraction,
-          vertical: overlapFraction,
-        ),
-        rotation: _rotation,
-      );
-      geometry = plan.panels
-          .map((p) => _PanelPosition(
-                ra: p.center.ra,
-                dec: p.center.dec,
-                index: p.index,
-                row: p.row,
-                col: p.column,
-                enabled: true,
-              ))
+      geometry = const MosaicService()
+          .generatePanels(_config)
+          .map((p) => _PanelPosition(p, enabled: true))
           .toList();
       _cachedGeometry = geometry;
       _cachedGeometryKey = key;
@@ -126,11 +94,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     // Cheap disabled overlay — recomputed each call without touching the trig.
     return geometry
         .map((p) => _PanelPosition(
-              ra: p.ra,
-              dec: p.dec,
-              index: p.index,
-              row: p.row,
-              col: p.col,
+              p.panel,
               enabled: !_disabledPanels.contains((row: p.row, col: p.col)),
             ))
         .toList();
@@ -234,7 +198,6 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     );
 
     final options = MosaicSequenceOptions(
-      serpentineOrdering: true,
       centerAfterSlew: true,
       autofocusPerPanel: false,
       // W1 altitude gate: default each panel's minAltitude to the Smart Night

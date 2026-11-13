@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel;
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -84,13 +85,12 @@ List<TargetHeaderNode> bareTargetHeadersForMosaicPanels({
   double? minAltitude,
 }) {
   const service = MosaicService();
-  final panels = framingCapturePanels(framingState);
+  final panels = framingState.mosaicPanels;
   return [
-    for (var i = 0; i < panels.length; i++)
+    for (final panel in panels)
       service.panelHeader(
         mosaicName: framingMosaicNameFor(target),
-        panel: panels[i],
-        order: i,
+        panel: panel,
         totalPanels: panels.length,
         rotation: rotationDegrees ?? framingState.rotation,
         minAltitude: minAltitude,
@@ -114,7 +114,7 @@ Future<bool> addFramedTargetToExistingSequence({
   // Preserve a drawn mosaic as one target group per panel.
   final panels = mosaic != null && mosaic.mosaicPanels.length >= 2
       ? mosaic.mosaicPanels
-      : const <FramingMosaicPanel>[];
+      : const <MosaicPanel>[];
   final current = ref.read(currentSequenceProvider);
   List<Sequence>? saved;
   while (saved == null) {

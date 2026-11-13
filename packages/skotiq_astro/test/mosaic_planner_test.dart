@@ -73,7 +73,7 @@ void main() {
 
       // A label a bespoke encoder would emit unescaped, producing invalid JSON.
       const trickyLabel = 'Orion "A1" \\ panel\nline2\ttab';
-      plan.panelsInCaptureOrder.first.label = trickyLabel;
+      plan.panels.first.label = trickyLabel;
 
       final json = MosaicExporter.toJson(plan);
 
@@ -86,14 +86,14 @@ void main() {
       expect(first['name'], equals(trickyLabel));
 
       // Numeric fields are preserved.
-      expect(first['index'], equals(plan.panelsInCaptureOrder.first.index));
+      expect(first['index'], equals(plan.panels.first.index));
       expect(
         (first['ra_hours'] as num).toDouble(),
-        equals(plan.panelsInCaptureOrder.first.center.ra),
+        equals(plan.panels.first.center.ra),
       );
       expect(
         (first['dec_deg'] as num).toDouble(),
-        equals(plan.panelsInCaptureOrder.first.center.dec),
+        equals(plan.panels.first.center.dec),
       );
 
       // Human-readable: 2-space indentation.
@@ -120,10 +120,10 @@ void main() {
       expect(decoded['panel_count'], equals(plan.panelCount));
 
       final panels = decoded['panels'] as List<dynamic>;
-      expect(panels.length, equals(plan.panelsInCaptureOrder.length));
+      expect(panels.length, equals(plan.panels.length));
 
       // Panels stay in capture order: names/indices align positionally.
-      final ordered = plan.panelsInCaptureOrder;
+      final ordered = plan.panels;
       for (var i = 0; i < ordered.length; i++) {
         final panelJson = panels[i] as Map<String, dynamic>;
         expect(panelJson['index'], equals(ordered[i].index));

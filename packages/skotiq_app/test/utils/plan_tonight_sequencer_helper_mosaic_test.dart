@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/utils/plan_tonight_sequencer_helper.dart';
 import 'package:skotiq_app/widgets/add_target_to_sequence_flow.dart';
@@ -27,21 +28,19 @@ const _equipment = FramingEquipment(
 );
 
 const _generatedPanels = [
-  FramingMosaicPanel(
+  MosaicPanel(
     index: 0,
-    column: 0,
+    col: 0,
     row: 0,
-    centerRaHours: 0.7,
-    centerDecDegrees: 41.2,
-    name: 'Panel 1',
+    raHours: 0.7,
+    decDegrees: 41.2,
   ),
-  FramingMosaicPanel(
+  MosaicPanel(
     index: 1,
-    column: 1,
+    col: 1,
     row: 0,
-    centerRaHours: 0.8,
-    centerDecDegrees: 41.2,
-    name: 'Panel 2',
+    raHours: 0.8,
+    decDegrees: 41.2,
   ),
 ];
 
@@ -120,8 +119,8 @@ void main() {
         '${h.rotation}|${h.minAltitude}|${h.mosaicPanel?.toJson()}';
     expect(built.map(describe), bare.map(describe));
     // Panel 1 is the panel the canvas numbers first, where the run starts.
-    expect(built.first.raHours, _generatedPanels.first.centerRaHours);
-    expect(built.first.decDegrees, _generatedPanels.first.centerDecDegrees);
+    expect(built.first.raHours, _generatedPanels.first.raHours);
+    expect(built.first.decDegrees, _generatedPanels.first.decDegrees);
     expect(built.first.minAltitude, 25);
     expect(built.first.childIds, isNotEmpty, reason: 'Auto-build images');
   });

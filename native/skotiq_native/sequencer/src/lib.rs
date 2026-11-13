@@ -1282,7 +1282,11 @@ fn default_scheduler_max_score_age_secs() -> i64 {
 
 // Configuration structs for each node type
 
-/// Information about a mosaic panel for multi-panel imaging
+/// A panel's mosaic identity, as the app numbers it: `panel_index` in capture
+/// order (FITS `PANELIDX` is `panel_index + 1`, the number the operator sees),
+/// `row` from the top of the grid as drawn (north at rotation 0) and `column`
+/// from the left (east). The app owns the numbering; this carries it to the
+/// frames.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MosaicPanelInfo {
     pub mosaic_name: String,

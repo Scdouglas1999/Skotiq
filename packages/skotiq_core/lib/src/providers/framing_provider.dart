@@ -10,7 +10,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_astro/skotiq_astro.dart'
-    show MosaicPanelCenter, mosaicPanelCenters;
+    show MosaicPanel, MosaicStartCorner, mosaicPanelCenters;
 
 import 'linked_host.dart';
 import '../errors/error_text.dart';
@@ -625,7 +625,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
     // panels are built around the effective AIM (the dragged reticle
     // position), not the view-center target. They coincide whenever the box
     // has not been dragged off-center.
-    final centers = mosaicPanelCenters(
+    final panels = mosaicPanelCenters(
       centerRaHours: state.effectiveAimRaHours!,
       centerDecDegrees: state.effectiveAimDecDegrees!,
       stepRaDegrees: fovWidth * overlapFactor,
@@ -633,54 +633,11 @@ class FramingNotifier extends StateNotifier<FramingState> {
       columns: config.columns,
       rows: config.rows,
       rotationDegrees: state.rotation,
+      startCorner: config.startCorner,
+      serpentine: config.serpentine,
     );
 
-    // The canvas numbers rows from the top (north) and columns from the left
-    // (east), while the grid's index starts in the south-west.
-    MosaicPanelCenter centerAt(int row, int column) => centers[
-        (config.rows - 1 - row) * config.columns + (config.columns - 1 - column)];
-
-    // Panels in capture order.
-    final panels = <FramingMosaicPanel>[];
-    for (int row = 0; row < config.rows; row++) {
-      final actualRow = _getActualRow(row, config);
-      for (int col = 0; col < config.columns; col++) {
-        final actualCol = _getActualCol(col, row, config);
-        final center = centerAt(actualRow, actualCol);
-        panels.add(
-          FramingMosaicPanel(
-            index: panels.length,
-            column: actualCol,
-            row: actualRow,
-            centerRaHours: center.raHours,
-            centerDecDegrees: center.decDegrees,
-            name: 'Panel ${panels.length + 1} ($actualCol,$actualRow)',
-          ),
-        );
-      }
-    }
-
     state = state.copyWith(mosaicPanels: panels);
-  }
-
-  int _getActualRow(int row, FramingMosaicConfig config) {
-    final flipVertical =
-        config.startCorner == MosaicStartCorner.bottomLeft ||
-        config.startCorner == MosaicStartCorner.bottomRight;
-    return flipVertical ? (config.rows - 1 - row) : row;
-  }
-
-  int _getActualCol(int col, int row, FramingMosaicConfig config) {
-    final flipHorizontal =
-        config.startCorner == MosaicStartCorner.topRight ||
-        config.startCorner == MosaicStartCorner.bottomRight;
-    final baseCol = flipHorizontal ? (config.columns - 1 - col) : col;
-
-    // Apply serpentine pattern (reverse direction on odd rows)
-    if (config.serpentine && row % 2 == 1) {
-      return config.columns - 1 - baseCol;
-    }
-    return baseCol;
   }
 
   /// Recalculate panels when target or equipment changes

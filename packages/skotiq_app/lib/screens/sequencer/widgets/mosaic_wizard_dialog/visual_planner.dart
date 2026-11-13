@@ -347,7 +347,9 @@ class _PanelLayer extends StatelessWidget {
     final dDecDeg = p.dec - centerDec;
     final decRad = centerDec * math.pi / 180.0;
     final cosDec = math.cos(decRad);
-    final dxDeg = dRaDeg * cosDec;
+    // North up and east left, as the sky looks in Framing: the panel the
+    // wizard numbers 1 sits where Framing draws panel 1.
+    final dxDeg = -dRaDeg * cosDec;
     final dyDeg = -dDecDeg;
 
     final panelCenterPx = centerPx +
@@ -434,7 +436,7 @@ class _PanelLayer extends StatelessWidget {
                         BorderRadius.circular(SkotiqTokens.radiusInline4),
                   ),
                   child: Text(
-                    '${p.index + 1}',
+                    '${p.panel.number}',
                     style: TextStyle(
                       fontSize: math.max(
                           SkotiqTypography.fontSize10, g.size.width * 0.12),
