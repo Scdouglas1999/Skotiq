@@ -27,20 +27,20 @@ import 'guide_metrics.dart';
 import 'guide_sections.dart';
 
 /// The state label and its tone for a PHD2 state.
-(String key, MetricTone tone) nightGuiderStateKey(Phd2State state) =>
+(String key, MetricGridTone tone) nightGuiderStateKey(Phd2State state) =>
     switch (state) {
-      Phd2State.stopped => ('nightScopeGuideStopped', MetricTone.neutral),
-      Phd2State.selected => ('nightScopeGuideSelected', MetricTone.neutral),
-      Phd2State.looping => ('nightScopeGuideLooping', MetricTone.warning),
+      Phd2State.stopped => ('nightScopeGuideStopped', MetricGridTone.neutral),
+      Phd2State.selected => ('nightScopeGuideSelected', MetricGridTone.neutral),
+      Phd2State.looping => ('nightScopeGuideLooping', MetricGridTone.warning),
       Phd2State.calibrating => (
           'nightScopeGuideCalibrating',
-          MetricTone.warning
+          MetricGridTone.warning
         ),
-      Phd2State.guiding => ('nightScopeGuideGuiding', MetricTone.good),
-      Phd2State.settling => ('nightScopeGuideSettling', MetricTone.warning),
-      Phd2State.paused => ('nightScopeGuidePaused', MetricTone.warning),
-      Phd2State.lostLock => ('nightScopeGuideLostLock', MetricTone.bad),
-      Phd2State.unknown => ('nightScopeGuideUnknown', MetricTone.warning),
+      Phd2State.guiding => ('nightScopeGuideGuiding', MetricGridTone.good),
+      Phd2State.settling => ('nightScopeGuideSettling', MetricGridTone.warning),
+      Phd2State.paused => ('nightScopeGuidePaused', MetricGridTone.warning),
+      Phd2State.lostLock => ('nightScopeGuideLostLock', MetricGridTone.bad),
+      Phd2State.unknown => ('nightScopeGuideUnknown', MetricGridTone.warning),
     };
 
 class NightGuideTab extends ConsumerWidget {
@@ -94,7 +94,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     return NightPanelSection(
       title: l10n.text('nightScopePhd2'),
       trailing: l10n.text('nightScopeNotConnected'),
-      trailingTone: MetricTone.warning,
+      trailingTone: MetricGridTone.warning,
       children: [
         NightPanelNote(l10n.text('nightScopeGuideNoPhd2')),
         NightPanelButtonGrid(
@@ -135,7 +135,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
       return NightPanelSection(
         title: l10n.text('nightScopeGuider'),
         trailing: l10n.text('nightScopeNotConnected'),
-        trailingTone: MetricTone.warning,
+        trailingTone: MetricGridTone.warning,
         children: [NightPanelNote(l10n.text('nightScopeGuideNone'))],
       );
     }
@@ -147,7 +147,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     return NightPanelSection(
       title: l10n.text('nightScopeGuider'),
       trailing: l10n.text('nightScopeNotConnected'),
-      trailingTone: MetricTone.warning,
+      trailingTone: MetricGridTone.warning,
       children: [
         NightPanelNote(l10n.text('nightScopeGuideNoDevice')),
         NightPanelButtonGrid(

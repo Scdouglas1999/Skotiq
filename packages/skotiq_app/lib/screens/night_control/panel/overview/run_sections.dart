@@ -17,8 +17,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../data/plan/scheduler_provider.dart';
-import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
+import '../../night_tone_color.dart';
 
 String _seconds(double secs) =>
     DurationFormat.seconds(secs, style: DurationStyle.short);
@@ -33,28 +33,28 @@ class NightAdaptiveExposureSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
-    final (String key, MetricTone? tone) = switch (decision.reason) {
+    final (String key, MetricGridTone? tone) = switch (decision.reason) {
       AdaptiveExposureReason.adapted => (
           decision.isNontrivialAdjustment
               ? 'nightAdaptiveAdapted'
               : 'nightAdaptiveAsPlanned',
-          decision.isNontrivialAdjustment ? MetricTone.good : null,
+          decision.isNontrivialAdjustment ? MetricGridTone.good : null,
         ),
       AdaptiveExposureReason.clampedMin => (
           'nightAdaptiveClampedMin',
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       AdaptiveExposureReason.clampedMax => (
           'nightAdaptiveClampedMax',
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       AdaptiveExposureReason.outOfNominalBounds => (
           'nightAdaptiveOutOfBounds',
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       AdaptiveExposureReason.unavailable => (
           'nightAdaptiveNoSky',
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       AdaptiveExposureReason.disabled || AdaptiveExposureReason.unknown => (
           'nightAdaptiveAsPlanned',
@@ -147,7 +147,7 @@ class NightSchedulerSection extends StatelessWidget {
               params: <String, String>{'target': picked},
             ),
             value: score == null ? null : '${score.round()}',
-            tone: MetricTone.good,
+            tone: MetricGridTone.good,
             strong: true,
           )
         else
@@ -156,7 +156,7 @@ class NightSchedulerSection extends StatelessWidget {
               'nightSchedulerNoPick',
               params: <String, String>{'floor': '${minScore.round()}'},
             ),
-            tone: MetricTone.warning,
+            tone: MetricGridTone.warning,
           ),
         for (final entry in decision.scores
             .where((s) => s.targetName != picked)
@@ -179,7 +179,7 @@ class NightSchedulerSection extends StatelessWidget {
       value: reason == null || reason.isEmpty
           ? l10n.text('nightSchedulerSkipped')
           : reason,
-      tone: MetricTone.warning,
+      tone: MetricGridTone.warning,
     );
   }
 }
@@ -196,7 +196,7 @@ class _CandidateRow extends StatelessWidget {
 
   final String name;
   final String? value;
-  final MetricTone? tone;
+  final MetricGridTone? tone;
   final bool strong;
 
   @override
@@ -271,13 +271,13 @@ class NightConditionsSwapSection extends StatelessWidget {
     final value = snapshot.valueOrNull;
     if (value == null) {
       final String note;
-      MetricTone? tone;
+      MetricGridTone? tone;
       if (snapshot.hasError) {
         note = l10n.text(
           'nightSwapError',
           params: <String, String>{'detail': userFacingError(snapshot.error!)},
         );
-        tone = MetricTone.bad;
+        tone = MetricGridTone.bad;
       } else if (snapshot.isLoading) {
         note = l10n.text('nightSwapLoading');
       } else {
@@ -291,7 +291,7 @@ class NightConditionsSwapSection extends StatelessWidget {
 
     final score = value.score;
     final state = value.state;
-    final (String status, MetricTone? tone) = _status(state, score?.score);
+    final (String status, MetricGridTone? tone) = _status(state, score?.score);
     final age = score == null ? null : now.difference(score.generatedAt);
     final reason = state.lastDecisionReason;
     return NightPanelSection(
@@ -331,23 +331,23 @@ class NightConditionsSwapSection extends StatelessWidget {
             value: RelativeTime.age(age),
           ),
         if (age != null && age.inMinutes >= 5)
-          NightPanelNote(l10n.text('nightSwapStale'), tone: MetricTone.warning),
+          NightPanelNote(l10n.text('nightSwapStale'), tone: MetricGridTone.warning),
         if (reason != null && reason.isNotEmpty) NightPanelNote(reason),
       ],
     );
   }
 
-  (String, MetricTone?) _status(AdaptiveSwapRuntimeState state, double? score) {
+  (String, MetricGridTone?) _status(AdaptiveSwapRuntimeState state, double? score) {
     final kind = state.lastDecisionKind?.toLowerCase() ?? '';
-    if (kind.contains('swap')) return ('nightSwapSwapped', MetricTone.warning);
+    if (kind.contains('swap')) return ('nightSwapSwapped', MetricGridTone.warning);
     if (kind.contains('hold') || kind.contains('keep')) {
-      return ('nightSwapHolding', MetricTone.good);
+      return ('nightSwapHolding', MetricGridTone.good);
     }
     if (score == null) return ('nightSwapNoData', null);
     final floor = state.configuredThreshold ?? swapBelow;
     return score >= floor
-        ? ('nightSwapAboveFloor', MetricTone.good)
-        : ('nightSwapBelowFloor', MetricTone.warning);
+        ? ('nightSwapAboveFloor', MetricGridTone.good)
+        : ('nightSwapBelowFloor', MetricGridTone.warning);
   }
 
   /// "50", or "medium · 50" when the executor names the target's tier.
@@ -417,7 +417,7 @@ class _NightBroadcastSectionState extends State<NightBroadcastSection> {
             ? 'nightBroadcastLivePublic'
             : 'nightBroadcastLivePrivate',
       ),
-      trailingTone: MetricTone.good,
+      trailingTone: MetricGridTone.good,
       gap: SkotiqTokens.spaceXs,
       children: <Widget>[
         NightPanelRow(
@@ -461,7 +461,7 @@ class _NightBroadcastSectionState extends State<NightBroadcastSection> {
                   ? 'nightBroadcastLocalOnly'
                   : 'nightBroadcastServerOff',
             ),
-            tone: MetricTone.warning,
+            tone: MetricGridTone.warning,
           )
         else ...<Widget>[
           const SizedBox(height: SkotiqTokens.spaceXs),

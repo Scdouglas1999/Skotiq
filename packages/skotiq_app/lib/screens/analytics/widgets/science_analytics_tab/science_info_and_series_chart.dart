@@ -211,33 +211,13 @@ class _SeriesChartCard extends StatelessWidget {
     final sorted = points.toList(growable: false)
       ..sort((a, b) => a.time.compareTo(b.time));
     final start = sorted.first.time;
-    final spots = sorted
-        .map(
-          (point) => FlSpot(
-              point.time.difference(start).inSeconds.toDouble(), point.value),
-        )
-        .toList(growable: false);
-
-    var minY = sorted.first.value;
-    var maxY = sorted.first.value;
-    for (final point in sorted) {
-      if (point.value < minY) {
-        minY = point.value;
-      }
-      if (point.value > maxY) {
-        maxY = point.value;
-      }
-    }
-
-    // Shared "nice" axis: bounds snapped to tick multiples so fl_chart's
-    // boundary labels coincide with ticks instead of printing a second value a
-    // few pixels away (this chart showed "101.0" over "100.0" and "75.0" over
-    // "74.7" on the transparency trend).
-    final axis = ChartScale.niceRange(minY, maxY);
-    final maxX = spots.last.x == 0 ? 1.0 : spots.last.x;
-    // Exact division puts the last tick on the axis end, so the boundary label
-    // is a tick rather than a second copy a few pixels away.
-    final xInterval = maxX / 4;
+    final samples = [
+      for (final point in sorted)
+        Offset(
+          point.time.difference(start).inSeconds.toDouble(),
+          point.value,
+        ),
+    ];
 
     return SkotiqPanel(
       padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
@@ -260,78 +240,19 @@ class _SeriesChartCard extends StatelessWidget {
           const SizedBox(height: 12),
           AdaptiveChartContainer(
             preferredHeight: 190,
-            child: LineChart(
-              LineChartData(
-                minX: 0,
-                maxX: maxX,
-                minY: axis.min,
-                maxY: axis.max,
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border.all(color: colors.border),
+            child: SkotiqChart(
+              semanticLabel: '$title over ${sorted.length} samples',
+              series: <ChartSeries>[
+                ChartSeries(
+                  points: samples,
+                  label: title,
+                  color: color,
+                  strokeWidth: 2,
+                  filled: true,
                 ),
-                gridData: FlGridData(
-                  drawVerticalLine: true,
-                  horizontalInterval: axis.ticks.step,
-                  verticalInterval: xInterval,
-                  getDrawingHorizontalLine: (_) =>
-                      FlLine(color: colors.border.withValues(alpha: 0.35)),
-                  getDrawingVerticalLine: (_) =>
-                      FlLine(color: colors.border.withValues(alpha: 0.25)),
-                ),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 24,
-                      interval: xInterval,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          ChartScale.elapsedLabel(value),
-                          style: SkotiqTypography.caption
-                              .copyWith(color: colors.textSecondary),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    axisNameWidget: Text(
-                      yLabel,
-                      style: SkotiqTypography.caption
-                          .copyWith(color: colors.textSecondary),
-                    ),
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 44,
-                      interval: axis.ticks.step,
-                      getTitlesWidget: (value, meta) => Text(
-                        axis.ticks.label(value),
-                        style: SkotiqTypography.caption
-                            .copyWith(color: colors.textSecondary),
-                      ),
-                    ),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    color: color,
-                    barWidth: 2,
-                    isCurved: false,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: color.withValues(alpha: 0.12),
-                    ),
-                  ),
-                ],
-              ),
+              ],
+              x: const ChartAxis(kind: ChartAxisKind.elapsed),
+              y: ChartAxis(title: yLabel),
             ),
           ),
         ],

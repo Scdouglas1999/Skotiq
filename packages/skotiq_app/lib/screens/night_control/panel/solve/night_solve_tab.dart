@@ -89,21 +89,21 @@ class _LastSolveSection extends ConsumerWidget {
         : action.lastSolveDuration;
 
     final String status;
-    final MetricTone? statusTone;
+    final MetricGridTone? statusTone;
     bool inFlight(ManualActionId id) => action.isBusy && action.active == id;
 
     if (solveState.isSolving || inFlight(ManualActionId.solve)) {
       status = l10n.text('nightScopeSolveSolving');
-      statusTone = MetricTone.warning;
+      statusTone = MetricGridTone.warning;
     } else if (runSolve != null) {
       status = [
         l10n.text('nightScopeSolveSolved'),
         ClockFormat.hm(clock.toNightClock(runSolve.at)),
       ].join(' · ');
-      statusTone = MetricTone.good;
+      statusTone = MetricGridTone.good;
     } else if (inputs.solverMissing) {
       status = l10n.text('nightScopeSolverMissing');
-      statusTone = MetricTone.warning;
+      statusTone = MetricGridTone.warning;
     } else if (result == null) {
       status = l10n.text('nightScopeSolveNone');
       statusTone = null;
@@ -116,7 +116,7 @@ class _LastSolveSection extends ConsumerWidget {
           '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s',
       ];
       status = parts.join(' · ');
-      statusTone = solved ? MetricTone.good : MetricTone.bad;
+      statusTone = solved ? MetricGridTone.good : MetricGridTone.bad;
     }
 
     // A run's solve reports its position and its distance from the run's
@@ -202,11 +202,11 @@ class _LastSolveSection extends ConsumerWidget {
             result != null &&
             !result.success &&
             result.error != null)
-          NightPanelNote(result.error!, tone: MetricTone.bad, maxLines: null),
+          NightPanelNote(result.error!, tone: MetricGridTone.bad, maxLines: null),
         if (inputs.solverMissing)
           NightPanelNote(
             l10n.text('nightScopeSolverMissingNote'),
-            tone: MetricTone.warning,
+            tone: MetricGridTone.warning,
           ),
         // Solve & sync on its own row: its label does not fit a third of
         // the panel. Without a solver, setting one up takes its place.
