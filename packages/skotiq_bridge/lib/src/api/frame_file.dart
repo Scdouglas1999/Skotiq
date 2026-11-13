@@ -41,8 +41,8 @@ Future<void> apiUpdateFrameCards({
 class FrameCard {
   final String keyword;
 
-  /// The value as plain text: a string without its quotes, a number as
-  /// written, `T`/`F` for a boolean.
+  /// The value as plain text: a string without its quotes, a number as the
+  /// app's frame writer writes it, `T`/`F` for a boolean.
   final String text;
 
   /// The value when it is a number.
@@ -105,7 +105,7 @@ class FrameCardUpdate {
 class FrameHeaderRead {
   final List<FrameCard> cards;
 
-  /// `None` when the header states no astrometry. What the header says, not
+  /// Absent when the header states no astrometry. What the header says, not
   /// a judgment of it: a matrix that cannot be inverted is returned as is.
   final FrameWcs? wcs;
 

@@ -93,7 +93,7 @@ impl From<FrameWcs> for SipWcs {
 #[derive(Debug, Clone)]
 pub struct FrameHeaderRead {
     pub cards: Vec<FrameCard>,
-    /// `None` when the header states no astrometry. What the header says, not
+    /// Absent when the header states no astrometry. What the header says, not
     /// a judgment of it: a matrix that cannot be inverted is returned as is.
     pub wcs: Option<FrameWcs>,
 }
