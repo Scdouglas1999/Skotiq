@@ -15288,44 +15288,6 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__heartbeat__api_start_device_heartbeat(
-    int port_,
-    int device_type,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    int interval_ms,
-  ) {
-    return _wire__crate__api__heartbeat__api_start_device_heartbeat(
-      port_,
-      device_type,
-      device_id,
-      interval_ms,
-    );
-  }
-
-  late final _wire__crate__api__heartbeat__api_start_device_heartbeatPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Int32,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint64,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_start_device_heartbeat',
-      );
-  late final _wire__crate__api__heartbeat__api_start_device_heartbeat =
-      _wire__crate__api__heartbeat__api_start_device_heartbeatPtr
-          .asFunction<
-            void Function(
-              int,
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-            )
-          >();
-
   void wire__crate__api__polar_alignment__run_loop__api_start_polar_alignment(
     int port_,
     double exposure_time,
@@ -15414,33 +15376,6 @@ class RustLibWire implements BaseWire {
       >('frbgen_skotiq_bridge_wire__crate__api__mosaic__api_stitch_mosaic');
   late final _wire__crate__api__mosaic__api_stitch_mosaic =
       _wire__crate__api__mosaic__api_stitch_mosaicPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__heartbeat__api_stop_device_heartbeat(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__heartbeat__api_stop_device_heartbeat(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__heartbeat__api_stop_device_heartbeatPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_stop_device_heartbeat',
-      );
-  late final _wire__crate__api__heartbeat__api_stop_device_heartbeat =
-      _wire__crate__api__heartbeat__api_stop_device_heartbeatPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();

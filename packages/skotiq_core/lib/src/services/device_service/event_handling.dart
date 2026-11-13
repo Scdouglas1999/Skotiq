@@ -377,12 +377,6 @@ extension _DeviceServiceEventHandling on DeviceService {
     }
   }
 
-  // Heartbeat event routing + start/stop helpers live in
-  // [DeviceHeartbeatRouter] (`_heartbeat`). DeviceService just hands
-  // event payloads to it from `_handleEquipmentEvent` and calls
-  // `_heartbeat.start` / `_heartbeat.stop` from connect/disconnect
-  // flows; see `device_heartbeat_router.dart`.
-
   /// Whether a `deviceType`/`deviceId` event is about the profile's guide
   /// camera, which has no slot of its own and must not take the camera's.
   bool _isGuideCameraEvent(String? deviceType, String? deviceId) {

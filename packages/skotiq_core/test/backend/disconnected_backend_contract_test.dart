@@ -40,7 +40,6 @@ void main() {
     expect(backend.getSettings(), notConnected);
     expect(backend.getImageThumbnail(1), notConnected);
     expect(backend.depthLockStatus(), notConnected);
-    expect(backend.stopDeviceHeartbeat('camera'), notConnected);
   });
 
   test('a failing operation fails through its future, never synchronously', () {

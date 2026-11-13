@@ -29,30 +29,6 @@ void main() {
     });
 
     test(
-      'heartbeat start reports invalid device type as JSON bad request',
-      () async {
-        final response = await translateHandlerErrors(
-          handlers.handleStartDeviceHeartbeat(
-            Request(
-              'POST',
-              Uri.parse('http://localhost/api/device/heartbeat/start'),
-              body: jsonEncode({
-                'device_type': 'unknown',
-                'device_id': 'device-1',
-                'interval_ms': 1000,
-              }),
-            ),
-          ),
-        );
-
-        expect(response.statusCode, HttpStatus.badRequest);
-        expect(response.headers['content-type'], 'application/json');
-        final body = jsonDecode(await response.readAsString()) as Map;
-        expect(body['error'], 'Invalid device type: unknown');
-      },
-    );
-
-    test(
       'status backend failures return JSON internal server errors',
       () async {
         final response = await translateHandlerErrors(
@@ -106,29 +82,6 @@ void main() {
           final body = jsonDecode(await response.readAsString()) as Map;
           expect(body['error'], isA<String>());
         }
-      },
-    );
-
-    test(
-      'malformed heartbeat body returns JSON internal server error',
-      () async {
-        final response = await translateHandlerErrors(
-          handlers.handleStopDeviceHeartbeat(
-            Request(
-              'POST',
-              Uri.parse('http://localhost/api/device/heartbeat/stop'),
-              body: jsonEncode({}),
-            ),
-          ),
-        );
-
-        expect(
-          response.statusCode,
-          anyOf(HttpStatus.badRequest, HttpStatus.internalServerError),
-        );
-        expect(response.headers['content-type'], 'application/json');
-        final body = jsonDecode(await response.readAsString()) as Map;
-        expect(body['error'], isA<String>());
       },
     );
 

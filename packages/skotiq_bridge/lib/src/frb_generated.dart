@@ -124,7 +124,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 99863083;
+  int get rustContentHash => 1768662527;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1184,12 +1184,6 @@ abstract class RustLibApi extends BaseApi {
     int? offset,
   });
 
-  Future<void> crateApiHeartbeatApiStartDeviceHeartbeat({
-    required DeviceType deviceType,
-    required String deviceId,
-    required BigInt intervalMs,
-  });
-
   Future<void> crateApiPolarAlignmentRunLoopApiStartPolarAlignment({
     required double exposureTime,
     required double stepSize,
@@ -1205,10 +1199,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<String> crateApiMosaicApiStitchMosaic({required String argsJson});
-
-  Future<void> crateApiHeartbeatApiStopDeviceHeartbeat({
-    required String deviceId,
-  });
 
   Future<void> crateApiPolarAlignmentEntrypointsApiStopPolarAlignment();
 
@@ -9520,42 +9510,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiHeartbeatApiStartDeviceHeartbeat({
-    required DeviceType deviceType,
-    required String deviceId,
-    required BigInt intervalMs,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_device_type(deviceType);
-          var arg1 = cst_encode_String(deviceId);
-          var arg2 = cst_encode_u_64(intervalMs);
-          return wire.wire__crate__api__heartbeat__api_start_device_heartbeat(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiHeartbeatApiStartDeviceHeartbeatConstMeta,
-        argValues: [deviceType, deviceId, intervalMs],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiHeartbeatApiStartDeviceHeartbeatConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_start_device_heartbeat",
-        argNames: ["deviceType", "deviceId", "intervalMs"],
-      );
-
-  @override
   Future<void> crateApiPolarAlignmentRunLoopApiStartPolarAlignment({
     required double exposureTime,
     required double stepSize,
@@ -9665,36 +9619,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_stitch_mosaic",
         argNames: ["argsJson"],
-      );
-
-  @override
-  Future<void> crateApiHeartbeatApiStopDeviceHeartbeat({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire.wire__crate__api__heartbeat__api_stop_device_heartbeat(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiHeartbeatApiStopDeviceHeartbeatConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiHeartbeatApiStopDeviceHeartbeatConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_stop_device_heartbeat",
-        argNames: ["deviceId"],
       );
 
   @override

@@ -34,7 +34,6 @@ class DeviceSlot {
     required this.state,
     required this.notifier,
     this.isCore = false,
-    this.heartbeat = false,
     this.checksModel = false,
     this.readings,
   });
@@ -55,9 +54,6 @@ class DeviceSlot {
   /// connection dots and a connected/total count.
   final bool isCore;
 
-  /// Dart starts and stops the native heartbeat around connect / disconnect.
-  final bool heartbeat;
-
   /// Connect passes the profile's saved model so a positional id that now
   /// points at different hardware is refused.
   final bool checksModel;
@@ -77,7 +73,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: cameraStateProvider,
     notifier: cameraStateProvider.notifier,
     isCore: true,
-    heartbeat: true,
     checksModel: true,
     readings: cameraReadings,
   ),
@@ -87,7 +82,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: mountStateProvider,
     notifier: mountStateProvider.notifier,
     isCore: true,
-    heartbeat: true,
     checksModel: true,
     readings: mountReadings,
   ),
@@ -97,7 +91,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: focuserStateProvider,
     notifier: focuserStateProvider.notifier,
     isCore: true,
-    heartbeat: true,
     checksModel: true,
     readings: focuserReadings,
   ),
@@ -107,7 +100,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: filterWheelStateProvider,
     notifier: filterWheelStateProvider.notifier,
     isCore: true,
-    heartbeat: true,
     checksModel: true,
     readings: filterWheelReadings,
   ),
@@ -124,7 +116,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: rotatorStateProvider,
     notifier: rotatorStateProvider.notifier,
     isCore: true,
-    heartbeat: true,
     checksModel: true,
     readings: rotatorReadings,
   ),

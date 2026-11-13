@@ -46,14 +46,6 @@ void main() {
       () => mockBackend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
     when(() => mockBackend.getConnectedDevices()).thenAnswer((_) async => []);
-    when(
-      () => mockBackend.startDeviceHeartbeat(
-        deviceType: any(named: 'deviceType'),
-        deviceId: any(named: 'deviceId'),
-        intervalMs: any(named: 'intervalMs'),
-      ),
-    ).thenAnswer((_) async {});
-    when(() => mockBackend.stopDeviceHeartbeat(any())).thenAnswer((_) async {});
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(database),
@@ -111,13 +103,6 @@ void main() {
     expect(state.currentPosition, status.position);
     expect(state.filterNames, status.filterNames);
     expect(state.isMoving, status.moving);
-    verify(
-      () => mockBackend.startDeviceHeartbeat(
-        deviceType: DeviceType.filterWheel,
-        deviceId: deviceId,
-        intervalMs: 10000,
-      ),
-    ).called(1);
   });
 
   test(
@@ -176,13 +161,6 @@ void main() {
       verify(
         () => mockBackend.disconnectDevice(DeviceType.filterWheel, deviceId),
       ).called(1);
-      verifyNever(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.filterWheel,
-          deviceId: deviceId,
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      );
     },
   );
 
