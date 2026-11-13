@@ -189,6 +189,12 @@ impl Camera for IndiCameraHandle {
                     e,
                 )
             })?;
+        // A frame kept from an earlier exposure is not this one's.
+        for element in [indi::CCD1, indi::CCD2] {
+            locked_client
+                .clear_blob(&device_name, element, element)
+                .await;
+        }
         locked_client
             .set_number(
                 &device_name,
@@ -432,11 +438,26 @@ impl Camera for IndiCameraHandle {
             }
         };
 
-        // Wait for BLOB data with timeout (30 seconds)
+        // The driver sends the frame before it reports the exposure done,
+        // so the frame is usually here already, kept by the connection's
+        // reader; otherwise it comes as an event. The kept frame is looked
+        // for on every turn: the events of the other devices on the
+        // connection (a tracking mount sends one a second) would otherwise
+        // keep this loop from ever getting to it.
         let timeout = std::time::Duration::from_secs(30);
         let start_time = std::time::Instant::now();
+        let take_kept = || async {
+            let kept = client.read().await;
+            match kept.take_blob(&device_name, indi::CCD1, indi::CCD1).await {
+                Some(data) => Some(data),
+                None => kept.take_blob(&device_name, indi::CCD2, indi::CCD2).await,
+            }
+        };
 
         loop {
+            if let Some(data) = take_kept().await {
+                return Ok(build_image(data));
+            }
             if start_time.elapsed() > timeout {
                 return Err(DeviceOpError::hardware(
                     Some(device_id.to_string()),
@@ -445,40 +466,28 @@ impl Camera for IndiCameraHandle {
             }
 
             match tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv()).await {
-                Ok(Ok(event)) => match event {
-                    skotiq_indi::IndiEvent::BlobReceived {
-                        device,
-                        element,
-                        data,
-                        ..
-                    } if device == device_name
-                        && (element == indi::CCD1 || element == indi::CCD2) =>
-                    {
-                        return Ok(build_image(data));
-                    }
-                    _ => {}
-                },
-                Ok(Err(_)) => {
+                Ok(Ok(skotiq_indi::IndiEvent::BlobReceived {
+                    device,
+                    element,
+                    data,
+                    ..
+                })) if device == device_name
+                    && (element == indi::CCD1 || element == indi::CCD2) =>
+                {
+                    // The reader kept a copy; a later exposure must not
+                    // find this frame there.
+                    drop(take_kept().await);
+                    return Ok(build_image(data));
+                }
+                Ok(Ok(_)) | Err(_) => {}
+                // Events were dropped because this receiver fell behind;
+                // the kept frame is read on the next turn.
+                Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => {}
+                Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) => {
                     return Err(DeviceOpError::hardware(
                         Some(device_id.to_string()),
                         "INDI event channel closed",
                     ));
-                }
-                Err(_) => {
-                    // recv timed out; the reader may have stored
-                    // the BLOB before we subscribed. Poll the
-                    // cache before looping so a race can't hang.
-                    let cached = {
-                        let lc = client.read().await;
-                        match lc.take_blob(&device_name, indi::CCD1, indi::CCD1).await {
-                            Some(d) => Some(d),
-                            None => lc.take_blob(&device_name, indi::CCD2, indi::CCD2).await,
-                        }
-                    };
-                    if let Some(data) = cached {
-                        return Ok(build_image(data));
-                    }
-                    continue;
                 }
             }
         }
