@@ -6,7 +6,7 @@
 //! that the name exists. Adding a new variable means:
 //! 1. Add the [`VariableEntry`] to `catalog::variable_catalog()`.
 //! 2. Add a match arm in [`resolve_variable`].
-//! 3. The Dart picker auto-picks it up from the catalog JSON.
+//! 3. Copy the entry into the app's catalog (`interpolation_catalog.dart`).
 
 use super::catalog::variable_catalog;
 use super::errors::InterpolationError;
@@ -315,6 +315,14 @@ pub fn resolve_variable(
                 .now_override
                 .unwrap_or_else(now_utc)
                 .format("%H-%M-%S")
+                .to_string(),
+        )),
+        "time.local_clock" => Ok(VariableValue::Str(
+            frame
+                .now_override
+                .map(|u| u.with_timezone(&chrono::Local))
+                .unwrap_or_else(chrono::Local::now)
+                .format("%H:%M")
                 .to_string(),
         )),
         // As the app's `$TEMP` reads a manual capture: the sensor, else what

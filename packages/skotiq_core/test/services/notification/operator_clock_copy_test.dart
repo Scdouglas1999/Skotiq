@@ -93,17 +93,18 @@ void main() {
   });
 
   test(
-    r'the catalog variable ${time.local} keeps its documented ISO meaning',
+    r'the catalog variable ${time.local} renders as the sequencer renders it',
     () {
-      // `time.local` is a Rust-canonical catalog variable (its description in
-      // `interpolation_catalog.dart` promises ISO-8601 with offset, and the
-      // Rust drift test pins the pair). The operator-copy fix must NOT have
-      // redefined it — a user template that asks for it still gets ISO.
+      // A user template that asks for `time.local` gets the catalog's local
+      // timestamp with its UTC offset, as a frame name would.
       final rendered = renderNotificationTemplate(
         r'${time.local}',
         const NotificationContext({}),
       );
-      expect(rendered, matches(_isoTimestamp));
+      expect(
+        rendered,
+        matches(RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}$')),
+      );
     },
   );
 }

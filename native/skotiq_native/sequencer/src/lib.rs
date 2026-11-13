@@ -78,7 +78,7 @@ pub use executor::*;
 // callers outside the sequencer (bridge, integration tests) can build
 // templates without pathing through `expressions::resolver`.
 pub use expressions::{
-    catalog::catalog_json, interpolate, interpolate_optional, EvaluationFrame, InterpolationError,
+    interpolate, interpolate_optional, EvaluationFrame, InterpolationError,
     TemplatePart, VariableEntry, VariableGroup, VariableValue,
 };
 pub use focuser_calibration::{
