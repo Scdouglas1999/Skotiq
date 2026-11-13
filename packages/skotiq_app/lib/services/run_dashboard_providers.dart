@@ -178,22 +178,6 @@ class RunDashboardFilterTotals {
   bool get isEmpty => integrationSecs.isEmpty && goalSecs.isEmpty;
 }
 
-class RunDashboardSessionIntegration {
-  /// Filter -> accepted (isAccepted == true) light-frame seconds.
-  final Map<String, double> acceptedSecs;
-
-  /// Filter -> all light-frame seconds (accepted + rejected).
-  final Map<String, double> totalSecs;
-
-  const RunDashboardSessionIntegration({
-    required this.acceptedSecs,
-    required this.totalSecs,
-  });
-
-  static const empty =
-      RunDashboardSessionIntegration(acceptedSecs: {}, totalSecs: {});
-}
-
 Map<String, double> _computeGoalSecs(Sequence? sequence) {
   if (sequence == null) return const {};
   final out = <String, double>{};
@@ -201,7 +185,7 @@ Map<String, double> _computeGoalSecs(Sequence? sequence) {
     if (node.frameType != FrameType.light) continue;
     if (!node.isEnabled) continue;
     final filter = (node.filter == null || node.filter!.isEmpty)
-        ? 'Unfiltered'
+        ? IntegrationByFilter.unfiltered
         : node.filter!;
     out[filter] = (out[filter] ?? 0.0) + node.totalDurationSecs;
   }
@@ -213,28 +197,12 @@ Map<String, double> _computeGoalSecs(Sequence? sequence) {
 /// rejected). A single DB scan produces both so the dashboard can show "usable
 /// vs spent" without a second query.
 final runDashboardSessionIntegrationProvider =
-    FutureProvider.family<RunDashboardSessionIntegration, int>(
+    FutureProvider.family<IntegrationByFilter, int>(
         (ref, sessionId) async {
   // A linked client's session rows are the host's; the dashboard's refresh
   // ticks re-read this provider so the totals stay current.
-  final images =
-      await ref.watch(imagingRecordsProvider).getImagesForSession(sessionId);
-  final accepted = <String, double>{};
-  final total = <String, double>{};
-  for (final img in images) {
-    if (!img.isLight) continue;
-    final filter = (img.filter == null || img.filter!.isEmpty)
-        ? 'Unfiltered'
-        : img.filter!;
-    total[filter] = (total[filter] ?? 0.0) + img.exposureDuration;
-    if (img.isAccepted) {
-      accepted[filter] = (accepted[filter] ?? 0.0) + img.exposureDuration;
-    }
-  }
-  return RunDashboardSessionIntegration(
-    acceptedSecs: accepted,
-    totalSecs: total,
-  );
+  return IntegrationByFilter.of(
+      await ref.watch(imagingRecordsProvider).getImagesForSession(sessionId));
 });
 
 /// Combined per-filter totals + goals for the active sequence/session.
@@ -280,7 +248,7 @@ final runDashboardFilterTotalsProvider =
   final integration = ref
           .watch(runDashboardSessionIntegrationProvider(sessionId))
           .valueOrNull ??
-      RunDashboardSessionIntegration.empty;
+      IntegrationByFilter.empty;
 
   return RunDashboardFilterTotals(
     integrationSecs: integration.acceptedSecs,

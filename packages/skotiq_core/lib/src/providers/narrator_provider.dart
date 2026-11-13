@@ -6,7 +6,7 @@
 /// uses, so the Narrator ingests for exactly as long as a session is running.
 library;
 
-import '../models/imaging/frame_type_record.dart';
+import '../models/imaging/integration_by_filter.dart';
 import '../database/daos/narrator_events_dao.dart';
 import 'dart:async';
 
@@ -151,12 +151,11 @@ final sessionImagesStreamProvider =
       return ref.watch(imagesDaoProvider).watchImagesForSession(sessionId);
     });
 
-/// Accumulated per-filter integration (accepted light-frame seconds) for a
-/// session, derived from the captured-images stream. Mirrors the app-side
-/// `runDashboardSessionIntegrationProvider` aggregation but lives in core so the
-/// Narrator's [IntegrationMilestoneDetector] can pull it. Remote (companion)
-/// mode has no local image stream, so it yields empty and the milestone simply
-/// stays quiet there — the appliance/local side is where captures land.
+/// Accepted light-frame seconds per filter for a session ([IntegrationByFilter]),
+/// from the captured-images stream, for the Narrator's
+/// [IntegrationMilestoneDetector]. Remote (companion) mode has no local image
+/// stream, so it yields empty and the milestone stays quiet there: the host is
+/// where captures land.
 final sessionFilterIntegrationProvider =
     StreamProvider.family<List<NarratorFilterIntegration>, int>((
       ref,
@@ -179,15 +178,7 @@ List<NarratorFilterIntegration> _aggregateFilterIntegration(
   List<DbCapturedImage> images,
   String? targetName,
 ) {
-  final acceptedSecs = <String, double>{};
-  for (final img in images) {
-    if (!img.isLight) continue;
-    if (!img.isAccepted) continue;
-    final filter = (img.filter == null || img.filter!.isEmpty)
-        ? 'Unfiltered'
-        : img.filter!;
-    acceptedSecs[filter] = (acceptedSecs[filter] ?? 0.0) + img.exposureDuration;
-  }
+  final acceptedSecs = IntegrationByFilter.of(images).acceptedSecs;
   final name = (targetName == null || targetName.isEmpty) ? null : targetName;
   return acceptedSecs.entries
       .map(

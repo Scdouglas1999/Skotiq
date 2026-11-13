@@ -189,6 +189,7 @@ export 'src/models/troubleshooter/connection_diagnostic.dart';
 export 'src/models/framing_hips_projection.dart';
 export 'src/models/framing_guide_star.dart';
 export 'src/models/imaging/frame_gain.dart';
+export 'src/models/imaging/integration_by_filter.dart';
 export 'src/models/imaging/frame_type_record.dart';
 export 'src/models/imaging/session_status.dart';
 export 'src/models/imaging/gain_kind.dart';
