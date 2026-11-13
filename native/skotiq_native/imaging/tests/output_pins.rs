@@ -1252,10 +1252,10 @@ fn pin_wcs(pins: &mut Pins) {
     let info = skotiq_imaging::SipWcs::from_pointing(5.5, 22.0, 33.0, 1.9, 4656, 3520).cd_only();
     pins.add_debug("wcs/from_pointing.cd_only", &info);
     let mut header = FitsHeader::new();
-    add_wcs_headers(&mut header, &info);
+    info.write_to_header(&mut header);
     pins.add("wcs/info.header", header_digest(&header));
     pins.add_debug("wcs/header.sip_wcs", &recipe::wcs_from_header(&header));
-    let projection = SipWcs::from(&info);
+    let projection = info.clone();
     let sip = SipWcs::tan_only(
         info.crval1,
         info.crval2,

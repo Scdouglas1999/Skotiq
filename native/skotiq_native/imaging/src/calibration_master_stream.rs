@@ -5,8 +5,11 @@
 //! whole stack: each band is read from disk with a seek, combined, and dropped.
 //! Fifty full-size bias frames therefore fit in the same few hundred megabytes
 //! as five. A FITS frame is read in place; a frame in another format (XISF, a
-//! camera raw file) is decoded once into a FITS copy beside the master, read
-//! the same way, and removed when the build ends.
+//! camera raw file) is decoded once into a FITS copy in the system's temporary
+//! folder ([`FitsCopy`]), read the same way, and removed when the build ends.
+//! Every frame's band is needed at once for the rejection, so the decoded
+//! frames are either all held in memory or all spilled to disk; the copies
+//! are that spill.
 //!
 //! The combine is a winsorized sigma-clipped mean (3σ low and high), the
 //! PixInsight default for calibration masters. The master is written as
@@ -187,14 +190,11 @@ struct BandSource {
 }
 
 impl BandSource {
-    /// `copies`: where a frame in another format is decoded to.
-    fn open(path: &Path, copies: &Path) -> Result<Self, String> {
+    fn open(path: &Path) -> Result<Self, String> {
         let describe = |e: FitsError| format!("{}: {e}", path.display());
         let copy = match frame_format(path).map_err(|e| format!("{}: {e}", path.display()))? {
             ImageFormat::Fits => None,
-            _ => Some(
-                FitsCopy::new(path, copies).map_err(|e| format!("{}: {e}", path.display()))?,
-            ),
+            _ => Some(FitsCopy::new(path).map_err(|e| format!("{}: {e}", path.display()))?),
         };
         let fits = copy.as_ref().map_or(path, FitsCopy::path);
         let file = File::open(fits).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -313,6 +313,16 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
                 ));
             }
         }
+        let mode = |h: &FitsHeader| h.get_string("READOUTM").map(str::to_string);
+        if let (Some(a), Some(b)) = (mode(first.header()), mode(source.header())) {
+            if a != b {
+                return Err(format!(
+                    "{} was read out in mode {b} but {} in mode {a}",
+                    source.path.display(),
+                    first.path.display()
+                ));
+            }
+        }
         for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
             if let (Some(a), Some(b)) = (
                 card_i64(first.header(), &[key]),
@@ -334,7 +344,7 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
 /// Build a dark or bias master from `paths` and write it to `output`.
 ///
 /// Fails without writing anything when the frames disagree on size, exposure,
-/// gain, offset or binning, when more than half of them leak, or when fewer
+/// gain, offset, binning or read mode, when more than half of them leak, or when fewer
 /// than two frames are left after the leaking ones are dropped.
 pub fn build_streamed_master(
     paths: &[PathBuf],
@@ -354,7 +364,7 @@ pub fn build_streamed_master(
     }
     let mut sources: Vec<BandSource> = paths
         .iter()
-        .map(|p| BandSource::open(p, output_dir))
+        .map(|p| BandSource::open(p))
         .collect::<Result<_, _>>()?;
     check_agreement(&sources)?;
 
@@ -808,6 +818,37 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.contains("exposed"), "{err}");
+    }
+
+    /// A QHY camera's darks taken in two read modes differ in read noise and
+    /// pedestal; one master of both calibrates neither.
+    #[test]
+    fn mixed_read_modes_are_refused_and_one_mode_is_carried() {
+        let dir = tempdir();
+        let in_mode = |name: &str, seed: u64, mode: &str| {
+            let path = write_frame(dir.path(), name, &noisy(seed, 4, 4, 300.0), 4, 4, CARDS);
+            crate::rewrite_frame_header(&path, |h| h.set_string("READOUTM", mode)).unwrap();
+            path
+        };
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        let photographic = in_mode("a.fits", 1, "Photographic DSO 16BIT");
+        let high_gain = in_mode("b.fits", 2, "High Gain Mode 16BIT");
+        let err = build_streamed_master(
+            &[photographic.clone(), high_gain],
+            &dir.path().join("m.fits"),
+            &config,
+        )
+        .unwrap_err();
+        assert!(err.contains("read out in mode"), "{err}");
+
+        let same = in_mode("c.fits", 3, "Photographic DSO 16BIT");
+        let out = dir.path().join("one.fits");
+        build_streamed_master(&[photographic, same], &out, &config).unwrap();
+        let (_, header) = crate::read_frame(&out).unwrap();
+        assert_eq!(
+            header.get_string("READOUTM"),
+            Some("Photographic DSO 16BIT")
+        );
     }
 
     #[test]

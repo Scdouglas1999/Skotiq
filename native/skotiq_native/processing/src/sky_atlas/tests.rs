@@ -9,7 +9,7 @@ use crate::sky_atlas::tiles::CoverageResult;
 use skotiq_imaging::sky_atlas::{
     radec_to_tile, tile_wcs, SkyTileAccumulator, ATLAS_HEALPIX_ORDER, TILE_PIXELS,
 };
-use skotiq_imaging::{write_fits, FitsHeader};
+use skotiq_imaging::{write_fits, FitsHeader, SipWcs};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);

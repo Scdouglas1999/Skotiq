@@ -5,7 +5,7 @@ use crate::post_session::entrypoints::master_accumulate;
 use crate::post_session::helpers::image_to_f64;
 use crate::post_session::multi_night::{NO_SUBS_KIND, STAR_SIGNAL_FORMULA};
 use skotiq_imaging::{
-    add_wcs_headers, read_frame, read_frame_header, write_fits, FitsHeader, ImageData,
+    read_frame, read_frame_header, write_fits, FitsHeader, ImageData,
 };
 use std::path::{Path, PathBuf};
 
@@ -479,10 +479,7 @@ fn drizzle_build_honors_scales_and_preserves_calibrated_signal() {
     );
     let bias = write_u16(&dir.join("bias.fits"), &vec![100.0; (W * H) as usize]);
     let (raw, mut h) = read_frame(Path::new(&light)).unwrap();
-    add_wcs_headers(
-        &mut h,
-        &skotiq_imaging::SipWcs::from_pointing(35.0, 42.0, 0.0, 1.2, W, H).cd_only(),
-    );
+    skotiq_imaging::SipWcs::from_pointing(35.0, 42.0, 0.0, 1.2, W, H).cd_only().write_to_header(&mut h);
     h.set_int("A_ORDER", 2);
     h.set_float("A_2_0", 0.0001);
     let crpix = h.get_float("CRPIX1").unwrap();

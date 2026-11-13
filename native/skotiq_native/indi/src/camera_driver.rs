@@ -446,7 +446,7 @@ impl CameraDriver for IndiCamera {
         };
         let gain = setting(self.get_gain().await, "gain");
         let offset = setting(self.get_offset().await, "offset");
-        let frame = decode_frame(&data, sensor);
+        let frame = decode_frame(&data, sensor).map_err(own)?;
         Ok(ImageData {
             width: frame.width,
             height: frame.height,

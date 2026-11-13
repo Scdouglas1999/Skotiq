@@ -235,6 +235,66 @@ void main() {
     });
   });
 
+  group('read modes', () {
+    // A QHY camera read out in two modes has two read noises and pedestals;
+    // its darks of one mode do not calibrate lights of the other.
+    test('lights that state a read mode take a dark of that mode', () async {
+      final dir = await Directory.systemTemp.createTemp('cal_read_mode');
+      addTearDown(() => dir.delete(recursive: true));
+      Future<String> masterIn(String mode) async {
+        final path = '${dir.path}/master_dark_$mode.fits';
+        await File(path).writeAsBytes(const [0]);
+        await darkDao.addEntry(
+          DarkLibraryCompanion.insert(
+            filePath: path,
+            exposureTime: 300,
+            gain: const Value(30),
+            offset: const Value(10),
+            masterDarkPath: Value(path),
+            masterFrameCount: const Value(20),
+            createdAt: Value(now),
+          ),
+        );
+        return path;
+      }
+
+      final photographic = await masterIn('photographic');
+      final highGain = await masterIn('highgain');
+      final matcher = CalibrationLibraryService(
+        db: db,
+        flatLibraryDao: flatDao,
+        tagsDao: tagsDao,
+        readHeader: (path) async => FrameHeader({
+          'READOUTM': path == photographic
+              ? 'Photographic DSO 16BIT'
+              : 'High Gain Mode 16BIT',
+        }),
+        now: () => now,
+      );
+      LightFrameContext lights(String? mode) => LightFrameContext(
+        gain: 30,
+        offset: 10,
+        exposureSeconds: 300,
+        readoutMode: mode,
+      );
+
+      for (final (mode, path) in [
+        ('Photographic DSO 16BIT', photographic),
+        ('High Gain Mode 16BIT', highGain),
+      ]) {
+        final match = await matcher.match(lights(mode), includeRemote: false);
+        expect(match.dark?.record.filePath, path, reason: mode);
+      }
+      final other = await matcher.match(
+        lights('Extended Full Well 16BIT'),
+        includeRemote: false,
+      );
+      expect(other.dark, isNull);
+      final unstated = await matcher.match(lights(null), includeRemote: false);
+      expect(unstated.dark, isNotNull);
+    });
+  });
+
   group('bias matching', () {
     test('matches exact gain/offset and is detected as a bias', () async {
       await insertDark(

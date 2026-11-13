@@ -31,8 +31,8 @@ pub const MIN_MASTER_FRAMES: i64 = 8;
 /// header a re-solved reference might carry later.
 ///
 /// `crpix*` follow the FITS 1-based convention; the CD matrix is degrees per
-/// pixel. Only undistorted TAN projections are representable, which is all
-/// the estimator accepts.
+/// pixel. The geometry is the linear part of the reference's TAN solution
+/// ([`reference_wcs`] says why).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReferenceGeometry {
@@ -131,21 +131,31 @@ fn numeric(header: &FitsHeader, key: &str) -> Result<f64, String> {
         .ok_or_else(|| format!("DepthLock requires a finite {key} FITS keyword"))
 }
 
-/// The undistorted celestial TAN solution a reference header must carry.
+/// The linear part of the celestial TAN solution a reference header carries:
+/// `CRVAL`, `CRPIX` and the CD matrix, with any SIP polynomials left out.
 ///
-/// SIP terms, non-TAN projections and unstated coordinate systems are refused:
-/// the estimator's aperture geometry is only correct for a plain gnomonic
-/// projection in ICRS (or FK5 at J2000, which is the same frame to far better
-/// than an aperture).
+/// A goal's regions are drawn in the reference's pixels and stored as
+/// tangent-plane rectangles through this map, and every later frame reaches
+/// those pixels through its registration onto the reference, never through
+/// its own solve. Under a linear map a rectangle drawn in pixels is a
+/// rectangle on the tangent plane and back, so the apertures land on exactly
+/// the pixels the operator drew; under the SIP polynomials it would be a
+/// curved quadrilateral that no stored rectangle reproduces. Leaving them
+/// out moves where on the sky the region is said to lie by the distortion at
+/// its position (about a pixel at the corners of an ASTAP solve), not which
+/// pixels are measured.
+///
+/// Other projections and unstated coordinate systems are refused: the
+/// aperture geometry is that of a gnomonic projection in ICRS (or FK5 at
+/// J2000, which is the same frame to far better than an aperture).
 pub fn reference_wcs(header: &FitsHeader) -> Result<SipWcs, String> {
-    if header.get_string("CTYPE1") != Some("RA---TAN")
-        || header.get_string("CTYPE2") != Some("DEC--TAN")
-        || header.get_int("A_ORDER").unwrap_or(0) != 0
-        || header.get_int("B_ORDER").unwrap_or(0) != 0
-        || header.get_int("AP_ORDER").unwrap_or(0) != 0
-        || header.get_int("BP_ORDER").unwrap_or(0) != 0
-    {
-        return Err("DepthLock requires an undistorted celestial TAN reference".into());
+    let projection = |key: &str, tan: &str| {
+        header
+            .get_string(key)
+            .is_some_and(|ctype| ctype == tan || ctype.strip_suffix("-SIP") == Some(tan))
+    };
+    if !projection("CTYPE1", "RA---TAN") || !projection("CTYPE2", "DEC--TAN") {
+        return Err("DepthLock requires a celestial TAN reference".into());
     }
     let system = header
         .get_string("RADESYS")
@@ -173,7 +183,7 @@ pub fn reference_wcs(header: &FitsHeader) -> Result<SipWcs, String> {
     if !wcs.is_invertible() || !(0.0..360.0).contains(&wcs.crval1) || wcs.crval2.abs() > 85.0 {
         return Err("Reference astrometry is singular or outside the supported sky field".into());
     }
-    Ok(wcs)
+    Ok(wcs.cd_only())
 }
 
 /// The WCS of a frame that was registered onto the reference.

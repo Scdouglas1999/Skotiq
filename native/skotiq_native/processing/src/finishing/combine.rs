@@ -26,7 +26,7 @@ use skotiq_imaging::drizzle::{
 };
 use skotiq_imaging::registration::{TransformKind, TransformModel};
 use skotiq_imaging::{
-    read_bayer_geometry, read_frame, write_fits, FitsHeader, ImageData, PixelType,
+    read_color_filter_array, read_frame, write_fits, FitsHeader, ImageData, PixelType,
 };
 use std::path::Path;
 
@@ -235,13 +235,21 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
                     fa.fits_path, image.channels
                 ));
             }
-            let geometry = read_bayer_geometry(&header).ok_or_else(|| {
-                format!(
-                    "'{}' has no BAYERPAT header; cannot Bayer-drizzle a frame without a CFA pattern",
-                    fa.fits_path
-                )
-            })?;
-            patterns.push(geometry.effective);
+            match read_color_filter_array(&header) {
+                Some(skotiq_imaging::ColorFilterArray::Bayer(pattern)) => patterns.push(pattern),
+                Some(skotiq_imaging::ColorFilterArray::XTrans(_)) => {
+                    return Err(format!(
+                        "'{}' is an X-Trans mosaic; Bayer drizzle reads 2x2 Bayer mosaics only",
+                        fa.fits_path
+                    ))
+                }
+                None => {
+                    return Err(format!(
+                        "'{}' has no BAYERPAT header; cannot Bayer-drizzle a frame without a CFA pattern",
+                        fa.fits_path
+                    ))
+                }
+            }
         }
 
         // Calibrate the raw sub, then the per-sub cosmetic repair, before

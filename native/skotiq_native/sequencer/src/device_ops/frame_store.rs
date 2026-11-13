@@ -180,6 +180,7 @@ mod save_frame_tests {
             sensor_type: Some("Color".to_string()),
             color_filter: Some(skotiq_device::BayerPattern::Rggb),
             camera_file,
+            readout_mode: None,
         }
     }
 

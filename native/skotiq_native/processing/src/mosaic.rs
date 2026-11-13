@@ -27,7 +27,7 @@ use skotiq_imaging::mosaic_stitch::{
     self, MosaicBlend, MosaicError, MosaicPanel, MosaicStitchConfig,
 };
 use skotiq_imaging::registration::Interpolator;
-use skotiq_imaging::{add_wcs_headers, read_frame, write_fits, FitsHeader, WcsInfo};
+use skotiq_imaging::{read_frame, write_fits, FitsHeader, SipWcs};
 use std::path::Path;
 
 // JSON contracts
@@ -49,7 +49,7 @@ struct PanelArgs {
     wcs: Option<WcsArgs>,
 }
 
-/// An explicit CD-matrix WCS (mirrors [`WcsInfo`]). Degrees / pixels, FITS
+/// An explicit CD-matrix WCS. Degrees / pixels, FITS
 /// 1-based `CRPIX`. Field names are the literal FITS WCS keywords
 /// (`crval1`, `crpix1`, `cd1_1`, …) — no camelCase rename, so the JSON keys
 /// match the CD-matrix columns the caller already carries.
@@ -65,18 +65,11 @@ struct WcsArgs {
     cd2_2: f64,
 }
 
-impl From<WcsArgs> for WcsInfo {
+impl From<WcsArgs> for SipWcs {
     fn from(w: WcsArgs) -> Self {
-        WcsInfo {
-            crval1: w.crval1,
-            crval2: w.crval2,
-            crpix1: w.crpix1,
-            crpix2: w.crpix2,
-            cd1_1: w.cd1_1,
-            cd1_2: w.cd1_2,
-            cd2_1: w.cd2_1,
-            cd2_2: w.cd2_2,
-        }
+        SipWcs::tan_only(
+            w.crval1, w.crval2, w.crpix1, w.crpix2, w.cd1_1, w.cd1_2, w.cd2_1, w.cd2_2,
+        )
     }
 }
 
@@ -194,7 +187,7 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
     header.set_int("NPANELS", output.stats.panels as i64);
     header.set_int("OVRLPPRS", output.stats.overlap_pairs as i64);
     header.set_float("MOSGAIN", output.stats.mean_panel_gain);
-    add_wcs_headers(&mut header, &output.wcs);
+    output.wcs.write_to_header(&mut header);
     header.add_history("Skotiq mosaic stitch (WCS-projected panel composite)");
     write_fits(master_path, &output.master, &header)
         .map_err(|e| format!("failed to write mosaic master: {e:?}"))?;
@@ -206,7 +199,7 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
             ensure_parent_dir(path)?;
             let mut h = FitsHeader::new();
             h.set_string("IMAGETYP", "COVERAGE_MAP");
-            add_wcs_headers(&mut h, &output.wcs);
+            output.wcs.write_to_header(&mut h);
             h.add_history("Skotiq mosaic per-pixel contributing-weight (coverage) plane");
             write_fits(path, &output.coverage, &h)
                 .map_err(|e| format!("failed to write coverage plane: {e:?}"))?;
@@ -299,10 +292,9 @@ fn describe_error(e: &MosaicError) -> String {
     }
 }
 
-/// The CD-matrix [`WcsInfo`] a FITS header carries, read by
-/// [`skotiq_imaging::SipWcs::from_header`].
-fn wcs_from_header(header: &FitsHeader) -> Option<WcsInfo> {
-    skotiq_imaging::SipWcs::from_header(header).map(|wcs| wcs.cd_only())
+/// The linear part of the WCS a FITS header carries.
+fn wcs_from_header(header: &FitsHeader) -> Option<SipWcs> {
+    SipWcs::from_header(header).map(|wcs| wcs.cd_only())
 }
 
 #[cfg(test)]
@@ -354,18 +346,9 @@ mod tests {
 
     /// CD-matrix WCS for an axis-aligned tangent plane (no rotation), RA flipping
     /// left, CRPIX at the geometric centre.
-    fn make_wcs(ra: f64, dec: f64, scale_arcsec: f64, w: u32, h: u32) -> WcsInfo {
+    fn make_wcs(ra: f64, dec: f64, scale_arcsec: f64, w: u32, h: u32) -> SipWcs {
         let scale_deg = scale_arcsec / 3600.0;
-        WcsInfo {
-            crval1: ra,
-            crval2: dec,
-            crpix1: w as f64 / 2.0 + 0.5,
-            crpix2: h as f64 / 2.0 + 0.5,
-            cd1_1: -scale_deg,
-            cd1_2: 0.0,
-            cd2_1: 0.0,
-            cd2_2: scale_deg,
-        }
+        SipWcs::tan_only(ra, dec, w as f64 / 2.0 + 0.5, h as f64 / 2.0 + 0.5, -scale_deg, 0.0, 0.0, scale_deg)
     }
 
     /// Write a synthetic single-channel F32 panel master (ramp field) to a FITS
@@ -373,7 +356,7 @@ mod tests {
     fn write_panel(
         dir: &Path,
         tag: &str,
-        wcs: &WcsInfo,
+        wcs: &SipWcs,
         w: u32,
         h: u32,
         base: f32,
@@ -381,7 +364,7 @@ mod tests {
         let data: Vec<f32> = (0..(w * h)).map(|i| base + (i % 997) as f32).collect();
         let image = ImageData::from_f32(w, h, 1, &data);
         let mut header = FitsHeader::new();
-        add_wcs_headers(&mut header, wcs);
+        wcs.write_to_header(&mut header);
         let path = dir.join(format!("{tag}.fits"));
         write_fits(&path, &image, &header).expect("write synthetic panel");
         path
@@ -466,7 +449,7 @@ mod tests {
         let data = vec![500.0f32; 80 * 80];
         let image = ImageData::from_f32(80, 80, 1, &data);
         let mut header = FitsHeader::new();
-        add_wcs_headers(&mut header, &wrong);
+        wrong.write_to_header(&mut header);
         let dir = temp_dir("explicit_wcs_overrides_header");
         let path = dir.join("override.fits");
         write_fits(&path, &image, &header).unwrap();

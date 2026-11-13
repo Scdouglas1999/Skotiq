@@ -38,6 +38,8 @@ pub(crate) struct ExposureRecord {
     /// Sensor temperature in Celsius.
     pub temperature: Option<f64>,
     pub bits_per_pixel: u32,
+    /// The camera's name for the read mode the frame was read out in.
+    pub readout_mode: Option<String>,
 }
 
 impl RawFrame {
@@ -59,13 +61,21 @@ impl RawFrame {
             sensor_type,
             color_filter: self.bayer_pattern,
             camera_file: self.camera_file,
+            readout_mode: self.exposure.readout_mode,
         }
     }
 }
 
 /// The sequencer's `ImageData` sensor type for a frame's color filter.
 pub(crate) fn sensor_type(pattern: Option<&BayerPattern>) -> Option<String> {
-    Some(if pattern.is_some() { "Color" } else { "Monochrome" }.to_string())
+    Some(
+        if pattern.is_some() {
+            "Color"
+        } else {
+            "Monochrome"
+        }
+        .to_string(),
+    )
 }
 
 /// One camera's last frame: what the screens draw, and the samples it was

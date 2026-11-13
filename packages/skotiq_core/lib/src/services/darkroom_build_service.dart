@@ -341,6 +341,7 @@ class DarkroomBuildService {
         final matches = await library.match(
           LightFrameContext(
             cameraId: headers[f.id]!.string('INSTRUME'),
+            readoutMode: headers[f.id]!.string('READOUTM'),
             gain: f.comparableGain,
             gainIsUnknownIso: f.hasUnknownIso,
             offset: f.offset,

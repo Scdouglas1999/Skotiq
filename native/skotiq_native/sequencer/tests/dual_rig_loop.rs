@@ -83,6 +83,7 @@ impl CameraOps for RecordingOps {
                 file_name: "IMG_0001.NEF".to_string(),
                 bytes: Arc::new(b"nef bytes".to_vec()),
             }),
+            readout_mode: None,
         })
     }
     async fn camera_abort_exposure(&self, c: &str) -> DeviceResult<()> {

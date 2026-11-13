@@ -87,6 +87,7 @@ fn seq_frame(width: u32, height: u32) -> SeqImageData {
         sensor_type: None,
         color_filter: None,
         camera_file: None,
+        readout_mode: None,
     }
 }
 
@@ -239,6 +240,7 @@ async fn a_manual_frame_with_no_rig_connected_writes_these_cards() {
                 offset: Some(50),
                 temperature: Some(-10.5),
                 bits_per_pixel: 16,
+                readout_mode: None,
             },
         },
         60.0,
@@ -564,6 +566,7 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
                     offset: None,
                     temperature: Some(21.0),
                     bits_per_pixel: 14,
+                    readout_mode: None,
                 },
             },
             30.0,

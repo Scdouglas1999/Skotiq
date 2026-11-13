@@ -29,8 +29,7 @@ use serde::Deserialize;
 use skotiq_imaging::master_accumulation::{AccumulationMode, OnlineClip};
 use skotiq_imaging::registration::Interpolator;
 use skotiq_imaging::sky_atlas::{AtlasError, SkyAtlas, TileId};
-use skotiq_imaging::wcs_sip::SipWcs;
-use skotiq_imaging::{read_image, ImageData, WcsInfo};
+use skotiq_imaging::{read_image, ImageData};
 use std::path::Path;
 
 mod fold;
@@ -74,22 +73,6 @@ fn mode_from_clip(low: Option<f64>, high: Option<f64>) -> AccumulationMode {
 /// Map a [`skotiq_imaging::sky_atlas::AtlasError`] to a human FFI string.
 pub(crate) fn describe_atlas_error(e: &AtlasError) -> String {
     e.to_string()
-}
-
-/// A tile's local TAN grid is CD-only ([`SipWcs::tan_only`]); project it onto the
-/// CD-matrix [`WcsInfo`] the FITS writer stamps so a finalized tile carries its
-/// astrometry on disk.
-fn wcs_info_from_tile(wcs: &SipWcs) -> WcsInfo {
-    WcsInfo {
-        crval1: wcs.crval1,
-        crval2: wcs.crval2,
-        crpix1: wcs.crpix1,
-        crpix2: wcs.crpix2,
-        cd1_1: wcs.cd1_1,
-        cd1_2: wcs.cd1_2,
-        cd2_1: wcs.cd2_1,
-        cd2_2: wcs.cd2_2,
-    }
 }
 
 /// Open the atlas rooted at `atlas_root` for `order` with the default memory

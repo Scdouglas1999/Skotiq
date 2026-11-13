@@ -33,7 +33,6 @@ use paths::{
 use skotiq_imaging::PlateSolveResult;
 use std::fs;
 use std::io::Read;
-use std::num::ParseFloatError;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
@@ -86,18 +85,20 @@ const fn libc_echild() -> i32 {
 /// treats a malformed header as a successful zero-coordinate solution.
 #[derive(Debug, Error)]
 pub enum PlateSolveError {
-    #[error(
-        "failed to parse WCS keyword `{keyword}` value `{raw_value}` as f64 (file: {path}): {source}"
-    )]
+    #[error("WCS keyword `{keyword}` holds `{raw_value}`, which is not a number (file: {path})")]
     WcsParse {
         keyword: String,
         raw_value: String,
         path: String,
-        #[source]
-        source: ParseFloatError,
     },
     #[error("WCS file `{path}` did not contain required keyword `{keyword}`")]
     WcsMissingKeyword { keyword: String, path: String },
+    #[error("WCS file `{path}` is not a FITS header: {source}")]
+    WcsHeader {
+        path: String,
+        #[source]
+        source: skotiq_imaging::FitsError,
+    },
     #[error("ASTAP INI file `{path}` reports plate solve failed (PLTSOLVD != T)")]
     SolveFailed { path: String },
     #[error("failed to read solver output `{path}`: {source}")]
@@ -752,7 +753,7 @@ pub(crate) fn build_astap_args(
 fn solver_copy(image_path: &Path) -> Result<Option<skotiq_imaging::FitsCopy>, String> {
     match skotiq_imaging::frame_format(image_path) {
         Ok(skotiq_imaging::ImageFormat::Fits) | Err(_) => Ok(None),
-        Ok(_) => skotiq_imaging::FitsCopy::new(image_path, &std::env::temp_dir())
+        Ok(_) => skotiq_imaging::FitsCopy::new(image_path)
             .map(Some)
             .map_err(|e| format!("could not prepare the frame for the solver: {e}")),
     }
@@ -1355,139 +1356,40 @@ fn parse_wcs_file_with_image_size(
         path: path_display.clone(),
         source,
     })?;
-
-    let mut ra: Option<f64> = None;
-    let mut dec: Option<f64> = None;
-    let mut crpix1: Option<f64> = None;
-    let mut crpix2: Option<f64> = None;
-    let mut cd1_1: Option<f64> = None;
-    let mut cd1_2: Option<f64> = None;
-    let mut cd2_1: Option<f64> = None;
-    let mut cd2_2: Option<f64> = None;
-    // Image dimensions in pixels, for the field size. ASTAP writes
-    // NAXIS1/NAXIS2 to its .wcs; astrometry.net writes IMAGEW/IMAGEH.
-    let mut naxis1: Option<f64> = None;
-    let mut naxis2: Option<f64> = None;
-    let mut a_order: Option<u32> = None;
-    let mut b_order: Option<u32> = None;
-    let mut ap_order: Option<u32> = None;
-    let mut bp_order: Option<u32> = None;
-    let mut a_terms: Vec<(u32, u32, f64)> = Vec::new();
-    let mut b_terms: Vec<(u32, u32, f64)> = Vec::new();
-    let mut ap_terms: Vec<(u32, u32, f64)> = Vec::new();
-    let mut bp_terms: Vec<(u32, u32, f64)> = Vec::new();
-
-    for card in skotiq_imaging::header_text_cards(&content) {
-        let Some((keyword, value_str)) = skotiq_imaging::card_keyword_and_value(card) else {
-            continue;
-        };
-
-        let parse = |slot: &mut Option<f64>| -> Result<(), PlateSolveError> {
-            let parsed = value_str
-                .parse::<f64>()
-                .map_err(|source| PlateSolveError::WcsParse {
-                    keyword: keyword.to_string(),
-                    raw_value: value_str.to_string(),
-                    path: path_display.clone(),
-                    source,
-                })?;
-            *slot = Some(parsed);
-            Ok(())
-        };
-        let parse_order = |slot: &mut Option<u32>| -> Result<(), PlateSolveError> {
-            let parsed = value_str
-                .parse::<f64>()
-                .map_err(|source| PlateSolveError::WcsParse {
-                    keyword: keyword.to_string(),
-                    raw_value: value_str.to_string(),
-                    path: path_display.clone(),
-                    source,
-                })?;
-            *slot = Some(parsed as u32);
-            Ok(())
-        };
-        let parse_term = |terms: &mut Vec<(u32, u32, f64)>,
-                          body: &str|
-         -> Result<(), PlateSolveError> {
-            let Some((i, j)) = sip_indices(body) else {
-                return Ok(());
-            };
-            let coeff = value_str
-                .parse::<f64>()
-                .map_err(|source| PlateSolveError::WcsParse {
-                    keyword: keyword.to_string(),
-                    raw_value: value_str.to_string(),
-                    path: path_display.clone(),
-                    source,
-                })?;
-            terms.push((i, j, coeff));
-            Ok(())
-        };
-
-        match keyword {
-            "CRVAL1" => parse(&mut ra)?,
-            "CRVAL2" => parse(&mut dec)?,
-            "CRPIX1" => parse(&mut crpix1)?,
-            "CRPIX2" => parse(&mut crpix2)?,
-            "CD1_1" => parse(&mut cd1_1)?,
-            "CD1_2" => parse(&mut cd1_2)?,
-            "CD2_1" => parse(&mut cd2_1)?,
-            "CD2_2" => parse(&mut cd2_2)?,
-            "NAXIS1" | "IMAGEW" => parse(&mut naxis1)?,
-            "NAXIS2" | "IMAGEH" => parse(&mut naxis2)?,
-            "A_ORDER" => parse_order(&mut a_order)?,
-            "B_ORDER" => parse_order(&mut b_order)?,
-            "AP_ORDER" => parse_order(&mut ap_order)?,
-            "BP_ORDER" => parse_order(&mut bp_order)?,
-            k if k.starts_with("AP_") => parse_term(&mut ap_terms, &k[3..])?,
-            k if k.starts_with("BP_") => parse_term(&mut bp_terms, &k[3..])?,
-            k if k.starts_with("A_") => parse_term(&mut a_terms, &k[2..])?,
-            k if k.starts_with("B_") => parse_term(&mut b_terms, &k[2..])?,
-            _ => {}
-        }
-    }
-
-    let require = |slot: Option<f64>, name: &str| -> Result<f64, PlateSolveError> {
-        slot.ok_or_else(|| PlateSolveError::WcsMissingKeyword {
-            keyword: name.to_string(),
+    let header = skotiq_imaging::header_from_text(&content).map_err(|source| {
+        PlateSolveError::WcsHeader {
             path: path_display.clone(),
-        })
+            source,
+        }
+    })?;
+    if let Some((keyword, raw_value)) = skotiq_imaging::unreadable_astrometry_card(&header) {
+        return Err(PlateSolveError::WcsParse {
+            keyword: keyword.to_string(),
+            raw_value,
+            path: path_display,
+        });
+    }
+    let missing = |keyword: &str| PlateSolveError::WcsMissingKeyword {
+        keyword: keyword.to_string(),
+        path: path_display.clone(),
     };
-    let ra = require(ra, "CRVAL1")?;
-    let dec = require(dec, "CRVAL2")?;
-    let cd1_1 = require(cd1_1, "CD1_1")?;
-    let cd1_2 = require(cd1_2, "CD1_2")?;
-    let cd2_1 = require(cd2_1, "CD2_1")?;
-    let cd2_2 = require(cd2_2, "CD2_2")?;
+    for keyword in ["CRVAL1", "CRVAL2"] {
+        header.get_float(keyword).ok_or_else(|| missing(keyword))?;
+    }
+    let mut solution =
+        skotiq_imaging::SipWcs::from_header(&header).ok_or_else(|| missing("CD1_1"))?;
 
-    let naxis1 = naxis1.filter(|n| *n > 0.0).or(image_size.map(|s| s.0));
-    let naxis2 = naxis2.filter(|n| *n > 0.0).or(image_size.map(|s| s.1));
-
-    let a_order = a_order.unwrap_or(0);
-    let b_order = b_order.unwrap_or(0);
-    let ap_order = ap_order.unwrap_or(0);
-    let bp_order = bp_order.unwrap_or(0);
-    let mut solution = skotiq_imaging::SipWcs {
-        crval1: ra,
-        crval2: dec,
-        crpix1: crpix1.unwrap_or_default(),
-        crpix2: crpix2.unwrap_or_default(),
-        cd1_1,
-        cd1_2,
-        cd2_1,
-        cd2_2,
-        a_order,
-        b_order,
-        a_coeffs: sip_layout(a_order, &a_terms),
-        b_coeffs: sip_layout(b_order, &b_terms),
-        ap_order,
-        bp_order,
-        ap_coeffs: sip_layout(ap_order, &ap_terms),
-        bp_coeffs: sip_layout(bp_order, &bp_terms),
+    // ASTAP writes NAXIS1/NAXIS2 (0 when it names no image); astrometry.net
+    // writes IMAGEW/IMAGEH.
+    let axis = |keys: [&str; 2]| {
+        keys.iter()
+            .find_map(|key| header.get_float(key))
+            .filter(|n| *n > 0.0)
     };
-    if let (Some(width), Some(height), Some(crpix1), Some(crpix2)) =
-        (naxis1, naxis2, crpix1, crpix2)
-    {
+    let naxis1 = axis(["NAXIS1", "IMAGEW"]).or(image_size.map(|s| s.0));
+    let naxis2 = axis(["NAXIS2", "IMAGEH"]).or(image_size.map(|s| s.1));
+    let stated_crpix = header.get_float("CRPIX1").zip(header.get_float("CRPIX2"));
+    if let (Some(width), Some(height), Some((crpix1, crpix2))) = (naxis1, naxis2, stated_crpix) {
         let center = ((width + 1.0) / 2.0, (height + 1.0) / 2.0);
         // Solvers print CRPIX to a thousandth of a pixel or better.
         const AT_CENTER_PX: f64 = 1e-3;
@@ -1573,31 +1475,6 @@ fn parse_wcs_file_with_image_size(
     })
 }
 
-/// Split a SIP coefficient keyword body (`"2_0"` from `A_2_0`) into its
-/// `(i, j)` polynomial indices. Returns `None` for diagnostic siblings like
-/// `A_DMAX` so the caller can skip them.
-fn sip_indices(body: &str) -> Option<(u32, u32)> {
-    let (i, j) = body.split_once('_')?;
-    Some((i.parse().ok()?, j.parse().ok()?))
-}
-
-/// Pack `(i, j, coeff)` SIP terms into the row-major layout documented on
-/// `PlateSolveResult`: index `i * (order + 1) + j`. Missing terms stay 0.0.
-/// Returns an empty vec when `order == 0` and no terms were present.
-fn sip_layout(order: u32, terms: &[(u32, u32, f64)]) -> Vec<f64> {
-    if order == 0 && terms.is_empty() {
-        return Vec::new();
-    }
-    let stride = (order + 1) as usize;
-    let mut coeffs = vec![0.0; stride * stride];
-    for &(i, j, c) in terms {
-        if (i as usize) < stride && (j as usize) < stride {
-            coeffs[i as usize * stride + j as usize] = c;
-        }
-    }
-    coeffs
-}
-
 /// Free-function form of ASTAP `.ini` parsing so the test module can exercise
 /// it without an ASTAP install. Mirrors `parse_wcs_file_inner` semantics:
 /// malformed numeric values or `PLTSOLVD != T` propagate as errors instead of
@@ -1630,11 +1507,10 @@ fn parse_astap_ini_inner(
         let parse = |slot: &mut Option<f64>, keyword: &str| -> Result<(), PlateSolveError> {
             let parsed = value
                 .parse::<f64>()
-                .map_err(|source| PlateSolveError::WcsParse {
+                .map_err(|_| PlateSolveError::WcsParse {
                     keyword: keyword.to_string(),
                     raw_value: value.to_string(),
                     path: path_display.clone(),
-                    source,
                 })?;
             *slot = Some(parsed);
             Ok(())
@@ -2156,7 +2032,9 @@ mod tests {
             },
         };
         skotiq_imaging::write_frame_with(&xisf, &image, &header, &options).unwrap();
-        let copy = super::solver_copy(&xisf).unwrap().expect("an XISF frame is copied");
+        let copy = super::solver_copy(&xisf)
+            .unwrap()
+            .expect("an XISF frame is copied");
         let (copied, copied_header) = skotiq_imaging::read_fits(copy.path()).unwrap();
         assert_eq!(copied.as_u16().unwrap(), samples);
         assert_eq!(copied_header.get_string("OBJECT"), Some("M31"));

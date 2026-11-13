@@ -1,11 +1,11 @@
 use super::{
-    describe_atlas_error, mode_from_clip, open_atlas, parse_interp, read_frame, wcs_info_from_tile,
+    describe_atlas_error, mode_from_clip, open_atlas, parse_interp, read_frame,
 };
 use crate::output::ensure_parent_dir;
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::sky_atlas::{tile_center, PreparedFrame, TileId, ATLAS_HEALPIX_ORDER};
 use skotiq_imaging::wcs_sip::SipWcs;
-use skotiq_imaging::{add_wcs_headers, write_fits, FitsHeader};
+use skotiq_imaging::{write_fits, FitsHeader};
 use std::path::Path;
 
 // action "fold"
@@ -266,7 +266,7 @@ pub(crate) fn finalize_impl(args: FinalizeArgs) -> Result<FinalizeResult, String
     header.set_int("HPXORDER", args.order as i64);
     header.set_int("NFRAMES", tile.provenance.total_frames as i64);
     header.set_float("EXPTIME", tile.provenance.total_integration_seconds);
-    add_wcs_headers(&mut header, &wcs_info_from_tile(&tile.wcs));
+    tile.wcs.cd_only().write_to_header(&mut header);
     header.add_history(&format!(
         "Sky-atlas tile {} (order {}) finalized from {} frames across {} folds",
         args.tile_id,

@@ -23,6 +23,9 @@ pub struct ImageData {
     /// The camera's own file for this frame (a DSLR's raw file), when it
     /// delivered one.
     pub camera_file: Option<skotiq_device::CameraFile>,
+    /// The read mode the camera read the frame out in, by its own name;
+    /// `None` for a camera with one mode or one that does not say.
+    pub readout_mode: Option<String>,
 }
 
 impl ImageData {

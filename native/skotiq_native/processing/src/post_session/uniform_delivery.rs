@@ -2,7 +2,7 @@
 use crate::output::{write_preview_png, write_preview_png_with_mode};
 use crate::post_session::delivery::ADU_FULL_SCALE;
 use crate::post_session::helpers::image_to_f64;
-use crate::post_session::master_cards::{copy_optics_cards, copy_wcs};
+use crate::post_session::master_cards::copy_optics_cards;
 use rayon::prelude::*;
 use serde::Deserialize;
 use skotiq_imaging::{
@@ -246,7 +246,7 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
 fn composite_header(source: &FitsHeader, history: &[&str]) -> FitsHeader {
     let mut header = FitsHeader::new();
     copy_optics_cards(&mut header, source);
-    copy_wcs(&mut header, source);
+    skotiq_imaging::replace_astrometry_headers(&mut header, source);
     for key in ["OBJECT", "GRIDREF"] {
         if let Some(v) = source.get_string(key) {
             header.set_string(key, v);
