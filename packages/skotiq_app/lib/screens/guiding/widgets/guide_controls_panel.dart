@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+
 
 // Phd2GuidingState (and its displayName extension) are owned by skotiq_core.
 // This UI-only extension layers on the icon mapping that's specific to widgets.
@@ -67,18 +67,11 @@ class GuideControlsPanel extends StatefulWidget {
   final Future<String?> Function()? onFindStar;
   final Future<void> Function()? onDeselectStar;
 
-  final double ditherAmount;
-  final bool ditherRaOnly;
-  final void Function(double)? onDitherAmountChanged;
-  final void Function(bool)? onDitherRaOnlyChanged;
   final Future<void> Function()? onDither;
 
-  final double settlePixels;
-  final double settleTime;
-  final double settleTimeout;
-  final void Function(double)? onSettlePixelsChanged;
-  final void Function(double)? onSettleTimeChanged;
-  final void Function(double)? onSettleTimeoutChanged;
+  /// The dither and settle settings editor, shown under a collapsible
+  /// header; none when null.
+  final Widget? settleSettings;
 
   const GuideControlsPanel({
     super.key,
@@ -91,17 +84,8 @@ class GuideControlsPanel extends StatefulWidget {
     this.onLoop,
     this.onFindStar,
     this.onDeselectStar,
-    this.ditherAmount = 5.0,
-    this.ditherRaOnly = false,
-    this.onDitherAmountChanged,
-    this.onDitherRaOnlyChanged,
     this.onDither,
-    this.settlePixels = 1.5,
-    this.settleTime = 10.0,
-    this.settleTimeout = 60.0,
-    this.onSettlePixelsChanged,
-    this.onSettleTimeChanged,
-    this.onSettleTimeoutChanged,
+    this.settleSettings,
   });
 
   @override
@@ -207,8 +191,10 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
         _buildStarSelection(colors),
         const SizedBox(height: _sectionGap),
         _buildDitherControls(colors),
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        _buildSettleSettings(colors),
+        if (widget.settleSettings != null) ...[
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          _buildSettleSettings(colors),
+        ],
       ],
     );
   }
@@ -459,97 +445,14 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
       children: [
         _buildSectionHeader('Dither', LucideIcons.shuffle, colors),
         const SizedBox(height: _gridGap),
-        Row(
-          children: [
-            Text(
-              'Amount:',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textSecondary),
-            ),
-            Expanded(
-              child: SliderTheme(
-                data: SkotiqSliderStyle.theme(colors),
-                child: Slider(
-                  value: widget.ditherAmount,
-                  min: 1,
-                  max: 20,
-                  divisions: 19,
-                  onChanged: widget.onDitherAmountChanged,
-                ),
-              ),
-            ),
-            Container(
-              width: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: colors.well,
-                borderRadius: SkotiqTokens.borderRadiusXs,
-              ),
-              child: Text(
-                widget.ditherAmount.toStringAsFixed(0),
-                style: SkotiqTypography.labelSm
-                    .copyWith(color: colors.textPrimary),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            // Wrap checkbox with GestureDetector for larger touch target (44px minimum)
-            GestureDetector(
-              onTap: () =>
-                  widget.onDitherRaOnlyChanged?.call(!widget.ditherRaOnly),
-              behavior: HitTestBehavior.opaque,
-              // The Checkbox inside already publishes the checked state; a
-              // second tap node beside it reads as an unnamed disabled panel.
-              excludeFromSemantics: true,
-              child: Container(
-                // 44px minimum touch target, but visually compact
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: Checkbox(
-                        value: widget.ditherRaOnly,
-                        semanticLabel: 'RA only',
-                        onChanged: (value) =>
-                            widget.onDitherRaOnlyChanged?.call(value ?? false),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        side: BorderSide(color: colors.border),
-                        activeColor: colors.primary,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: SkotiqTokens.borderRadiusXs),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'RA only',
-                      style: SkotiqTypography.caption
-                          .copyWith(color: colors.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: _buildControlButton(
-                id: 'dither',
-                icon: LucideIcons.shuffle,
-                label: 'Dither now',
-                color: colors.accent,
-                colors: colors,
-                small: true,
-                onPressed: widget.state.canDither ? widget.onDither : null,
-              ),
-            ),
-          ],
+        _buildControlButton(
+          id: 'dither',
+          icon: LucideIcons.shuffle,
+          label: 'Dither now',
+          color: colors.accent,
+          colors: colors,
+          small: true,
+          onPressed: widget.state.canDither ? widget.onDither : null,
         ),
       ],
     );
@@ -587,7 +490,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Settle settings',
+                        'Dither and settle settings',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: SkotiqTypography.labelSm
@@ -618,73 +521,12 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
               borderRadius: SkotiqTokens.borderRadiusLg,
               border: Border.all(color: colors.border.withValues(alpha: 0.5)),
             ),
-            child: Column(
-              children: [
-                _buildSettingRow(
-                    'Pixels',
-                    widget.settlePixels,
-                    GuideSettle.minPixels,
-                    GuideSettle.maxPixels,
-                    widget.onSettlePixelsChanged,
-                    colors),
-                const SizedBox(height: 8),
-                _buildSettingRow(
-                    'Time (s)',
-                    widget.settleTime,
-                    GuideSettle.minSeconds,
-                    GuideSettle.maxSeconds,
-                    widget.onSettleTimeChanged,
-                    colors),
-                const SizedBox(height: 8),
-                _buildSettingRow(
-                    'Timeout (s)',
-                    widget.settleTimeout,
-                    GuideSettle.minTimeoutSeconds,
-                    GuideSettle.maxTimeoutSeconds,
-                    widget.onSettleTimeoutChanged,
-                    colors),
-              ],
-            ),
+            child: widget.settleSettings,
           ),
           crossFadeState: _settleExpanded
               ? CrossFadeState.showSecond
               : CrossFadeState.showFirst,
           duration: const Duration(milliseconds: 200),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingRow(String label, double value, double min, double max,
-      void Function(double)? onChanged, SkotiqColors colors) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 72,
-          child: Text(
-            label,
-            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
-          ),
-        ),
-        Expanded(
-          child: SliderTheme(
-            data: SkotiqSliderStyle.theme(colors),
-            child: Slider(
-              value: value,
-              min: min,
-              max: max,
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-        SizedBox(
-          width: 40,
-          child: Text(
-            value.toStringAsFixed(1),
-            style:
-                SkotiqTypography.labelQuiet.copyWith(color: colors.textPrimary),
-            textAlign: TextAlign.right,
-          ),
         ),
       ],
     );

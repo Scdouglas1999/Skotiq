@@ -118,4 +118,42 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('a camera without gain or offset is not described as a DSLR',
+      (tester) async {
+    await _pump(
+      tester,
+      config: const FlatCaptureConfig(
+        sensitivity: GainSensitivity(hasGain: false, hasOffset: false),
+        capabilitiesKnown: true,
+      ),
+      lights: _lights,
+    );
+
+    expect(find.textContaining('ISO'), findsNothing);
+    expect(find.text('Gain'), findsNothing);
+    expect(find.text('Offset'), findsNothing);
+    expect(find.text('Every filter uses these.'), findsOneWidget);
+  });
+
+  testWidgets('a gain camera without offset names only its gain',
+      (tester) async {
+    await _pump(
+      tester,
+      config: const FlatCaptureConfig(
+        gain: 100,
+        canSetGain: true,
+        sensitivity: GainSensitivity(hasOffset: false),
+        capabilitiesKnown: true,
+      ),
+      lights: _lights,
+    );
+
+    expect(find.textContaining('ISO'), findsNothing);
+    expect(find.text('Offset'), findsNothing);
+    expect(
+      find.text('Every filter uses these unless its own gain is set above.'),
+      findsOneWidget,
+    );
+  });
 }

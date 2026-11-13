@@ -64,13 +64,19 @@ void main() {
 
     final controls = find.byKey(TourTarget.guidingControls.key);
     expect(
-      find.descendant(of: controls, matching: find.byType(Scrollable)),
+      find.descendant(
+        of: controls,
+        // A text field scrolls its own text; the panel must not scroll.
+        matching: find.byWidgetPredicate(
+          (w) => w is ScrollView || w is SingleChildScrollView,
+        ),
+      ),
       findsNothing,
       reason: 'the controls do not scroll inside the side panel',
     );
     // Everything the controls hold is laid out on screen, Dither and Settle
     // included.
-    for (final label in ['Dither now', 'Settle settings']) {
+    for (final label in ['Dither now', 'Dither and settle settings']) {
       final rect = tester.getRect(find.text(label));
       expect(rect.bottom, lessThanOrEqualTo(_desktop.height), reason: label);
     }

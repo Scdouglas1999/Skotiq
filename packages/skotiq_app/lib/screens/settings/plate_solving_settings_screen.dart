@@ -265,7 +265,10 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     final prefAsync = ref.watch(plateSolverPreferenceProvider);
     final uiState = ref.watch(plateSolverSettingsNotifierProvider);
 
+    // A save reloads both providers; the page keeps showing what it had
+    // until they answer, so it stays where the operator scrolled to.
     return detectionAsync.when(
+      skipLoadingOnReload: true,
       loading: () => const Center(
           child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
       error: (error, stack) => Center(
@@ -296,6 +299,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
         ),
       ),
       data: (detection) => prefAsync.when(
+        skipLoadingOnReload: true,
         loading: () => const Center(
             child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
         error: (error, stack) => Center(

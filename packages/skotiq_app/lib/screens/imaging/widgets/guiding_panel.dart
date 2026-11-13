@@ -6,11 +6,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/settings.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/builtin_guider_config_form.dart';
 import 'panel_widgets.dart';
+import '../../guiding/widgets/guide_settle_settings.dart';
 import '../../../utils/guide_distance.dart';
 
 part 'guiding_panel_parts/_builtin_guider_config.dart';
@@ -31,10 +30,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   bool _isDithering = false;
   bool _configExpanded = false;
   ProviderSubscription<Phd2Controller>? _guiderSubscription;
-
-  /// A guiding setting's slider position while it is dragged, by setting;
-  /// the setting is saved when the drag ends.
-  final Map<String, double> _dragging = {};
 
   @override
   void initState() {
@@ -106,48 +101,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
     }
   }
 
-  Future<void> _saveSetting(String key, Future<void> Function() save) async {
-    try {
-      await save();
-    } catch (e) {
-      if (mounted) {
-        context.showErrorSnackBar(
-          'Could not save the guiding setting: ${userFacingError(e)}',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _dragging.remove(key));
-    }
-  }
-
-  /// A slider for one guiding setting: it follows the finger while dragged
-  /// and saves the setting when the drag ends.
-  Widget _settingSlider({
-    required String key,
-    required String label,
-    required FieldHelpId helpId,
-    required double value,
-    required double min,
-    required double max,
-    required String suffix,
-    required Future<void> Function(double value)? save,
-  }) {
-    return SliderRowInteractive(
-      label: label,
-      helpId: helpId,
-      value: _dragging[key] ?? value,
-      min: min,
-      max: max,
-      suffix: suffix,
-      colors: widget.colors,
-      onChanged: save == null
-          ? null
-          : (value) => setState(() => _dragging[key] = value),
-      onChangeEnd:
-          save == null ? null : (value) => _saveSetting(key, () => save(value)),
-    );
-  }
-
   bool _isCurrentGuider(Phd2Controller guider) =>
       mounted && identical(ref.read(phd2ControllerProvider), guider);
 
@@ -195,9 +148,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   @override
   Widget build(BuildContext context) {
     final guiderState = ref.watch(guiderStateProvider);
-    final settings = ref.watch(appSettingsProvider).valueOrNull;
-    final settle = GuideSettle.of(settings ?? const AppSettingsState());
-    final settingsNotifier = ref.read(appSettingsProvider.notifier);
     final isConnected =
         guiderState.connectionState == DeviceConnectionState.connected;
     final isGuiding = guiderState.isGuiding;
@@ -412,54 +362,9 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
           ],
 
           PanelSection(
-            title: 'Dither settings',
+            title: 'Dither and settle settings',
             colors: widget.colors,
-            child: Column(
-              children: [
-                _settingSlider(
-                  key: 'amount',
-                  label: 'Amount',
-                  helpId: FieldHelpId.ditherAmount,
-                  value: settle.ditherPixels,
-                  min: 1,
-                  max: 20,
-                  suffix: 'px',
-                  save: settings == null
-                      ? null
-                      : (value) => settingsNotifier
-                          .setDitherScale(ditherScaleFor(value)),
-                ),
-                const SizedBox(height: 12),
-                _settingSlider(
-                  key: 'settle',
-                  label: 'Settle threshold',
-                  helpId: FieldHelpId.settleThreshold,
-                  value: settle.pixels,
-                  min: GuideSettle.minPixels,
-                  max: GuideSettle.maxPixels,
-                  suffix: 'px',
-                  save: settings == null
-                      ? null
-                      : (value) => settingsNotifier.setSettleThreshold(
-                            (value * 10).round() / 10,
-                          ),
-                ),
-                const SizedBox(height: 12),
-                _settingSlider(
-                  key: 'time',
-                  label: 'Settle time',
-                  helpId: FieldHelpId.settleTime,
-                  value: settle.seconds,
-                  min: GuideSettle.minSeconds,
-                  max: GuideSettle.maxSeconds,
-                  suffix: 's',
-                  save: settings == null
-                      ? null
-                      : (value) =>
-                          settingsNotifier.setSettleTime(value.round()),
-                ),
-              ],
-            ),
+            child: const GuideSettleSettings(),
           ),
         ],
       ),

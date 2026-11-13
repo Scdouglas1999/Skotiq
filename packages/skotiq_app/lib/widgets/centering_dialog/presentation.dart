@@ -3,41 +3,39 @@ part of '../centering_dialog.dart';
 
 final _centeringPresentations = Expando<_CenteringPresentation>();
 
-/// Keeps the operation mounted above navigation while its window is minimized.
+/// Shows the centering dialog for a target above navigation, so a run
+/// survives the dialog being minimized. Completes with the result of the
+/// next centering run in the dialog once that run ends (the dialog stays open
+/// on it), or with null when the dialog closes first or a run is refused
+/// before its first exposure.
 Future<CenteringResult?> showCenteringDialog({
   required BuildContext context,
   double? targetRa,
   double? targetDec,
   String? targetName,
-  VoidCallback? onRunEnded,
 }) {
   final overlay = Overlay.of(context, rootOverlay: true);
   final existing = _centeringPresentations[overlay];
   if (existing != null) {
     final state = existing.key.currentState;
     state?._restore();
-    if (onRunEnded != null) {
-      // A run already in flight reports its end to this caller too; a dialog
-      // resting on a result has no run to wait for.
-      if (state != null && state._isCentering) {
-        existing.runEndedListeners.add(onRunEnded);
-      } else {
-        onRunEnded();
-      }
-    }
-    return existing.result.future;
+    // A run in flight reports its end to this caller too; a dialog resting
+    // on a result has no run of this caller's to report.
+    return state != null && state._isCentering
+        ? existing.nextRunEnd()
+        : Future<CenteringResult?>.value();
   }
 
   final presentation = _CenteringPresentation();
-  if (onRunEnded != null) presentation.runEndedListeners.add(onRunEnded);
   _centeringPresentations[overlay] = presentation;
   final container = ProviderScope.containerOf(context);
   final themes = InheritedTheme.capture(from: context, to: overlay.context);
   late final OverlayEntry entry;
-  void close(CenteringResult? result) {
-    if (presentation.result.isCompleted) return;
+  void close(CenteringResult? _) {
+    if (presentation.closed) return;
+    presentation.closed = true;
     _centeringPresentations[overlay] = null;
-    presentation.result.complete(result);
+    presentation.notifyRunEnded(null);
     entry.remove();
     entry.dispose();
   }
@@ -56,28 +54,30 @@ Future<CenteringResult?> showCenteringDialog({
     ),
   );
   entry.addListener(() {
-    if (!entry.mounted && !presentation.result.isCompleted) {
+    if (!entry.mounted && !presentation.closed) {
+      presentation.closed = true;
       _centeringPresentations[overlay] = null;
-      presentation.result.complete(null);
+      presentation.notifyRunEnded(null);
     }
   });
+  final firstRun = presentation.nextRunEnd();
   overlay.insert(entry);
-  return presentation.result.future;
+  return firstRun;
 }
 
 class _CenteringPresentation {
   final key = GlobalKey<_CenteringDialogState>();
-  final result = Completer<CenteringResult?>();
+  bool closed = false;
+  Completer<CenteringResult?>? _runEnd;
 
-  /// Callers waiting on the current run, each told once.
-  final runEndedListeners = <VoidCallback>[];
+  /// The end of the next run, for every caller waiting on it.
+  Future<CenteringResult?> nextRunEnd() =>
+      (_runEnd ??= Completer<CenteringResult?>()).future;
 
-  void notifyRunEnded() {
-    final listeners = List<VoidCallback>.of(runEndedListeners);
-    runEndedListeners.clear();
-    for (final listener in listeners) {
-      listener();
-    }
+  void notifyRunEnded(CenteringResult? result) {
+    final runEnd = _runEnd;
+    _runEnd = null;
+    runEnd?.complete(result);
   }
 }
 
