@@ -291,9 +291,13 @@ void main() {
         final db = sqlite3.open(dbFile.path);
         db.execute('PRAGMA journal_mode=DELETE;');
         db.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, blob BLOB);');
+        // One transaction: 200 separate commits are 200 rounds of fsync,
+        // which on a loaded disk outlast the test's timeout on their own.
+        db.execute('BEGIN;');
         for (var i = 0; i < 200; i++) {
           db.execute('INSERT INTO t (blob) VALUES (zeroblob(4000));');
         }
+        db.execute('COMMIT;');
         db.close();
 
         // A journal file with the SQLite rollback magic and no page records:
