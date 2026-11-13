@@ -803,3 +803,56 @@ fn libgphoto2_results_read_as_the_header_defines_them() {
         [1, 8, 16, 32]
     );
 }
+
+/// The installed libgphoto2 opens each of two "Directory Browse" cameras
+/// (folders on `disk:` ports) by its port, reads and deletes its own file, and
+/// answers an unsupported capture with GP_ERROR_NOT_SUPPORTED. No USB device is
+/// opened. Run with `--ignored` where libgphoto2 is installed.
+#[tokio::test]
+#[ignore = "needs the installed libgphoto2"]
+async fn the_installed_libgphoto2_opens_each_camera_on_its_port() {
+    let root = std::env::temp_dir().join(format!("skotiq-gphoto2-{}", std::process::id()));
+    let mut ports = Vec::new();
+    for body in ["a", "b"] {
+        let folder = root.join(body).join("DCIM");
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(
+            folder.join(format!("{body}.CR2")),
+            format!("frame of {body}"),
+        )
+        .unwrap();
+        ports.push(format!("disk:{}", root.join(body).display()));
+    }
+    let sdk = GPhoto2Sdk::lock().await.expect("libgphoto2 is installed");
+    for (body, port) in ["a", "b"].iter().zip(&ports) {
+        let (camera, context) = open_camera(&sdk, "Directory Browse", port).expect("open by port");
+        let mut opened = GPhoto2Camera::new(0, "Directory Browse", port);
+        opened.gp_camera = camera;
+        opened.gp_context = context;
+        let mut path = CameraFilePath::default();
+        // Folders are named from the port's root.
+        for (dst, b) in path.folder.iter_mut().zip("/DCIM".bytes()) {
+            *dst = b as c_char;
+        }
+        for (dst, b) in path.name.iter_mut().zip(format!("{body}.CR2").bytes()) {
+            *dst = b as c_char;
+        }
+        let bytes = opened.download_file(&sdk, &path).expect("download");
+        assert_eq!(bytes, format!("frame of {body}").into_bytes(), "{port}");
+        opened.delete_file(&sdk, &path);
+        assert!(!root
+            .join(body)
+            .join("DCIM")
+            .join(format!("{body}.CR2"))
+            .exists());
+        let capture = capture_image(&sdk, opened.handles());
+        assert!(
+            matches!(capture, Err(DriverError::NotSupported)),
+            "{capture:?}"
+        );
+        opened.close(&sdk);
+    }
+    let unknown = open_camera(&sdk, "No Such Camera", &ports[0]);
+    assert!(matches!(unknown, Err(DriverError::DeviceNotFound(_))));
+    std::fs::remove_dir_all(&root).unwrap();
+}

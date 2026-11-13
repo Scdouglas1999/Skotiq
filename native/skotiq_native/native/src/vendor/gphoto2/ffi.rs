@@ -150,6 +150,7 @@ pub(crate) const GP_ERROR_IO_USB_FIND: c_int = -52;
 pub(crate) const GP_ERROR_IO_USB_CLAIM: c_int = -53;
 pub(crate) const GP_ERROR_IO_LOCK: c_int = -60;
 pub(crate) const GP_ERROR_MODEL_NOT_FOUND: c_int = -105;
+pub(crate) const GP_ERROR_DIRECTORY_NOT_FOUND: c_int = -107;
 pub(crate) const GP_ERROR_FILE_NOT_FOUND: c_int = -108;
 pub(crate) const GP_ERROR_CAMERA_BUSY: c_int = -110;
 pub(crate) const GP_ERROR_CAMERA_ERROR: c_int = -113;

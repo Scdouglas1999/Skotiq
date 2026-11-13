@@ -155,7 +155,10 @@ unsafe fn free_event_data(data: *mut c_void) {
 }
 
 /// Run `gp_camera_capture` for a timed speed and answer the file it wrote.
-fn capture_image(sdk: &GPhoto2Sdk, handles: CameraHandles) -> Result<CameraFilePath, DriverError> {
+pub(crate) fn capture_image(
+    sdk: &GPhoto2Sdk,
+    handles: CameraHandles,
+) -> Result<CameraFilePath, DriverError> {
     let mut file_path = CameraFilePath::default();
     // SAFETY: the caller holds the SDK lock (`sdk` is the table of a held
     // guard) and `handles` are the open camera's; `file_path` is a stack POD
