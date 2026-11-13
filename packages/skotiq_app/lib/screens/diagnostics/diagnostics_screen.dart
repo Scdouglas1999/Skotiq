@@ -22,11 +22,6 @@ part 'diagnostics_screen/residual_vector.dart';
 part 'diagnostics_screen/issues_and_skeleton.dart';
 
 /// Session id standing for "the frames that belong to no session".
-///
-/// Local alias for the shared [kQuickCaptureSessionSelection] sentinel, which
-/// gives the session-less bucket a pickable identity; the content switches to
-/// the `sessionless*` providers when it is chosen.
-const int _kQuickCaptureSessionId = kQuickCaptureSessionSelection;
 
 /// Optical-train diagnostics surface, embedded inside the Analytics screen.
 class DiagnosticsTabContent extends ConsumerStatefulWidget {
@@ -43,7 +38,6 @@ class DiagnosticsTabContent extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
-  int? _selectedSessionId;
 
   @override
   Widget build(BuildContext context) {
@@ -53,9 +47,8 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
     final l10n = context.l10n;
 
     final sessionState = ref.watch(sessionStateProvider);
-    if (_selectedSessionId == null && sessionState.dbSessionId != null) {
-      _selectedSessionId = sessionState.dbSessionId;
-    }
+    var selectedSessionId =
+        ref.watch(analyticsSessionPickProvider) ?? sessionState.dbSessionId;
 
     // Quick captures own no session row, so they are offered as their own
     // bucket — but only when the science pipeline actually produced something
@@ -69,9 +62,9 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
                     ?.isNotEmpty ??
                 false);
     // A bucket that just went empty (frames cleared) must not stay selected.
-    if (_selectedSessionId == _kQuickCaptureSessionId &&
+    if (selectedSessionId == kQuickCaptureSessionSelection &&
         !hasQuickCaptureDiagnostics) {
-      _selectedSessionId = null;
+      selectedSessionId = null;
     }
 
     final latestSession = sessionsAsync.valueOrNull?.fold<ImagingSession?>(
@@ -109,9 +102,10 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
     final sessionSelector = sessionsAsync.when(
       data: (sessions) => _SessionSelector(
         sessions: sessions,
-        selectedSessionId: _selectedSessionId,
+        selectedSessionId: selectedSessionId,
         offerQuickCaptures: hasQuickCaptureDiagnostics,
-        onChanged: (id) => setState(() => _selectedSessionId = id),
+        onChanged: (id) =>
+            ref.read(analyticsSessionPickProvider.notifier).state = id,
         colors: colors,
       ),
       // Small skeleton chip rather than a spinner so the header doesn't
@@ -170,7 +164,7 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
           const SizedBox(height: SkotiqTokens.spaceLg),
 
           Expanded(
-            child: _selectedSessionId == null
+            child: selectedSessionId == null
                 // Scroll-wrap so the centered empty state never overflows when
                 // a phone is short (landscape).
                 ? LayoutBuilder(
@@ -192,15 +186,15 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
                               : 'Open the latest session',
                           onAction: latestSession == null
                               ? null
-                              : () => setState(
-                                    () => _selectedSessionId = latestSession.id,
-                                  ),
+                              : () => ref
+                                  .read(analyticsSessionPickProvider.notifier)
+                                  .state = latestSession.id,
                         ),
                       ),
                     ),
                   )
                 : _DiagnosticsContent(
-                    sessionId: _selectedSessionId!,
+                    sessionId: selectedSessionId,
                     isMobile: isMobile,
                   ),
           ),

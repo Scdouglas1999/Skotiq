@@ -110,11 +110,9 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
                   // guide's "Analyse the period" rung done for a session that
                   // was never searched.
                   ref.read(periodAnalysisProvider.notifier).clear();
-                  setState(() {
-                    _selectedSessionId = id;
-                    // The frame picked in the old session means nothing here.
-                    _selectedFrameImageId = null;
-                  });
+                  ref.read(analyticsSessionPickProvider.notifier).state = id;
+                  // The frame picked in the old session means nothing here.
+                  setState(() => _selectedFrameImageId = null);
                 },
                 items: [
                   // Same entry, same wording as Diagnostics and Session: the
@@ -156,10 +154,8 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
             TextButton(
               onPressed: () {
                 ref.read(periodAnalysisProvider.notifier).clear();
-                setState(() {
-                  _selectedSessionId = null;
-                  _selectedFrameImageId = null;
-                });
+                ref.read(analyticsSessionPickProvider.notifier).state = null;
+                setState(() => _selectedFrameImageId = null);
               },
               child: Text(
                 'Most recent',

@@ -2,7 +2,6 @@ import '../analytics_exports.dart';
 import 'dart:math' as math;
 import 'dart:io';
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -85,7 +84,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
 
   // Session chosen in the session bar. Null means "follow the live session, or
   // the most recent one with light frames".
-  int? _selectedSessionId;
+  int? get _selectedSessionId => ref.watch(analyticsSessionPickProvider);
 
   @override
   void dispose() {

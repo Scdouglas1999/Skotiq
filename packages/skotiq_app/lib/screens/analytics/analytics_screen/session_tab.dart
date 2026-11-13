@@ -15,7 +15,10 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
   /// The third state is the point: with only "auto" and "a session", the first
   /// completed run won the auto-pick forever and the quick captures could never
   /// be asked for again.
-  int? _selectedSessionId;
+  int? get _selectedSessionId => ref.watch(analyticsSessionPickProvider);
+
+  void _pick(int? id) =>
+      ref.read(analyticsSessionPickProvider.notifier).state = id;
 
   @override
   Widget build(BuildContext context) {
@@ -235,7 +238,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                     sessions: allSessions,
                     selectedId: reviewSelectionId,
                     offerQuickCaptures: offerQuickCaptures,
-                    onSelected: (id) => setState(() => _selectedSessionId = id),
+                    onSelected: _pick,
                   ),
                   const SizedBox(height: SkotiqTokens.space2xl),
                 ],
@@ -382,11 +385,10 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                         selectedId: reviewSelectionId,
                         offerQuickCaptures: offerQuickCaptures,
                         framed: false,
-                        onSelected: (id) =>
-                            setState(() => _selectedSessionId = id),
+                        onSelected: _pick,
                         onClear: _selectedSessionId == null
                             ? null
-                            : () => setState(() => _selectedSessionId = null),
+                            : () => _pick(null),
                       )
                     else ...[
                       Text(
