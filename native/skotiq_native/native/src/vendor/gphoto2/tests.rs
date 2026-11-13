@@ -895,7 +895,7 @@ fn a_device_address_names_the_body_by_its_model_key_and_port() {
     assert_eq!(camera.model_key, "nikon_z6_2");
     assert_eq!(camera.port_path, "usb:001,007");
     assert_eq!(camera.camera_index, 1);
-    assert_eq!(camera.device_id, id);
+    assert_eq!(camera.core.device_id, id);
     let attached = [
         detected(0, "Canon EOS 6d Mark II", "usb:001,004"),
         detected(1, "Nikon Z6_2", "usb:001,007"),

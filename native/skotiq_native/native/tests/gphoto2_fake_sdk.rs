@@ -263,6 +263,26 @@ async fn a_replugged_body_connects_on_its_new_port() {
 
 #[tokio::test]
 #[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+async fn another_body_of_the_model_reports_its_own_serial_number() {
+    let fake = Fake::new();
+    fake.attach(NIKON, NIKON_PORT);
+    let mut nikon = connected(0, NIKON, NIKON_PORT).await;
+    assert_eq!(nikon.serial_number().as_deref(), Some("6012345"));
+    nikon.disconnect().await.unwrap();
+
+    // The first body leaves and a second one of the same model is plugged in.
+    fake.replug(NIKON_PORT, None);
+    fake.attach(NIKON, "usb:001,012");
+    fake.set("usb:001,012", "serialnumber", "6099999");
+
+    // The device as the profile remembers it. The serial is what lets the
+    // device manager see that the body behind the address changed.
+    let again = connected(0, NIKON, NIKON_PORT).await;
+    assert_eq!(again.serial_number().as_deref(), Some("6099999"));
+}
+
+#[tokio::test]
+#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
 async fn an_unplugged_body_is_noticed_while_idle() {
     let fake = Fake::new();
     fake.attach(NIKON, NIKON_PORT);
