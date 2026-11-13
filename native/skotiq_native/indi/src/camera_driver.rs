@@ -48,14 +48,6 @@ impl IndiCamera {
         )
     }
 
-    async fn number(&self, property: &str, element: &str) -> Option<f64> {
-        self.client()
-            .read()
-            .await
-            .get_number(self.device_name(), property, element)
-            .await
-    }
-
     /// `CCD_FRAME_TYPE` for a frame kind; a dark flat is a dark to the
     /// camera.
     fn frame_type(kind: FrameType) -> CcdFrameType {
