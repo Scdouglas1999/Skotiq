@@ -37,7 +37,7 @@ pub(crate) mod mount;
 use crate::device_manager::identity::DeviceIdentity;
 use async_trait::async_trait;
 use skotiq_device::DriverError;
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
 
 /// What every rig device answers besides its own operations.
 #[async_trait]
@@ -78,6 +78,104 @@ impl<D> Exclusive<D> {
 
     pub(crate) async fn write(&self) -> RwLockWriteGuard<'_, D> {
         self.0.write().await
+    }
+}
+
+/// How a handle reaches its driver for one call.
+///
+/// The driver traits take `&mut self` for commands. A driver that keeps
+/// state between calls (a vendor SDK or serial driver) is held behind its
+/// lock, one call at a time, and can be taken out when the device is closed.
+/// A client of a server that keeps the state (Alpaca, INDI) is made anew for
+/// every call, so no call of the device waits for another: a status read or
+/// an abort goes out while a park is still being answered.
+pub(crate) enum Slot<D: ?Sized> {
+    Held(RwLock<Option<Box<D>>>),
+    PerCall(Box<dyn Fn() -> Box<D> + Send + Sync>),
+}
+
+/// A driver reached for a call that takes `&self`.
+pub(crate) enum Shared<'a, D: ?Sized> {
+    Held(RwLockReadGuard<'a, D>),
+    Own(Box<D>),
+}
+
+/// A driver reached for a call that takes `&mut self`.
+pub(crate) enum Mutable<'a, D: ?Sized> {
+    Held(RwLockMappedWriteGuard<'a, D>),
+    Own(Box<D>),
+}
+
+impl<D: ?Sized> Slot<D> {
+    pub(crate) fn held(driver: Box<D>) -> Self {
+        Slot::Held(RwLock::new(Some(driver)))
+    }
+
+    pub(crate) fn per_call(make: impl Fn() -> Box<D> + Send + Sync + 'static) -> Self {
+        Slot::PerCall(Box::new(make))
+    }
+
+    /// `None` once the driver was taken out.
+    pub(crate) async fn read(&self) -> Option<Shared<'_, D>> {
+        match self {
+            Slot::Held(lock) => RwLockReadGuard::try_map(lock.read().await, |slot| slot.as_deref())
+                .ok()
+                .map(Shared::Held),
+            Slot::PerCall(make) => Some(Shared::Own(make())),
+        }
+    }
+
+    /// `None` once the driver was taken out.
+    pub(crate) async fn write(&self) -> Option<Mutable<'_, D>> {
+        match self {
+            Slot::Held(lock) => {
+                RwLockWriteGuard::try_map(lock.write().await, |slot| slot.as_deref_mut())
+                    .ok()
+                    .map(Mutable::Held)
+            }
+            Slot::PerCall(make) => Some(Mutable::Own(make())),
+        }
+    }
+
+    /// Takes a held driver out, behind the call in flight; every later call
+    /// finds the slot empty. A per-call client is made for the caller and
+    /// the slot stays as it is.
+    pub(crate) async fn take(&self) -> Option<Box<D>> {
+        match self {
+            Slot::Held(lock) => lock.write().await.take(),
+            Slot::PerCall(make) => Some(make()),
+        }
+    }
+}
+
+impl<D: ?Sized> std::ops::Deref for Shared<'_, D> {
+    type Target = D;
+
+    fn deref(&self) -> &D {
+        match self {
+            Shared::Held(guard) => guard,
+            Shared::Own(driver) => driver,
+        }
+    }
+}
+
+impl<D: ?Sized> std::ops::Deref for Mutable<'_, D> {
+    type Target = D;
+
+    fn deref(&self) -> &D {
+        match self {
+            Mutable::Held(guard) => guard,
+            Mutable::Own(driver) => driver,
+        }
+    }
+}
+
+impl<D: ?Sized> std::ops::DerefMut for Mutable<'_, D> {
+    fn deref_mut(&mut self) -> &mut D {
+        match self {
+            Mutable::Held(guard) => guard,
+            Mutable::Own(driver) => driver,
+        }
     }
 }
 

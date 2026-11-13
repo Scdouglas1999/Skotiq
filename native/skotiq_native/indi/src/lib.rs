@@ -124,6 +124,7 @@ mod filterwheel;
 mod focuser;
 mod kind;
 mod mount;
+mod mount_driver;
 mod protocol;
 mod rotator;
 mod safetymonitor;

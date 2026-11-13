@@ -553,7 +553,7 @@ async fn v25_mounts_without_the_park_commands_say_so_at_once() {
     for code in ["0010", "0011", "0025", "0026", "5010", "5035"] {
         let (fake, state) = spawn(DocMount::new(Language::V25, code, 9600, code != "5035"));
         let mut mount = connected(&fake, &state).await;
-        assert!(!mount.can_set_park(), "{code}");
+        assert!(!mount.can_set_park().await.unwrap_or(false), "{code}");
         let started = std::time::Instant::now();
         assert!(
             matches!(mount.park().await, Err(DriverError::NotSupported)),
@@ -584,7 +584,7 @@ async fn v25_mounts_without_the_park_commands_say_so_at_once() {
     for code in ["0030", "0040", "0043", "0045", "0046", "0060"] {
         let (fake, state) = spawn(DocMount::new(Language::V25, code, 9600, code != "0046"));
         let mut mount = connected(&fake, &state).await;
-        assert!(mount.can_set_park(), "{code}");
+        assert!(mount.can_set_park().await.unwrap_or(false), "{code}");
         mount.park().await.expect(code);
         assert!(mount.is_parked().await.expect(code), "{code}");
         mount.unpark().await.expect(code);
@@ -605,7 +605,7 @@ async fn guide_pulses_move_the_axis_the_documents_name() {
     // guideEast), north raises Dec.
     let (fake, state) = spawn(DocMount::new(Language::V3, "0071", 115200, true));
     let mut mount = connected(&fake, &state).await;
-    assert!(mount.can_pulse_guide());
+    assert!(mount.can_pulse_guide().await);
     for (direction, ms) in [
         (GuideDirection::North, 120),
         (GuideDirection::South, 250),
@@ -676,7 +676,7 @@ async fn alt_azimuth_mounts_take_no_guide_pulses_and_report_no_pier_side() {
         let (fake, state) = spawn(DocMount::new(language, code, baud, false));
         let mut mount = connected(&fake, &state).await;
         assert!(
-            !mount.can_pulse_guide(),
+            !mount.can_pulse_guide().await,
             "{code} ({}) offers pulse guiding",
             mount.name()
         );

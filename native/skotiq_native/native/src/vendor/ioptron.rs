@@ -1085,8 +1085,8 @@ impl MountDriver for IOptronMount {
         Ok(self.status()?.system == SystemStatus::StoppedAtZero)
     }
 
-    fn can_set_park(&self) -> bool {
-        self.session().map_or(true, |session| session.parks)
+    async fn can_set_park(&self) -> Result<bool, DriverError> {
+        Ok(self.session().map_or(true, |session| session.parks))
     }
 
     async fn set_park(&mut self) -> Result<(), DriverError> {
@@ -1308,15 +1308,15 @@ impl MountDriver for IOptronMount {
         Ok(self.status()?.tracking_rate)
     }
 
-    fn can_slew(&self) -> bool {
+    async fn can_slew(&self) -> bool {
         true
     }
 
-    fn can_sync(&self) -> bool {
+    async fn can_sync(&self) -> bool {
         true
     }
 
-    fn can_pulse_guide(&self) -> bool {
+    async fn can_pulse_guide(&self) -> bool {
         !self
             .session
             .lock()
@@ -1325,12 +1325,12 @@ impl MountDriver for IOptronMount {
             .is_some_and(|session| session.alt_az)
     }
 
-    fn can_set_tracking_rate(&self) -> bool {
+    async fn can_set_tracking_rate(&self) -> bool {
         true
     }
 
-    fn can_find_home(&self) -> bool {
-        true
+    async fn can_find_home(&self) -> Result<bool, DriverError> {
+        Ok(true)
     }
 }
 
@@ -1403,7 +1403,7 @@ mod tests {
     #[tokio::test]
     async fn find_home_is_implemented_and_advertised() {
         let mut mount = IOptronMount::new("TEST_PORT".to_string(), None);
-        assert!(mount.can_find_home());
+        assert!(mount.can_find_home().await.unwrap_or(false));
         assert!(
             matches!(mount.find_home().await, Err(DriverError::NotConnected)),
             "find_home should reach the connection check, not the trait default"

@@ -6,6 +6,7 @@
 
 #[macro_use]
 mod members;
+mod mount;
 
 mod accessory;
 mod camera;
@@ -32,6 +33,7 @@ pub use observingconditions::*;
 pub use rotator::*;
 pub use safetymonitor::*;
 pub use switch::*;
+pub use mount::AlpacaMount;
 pub use telescope::*;
 
 // The ASCOM enumerations are shared with the COM transport.

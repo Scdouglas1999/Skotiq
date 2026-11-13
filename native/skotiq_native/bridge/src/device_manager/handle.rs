@@ -353,18 +353,21 @@ impl DeviceManager {
         device_id: &str,
         mount: Box<dyn skotiq_device::MountDriver + Send + Sync>,
     ) {
-        use crate::device_manager::rig::mount::VendorMount;
+        use crate::device_manager::rig::mount::DriverMount;
         self.handles.insert(
             device_id,
-            DeviceHandle::Mount(Arc::new(VendorMount::new(device_id, mount))),
+            DeviceHandle::Mount(Arc::new(DriverMount::vendor(device_id, mount))),
         );
     }
 
     pub(crate) fn hold_alpaca_mount(&self, device_id: &str, mount: skotiq_alpaca::AlpacaTelescope) {
-        use crate::device_manager::rig::mount::AlpacaMount;
+        use crate::device_manager::rig::mount::DriverMount;
         self.handles.insert(
             device_id,
-            DeviceHandle::Mount(Arc::new(AlpacaMount::new(device_id, mount))),
+            DeviceHandle::Mount(Arc::new(DriverMount::alpaca(
+                device_id,
+                skotiq_alpaca::AlpacaMount::new(mount),
+            ))),
         );
     }
 

@@ -7,7 +7,6 @@
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::DeviceManager;
-use skotiq_indi::names as indi;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -42,7 +41,7 @@ fn handle(
     use crate::device_manager::rig::camera::IndiCameraHandle;
     use crate::device_manager::rig::filter_wheel::IndiWheel;
     use crate::device_manager::rig::focuser::IndiFocuserHandle;
-    use crate::device_manager::rig::mount::IndiMountHandle;
+    use crate::device_manager::rig::mount::DriverMount;
     use skotiq_indi::*;
     Some(match info.device_type {
         DeviceType::Camera => DeviceHandle::Camera(Arc::new(IndiCameraHandle::new(
@@ -50,7 +49,7 @@ fn handle(
             client,
             device_name,
         ))),
-        DeviceType::Mount => DeviceHandle::Mount(Arc::new(IndiMountHandle::new(
+        DeviceType::Mount => DeviceHandle::Mount(Arc::new(DriverMount::indi(
             &info.id,
             client,
             device_name,
@@ -96,62 +95,6 @@ impl DeviceManager {
             } => Ok((host, port, device_name)),
             _ => Err(format!("Invalid INDI device ID format: {}", device_id)),
         }
-    }
-
-    pub(crate) async fn indi_mount_tracking_rate(
-        client: &skotiq_indi::IndiClient,
-        device_name: &str,
-    ) -> (TrackingRate, bool) {
-        let Some(prop) = client
-            .get_property(device_name, indi::TELESCOPE_TRACK_RATE)
-            .await
-        else {
-            return (TrackingRate::Sidereal, false);
-        };
-
-        let can_set_tracking_rate = prop.perm != skotiq_indi::IndiPermission::ReadOnly;
-        for element in prop.elements {
-            // Why: `IndiClient::get_switch` returns
-            // `Option<bool>` — `None` means "INDI client has not yet received
-            // a definition for this device.property.element pair" (the
-            // background reader publishes asynchronously). We are looping
-            // every element of TELESCOPE_TRACK_RATE looking for the one
-            // currently set to ON; a not-yet-streamed element is by
-            // definition not-currently-active, so `unwrap_or(false)` correctly
-            // tells the loop to skip ahead and check the next candidate.
-            // If NO element ever resolves to On the function falls through to
-            // the post-loop default of (Sidereal, false), matching the INDI
-            // convention that an absent state implies the default sidereal
-            // rate.
-            if !client
-                .get_switch(device_name, indi::TELESCOPE_TRACK_RATE, &element)
-                .await
-                .unwrap_or(false)
-            {
-                continue;
-            }
-
-            let upper = element.to_ascii_uppercase();
-            let rate = if upper.contains("SIDEREAL") {
-                Some(TrackingRate::Sidereal)
-            } else if upper.contains("LUNAR") {
-                Some(TrackingRate::Lunar)
-            } else if upper.contains("SOLAR") {
-                Some(TrackingRate::Solar)
-            } else if upper.contains("KING") {
-                Some(TrackingRate::King)
-            } else if upper.contains("CUSTOM") {
-                Some(TrackingRate::Custom)
-            } else {
-                None
-            };
-
-            if let Some(rate) = rate {
-                return (rate, can_set_tracking_rate);
-            }
-        }
-
-        (TrackingRate::Sidereal, can_set_tracking_rate)
     }
 
     pub(crate) async fn connect_indi(&self, info: &DeviceInfo) -> Result<(), String> {

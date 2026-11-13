@@ -17,6 +17,7 @@ mod errors;
 pub mod interfaces;
 pub mod members;
 pub mod observing_conditions;
+pub mod telescope;
 mod types;
 
 pub use device_type::AscomDeviceType;
