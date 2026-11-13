@@ -108,6 +108,7 @@ export 'src/services/endpoint_sanitizer.dart';
 export 'src/services/plugin_management_service.dart';
 export 'src/services/notification_service.dart';
 export 'src/services/push_notification_service.dart';
+export 'src/services/notification/event_classifier.dart';
 export 'src/services/notification/notification_presentation.dart';
 export 'src/services/notification/notification_router.dart';
 export 'src/services/notification/notification_signature.dart';
