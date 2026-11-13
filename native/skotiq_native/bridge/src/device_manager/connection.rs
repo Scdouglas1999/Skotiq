@@ -868,55 +868,6 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Clears the `connected` flag of a simulated device that has no handle.
-    /// Disconnecting one that is already disconnected is `Ok`; a device type
-    /// with no simulator is an error, as in `connect_simulator`.
-    pub(crate) async fn disconnect_simulator(&self, info: &DeviceInfo) -> Result<(), String> {
-        if !info.id.starts_with("sim_") {
-            return Err(format!(
-                "disconnect_simulator: device id '{}' is not a simulator id (expected 'sim_' prefix)",
-                info.id
-            ));
-        }
-
-        use crate::simulator::camera::get_sim_camera_for;
-        use crate::simulator::mount::get_sim_mount;
-
-        match info.device_type {
-            DeviceType::Camera => {
-                let mut cam = get_sim_camera_for(&info.id).write().await;
-                cam.status.connected = false;
-            }
-            DeviceType::Mount => {
-                let mut mount = get_sim_mount().write().await;
-                mount.status.connected = false;
-            }
-            // Connected through a handle and closed through it; without
-            // one there is nothing to release.
-            DeviceType::Focuser
-            | DeviceType::FilterWheel
-            | DeviceType::Rotator
-            | DeviceType::Dome
-            | DeviceType::Weather
-            | DeviceType::SafetyMonitor
-            | DeviceType::Switch
-            | DeviceType::CoverCalibrator => {}
-            other => {
-                return Err(format!(
-                    "disconnect_simulator: no simulator implementation for device type {:?} (id '{}')",
-                    other, info.id
-                ));
-            }
-        }
-
-        tracing::info!(
-            "Simulator disconnected: id={} type={:?}",
-            info.id,
-            info.device_type
-        );
-        Ok(())
-    }
-
     pub async fn disconnect_device(&self, device_id: &str) -> Result<(), String> {
         // Stop heartbeat monitoring first to prevent false disconnect events
         let _ = self.stop_heartbeat(device_id).await;
@@ -1008,24 +959,13 @@ impl DeviceManager {
                         record_disconnect!("Native device", device.disconnect().await);
                     }
                 }
-                // Every Alpaca and ASCOM device is released through its
-                // handle above.
-                DriverType::Alpaca | DriverType::Ascom => {}
+                // Every Alpaca, ASCOM and simulated device is released
+                // through its handle above.
+                DriverType::Alpaca | DriverType::Ascom | DriverType::Simulator => {}
                 // A device type with no handle (a guider) is released on its
                 // server's shared connection.
                 DriverType::Indi => {
                     record_disconnect!("INDI device", self.release_indi_device(device_id).await);
-                }
-                DriverType::Simulator => {
-                    // Flip the matching `simulation.rs` singleton's `connected`
-                    // bit back to false so the heartbeat loop and any other
-                    // observer agrees the simulator is offline. Errors here are
-                    // logged but do not block the rest of disconnect cleanup —
-                    // the user has already asked to release the device, and the
-                    // managed-device state is being torn down regardless.
-                    if let Err(e) = self.disconnect_simulator(&device_info).await {
-                        tracing::warn!("disconnect_simulator failed for {}: {}", device_info.id, e);
-                    }
                 }
             }
         }

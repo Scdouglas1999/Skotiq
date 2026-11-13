@@ -555,7 +555,7 @@ mod mount_motion_tests {
             unique_id: None,
             display_name: "Simulated Mount".to_string(),
         };
-        get_device_manager().register_device(info, false).await;
+        crate::simulator::register_connected(&get_device_manager(), info).await;
         get_state()
             .set_observer_location(Some(ObserverLocation {
                 latitude: 40.0,

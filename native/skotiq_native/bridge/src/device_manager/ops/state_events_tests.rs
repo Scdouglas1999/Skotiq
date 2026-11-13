@@ -38,7 +38,7 @@ async fn attach(id: &str, device_type: DeviceType) {
         display_name: format!("Simulated {}", device_type.as_str()),
     };
     let manager = get_device_manager();
-    manager.register_device(info.clone(), false).await;
+    crate::simulator::register_connected(&manager, info.clone()).await;
     manager
         .connect_simulator(&info)
         .await
@@ -676,7 +676,7 @@ async fn a_camera_connect_names_it_and_publishes_its_settings() {
         unique_id: None,
         display_name: String::new(),
     };
-    get_device_manager().register_device(info, false).await;
+    crate::simulator::register_connected(&get_device_manager(), info).await;
 
     get_device_manager().connect_device(CAMERA).await.unwrap();
 

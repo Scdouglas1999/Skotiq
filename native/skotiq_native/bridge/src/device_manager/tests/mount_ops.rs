@@ -4,10 +4,14 @@ use crate::device::DriverType;
 /// Register a simulator mount so the simulator ops can be driven the same
 /// way a real driver is.
 async fn register_sim_mount(manager: &DeviceManager, device_id: &str) {
+    let info = build_mount_info(device_id, DriverType::Simulator);
+    // The handle answers from the simulated mount, connected or not.
+    let handle = crate::simulator::driver::handle(&info).expect("simulated mount handle");
+    manager.handles.insert(device_id, handle);
     manager.devices.write().await.insert(
         device_id.to_string(),
         ManagedDevice {
-            info: build_mount_info(device_id, DriverType::Simulator),
+            info,
             connection_state: ConnectionState::Connected,
             last_error: None,
             reconnect_attempts: 0,

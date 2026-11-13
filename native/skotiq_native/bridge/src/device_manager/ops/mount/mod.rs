@@ -46,7 +46,7 @@ mod sim_mount_tests {
             unique_id: None,
             display_name: "Simulated Mount".to_string(),
         };
-        get_device_manager().register_device(info, false).await;
+        crate::simulator::register_connected(&get_device_manager(), info).await;
         // The interpolation cell lives outside `SimulatedMount`, so resetting
         // the struct alone would leave the previous test's slew in flight and
         // this one's first command would be refused as "still moving".
