@@ -327,7 +327,7 @@ pub(crate) async fn build_frame_context_for_save(
             identity: &ctx.run.identity,
             commanded_secs: config.duration_secs,
             binning,
-            frame_type: &config.frame_type,
+            frame_type: config.frame_type.as_str(),
             exposure_started_at,
             filter: (frame_filter.0.as_deref(), frame_filter.1),
             // The running target, not the "untargeted" label file names use.

@@ -189,7 +189,7 @@ fn exposure_node(id: &str, frame_type: &str, filter: &str, index: Option<i32>) -
         id: id.to_string(),
         name: id.to_string(),
         node_type: NodeType::TakeExposure(ExposureConfig {
-            frame_type: frame_type.to_string(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             filter: Some(filter.to_string()),
             filter_index: index,
             ..ExposureConfig::default()

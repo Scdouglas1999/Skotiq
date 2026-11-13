@@ -59,14 +59,6 @@ pub(crate) fn unset_target_pointing_reason(
     ))
 }
 
-/// Whether a sequencer frame is an on-sky light that requires darkness.
-///
-/// Calibration frame types are intentionally explicit exemptions: they can be
-/// captured during daylight even when they live below a TargetHeader and the
-/// mount happens to be unparked.
-pub(crate) fn frame_type_requires_darkness(frame_type: &str) -> bool {
-    frame_type.eq_ignore_ascii_case("light")
-}
 
 /// W1 native daylight gate decision.
 ///

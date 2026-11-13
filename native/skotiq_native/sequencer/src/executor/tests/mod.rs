@@ -169,7 +169,7 @@ fn single_exposure_sequence(save_to: Option<String>) -> SequenceDefinition {
         node_type: crate::NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.01,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             save_to,
             ..Default::default()
         }),
@@ -214,7 +214,7 @@ fn nested_leaf_chain_sequence() -> SequenceDefinition {
         node_type: crate::NodeType::TakeExposure(crate::ExposureConfig {
             count: 3,
             duration_secs: 0.01,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         }),
         enabled: true,

@@ -1931,18 +1931,96 @@ pub struct ExposureConfig {
     /// loadable without an adaptive section.
     #[serde(default)]
     pub adaptive_exposure: Option<crate::scheduling::AdaptiveExposureConfig>,
-    /// FITS `IMAGETYP`-style frame type for every frame this node captures:
-    /// "Light" | "Dark" | "Flat" | "Bias" | "DarkFlat" | "Snapshot".
-    /// Drives the saved FITS header, and gates star-based quality grading
-    /// and in-burst dithering (both light-frame-only). `#[serde(default)]`
-    /// keeps old sequence JSON (which omitted the key and was implicitly
-    /// all-lights) loadable.
-    #[serde(default = "default_frame_type")]
-    pub frame_type: String,
+    /// What every frame this node captures is. Sequence JSON from before the
+    /// key existed captured lights.
+    #[serde(default)]
+    pub frame_type: FrameType,
 }
 
-fn default_frame_type() -> String {
-    "Light".to_string()
+/// What a captured frame is, as its FITS `IMAGETYP` names it.
+///
+/// A Snapshot is a frame of the sky the operator wants to look at now (a
+/// framing or focus check, a test of the exposure), not part of the night's
+/// data: it is taken, analyzed and guided like a light, but it does not wait
+/// for darkness and is not stacked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum FrameType {
+    #[default]
+    Light,
+    Dark,
+    Flat,
+    Bias,
+    DarkFlat,
+    Snapshot,
+}
+
+impl FrameType {
+    const ALL: [Self; 6] = [
+        Self::Light,
+        Self::Dark,
+        Self::Flat,
+        Self::Bias,
+        Self::DarkFlat,
+        Self::Snapshot,
+    ];
+
+    /// The `IMAGETYP` spelling, which is also the wire spelling.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Light => "Light",
+            Self::Dark => "Dark",
+            Self::Flat => "Flat",
+            Self::Bias => "Bias",
+            Self::DarkFlat => "DarkFlat",
+            Self::Snapshot => "Snapshot",
+        }
+    }
+
+    /// The frame type a recorded `IMAGETYP` spelling names, in any letter case.
+    pub fn from_name(name: &str) -> Option<Self> {
+        let name = name.trim();
+        Self::ALL
+            .into_iter()
+            .find(|frame_type| frame_type.as_str().eq_ignore_ascii_case(name))
+    }
+
+    /// A frame of the sky through the open telescope: its stars are measured
+    /// and graded, it is dithered and guided for, it counts toward the
+    /// autofocus and dither cadence, and it waits out a meridian flip that
+    /// would ruin it.
+    pub fn is_sky_frame(self) -> bool {
+        matches!(self, Self::Light | Self::Snapshot)
+    }
+
+    /// Part of the night's data: it waits for darkness, its filters are the
+    /// night's light filters, and it is stacked.
+    pub fn is_science(self) -> bool {
+        self == Self::Light
+    }
+
+    /// Taken with the shutter closed or on a flat light source; where the
+    /// telescope points does not matter.
+    pub fn is_calibration(self) -> bool {
+        !self.is_sky_frame()
+    }
+}
+
+impl Serialize for FrameType {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for FrameType {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        Self::from_name(&name).ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "unknown frame type `{name}`; expected one of Light, Dark, Flat, Bias, \
+                 DarkFlat, Snapshot"
+            ))
+        })
+    }
 }
 
 impl Default for ExposureConfig {
@@ -1965,7 +2043,7 @@ impl Default for ExposureConfig {
             triggers: Vec::new(),
             quality_check: None,
             adaptive_exposure: None,
-            frame_type: default_frame_type(),
+            frame_type: FrameType::default(),
         }
     }
 }
@@ -3289,7 +3367,7 @@ mod recovery_action_serde_tests {
         let node: NodeType = serde_json::from_str(legacy)
             .expect("legacy TakeExposure without frame_type must deserialize");
         match node {
-            NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, "Light"),
+            NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, crate::FrameType::Light),
             other => panic!("expected NodeType::TakeExposure, got {other:?}"),
         }
 
@@ -3308,7 +3386,7 @@ mod recovery_action_serde_tests {
         let node: NodeType = serde_json::from_str(dark)
             .expect("TakeExposure with explicit frame_type must deserialize");
         match node {
-            NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, "Dark"),
+            NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, crate::FrameType::Dark),
             other => panic!("expected NodeType::TakeExposure, got {other:?}"),
         }
     }

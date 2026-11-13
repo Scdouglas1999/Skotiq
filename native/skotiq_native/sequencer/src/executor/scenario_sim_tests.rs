@@ -2965,7 +2965,7 @@ async fn start_capture_run(
         node_type: NodeType::TakeExposure(ExposureConfig {
             count: frames,
             duration_secs: 0.0,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..ExposureConfig::default()
         }),
         enabled: true,
@@ -3545,7 +3545,7 @@ async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_trigg
             node_type: NodeType::TakeExposure(ExposureConfig {
                 count: 6,
                 duration_secs: 0.0,
-                frame_type: "dark".to_string(),
+                frame_type: crate::FrameType::Dark,
                 dither_every: Some(1),
                 ..ExposureConfig::default()
             }),

@@ -272,9 +272,9 @@ impl FrameWatchStage {
                 ),
                 _ => continue,
             };
-            let is_light = capture.frame_type.eq_ignore_ascii_case("light")
-                || capture.frame_type.eq_ignore_ascii_case("snapshot");
-            if path.is_empty() || !is_light {
+            let is_sky_frame =
+                crate::FrameType::from_name(&capture.frame_type).is_some_and(crate::FrameType::is_sky_frame);
+            if path.is_empty() || !is_sky_frame {
                 continue;
             }
             let state = dispatcher.rig.trigger_state.read().await;

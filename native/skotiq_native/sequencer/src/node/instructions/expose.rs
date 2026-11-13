@@ -331,7 +331,7 @@ impl InstructionNode for ExposeInstruction {
                 // AutofocusInterval / DitherInterval triggers fire every N
                 // star-field frames; a dark or bias burst neither blurs focus
                 // nor builds walking noise, so it does not advance them.
-                if counts_toward_frame_cadence(&config.frame_type) {
+                if config.frame_type.is_sky_frame() {
                     for _ in 0..frames_to_take {
                         trigger_state.increment_exposure_count();
                     }
@@ -360,25 +360,6 @@ impl InstructionNode for ExposeInstruction {
         }
 
         result.settle("Exposure", &ctx).await
-    }
-}
-
-/// Whether a frame of this type advances the frame-count triggers (dither and
-/// autofocus intervals): only star-field frames do.
-fn counts_toward_frame_cadence(frame_type: &str) -> bool {
-    frame_type.eq_ignore_ascii_case("light") || frame_type.eq_ignore_ascii_case("snapshot")
-}
-
-/// Stand-in target name for a target-less calibration frame, or `None` for a
-/// light frame (which must not have a target name invented for it).
-fn calibration_target_label(frame_type: &str) -> Option<String> {
-    match frame_type.trim().to_ascii_lowercase().as_str() {
-        "dark" => Some("Dark".to_string()),
-        "bias" => Some("Bias".to_string()),
-        "flat" => Some("Flat".to_string()),
-        "darkflat" => Some("DarkFlat".to_string()),
-        // `snapshot` and `light` are on-sky frames: no substitution.
-        _ => None,
     }
 }
 
@@ -461,8 +442,8 @@ pub(crate) fn build_save_path_renderer(
     // LIGHT frames still hard-fail here: inventing a target name for science
     // data would mislabel the data itself, which is worse than refusing.
     if ctx_snapshot.target_name.is_none() {
-        if let Some(label) = calibration_target_label(&config.frame_type) {
-            ctx_snapshot.target_name = Some(label);
+        if config.frame_type.is_calibration() {
+            ctx_snapshot.target_name = Some(config.frame_type.as_str().to_string());
         }
     }
 
@@ -1486,7 +1467,7 @@ mod tests {
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.01,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         });
 
@@ -1514,7 +1495,7 @@ mod tests {
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.01,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             save_to: Some(format!("{}/${{frame:04}}.fits", dir.display())),
             ..Default::default()
         });
@@ -1552,7 +1533,7 @@ mod tests {
             NodeType::TakeExposure(crate::ExposureConfig {
                 count,
                 duration_secs: 0.01,
-                frame_type: frame_type.to_string(),
+                frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
                 dither_every: Some(0),
                 ..Default::default()
             })
@@ -1600,7 +1581,7 @@ mod tests {
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.4,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         });
         let node_type_b = node_type.clone();
@@ -1640,7 +1621,7 @@ mod tests {
         let mut ctx_b = ctx_a.clone();
         ctx_b.run.rig.camera_id = Some("sim_camera_2".to_string());
         let dark = crate::ExposureConfig {
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         };
         let camera_a = build_save_path_renderer(&ctx_a, &dark, 1.0).unwrap();
@@ -1740,7 +1721,7 @@ mod tests {
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.4,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         });
         let node_type_b = node_type.clone();
@@ -1794,7 +1775,7 @@ mod tests {
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 3,
             duration_secs: 0.01,
-            frame_type: "light".to_string(),
+            frame_type: crate::FrameType::Light,
             save_to: Some(format!("{}/${{frame:04}}.fits", dir.display())),
             dither_every: Some(0),
             ..Default::default()
@@ -1879,34 +1860,5 @@ mod tests {
             }
             other => panic!("unexpected R detail: {:?}", other),
         }
-    }
-}
-
-#[cfg(test)]
-mod calibration_label_tests {
-    use super::calibration_target_label;
-
-    /// A darks/bias sequence with no TargetHeader must not abort on frame 1 with
-    /// "Variable `${target.name}` cannot be resolved: no active target": the
-    /// default filename template requires a target that a calibration frame
-    /// cannot have, so those frames get a stand-in target name.
-    #[test]
-    fn calibration_frames_get_a_stand_in_target_name() {
-        assert_eq!(calibration_target_label("dark").as_deref(), Some("Dark"));
-        assert_eq!(calibration_target_label("BIAS").as_deref(), Some("Bias"));
-        assert_eq!(calibration_target_label(" flat ").as_deref(), Some("Flat"));
-        assert_eq!(
-            calibration_target_label("darkflat").as_deref(),
-            Some("DarkFlat")
-        );
-    }
-
-    /// On-sky frames must NOT get one: mislabelling science data with an invented
-    /// target is worse than refusing to name the file.
-    #[test]
-    fn on_sky_frames_get_no_substitute() {
-        assert!(calibration_target_label("light").is_none());
-        assert!(calibration_target_label("Light").is_none());
-        assert!(calibration_target_label("snapshot").is_none());
     }
 }

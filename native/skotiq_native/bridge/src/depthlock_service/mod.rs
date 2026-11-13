@@ -61,7 +61,9 @@ pub fn service() -> Option<&'static Arc<DepthLockService>> {
 /// Capture-path hook: a light the sequencer just saved. Cheap and
 /// non-blocking; does nothing until the store is initialized.
 pub fn notify_frame_saved(path: &str, frame_type: &str) {
-    if !frame_type.eq_ignore_ascii_case("light") {
+    if !skotiq_sequencer::FrameType::from_name(frame_type)
+        .is_some_and(skotiq_sequencer::FrameType::is_science)
+    {
         return;
     }
     if let Some(service) = SERVICE.get() {

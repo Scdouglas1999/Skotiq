@@ -484,7 +484,7 @@ fn final_flat_exposure_config(
         filter_index: config.filter_index,
         binning,
         dither_every: None,
-        frame_type: "Flat".to_string(),
+        frame_type: crate::FrameType::Flat,
         ..ExposureConfig::default()
     }
 }
@@ -844,7 +844,7 @@ mod tests {
         assert_eq!(exposure.filter_index, Some(3));
         assert_eq!(exposure.binning, crate::Binning::Two);
         assert_eq!(exposure.dither_every, None);
-        assert_eq!(exposure.frame_type, "Flat");
+        assert_eq!(exposure.frame_type, crate::FrameType::Flat);
         assert_eq!(binning_dimensions(exposure.binning), (2, 2));
     }
 

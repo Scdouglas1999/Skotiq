@@ -134,7 +134,7 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
     let config = ExposureConfig {
         count: 3,
         duration_secs: 0.0,
-        frame_type: "light".to_string(),
+        frame_type: crate::FrameType::Light,
         ..ExposureConfig::default()
     };
 
@@ -224,7 +224,7 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
     let config = ExposureConfig {
         count: 3,
         duration_secs: 0.0,
-        frame_type: "light".to_string(),
+        frame_type: crate::FrameType::Light,
         ..ExposureConfig::default()
     };
 
@@ -633,4 +633,67 @@ async fn a_flip_step_leaves_a_parked_or_already_flipped_mount_alone() {
             "{label}: tracking was commanded"
         );
     }
+}
+
+/// A snapshot is a frame of the sky like a light, so a flip that is about to
+/// happen holds it as it holds a light; a dark is never held. Before, only a
+/// light was held, and a snapshot was started into the flip's slew.
+#[tokio::test]
+async fn a_requested_flip_holds_a_snapshot_but_not_a_dark() {
+    async fn frames_taken_while_a_flip_is_requested(frame_type: crate::FrameType) -> u32 {
+        // Parked as far as the daylight gate asks; the trigger's own telemetry
+        // says tracking, so the flip request stands.
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_parked(true));
+        let dir = std::env::temp_dir().join(format!("sk-mer-snap-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let mut ec = crate::node::context::ExecutionContext::new_for_test("snap".to_string());
+        ec.run.device_ops = ops.clone();
+        ec.run.rig.camera_id = Some("camera-1".to_string());
+        ec.run.rig.mount_id = Some("mount-1".to_string());
+        ec.run.rig.save_path = Some(dir.clone());
+        let mut state = crate::triggers::TriggerState::new();
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(10.0);
+        state.target.target_dec = Some(40.0);
+        state.target.current_hour_angle = Some(0.25);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.telemetry.mount_is_tracking = Some(true);
+        state.telemetry.mount_parked = Some(false);
+        state.meridian.request();
+        assert!(state.flip_request_pending());
+        ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+        let mut ctx = ec.to_instruction_context("snap").await;
+        ctx.target_ra = Some(10.0);
+        ctx.target_dec = Some(40.0);
+        let config = ExposureConfig {
+            count: 2,
+            duration_secs: 0.0,
+            frame_type,
+            ..ExposureConfig::default()
+        };
+        let _ = tokio::time::timeout(
+            Duration::from_secs(2),
+            execute_exposure_with_renderer(
+                &config,
+                &ctx,
+                None,
+                &BurstControl::default(),
+                |_, _, _| {},
+            ),
+        )
+        .await;
+        let _ = std::fs::remove_dir_all(&dir);
+        ops.camera_exposure_calls.load(Ordering::SeqCst)
+    }
+
+    assert_eq!(
+        frames_taken_while_a_flip_is_requested(crate::FrameType::Snapshot).await,
+        0,
+        "a snapshot waits for the requested flip"
+    );
+    assert_eq!(
+        frames_taken_while_a_flip_is_requested(crate::FrameType::Dark).await,
+        2,
+        "a dark does not wait for the flip"
+    );
 }

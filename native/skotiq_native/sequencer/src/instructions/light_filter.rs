@@ -61,7 +61,7 @@ fn collect_planned_light_filters(node: &dyn Node, out: &mut Vec<PlannedLightFilt
         }
     };
     match node.node_type() {
-        NodeType::TakeExposure(cfg) if cfg.frame_type.eq_ignore_ascii_case("light") => {
+        NodeType::TakeExposure(cfg) if cfg.frame_type.is_science() => {
             push(cfg.filter.as_deref(), cfg.filter_index);
         }
         NodeType::SmartExposure(cfg) => {

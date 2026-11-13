@@ -32,7 +32,7 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
     let config = ExposureConfig {
         count: 3,
         duration_secs: 0.0,
-        frame_type: "dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         ..ExposureConfig::default()
     };
 
@@ -251,7 +251,7 @@ mod dither_cadence {
         let config = ExposureConfig {
             duration_secs: 0.01,
             count,
-            frame_type: frame_type.to_string(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             dither_every: Some(dither_every),
             ..ExposureConfig::default()
         };
@@ -303,7 +303,7 @@ mod light_frame_grading {
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 1,
-            frame_type: frame_type.to_string(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             quality_check: Some(check),
             ..ExposureConfig::default()
         };
@@ -403,7 +403,7 @@ mod light_frame_grading {
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 3,
-            frame_type: "Light".to_string(),
+            frame_type: crate::FrameType::Light,
             quality_check: Some(check(|c| c.hfr_threshold = Some(3.0))),
             ..ExposureConfig::default()
         };
@@ -462,7 +462,7 @@ mod light_frame_grading {
                 let config = ExposureConfig {
                     duration_secs: 0.01,
                     count,
-                    frame_type: "Light".to_string(),
+                    frame_type: crate::FrameType::Light,
                     quality_check: Some(grading),
                     ..ExposureConfig::default()
                 };
@@ -526,7 +526,7 @@ mod in_burst_dither_failure {
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 4,
-            frame_type: "Light".to_string(),
+            frame_type: crate::FrameType::Light,
             dither_every: Some(1),
             ..ExposureConfig::default()
         };
@@ -601,7 +601,7 @@ async fn a_burst_while_imaging_unguided_skips_its_dithers() {
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 4,
-        frame_type: "Light".to_string(),
+        frame_type: crate::FrameType::Light,
         dither_every: Some(1),
         ..ExposureConfig::default()
     };
@@ -635,7 +635,7 @@ async fn a_burst_skips_its_dither_while_the_run_holds_the_guider_stopped() {
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 2,
-        frame_type: "Light".to_string(),
+        frame_type: crate::FrameType::Light,
         dither_every: Some(1),
         ..ExposureConfig::default()
     };
@@ -670,7 +670,7 @@ async fn a_burst_dither_tells_the_guider_it_is_settling_after_a_dither() {
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 2,
-        frame_type: "Light".to_string(),
+        frame_type: crate::FrameType::Light,
         dither_every: Some(1),
         ..ExposureConfig::default()
     };
@@ -767,7 +767,7 @@ mod settle_ran_out_with_the_star_held {
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 2,
-            frame_type: "Light".to_string(),
+            frame_type: crate::FrameType::Light,
             dither_every: Some(1),
             dither_settle_pixels: 0.5,
             ..ExposureConfig::default()
@@ -1143,7 +1143,7 @@ async fn a_calibration_frame_does_not_move_the_focuser() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_capture_telemetry());
     let ctx = compensating_ctx(ops.clone()).await;
     let dark = ExposureConfig {
-        frame_type: "Dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         ..one_light()
     };
 

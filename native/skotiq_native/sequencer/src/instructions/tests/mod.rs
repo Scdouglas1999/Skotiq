@@ -1433,7 +1433,7 @@ fn one_dark_no_filter() -> ExposureConfig {
     ExposureConfig {
         duration_secs: 0.01,
         count: 1,
-        frame_type: "Dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         filter: None,
         filter_index: None,
         ..ExposureConfig::default()
@@ -1465,7 +1465,7 @@ fn one_dark(count: u32) -> ExposureConfig {
     ExposureConfig {
         duration_secs: 0.01,
         count,
-        frame_type: "Dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         gain: Some(1),
         offset: Some(2),
         binning: Binning::Two,

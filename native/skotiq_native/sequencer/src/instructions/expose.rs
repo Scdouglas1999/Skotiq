@@ -191,9 +191,9 @@ async fn take_burst(
         Err(e) => return e,
     };
 
-    // Native daylight gate. Only an actual LIGHT frame requires darkness;
-    // calibration frames stay exempt even below a TargetHeader and with an
-    // unparked mount.
+    // Native daylight gate. Only a light requires darkness; a snapshot is
+    // wanted now, and calibration frames stay exempt even below a
+    // TargetHeader and with an unparked mount.
     //
     // The gate keys off the FRAME TYPE, never off the presence of a
     // TargetHeader or of `ctx.target_ra`/`target_dec` — keying off those
@@ -201,7 +201,7 @@ async fn take_burst(
     // write LIGHT frames in full daylight. Whether the rig is pointed at the
     // sky is answered by the mount park state below, which is the real
     // discriminator.
-    if frame_type_requires_darkness(&config.frame_type) {
+    if config.frame_type.is_science() {
         let on_sky = match &ctx.run.rig.mount_id {
             // No mount configured: there is no rig to point at the sky, so this
             // cannot be an on-sky light capture — abstain.
@@ -314,15 +314,10 @@ async fn take_burst(
     let quality_check_default = ctx.run.grading.default_quality_check.clone();
     let reject_folder_override = ctx.run.grading.reject_folder_path.clone();
 
-    // Frame-type gate: star-based analysis (HFR / star count / eccentricity),
-    // quality grading, and in-burst dithering are only meaningful for
-    // star-field frames. A dark/flat/bias burst has no stars — grading would
-    // reject every frame as "0 stars", dithering would pulse the mount for
-    // nothing, and per-frame star detection is pure wasted CPU (significant
-    // on a Raspberry-Pi-class host). Snapshot frames are star fields, so
-    // they keep the analysis but are captured like lights otherwise.
-    let is_light_frame = config.frame_type.eq_ignore_ascii_case("light")
-        || config.frame_type.eq_ignore_ascii_case("snapshot");
+    // A dark/flat/bias burst has no stars: grading would reject every frame
+    // as "0 stars", dithering would pulse the mount for nothing, and star
+    // detection is wasted CPU (significant on a Raspberry-Pi-class host).
+    let is_light_frame = config.frame_type.is_sky_frame();
 
     for frame in (control.frames_taken + 1)..=config.count {
         // A transient camera fault (a failed download, a timeout, "not
@@ -373,18 +368,11 @@ async fn take_burst(
             // Pre-frame meridian gate (N.I.N.A.-style): when the flip trigger
             // would fire while this frame is still exposing, hold here until the
             // trigger-driven flip completes instead of starting a frame the slew
-            // would ruin. Only science-target lights are gated — the flip
-            // trigger itself only ever fires for a tracked target.
-            //
-            // The frame-type check is what makes that comment true. Without it a
-            // calibration frame sitting inside a TargetHeader was gated as well:
-            // observed a 3s DARK held with "meridian flip fires in ~0s and would
-            // interrupt it", which stalled the run for the gate's full 30-minute
-            // bound. A dark/bias/flat is taken with the shutter closed or on a flat
-            // panel, so where the mount is pointing cannot ruin it — and a
-            // calibration block is exactly when the operator is not tracking a
-            // target at all.
-            let gate_for_meridian = config.frame_type.eq_ignore_ascii_case("light")
+            // would ruin. Only frames of the sky on a tracked target are gated:
+            // a dark/bias/flat is taken with the shutter closed or on a flat
+            // panel, so where the mount points cannot ruin it, and gating one
+            // held a 3 s dark for the gate's full 30-minute bound.
+            let gate_for_meridian = config.frame_type.is_sky_frame()
                 && ctx.target_ra.is_some()
                 && ctx.run.rig.mount_id.is_some();
             if gate_for_meridian {
@@ -449,7 +437,7 @@ async fn take_burst(
 
             // Resume only after the hold and imaging-train gates. Otherwise a
             // pending restart can turn guiding back on during a tracking-limit hold.
-            if frame_type_requires_darkness(&config.frame_type) {
+            if config.frame_type.is_sky_frame() {
                 match prepare_guiding_for_frame(ctx, &mut waiting_for_tracking_since).await {
                     GuidingForFrame::Ready => {}
                     GuidingForFrame::Stop(result) => {
@@ -508,7 +496,7 @@ async fn take_burst(
                         .gain(config.gain)
                         .offset(config.offset)
                         .binning(bin_x, bin_y)
-                        .frame_type(&config.frame_type),
+                        .frame_type(config.frame_type.as_str()),
                 ) => {
                     abort_guard.disarm();
                     result
