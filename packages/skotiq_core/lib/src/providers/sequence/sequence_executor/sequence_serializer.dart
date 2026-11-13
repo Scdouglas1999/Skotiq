@@ -7,6 +7,10 @@ import '../../../models/imaging/imaging_models.dart';
 import '../../../models/meridian_flip_settings.dart' show TrackingLimitPolicy;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/settings/app_settings.dart' show SafetyFailMode;
+import '../../../services/imaging_service.dart' show ImagingService;
+import '../../clock_provider.dart';
+import '../../equipment_provider.dart';
+import '../../imaging_provider.dart' show namingPatternProvider;
 import '../../profiles_provider.dart' show activeEquipmentProfileProvider;
 import '../../frame_watch_settings_provider.dart';
 import '../../focuser_backlash_provider.dart'
@@ -65,10 +69,43 @@ class SequenceSerializer {
   final Ref _ref;
   final void Function(String message) _warn;
 
+  /// The plan [sequenceToJson] is sending, for the frame names its steps get.
+  String _sequenceName = 'Sequence';
+  DateTime? _sentAt;
+
+  /// Where a capture step saves its frames: the Settings naming pattern, with
+  /// the step's own values for the tokens the run does not fill in.
+  String _frameSaveTo({
+    required FrameType frameType,
+    required int? gain,
+    required int? offset,
+    required BinningMode binning,
+  }) {
+    final camera = _ref.read(cameraStateProvider);
+    final mountName = _ref.read(mountStateProvider).deviceName;
+    return ImagingService.runFrameSaveTemplate(
+      _ref.read(namingPatternProvider).pattern,
+      ImagingService.runFrameFixedTokens(
+        sequence: _sequenceName,
+        frameType: frameType,
+        gain: gain ?? camera.gain ?? 0,
+        offset: offset ?? camera.offset ?? 0,
+        binning: binning.label,
+        camera: (camera.deviceName?.isNotEmpty ?? false)
+            ? camera.deviceName!
+            : 'Camera',
+        telescope: (mountName?.isNotEmpty ?? false) ? mountName! : 'Telescope',
+        sentAt: _sentAt ?? _ref.read(clockProvider).nowUtc(),
+      ),
+    );
+  }
+
   /// The run's native tree. With [deferShutdownWarmUp], the Warm Camera
   /// steps that close the plan are marked for end-of-night calibration to
   /// take over, so the camera stays at its set-point for the darks.
   String sequenceToJson(Sequence sequence, {bool deferShutdownWarmUp = false}) {
+    _sequenceName = sequence.name;
+    _sentAt = _ref.read(clockProvider).nowUtc();
     final deferredWarmUps = deferShutdownWarmUp
         ? shutdownWarmUpIds(sequence)
         : const <String>{};
@@ -397,7 +434,12 @@ class SequenceSerializer {
           'dither_settle_time': defaults.ditherSettleTime,
           'dither_settle_timeout': defaults.ditherSettleTimeout,
           'dither_ra_only': defaults.ditherRaOnly,
-          'save_to': null,
+          'save_to': _frameSaveTo(
+            frameType: n.frameType,
+            gain: n.gain,
+            offset: n.offset,
+            binning: n.binning,
+          ),
           'triggers': n.triggers,
           // Per-node sky-brightness adaptive exposure
           // override. `null` => use the global default the run
@@ -770,6 +812,12 @@ class SequenceSerializer {
                 'offset': p.offset,
                 'binning': _binningToString(p.binning),
                 'dither_every': p.ditherEvery,
+                'save_to': _frameSaveTo(
+                  frameType: FrameType.light,
+                  gain: p.gain,
+                  offset: p.offset,
+                  binning: p.binning,
+                ),
                 // Rust `FilterPlan::depth_goal` is `#[serde(default)]`: an
                 // unbound plan sends nothing rather than an explicit null,
                 // so pre-feature documents and executors stay identical.

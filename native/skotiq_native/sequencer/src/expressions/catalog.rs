@@ -186,6 +186,13 @@ pub fn variable_catalog() -> &'static [VariableEntry] {
             example: "2026-01-15",
             supports_format: false,
         },
+        VariableEntry {
+            name: "time.clock",
+            description: "Current UTC time of day, file-name safe (HH-MM-SS)",
+            group: VariableGroup::Time,
+            example: "22-47-12",
+            supports_format: false,
+        },
         // Moon
         VariableEntry {
             name: "moon.phase",
@@ -309,6 +316,13 @@ pub fn variable_catalog() -> &'static [VariableEntry] {
             group: VariableGroup::Exposure,
             example: "1x1",
             supports_format: false,
+        },
+        VariableEntry {
+            name: "camera.temp_c",
+            description: "Sensor temperature with the frame (°C); the cooler setpoint, else 0, when the camera reports none",
+            group: VariableGroup::Equipment,
+            example: "-10",
+            supports_format: true,
         },
         VariableEntry {
             name: "exposure.temp_c",

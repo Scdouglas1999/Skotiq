@@ -21,7 +21,18 @@ use super::*;
 /// broken save-path template must abort the exposure rather than silently
 /// drop frames into the wrong place.
 pub type FrameSavePathRenderer =
-    Box<dyn Fn(u32, u32) -> Result<(PathBuf, String), String> + Send + Sync>;
+    Box<dyn Fn(&FrameToName) -> Result<(PathBuf, String), String> + Send + Sync>;
+
+/// What the save-path renderer knows of the frame it names.
+#[derive(Debug, Clone, Copy)]
+pub struct FrameToName {
+    pub index_in_burst: u32,
+    pub burst_total: u32,
+    /// When the shutter opened: the date and time a frame's name carries.
+    pub started_at: chrono::DateTime<chrono::Utc>,
+    /// The sensor temperature the camera reported with the frame.
+    pub sensor_temp_c: Option<f64>,
+}
 
 /// Arms an asynchronous camera abort while an exposure future is in flight.
 ///
@@ -661,7 +672,12 @@ async fn take_burst(
         // tests), we fall back to the pre-Wave-4 hardcoded layout: base
         // path from `ctx.save_path`, filename `<target>_<filter>_<NNNN>.fits`.
         let (base_path, filename_template) = if let Some(renderer) = path_renderer.as_ref() {
-            match renderer(frame, config.count) {
+            match renderer(&FrameToName {
+                index_in_burst: frame,
+                burst_total: config.count,
+                started_at: exposure_started_at,
+                sensor_temp_c: image_data.temperature,
+            }) {
                 Ok((dir, name)) => (Some(dir), Some(name)),
                 Err(msg) => {
                     let error_message = format!(
@@ -1439,8 +1455,10 @@ async fn dither_in_burst(
         }
         DitherOutcome::Failed { error, streak } => {
             if ctx.stops_on_quality_problems().await {
-                let error_message =
-                    format!("Dither failed after frame {}/{}: {}", frame, config.count, error);
+                let error_message = format!(
+                    "Dither failed after frame {}/{}: {}",
+                    frame, config.count, error
+                );
                 tracing::error!("{}", error_message);
                 if let Some(event_tx) = &ctx.run.event_tx {
                     let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
