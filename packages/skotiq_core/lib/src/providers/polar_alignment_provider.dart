@@ -5,16 +5,15 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/database.dart';
 import '../models/polar_alignment_config.dart';
-import '../utils/resilient_poll_stream.dart';
 import '../backend/remote_host.dart';
+import '../backend/roles/host_data/polar_alignment_log.dart';
 import 'backend_provider.dart';
+import 'host_role.dart';
 import 'capability_provider.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';

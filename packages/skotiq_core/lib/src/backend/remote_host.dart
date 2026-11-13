@@ -3,6 +3,7 @@ import 'network_backend/host_data/remote_host_calibration_library.dart';
 import 'network_backend/host_data/remote_notes_journal.dart';
 import 'network_backend/host_data/remote_observation_log.dart';
 import 'network_backend/host_data/remote_observing_lists_store.dart';
+import 'network_backend/host_data/remote_polar_alignment_log.dart';
 import 'disconnected_backend.dart';
 import 'ffi_backend.dart';
 import 'roles/host_data/calibration_library.dart';
@@ -32,6 +33,7 @@ import 'roles/host_data/host_sequence_library.dart';
 import 'roles/host_data/notes_journal.dart';
 import 'roles/host_data/observation_log.dart';
 import 'roles/host_data/observing_lists_store.dart';
+import 'roles/host_data/polar_alignment_log.dart';
 import 'skotiq_backend.dart';
 import 'roles/host_data/host_runtime_mirror.dart';
 import 'roles/host_data/host_secondary_rig.dart';
@@ -114,6 +116,10 @@ final class RemoteHost {
   late final ObservationLog observationLog = RemoteObservationLog(_backend);
 
   late final NotesJournal notesJournal = RemoteNotesJournal(_backend);
+
+  late final PolarAlignmentLog polarAlignmentLog = RemotePolarAlignmentLog(
+    _backend,
+  );
 
   late final ObservingListsStore observingLists = RemoteObservingListsStore(
     _backend,

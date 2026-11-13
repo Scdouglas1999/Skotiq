@@ -183,15 +183,6 @@ class CalibrationService {
 
   DarkLibraryService get _darkLibrary => _ref.read(darkLibraryServiceProvider);
 
-  void _ensureSameHost() {
-    if (_host.isCurrent) return;
-    throw StateError(
-      'The imaging host changed while calibration was in progress. The '
-      'outgoing result was discarded; calibrate the frame again on the '
-      'current host.',
-    );
-  }
-
   /// Calibrate a light frame file using the provided settings.
   ///
   /// If [settings.autoDarkFromLibrary] is true, the best-matching dark
@@ -212,7 +203,7 @@ class CalibrationService {
     int binY = 1,
     double? sensorTemperature,
   }) async {
-    _ensureSameHost();
+    _host.ensureCurrent('calibration was in progress');
     _logger.info('Calibrating: $lightPath', source: 'CalibrationService');
 
     final backend = _host.value;
@@ -240,7 +231,7 @@ class CalibrationService {
           binY: binY,
           temperature: sensorTemperature,
         );
-        _ensureSameHost();
+        _host.ensureCurrent('calibration was in progress');
         if (matchedHostPath != null) {
           darkPath = matchedHostPath;
           _logger.info(
@@ -267,7 +258,7 @@ class CalibrationService {
           temperature: sensorTemperature,
           tolerances: tolerances,
         );
-        _ensureSameHost();
+        _host.ensureCurrent('calibration was in progress');
         if (matchingDark != null) {
           darkPath = matchingDark.filePath;
           _logger.info(
@@ -298,7 +289,7 @@ class CalibrationService {
     // Validate files exist (local filesystem only — remote paths are
     // validated on the headless host inside POST /api/imaging/calibrate-file).
     if (!isRemote) {
-      _ensureSameHost();
+      _host.ensureCurrent('calibration was in progress');
       if (darkPath != null && !File(darkPath).existsSync()) {
         throw FileSystemException('Dark frame file not found', darkPath);
       }
@@ -331,7 +322,7 @@ class CalibrationService {
         final backupPath = '$lightPath.uncal';
         if (!File(backupPath).existsSync()) {
           await File(lightPath).copy(backupPath);
-          _ensureSameHost();
+          _host.ensureCurrent('calibration was in progress');
           _logger.info(
             'Backed up original to: $backupPath',
             source: 'CalibrationService',
@@ -340,7 +331,7 @@ class CalibrationService {
       }
     }
 
-    _ensureSameHost();
+    _host.ensureCurrent('calibration was in progress');
     await backend.calibrateImageFile(
       lightPath: lightPath,
       darkPath: darkPath,
@@ -348,7 +339,7 @@ class CalibrationService {
       biasPath: biasPath,
       outputPath: effectiveOutputPath,
     );
-    _ensureSameHost();
+    _host.ensureCurrent('calibration was in progress');
 
     _logger.info(
       'Calibration complete: $effectiveOutputPath '

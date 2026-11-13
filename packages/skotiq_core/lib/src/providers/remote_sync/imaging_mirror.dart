@@ -203,7 +203,7 @@ Future<void> _publishRemoteCurrentFrame(
   ProviderContainer container,
   SkotiqBackend backend,
 ) async {
-  if (!_isCurrentRemoteBackend(container, backend)) return;
+  if (container.backendScopeOver(backend).isStale) return;
   final fetchState = container.read(_remoteFrameFetchStateProvider);
   // Coalesce: if a fetch is already running, mark that another frame arrived
   // and let the current fetch re-run once on completion.
@@ -229,7 +229,7 @@ Future<void> _publishRemoteCurrentFrame(
       deviceId,
       maxWidth: kRemotePreviewMaxWidth,
     );
-    if (!_isCurrentRemoteBackend(container, backend)) return;
+    if (container.backendScopeOver(backend).isStale) return;
     if (result == null) {
       // No frame cached host-side yet — leave the tile as-is.
       return;
@@ -291,7 +291,7 @@ Future<void> _publishRemoteCurrentFrame(
     // Publish through the shared publisher: it tags the source from the live
     // backend, schedules the background raw-pixel load, and writes both
     // `currentImageProvider` and `lastImageStatsProvider`.
-    if (!_isCurrentRemoteBackend(container, backend)) return;
+    if (container.backendScopeOver(backend).isStale) return;
     // A frame the host announced is the host's to solve; marked before the
     // publish, whose listeners decide whether to solve it here.
     if (hinted) {
@@ -309,7 +309,7 @@ Future<void> _publishRemoteCurrentFrame(
     final pendingBackend = fetchState.pendingBackend;
     fetchState.pendingBackend = null;
     if (pendingBackend != null &&
-        _isCurrentRemoteBackend(container, pendingBackend)) {
+        container.backendScopeOver(pendingBackend).isCurrent) {
       unawaited(_publishRemoteCurrentFrame(container, pendingBackend));
     }
   }

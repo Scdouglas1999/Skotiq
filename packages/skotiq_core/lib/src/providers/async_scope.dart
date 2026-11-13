@@ -93,8 +93,12 @@ final class AsyncScopes<T> {
   int _epoch = 0;
   final _latest = <Object, int>{};
 
-  AsyncScope<T> begin() {
-    final value = _read(_authority);
+  AsyncScope<T> begin() => over(_read(_authority));
+
+  /// A scope over [value], for work that was handed its authority (the
+  /// backend an event came from) instead of reading the current one. It is
+  /// stale from the start when [value] is not the current authority.
+  AsyncScope<T> over(T value) {
     final epoch = _epoch;
     return AsyncScope._(value, () => _holds(value, epoch));
   }
@@ -112,10 +116,15 @@ final class AsyncScopes<T> {
 
   void cancelAll() => _epoch++;
 
-  bool _holds(T value, int epoch) =>
-      (_alive?.call() ?? true) &&
-      epoch == _epoch &&
-      identical(_read(_authority), value);
+  bool _holds(T value, int epoch) {
+    if (!(_alive?.call() ?? true) || epoch != _epoch) return false;
+    try {
+      return identical(_read(_authority), value);
+    } on StateError {
+      // The container the reader belongs to was disposed.
+      return false;
+    }
+  }
 }
 
 /// Scopes tied to the current backend, for owners that hold a [Ref].
@@ -154,4 +163,15 @@ extension BackendScopeWidgetRef on WidgetRef {
   /// `alive: () => mounted` (or `() => context.mounted`).
   AsyncScope<SkotiqBackend> backendScope({bool Function()? alive}) =>
       backendScopes(alive: alive).begin();
+}
+
+/// Scopes tied to the current backend, for code that holds the container.
+extension BackendScopeContainer on ProviderContainer {
+  AsyncScopes<SkotiqBackend> backendScopes() =>
+      AsyncScopes(read, backendProvider);
+
+  /// A scope over [backend], which the caller was handed. Stale once the
+  /// backend is replaced or this container is disposed.
+  AsyncScope<SkotiqBackend> backendScopeOver(SkotiqBackend backend) =>
+      backendScopes().over(backend);
 }

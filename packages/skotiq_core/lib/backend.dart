@@ -13,6 +13,7 @@ export 'src/backend/roles/host_data/calibration_library.dart';
 export 'src/backend/roles/host_data/notes_journal.dart';
 export 'src/backend/roles/host_data/observation_log.dart';
 export 'src/backend/roles/host_data/observing_lists_store.dart';
+export 'src/backend/roles/host_data/polar_alignment_log.dart';
 export 'src/backend/roles/host_data/science_products.dart';
 export 'src/backend/roles/host_data/host_records.dart';
 // Typed bridge events. `SkotiqEvent`, `EventCategory` and `EventSeverity` share

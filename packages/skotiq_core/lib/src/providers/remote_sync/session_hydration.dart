@@ -16,11 +16,11 @@ Future<void> hydrateRemoteSessionState(
   SkotiqBackend backend, {
   bool refreshCurrentFrame = true,
 }) async {
-  if (!_isCurrentRemoteBackend(container, backend)) return;
+  if (container.backendScopeOver(backend).isStale) return;
   final host = backend.remoteHost;
   if (host == null) return;
   final status = await backend.sequencerGetStatus();
-  if (!_isCurrentRemoteBackend(container, backend)) return;
+  if (container.backendScopeOver(backend).isStale) return;
   _applySequencerStatus(container, status);
 
   // Live changes arrive as HostRuntimeState events; this fills a client that
@@ -30,7 +30,7 @@ Future<void> hydrateRemoteSessionState(
     await mirrorDevicesOfOlderHost(
       container,
       backend,
-      isCurrent: () => _isCurrentRemoteBackend(container, backend),
+      isCurrent: () => container.backendScopeOver(backend).isCurrent,
     );
   } catch (e) {
     // An unreachable endpoint leaves the values the events already applied.
@@ -40,7 +40,7 @@ Future<void> hydrateRemoteSessionState(
       level: 900,
     );
   }
-  if (!_isCurrentRemoteBackend(container, backend)) return;
+  if (container.backendScopeOver(backend).isStale) return;
 
   // The host's last frame, for a client whose camera slot is now filled. The
   // capture publisher runs only on the host, so without this the current
@@ -108,7 +108,7 @@ Future<void> seedEventLogFromHost(ProviderContainer container, SkotiqBackend bac
   if (runState == null) return;
   try {
     final events = await runState.getHostRecentEvents();
-    if (!_isCurrentRemoteBackend(container, backend)) return;
+    if (container.backendScopeOver(backend).isStale) return;
     final typed = [
       for (final event in events.reversed) ?tryBridgeEventFromCoreEvent(event),
     ];

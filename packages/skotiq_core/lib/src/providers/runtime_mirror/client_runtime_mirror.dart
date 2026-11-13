@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
+import '../async_scope.dart';
 import '../backend_provider.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
@@ -114,7 +115,7 @@ Future<void> hydrateHostRuntimeState(
   final mirror = backend.remoteHost?.runtimeMirror;
   if (mirror == null) return;
   final updates = await mirror.getHostRuntimeState();
-  if (!identical(container.read(backendProvider), backend)) return;
+  if (container.backendScopeOver(backend).isStale) return;
   for (final update in updates) {
     applyHostRuntimeUpdate(container, update, networkBackend: backend);
   }

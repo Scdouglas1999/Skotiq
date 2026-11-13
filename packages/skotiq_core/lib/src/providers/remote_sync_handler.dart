@@ -22,7 +22,7 @@ import 'current_frame_analysis_provider.dart' show hostFrameSolvesProvider;
 import 'database_provider.dart';
 import 'host_settings/host_settings_providers.dart'
     show hostSettingsStoreProvider;
-import 'backend_provider.dart';
+import 'async_scope.dart';
 import 'equipment_provider.dart';
 import 'event_provider.dart' show eventHistoryProvider;
 import 'guiding_provider.dart' show guidingStopReasonProvider;
@@ -59,7 +59,6 @@ part 'remote_sync/guiding_mirror.dart';
 part 'remote_sync/sequencer_mirror.dart';
 part 'remote_sync/host_mutation.dart';
 part 'remote_sync/device_mapping.dart';
-part 'remote_sync/reader_access.dart';
 part 'remote_sync/session_hydration.dart';
 
 /// The host's own window following what happened through its server: a
@@ -111,7 +110,7 @@ void applyHostEventOnClient(
   SkotiqBackend backend,
   SkotiqEvent event,
 ) {
-  if (!identical(container.read(backendProvider), backend)) return;
+  if (container.backendScopeOver(backend).isStale) return;
   switch (event.category) {
     case EventCategory.system:
       if (event.eventType == hostStateChangedEventType) {
