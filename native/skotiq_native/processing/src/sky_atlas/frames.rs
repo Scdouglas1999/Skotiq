@@ -4,7 +4,7 @@ use crate::output::write_preview_png;
 use crate::sky_atlas::fold::{default_order, default_weight, fold_impl, FoldArgs, FoldFrameArgs};
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::wcs_sip::SipWcs;
-use skotiq_imaging::{add_wcs_headers, write_fits, FitsHeader, WcsInfo};
+use skotiq_imaging::{write_fits, FitsHeader};
 use std::path::Path;
 
 // Named convenience wrappers over the sky_atlas actions
@@ -173,23 +173,14 @@ pub(crate) fn query_cutout_impl(args: QueryCutoutArgs) -> Result<QueryCutoutResu
     let span_deg = 2.0 * args.radius_deg * 1.08;
     let scale_deg = span_deg / out_w;
     let crpix = out_w / 2.0 + 0.5;
-    let out_wcs = WcsInfo {
-        crval1: args.center_ra,
-        crval2: args.center_dec,
-        crpix1: crpix,
-        crpix2: crpix,
-        cd1_1: -scale_deg,
-        cd1_2: 0.0,
-        cd2_1: 0.0,
-        cd2_2: scale_deg,
-    };
+    let out_wcs = SipWcs::tan_only(args.center_ra, args.center_dec, crpix, crpix, -scale_deg, 0.0, 0.0, scale_deg);
 
     let path = Path::new(&args.fits_path);
     ensure_parent_dir(path)?;
     let mut header = FitsHeader::new();
     header.set_string("IMAGETYP", "MASTER_LIGHT");
     header.set_string("CALSTAT", "Skotiq sky-atlas cutout");
-    add_wcs_headers(&mut header, &out_wcs);
+    out_wcs.write_to_header(&mut header);
     header.add_history(&format!(
         "Sky-atlas cone cutout: RA {:.4} Dec {:.4} radius {:.4}deg, mean coverage {:.2}",
         args.center_ra, args.center_dec, args.radius_deg, mean_coverage

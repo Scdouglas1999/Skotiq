@@ -1,7 +1,7 @@
 use super::block::BlockLocation;
 use super::write::{attachment_positions, attachment_spans};
 use super::*;
-use crate::{read_bayer_geometry, read_frame, read_frame_header, rewrite_frame_header};
+use crate::{read_color_filter_array, read_frame, read_frame_header, rewrite_frame_header};
 use crate::{write_frame_with, FitsHeader, FrameWriteOptions, PixelType};
 use std::path::PathBuf;
 
@@ -209,7 +209,7 @@ fn a_bayer_frame_carries_its_effective_pattern() {
     let cfa = unit.images[0].color_filter_array.as_ref().unwrap();
     assert_eq!((cfa.pattern.as_str(), cfa.width, cfa.height), ("GRBG", 2, 2));
     let back = read_frame_header(&path).unwrap();
-    assert_eq!(read_bayer_geometry(&back), read_bayer_geometry(&header));
+    assert_eq!(read_color_filter_array(&back), read_color_filter_array(&header));
 }
 
 #[test]
@@ -439,7 +439,7 @@ fn a_sip_solution_is_written_as_pixinsights_spline_control_points() {
     // A solution without distortion has no spline layer, and replacing a
     // distorted solution with one removes it.
     let mut linear = header.clone();
-    crate::SipWcs::from(&wcs.cd_only()).write_to_header(&mut linear);
+    wcs.cd_only().write_to_header(&mut linear);
     let plain = image_header_from_fits(&linear, &frame);
     assert!(plain.properties.iter().all(|p| !p.id.starts_with(SPLINE)));
     let mut replaced = image.clone();

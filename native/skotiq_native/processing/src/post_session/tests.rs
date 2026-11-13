@@ -13,8 +13,8 @@ use crate::post_session::masters::{
     BuildMasterFlatResult, MasterAccumulateResult, SaveFitsMasterResult, RETIRED_SIDECAR_MARKER,
 };
 use skotiq_imaging::{
-    add_wcs_headers, read_frame, read_frame_header, write_fits, FitsHeader, ImageData, PixelType,
-    WcsInfo,
+    read_frame, read_frame_header, write_fits, FitsHeader, ImageData, PixelType,
+    SipWcs,
 };
 use std::path::{Path, PathBuf};
 
@@ -245,10 +245,10 @@ fn integrate_session_produces_master_and_preview() {
 /// Write a synthetic light whose FITS header carries a plate-solved WCS
 /// (CRVAL/CRPIX + an explicit CD matrix), so the reference-WCS carry-over can
 /// be exercised end-to-end.
-fn write_field_fits_with_wcs(path: &Path, image: &ImageData, wcs: &WcsInfo) {
+fn write_field_fits_with_wcs(path: &Path, image: &ImageData, wcs: &SipWcs) {
     let mut h = FitsHeader::new();
     h.set_string("IMAGETYP", "LIGHT");
-    add_wcs_headers(&mut h, wcs);
+    wcs.write_to_header(&mut h);
     write_fits(path, image, &h).expect("write synthetic light with WCS");
 }
 
@@ -388,7 +388,7 @@ fn integrate_session_keeps_the_reference_frames_sip_in_the_master() {
     // The distortion is real at this size: a corner moves by more than the
     // linear part alone says.
     let corner = f64::from(size - 1);
-    let linear = skotiq_imaging::SipWcs::from(&master.cd_only()).pixel_to_world(corner, corner);
+    let linear = master.cd_only().pixel_to_world(corner, corner);
     let full = master.pixel_to_world(corner, corner);
     assert!(
         (full.1 - linear.1).abs() * 3600.0 > 0.1,

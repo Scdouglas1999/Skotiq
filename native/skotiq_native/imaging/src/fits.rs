@@ -344,7 +344,7 @@ pub fn read_fits_header(path: &Path) -> Result<FitsHeader, FitsError> {
 /// (`A_ORDER`/`B_ORDER`/`AP_ORDER`/`BP_ORDER` plus every `A_i_j`, `B_i_j`,
 /// `AP_i_j`, `BP_i_j` term, Shupe et al. 2005).
 ///
-/// The set is closed over what [`add_wcs_headers`] writes and what ASTAP /
+/// The set is closed over what [`crate::SipWcs::write_to_header`] writes and what ASTAP /
 /// astrometry.net stamp, so a solved frame's astrometry survives a copy in
 /// full — a partial copy (CD without CTYPE, or CRVAL without SIP) yields a
 /// header that reads as solved while projecting to the wrong sky position.
@@ -1616,27 +1616,6 @@ fn write_foreign_name_card<W: Write>(
     write_text_card(writer, "COMMENT", &line)
 }
 
-/// Parsed Bayer geometry from a FITS header, accounting for subframe offsets.
-///
-/// Why: `BAYERPAT` describes the color pattern at the *full-sensor* origin.
-/// When a frame is captured with a subframe whose top-left pixel is at odd
-/// offsets relative to the sensor, the effective pattern at the in-memory
-/// origin (0,0) is shifted. `XBAYROFF`/`YBAYROFF` keywords (NINA, ASIAIR,
-/// SharpCap, ASTAP, INDI) record those offsets so the consumer can apply the
-/// correct pattern. Without this, every odd-offset subframe is debayered with
-/// the wrong color mapping.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BayerGeometry {
-    /// Effective Bayer pattern at the image origin (after applying offsets).
-    pub effective: BayerPattern,
-    /// Source pattern as stored in BAYERPAT.
-    pub source: BayerPattern,
-    /// X offset of the subframe top-left, relative to the sensor origin.
-    pub x_offset: i64,
-    /// Y offset of the subframe top-left, relative to the sensor origin.
-    pub y_offset: i64,
-}
-
 /// Compose a base Bayer pattern with subframe offsets, returning the effective
 /// pattern at the in-memory image origin (0,0).
 ///
@@ -1668,67 +1647,14 @@ pub fn effective_bayer_pattern(source: BayerPattern, x_offset: i64, y_offset: i6
     BY_ORIGIN[origin ^ shift]
 }
 
-/// Read the Bayer geometry from a FITS header.
-///
-/// Returns `None` if `BAYERPAT` is absent or unrecognized. When present,
-/// `XBAYROFF`/`YBAYROFF` are read as integer keywords (default 0) and composed
-/// with the source pattern via [`effective_bayer_pattern`] so the caller's
-/// debayer step uses the correct origin.
-pub fn read_bayer_geometry(header: &FitsHeader) -> Option<BayerGeometry> {
-    let pat_str = header.get_string("BAYERPAT")?;
-    let source = BayerPattern::from_str(pat_str.trim())?;
-    // Why: per the doc-comment above, XBAYROFF/YBAYROFF default to 0
-    // (no Bayer-pattern shift) — documented convention.
-    let x_offset = header.get_int("XBAYROFF").unwrap_or(0);
-    let y_offset = header.get_int("YBAYROFF").unwrap_or(0);
-    let effective = effective_bayer_pattern(source, x_offset, y_offset);
-    Some(BayerGeometry {
-        effective,
-        source,
-        x_offset,
-        y_offset,
-    })
-}
-
 /// The color filter of a frame at its pixel (0, 0): `BAYERPAT` (4 letters for
 /// Bayer, 36 for X-Trans) moved by `XBAYROFF`/`YBAYROFF`. `None` for a mono
 /// frame or a `BAYERPAT` that names no filter the app knows.
 pub fn read_color_filter_array(header: &FitsHeader) -> Option<ColorFilterArray> {
-    if let Some(geometry) = read_bayer_geometry(header) {
-        return Some(ColorFilterArray::Bayer(geometry.effective));
-    }
     let cfa = ColorFilterArray::parse(header.get_string("BAYERPAT")?)?;
     let x_offset = header.get_int("XBAYROFF").unwrap_or(0);
     let y_offset = header.get_int("YBAYROFF").unwrap_or(0);
     Some(cfa.shifted(x_offset, y_offset))
-}
-
-/// WCS (World Coordinate System) information from plate solving
-/// Used to add astrometric headers to FITS files
-#[derive(Debug, Clone)]
-pub struct WcsInfo {
-    /// Reference RA in degrees (CRVAL1)
-    pub crval1: f64,
-    /// Reference DEC in degrees (CRVAL2)
-    pub crval2: f64,
-    /// Reference pixel X coordinate (CRPIX1) - usually image center
-    pub crpix1: f64,
-    /// Reference pixel Y coordinate (CRPIX2) - usually image center
-    pub crpix2: f64,
-    /// CD matrix element 1,1 (scale and rotation)
-    pub cd1_1: f64,
-    /// CD matrix element 1,2 (scale and rotation)
-    pub cd1_2: f64,
-    /// CD matrix element 2,1 (scale and rotation)
-    pub cd2_1: f64,
-    /// CD matrix element 2,2 (scale and rotation)
-    pub cd2_2: f64,
-}
-
-/// Add the standard WCS (World Coordinate System) keywords to `header`, which
-/// is what lets other astronomical software map pixel coordinates to RA/Dec.
-pub fn add_wcs_headers(header: &mut FitsHeader, wcs: &WcsInfo) {
-    crate::wcs_sip::SipWcs::from(wcs).write_to_header(header);
 }
 
 /// Calculate airmass from true (geometric) altitude.
@@ -4137,33 +4063,21 @@ mod tests {
     }
 
     #[test]
-    fn test_read_bayer_geometry_from_header() {
+    fn a_frame_s_filter_is_its_pattern_moved_by_its_offsets() {
         let mut header = FitsHeader::new();
+        assert_eq!(read_color_filter_array(&header), None);
+        header.set_string("BAYERPAT", "BGGR");
+        assert_eq!(
+            read_color_filter_array(&header),
+            Some(ColorFilterArray::Bayer(BayerPattern::BGGR))
+        );
         header.set_string("BAYERPAT", "RGGB");
         header.set_int("XBAYROFF", 1);
         header.set_int("YBAYROFF", 0);
-        let geo = read_bayer_geometry(&header).expect("geometry");
-        assert_eq!(geo.source, BayerPattern::RGGB);
-        assert_eq!(geo.effective, BayerPattern::GRBG);
-        assert_eq!(geo.x_offset, 1);
-        assert_eq!(geo.y_offset, 0);
-    }
-
-    #[test]
-    fn test_read_bayer_geometry_defaults_offsets_to_zero() {
-        let mut header = FitsHeader::new();
-        header.set_string("BAYERPAT", "BGGR");
-        let geo = read_bayer_geometry(&header).expect("geometry");
-        assert_eq!(geo.source, BayerPattern::BGGR);
-        assert_eq!(geo.effective, BayerPattern::BGGR);
-        assert_eq!(geo.x_offset, 0);
-        assert_eq!(geo.y_offset, 0);
-    }
-
-    #[test]
-    fn test_read_bayer_geometry_returns_none_without_bayerpat() {
-        let header = FitsHeader::new();
-        assert!(read_bayer_geometry(&header).is_none());
+        assert_eq!(
+            read_color_filter_array(&header),
+            Some(ColorFilterArray::Bayer(BayerPattern::GRBG))
+        );
     }
 
     // Header carry-over

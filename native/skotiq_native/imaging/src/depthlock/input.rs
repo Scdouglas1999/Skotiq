@@ -183,9 +183,7 @@ pub fn reference_wcs(header: &FitsHeader) -> Result<SipWcs, String> {
     if !wcs.is_invertible() || !(0.0..360.0).contains(&wcs.crval1) || wcs.crval2.abs() > 85.0 {
         return Err("Reference astrometry is singular or outside the supported sky field".into());
     }
-    Ok(SipWcs::tan_only(
-        wcs.crval1, wcs.crval2, wcs.crpix1, wcs.crpix2, wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2,
-    ))
+    Ok(wcs.cd_only())
 }
 
 /// The WCS of a frame that was registered onto the reference.

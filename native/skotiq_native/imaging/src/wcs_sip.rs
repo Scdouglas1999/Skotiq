@@ -43,7 +43,7 @@
 //! degrees in / degrees out and **0-based** pixels (matching the resampler and
 //! [`crate::ImageData`] indexing).
 
-use crate::fits::{FitsHeader, WcsInfo};
+use crate::fits::FitsHeader;
 use serde::{Deserialize, Serialize};
 
 /// Number of Newton iterations used to invert the forward SIP polynomials when
@@ -437,17 +437,17 @@ impl SipWcs {
     }
 
     /// The linear (CD-only) part.
-    pub fn cd_only(&self) -> WcsInfo {
-        WcsInfo {
-            crval1: self.crval1,
-            crval2: self.crval2,
-            crpix1: self.crpix1,
-            crpix2: self.crpix2,
-            cd1_1: self.cd1_1,
-            cd1_2: self.cd1_2,
-            cd2_1: self.cd2_1,
-            cd2_2: self.cd2_2,
-        }
+    pub fn cd_only(&self) -> Self {
+        Self::tan_only(
+            self.crval1,
+            self.crval2,
+            self.crpix1,
+            self.crpix2,
+            self.cd1_1,
+            self.cd1_2,
+            self.cd2_1,
+            self.cd2_2,
+        )
     }
 
     /// CD-only (no distortion) astrometry — the canonical grid for atlas tiles.
@@ -702,15 +702,6 @@ fn tan_deproject(crval1: f64, crval2: f64, xi_deg: f64, eta_deg: f64) -> (f64, f
     let x_term = r * cos_dec0 * cos_rho - eta * sin_dec0 * sin_rho;
     let ra = ra0 + y_term.atan2(x_term);
     (normalize_deg(ra.to_degrees()), dec.to_degrees())
-}
-
-impl From<&WcsInfo> for SipWcs {
-    fn from(wcs: &WcsInfo) -> Self {
-        Self::tan_only(
-            wcs.crval1, wcs.crval2, wcs.crpix1, wcs.crpix2, wcs.cd1_1, wcs.cd1_2, wcs.cd2_1,
-            wcs.cd2_2,
-        )
-    }
 }
 
 /// The first astrometry card ([`crate::fits::is_astrometry_keyword`]) that
@@ -990,7 +981,7 @@ mod tests {
         assert_eq!(header.get_string("CTYPE2"), Some("DEC--TAN"));
         assert!(header.get("A_ORDER").is_none());
         assert_eq!(SipWcs::from_header(&header), Some(plain.clone()));
-        assert_eq!(SipWcs::from(&plain.cd_only()), plain);
+        assert_eq!(plain.cd_only(), plain);
     }
 
     #[test]
