@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../utils/snackbar_helper.dart';
 import '../widgets/remote_directory_picker_dialog.dart';
@@ -28,10 +29,16 @@ final class FolderMissing extends FolderCheck {
 
 /// The path cannot hold files; [reason] says why in words an operator can act
 /// on.
-final class FolderRefused extends FolderCheck {
+class FolderRefused extends FolderCheck {
   const FolderRefused(this.reason);
 
   final String reason;
+}
+
+/// Not a full path, so it names no folder at all and cannot be stored even
+/// for a drive that is not mounted yet.
+final class FolderNotFullPath extends FolderRefused {
+  const FolderNotFullPath(super.reason);
 }
 
 /// The check could not be made, for [reason] (the host did not answer).
@@ -41,31 +48,90 @@ final class FolderUnchecked extends FolderCheck {
   final String reason;
 }
 
-/// Choosing a folder, checking that it takes files, and showing it, for every
-/// screen that asks for one. A folder is on this computer, or on the linked
-/// host when a [HostFiles] is given (`backend.remoteHost?.files`). One rule
-/// for both: a full path to a folder that exists and takes a file. Screens
-/// keep only their titles and what they do with a missing folder.
-///
-/// Tests replace it through [hostFoldersProvider].
-class HostFolders {
+/// A folder chosen in a picker and what its check found.
+typedef PickedFolder = ({String path, FolderCheck verdict});
+
+/// The folders the imaging host writes into (captures, flats), for every
+/// screen that asks for one: on this computer when it is the host, on the
+/// linked host otherwise ([hostFoldersProvider] picks the side). One rule for
+/// both: a full path to a folder that exists and takes a file. Screens keep
+/// only their titles and what they do with a missing folder.
+abstract class HostFolders {
   const HostFolders();
 
-  /// The system folder picker, or the host's folder browser.
+  /// The folder picker of the side these folders are on.
   Future<String?> pick(
     BuildContext context, {
-    required HostFiles? host,
+    required String title,
+    String? initialPath,
+    String confirmLabel = 'Select',
+  });
+
+  /// Whether [path] can take files.
+  Future<FolderCheck> check(String path);
+
+  /// [check], after making [path] when it is missing and this side makes
+  /// folders on request.
+  Future<FolderCheck> prepare(String path);
+
+  /// [pick], with the picked folder's [check].
+  Future<PickedFolder?> pickChecked(
+    BuildContext context, {
+    required String title,
+    String? initialPath,
+    String confirmLabel = 'Select',
+  }) async {
+    final picked = await pick(
+      context,
+      title: title,
+      initialPath: initialPath,
+      confirmLabel: confirmLabel,
+    );
+    if (picked == null) return null;
+    return (path: picked, verdict: await check(picked));
+  }
+
+  /// [pickChecked], keeping only a folder that takes files: any other is
+  /// refused with its reason shown and null returned.
+  Future<String?> pickUsable(
+    BuildContext context, {
+    required String title,
+    String? initialPath,
+    String confirmLabel = 'Select',
+  }) async {
+    final picked = await pickChecked(
+      context,
+      title: title,
+      initialPath: initialPath,
+      confirmLabel: confirmLabel,
+    );
+    if (picked == null) return null;
+    final (:path, :verdict) = picked;
+    if (verdict is FolderUsable) return path;
+    if (context.mounted) {
+      context.showErrorSnackBar(switch (verdict) {
+        FolderRefused(:final reason) || FolderUnchecked(:final reason) =>
+          '$path cannot be used. $reason',
+        _ => '$path is not there any more.',
+      });
+    }
+    return null;
+  }
+}
+
+/// Folders on this computer: the system picker, a write probe, and the file
+/// manager. Also what [localFoldersProvider] hands to screens whose folder is
+/// always this computer's (backups, the app's data and logs, exports).
+class LocalFolders extends HostFolders {
+  const LocalFolders();
+
+  @override
+  Future<String?> pick(
+    BuildContext context, {
     required String title,
     String? initialPath,
     String confirmLabel = 'Select',
   }) {
-    if (host != null) {
-      return RemoteDirectoryPickerDialog.show(
-        context,
-        title: title,
-        initialPath: initialPath,
-      );
-    }
     final start = initialPath?.trim();
     return file_selector.getDirectoryPath(
       confirmButtonText: confirmLabel,
@@ -73,43 +139,12 @@ class HostFolders {
     );
   }
 
-  /// [pick], then the folder's [check]: a folder that cannot take files is
-  /// refused with its reason shown and null returned. The host's folder
-  /// browser makes the same check before it closes.
-  Future<String?> pickUsable(
-    BuildContext context, {
-    required HostFiles? host,
-    required String title,
-    String? initialPath,
-    String confirmLabel = 'Select',
-  }) async {
-    final picked = await pick(
-      context,
-      host: host,
-      title: title,
-      initialPath: initialPath,
-      confirmLabel: confirmLabel,
-    );
-    if (picked == null || host != null) return picked;
-    final verdict = await check(picked, host: null);
-    if (verdict is FolderUsable) return picked;
-    if (context.mounted) {
-      context.showErrorSnackBar(switch (verdict) {
-        FolderRefused(:final reason) || FolderUnchecked(:final reason) =>
-          '$picked cannot be used. $reason',
-        _ => '$picked is not there any more.',
-      });
-    }
-    return null;
-  }
-
-  /// Whether [path] can take files: on this computer, or on the linked host.
-  Future<FolderCheck> check(String path, {required HostFiles? host}) async {
+  @override
+  Future<FolderCheck> check(String path) async {
     final folder = path.trim();
     if (folder.isEmpty) return const FolderRefused('Enter a folder.');
-    if (host != null) return _checkOnHost(host, folder);
     if (!p.isAbsolute(folder)) {
-      return FolderRefused(
+      return FolderNotFullPath(
         'Enter a full path, such as '
         '${Platform.isWindows ? r'D:\Astro\Lights' : '/home/you/Astro'}.',
       );
@@ -130,10 +165,83 @@ class HostFolders {
     }
   }
 
-  Future<FolderCheck> _checkOnHost(HostFiles host, String folder) async {
+  @override
+  Future<FolderCheck> prepare(String path) async {
+    final verdict = await check(path);
+    if (verdict is! FolderMissing) return verdict;
+    try {
+      await create(path);
+    } on FileSystemException catch (error) {
+      return FolderRefused(userFacingError(error));
+    }
+    return check(path);
+  }
+
+  /// Makes a missing folder.
+  Future<void> create(String path) =>
+      Directory(path.trim()).create(recursive: true);
+
+  /// Opens [path] in the file manager, or copies it where there is none to
+  /// open (a phone or tablet). A folder the app writes to may not exist until
+  /// its first file, and a file manager cannot open it before then, so it is
+  /// made first.
+  Future<void> reveal(BuildContext context, String path) async {
+    await create(path);
+    if (Platform.isAndroid || Platform.isIOS) {
+      await Clipboard.setData(ClipboardData(text: path));
+      if (context.mounted) context.showSuccessSnackBar('Path copied: $path');
+      return;
+    }
+    final opener = Platform.isWindows
+        ? 'explorer'
+        : Platform.isMacOS
+            ? 'open'
+            : 'xdg-open';
+    await Process.start(opener, [path], runInShell: true);
+  }
+}
+
+/// Folders on the linked imaging host: its folder browser, and the host's own
+/// check of a path.
+class LinkedHostFolders extends HostFolders {
+  const LinkedHostFolders(this._files);
+
+  final HostFiles _files;
+
+  @override
+  Future<String?> pick(
+    BuildContext context, {
+    required String title,
+    String? initialPath,
+    String confirmLabel = 'Select',
+  }) =>
+      RemoteDirectoryPickerDialog.show(
+        context,
+        title: title,
+        initialPath: initialPath,
+      );
+
+  /// The host's folder browser checks a folder before it closes.
+  @override
+  Future<PickedFolder?> pickChecked(
+    BuildContext context, {
+    required String title,
+    String? initialPath,
+    String confirmLabel = 'Select',
+  }) async {
+    final picked = await pick(context, title: title, initialPath: initialPath);
+    return picked == null
+        ? null
+        : (path: picked, verdict: const FolderUsable());
+  }
+
+  @override
+  Future<FolderCheck> check(String path) async {
+    final folder = path.trim();
+    if (folder.isEmpty) return const FolderRefused('Enter a folder.');
     final Map<String, dynamic> result;
     try {
-      result = await host.validateRemoteDirectory(
+      result = await _files.validateRemoteDirectory(
         folder,
         mustExist: true,
         mustBeWritable: true,
@@ -158,28 +266,9 @@ class HostFolders {
     );
   }
 
-  /// Makes a missing folder on this computer.
-  Future<void> create(String path) =>
-      Directory(path.trim()).create(recursive: true);
-
-  /// Opens [path] in the file manager, or copies it where there is none to
-  /// open (a phone or tablet). A folder the app writes to may not exist until
-  /// its first file, and a file manager cannot open it before then, so it is
-  /// made first.
-  Future<void> reveal(BuildContext context, String path) async {
-    await create(path);
-    if (Platform.isAndroid || Platform.isIOS) {
-      await Clipboard.setData(ClipboardData(text: path));
-      if (context.mounted) context.showSuccessSnackBar('Path copied: $path');
-      return;
-    }
-    final opener = Platform.isWindows
-        ? 'explorer'
-        : Platform.isMacOS
-            ? 'open'
-            : 'xdg-open';
-    await Process.start(opener, [path], runInShell: true);
-  }
+  /// The host makes no folder on request from a client, so this is [check].
+  @override
+  Future<FolderCheck> prepare(String path) => check(path);
 }
 
 /// The one line a failed write probe shows. [FileSystemException.message] is
@@ -193,4 +282,13 @@ String notWritableReason(FileSystemException error) {
       : 'Not writable: $reason';
 }
 
-final hostFoldersProvider = Provider<HostFolders>((ref) => const HostFolders());
+/// Folders on this computer, whichever machine is the imaging host.
+final localFoldersProvider =
+    Provider<LocalFolders>((ref) => const LocalFolders());
+
+/// The folders the imaging host writes into. A new value when the host
+/// changes, so work started for one host can tell it is stale.
+final hostFoldersProvider = hostRoleProvider<HostFolders>(
+  here: (ref) => ref.watch(localFoldersProvider),
+  linked: (ref, host) => LinkedHostFolders(host.files),
+);

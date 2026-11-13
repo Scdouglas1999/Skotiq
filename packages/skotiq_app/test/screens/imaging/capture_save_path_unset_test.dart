@@ -74,7 +74,7 @@ Future<String?> _tapAndCaptureInitialPath(
   String? seen;
   var called = false;
   final container = _container(
-    picker: ({required host, required initialPath}) async {
+    picker: ({required initialPath}) async {
       seen = initialPath;
       called = true;
       return null;

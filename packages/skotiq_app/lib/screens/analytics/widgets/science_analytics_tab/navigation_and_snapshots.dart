@@ -117,7 +117,7 @@ class _ScienceJumpNav extends ConsumerWidget {
       duration: Duration(seconds: 2),
     );
     try {
-      final folders = ref.read(hostFoldersProvider);
+      final folders = ref.read(localFoldersProvider);
       final file = await ref.read(analyticsExportsProvider).scienceReport(
             sessionId,
             period: ref.read(periodAnalysisProvider).result,

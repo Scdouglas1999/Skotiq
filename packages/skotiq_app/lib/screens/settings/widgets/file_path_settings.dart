@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
@@ -117,7 +116,6 @@ class FilePathSettings extends ConsumerWidget {
     try {
       final result = await ref.read(hostFoldersProvider).pickUsable(
         context,
-        host: ref.read(backendProvider).remoteHost?.files,
         title: isRemoteMode ? 'Select host folder' : 'Select folder',
         initialPath: currentPath,
       );
@@ -181,24 +179,12 @@ class FilePathSettings extends ConsumerWidget {
       );
       return;
     }
-    final folders = ref.read(hostFoldersProvider);
-    final hostFiles = ref.read(backendProvider).remoteHost?.files;
-    var verdict = await folders.check(path, host: hostFiles);
+    final verdict = await ref.read(hostFoldersProvider).prepare(path);
     if (!context.mounted || host.isStale) return;
-    if (verdict is FolderMissing && hostFiles == null) {
-      try {
-        await folders.create(path);
-        verdict = await folders.check(path, host: null);
-      } on FileSystemException catch (error) {
-        verdict = FolderRefused(userFacingError(error));
-      }
-      if (!context.mounted || host.isStale) return;
-    }
     switch (verdict) {
       case FolderUsable():
         break;
-      case FolderRefused(:final reason)
-          when hostFiles == null && !p.isAbsolute(path):
+      case FolderNotFullPath(:final reason):
         context.showWarningSnackBar(reason);
         return;
       case FolderMissing() ||
@@ -209,7 +195,7 @@ class FilePathSettings extends ConsumerWidget {
             reason,
           _ => 'There is no folder there.',
         };
-        final where = hostFiles == null ? 'this machine' : 'the imaging host';
+        final where = isRemoteMode ? 'the imaging host' : 'this machine';
         final useAnyway = await ConfirmDialog.show(
           context: context,
           title: 'Use a folder $where cannot open?',
@@ -382,7 +368,7 @@ class _AppDataFolderRow extends ConsumerWidget {
               size: ButtonSize.small,
               onPressed: () async {
                 try {
-                  await ref.read(hostFoldersProvider).reveal(
+                  await ref.read(localFoldersProvider).reveal(
                     context,
                     resolved,
                   );
@@ -403,7 +389,7 @@ class _AppDataFolderRow extends ConsumerWidget {
               size: ButtonSize.small,
               onPressed: () async {
                 try {
-                  await ref.read(hostFoldersProvider).reveal(
+                  await ref.read(localFoldersProvider).reveal(
                     context,
                     resolvedLogs,
                   );
@@ -495,9 +481,8 @@ class _BackupFolderRow extends ConsumerWidget {
             variant: ButtonVariant.secondary,
             size: ButtonSize.small,
             onPressed: () async {
-              final picked = await ref.read(hostFoldersProvider).pickUsable(
+              final picked = await ref.read(localFoldersProvider).pickUsable(
                 context,
-                host: null,
                 title: 'Select backup folder',
                 initialPath: resolved,
               );
@@ -523,7 +508,7 @@ class _BackupFolderRow extends ConsumerWidget {
               size: ButtonSize.small,
               onPressed: () async {
                 try {
-                  await ref.read(hostFoldersProvider).reveal(
+                  await ref.read(localFoldersProvider).reveal(
                     context,
                     resolved,
                   );
