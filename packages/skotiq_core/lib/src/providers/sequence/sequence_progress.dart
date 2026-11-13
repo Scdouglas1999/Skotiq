@@ -138,8 +138,8 @@ typedef SequenceProviderReader = T Function<T>(ProviderListenable<T> provider);
 ///
 /// The event is folded onto the run record here unless the executor attached
 /// to the run is folding its events itself (it adds what only it knows: stats,
-/// frames, the finalization). The camera card learns of a sequence exposure
-/// here either way.
+/// frames, the finalization). On a host the camera card learns of a sequence
+/// exposure here either way.
 void applySequencerEventToSequenceProviders(
   SequenceProviderReader read,
   SkotiqEvent raw,
@@ -150,6 +150,8 @@ void applySequencerEventToSequenceProviders(
   // On a linked client the mirror folds the host's events.
   final mirrored = read(backendProvider).remoteHost != null;
   if (!mirrored && !run.eventFoldClaimed) foldRunEvent(run, event);
+  // A linked client's camera follows the host camera's own events.
+  if (mirrored) return;
 
   // A sequence exposes in Rust and surfaces only through events. Leaving the
   // exposing path by any terminal or run-ending error must clear the flag: an

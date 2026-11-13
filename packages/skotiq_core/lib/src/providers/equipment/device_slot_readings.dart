@@ -54,7 +54,6 @@ Map<String, dynamic> _encodeCamera(CameraStateSnapshot s) => {
   'binning': s.binning,
   'coolerOn': s.coolerOn,
   'isWarming': s.isWarming,
-  'isExposing': s.isExposing,
 };
 
 CameraStateSnapshot _decodeCamera(
@@ -74,9 +73,13 @@ CameraStateSnapshot _decodeCamera(
   binning: jsonString(json['binning']),
   coolerOn: json['coolerOn'] as bool?,
   isWarming: _flag(json['isWarming']),
-  // The countdown follows the host's exposure events, which also end it. The
-  // host's flag only starts it, for a client that links mid-exposure.
-  isExposing: current.isExposing || _flag(json['isExposing']),
+  // The exposure follows the host camera's own events, which a client
+  // receives itself: a start, progress at least every 2 s (so a client that
+  // links mid-exposure shows it within that), and an end for every start.
+  // The host's own flag is no substitute: a headless host's reads idle while
+  // its run's frames expose, and every host's reads exposing for a moment
+  // after each frame, after the end event a client would clear it with.
+  isExposing: current.isExposing,
   exposureProgress: current.exposureProgress,
   // A camera the host sends is one it holds and reads; the re-read repeats
   // that at least every 30 s.
