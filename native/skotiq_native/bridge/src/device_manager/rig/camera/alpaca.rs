@@ -390,8 +390,10 @@ impl Camera for AlpacaCameraHandle {
         Err(no_preview(DriverType::Alpaca, &self.device_id))
     }
 
-    async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        crate::device_capabilities::get_alpaca_capabilities(device_id).await
+    async fn capabilities(&self, _device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+        Ok(DeviceCapabilities::Camera(
+            crate::device_capabilities::alpaca_camera_capabilities(&self.camera).await,
+        ))
     }
 }
 

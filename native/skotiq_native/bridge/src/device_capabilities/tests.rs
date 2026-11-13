@@ -68,10 +68,10 @@ async fn capability_cache_stores_and_invalidates_by_device() {
         .await
         .expect("simulator capabilities should resolve");
     assert!(matches!(caps, DeviceCapabilities::Camera(_)));
-    assert_eq!(capability_cache().lock().await.len(), 1);
+    assert!(capability_cache().lock().await.contains_key(device_id));
 
     invalidate_capability_cache_for_device(device_id).await;
-    assert_eq!(capability_cache().lock().await.len(), 0);
+    assert!(!capability_cache().lock().await.contains_key(device_id));
 }
 
 #[cfg(windows)]

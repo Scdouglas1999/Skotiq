@@ -1,6 +1,7 @@
-use super::*;
 use crate::device::DeviceType;
+use crate::device_capabilities::{CameraCapabilities, DeviceCapabilities, MountCapabilities};
 use crate::device_id::{ConnectionInfo, ParsedDeviceId};
+use crate::error::SkotiqError;
 
 /// Resolve the device-type token carried by a parsed simulator id.
 ///

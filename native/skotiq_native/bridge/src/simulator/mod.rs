@@ -16,6 +16,7 @@ use std::time::Instant;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 
+pub(crate) mod capabilities;
 pub(crate) mod capture;
 pub(crate) mod driver;
 pub(crate) mod faults;

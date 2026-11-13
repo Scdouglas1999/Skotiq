@@ -361,6 +361,6 @@ impl Mount for SimMount {
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
         let parsed = crate::device_id::parse_device_id_cached(device_id)?;
-        crate::device_capabilities::get_simulator_capabilities(&parsed).await
+        crate::simulator::capabilities::get_simulator_capabilities(&parsed).await
     }
 }

@@ -548,6 +548,7 @@ impl Mount for IndiMountHandle {
     }
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        crate::device_capabilities::get_indi_capabilities(device_id).await
+        crate::device_capabilities::indi_capabilities(&self.client, &self.device_name, device_id)
+            .await
     }
 }

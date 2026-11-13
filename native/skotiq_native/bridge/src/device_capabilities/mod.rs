@@ -70,8 +70,6 @@ pub(crate) mod indi;
 pub(crate) use indi::*;
 pub(crate) mod native;
 pub(crate) use native::*;
-pub(crate) mod simulator;
-pub(crate) use simulator::*;
 #[cfg(test)]
 mod tests;
 pub(crate) mod types;
@@ -294,7 +292,9 @@ async fn read_capabilities(
                 DriverType::Ascom => get_ascom_capabilities(device_id).await,
                 DriverType::Indi => get_indi_capabilities(device_id).await,
                 DriverType::Native => get_native_capabilities(device_id).await,
-                DriverType::Simulator => get_simulator_capabilities(parsed).await,
+                DriverType::Simulator => {
+                    crate::simulator::capabilities::get_simulator_capabilities(parsed).await
+                }
             }
         }
     }

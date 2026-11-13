@@ -472,7 +472,9 @@ impl Mount for AlpacaMount {
         })
     }
 
-    async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        crate::device_capabilities::get_alpaca_capabilities(device_id).await
+    async fn capabilities(&self, _device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+        Ok(DeviceCapabilities::Mount(
+            crate::device_capabilities::alpaca_mount_capabilities(&self.mount).await,
+        ))
     }
 }

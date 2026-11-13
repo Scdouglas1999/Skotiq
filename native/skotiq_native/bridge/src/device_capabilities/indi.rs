@@ -19,17 +19,11 @@ pub(crate) fn indi_readout_mode_label(mode: &skotiq_indi::IndiReadoutMode) -> St
     }
 }
 
-/// Get capabilities for an INDI camera or mount
-///
-/// INDI devices report capabilities through their property definitions.
-/// This function queries the INDI server to discover what properties
-/// (and thus capabilities) a device supports.
+/// Capabilities of an INDI camera or mount that has no handle, read through
+/// its server's shared connection.
 pub(crate) async fn get_indi_capabilities(
     device_id: &str,
 ) -> Result<DeviceCapabilities, SkotiqError> {
-    use skotiq_device::DeviceKind;
-    use skotiq_indi::IndiCamera;
-
     let parsed = parse_device_id_cached(device_id)?;
     let (host, port, device_name) = match &parsed.connection_info {
         crate::device_id::ConnectionInfo::Indi {
@@ -49,6 +43,18 @@ pub(crate) async fn get_indi_capabilities(
         .indi_server(&host, port)
         .await
         .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
+    indi_capabilities(&client, &device_name, device_id).await
+}
+
+/// What the INDI camera or mount `device_name` supports, from the property
+/// definitions its server published on `client`.
+pub(crate) async fn indi_capabilities(
+    client: &Arc<tokio::sync::RwLock<skotiq_indi::IndiClient>>,
+    device_name: &str,
+    device_id: &str,
+) -> Result<DeviceCapabilities, SkotiqError> {
+    use skotiq_device::DeviceKind;
+    use skotiq_indi::IndiCamera;
 
     // INDI servers publish capability-bearing property definitions
     // asynchronously after connect; reuse an existing populated client when
