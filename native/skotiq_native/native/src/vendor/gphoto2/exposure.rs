@@ -28,11 +28,19 @@ pub(crate) struct ShutterSpeeds {
 }
 
 impl ShutterSpeeds {
-    pub(crate) fn from_choices(widget: &str, choices: &[String]) -> Self {
+    /// `canon_eos`: the choices are a Canon EOS body's, whose wording has
+    /// labels of its own (see `canon_eos_seconds`).
+    pub(crate) fn from_choices(widget: &str, choices: &[String], canon_eos: bool) -> Self {
+        let seconds_of = |choice: &str| {
+            canon_eos
+                .then(|| canon_eos_seconds(choice))
+                .flatten()
+                .or_else(|| shutter_seconds(choice))
+        };
         let mut timed: Vec<ShutterSpeed> = choices
             .iter()
             .filter_map(|choice| {
-                shutter_seconds(choice).map(|seconds| ShutterSpeed {
+                seconds_of(choice).map(|seconds| ShutterSpeed {
                     choice: choice.clone(),
                     seconds,
                 })
@@ -97,6 +105,20 @@ pub(crate) fn shutter_seconds(choice: &str) -> Option<f64> {
     };
     let seconds = value * scale;
     (seconds.is_finite() && seconds > 0.0).then_some(seconds)
+}
+
+/// The three Canon EOS labels whose ".3" is no decimal. libgphoto2 names the
+/// shutter codes one step apart "20.3" and "20", "10" and "10.3", "6.3" and
+/// "6" to tell the half-stop code from the third-stop one
+/// (camlibs/ptp2/config.c `canon_shutterspeed`); the body shows, exposes and
+/// records 20, 10 and 6 s for either.
+fn canon_eos_seconds(choice: &str) -> Option<f64> {
+    match choice.trim() {
+        "20.3" => Some(20.0),
+        "10.3" => Some(10.0),
+        "6.3" => Some(6.0),
+        _ => None,
+    }
 }
 
 fn fraction_value(text: &str) -> Option<f64> {
