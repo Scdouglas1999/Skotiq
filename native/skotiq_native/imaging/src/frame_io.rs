@@ -472,8 +472,9 @@ pub fn write_wcs_into_frame(path: &Path, wcs: &crate::SipWcs) -> Result<(), Fram
 }
 
 /// A frame in another format written out as FITS, for readers that take only
-/// FITS (an external plate solver, a band-by-band reader). The copy is removed
-/// when this is dropped.
+/// FITS (an external plate solver, a band-by-band reader). The copy is a
+/// working file in the system's temporary folder, never beside the user's
+/// frames, and is removed when this is dropped.
 #[derive(Debug)]
 pub struct FitsCopy {
     path: std::path::PathBuf,
@@ -482,10 +483,10 @@ pub struct FitsCopy {
 static COPY_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 impl FitsCopy {
-    /// Decode `frame` and write it as FITS, with its header, into `dir`.
-    pub fn new(frame: &Path, dir: &Path) -> Result<Self, FrameIoError> {
+    /// Decode `frame` and write it as FITS, with its header.
+    pub fn new(frame: &Path) -> Result<Self, FrameIoError> {
         let (image, header) = read_frame(frame)?;
-        let path = dir.join(format!(
+        let path = std::env::temp_dir().join(format!(
             ".skotiq-fits-copy-{}-{}.fits",
             std::process::id(),
             COPY_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)

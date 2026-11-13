@@ -305,6 +305,16 @@ fn camera_raw_darks_build_a_master() {
     let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
     let result = build_streamed_master(&paths, &out, &config).expect("raw darks build");
     assert_eq!((result.width, result.height), (width as u32, height as u32));
+    let mut left: Vec<String> = std::fs::read_dir(&scratch.0)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    left.sort();
+    assert_eq!(
+        left,
+        ["IMG_0000.DNG", "IMG_0001.DNG", "IMG_0002.DNG", "master_dark.fits"],
+        "the decoded copies are working files, never beside the master"
+    );
     let (master, header) = read_frame(&out).unwrap();
     let frame = read_raw_file(&paths[0]).unwrap();
     assert_eq!(master.as_u16().unwrap(), frame.data);

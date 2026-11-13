@@ -752,7 +752,7 @@ pub(crate) fn build_astap_args(
 fn solver_copy(image_path: &Path) -> Result<Option<skotiq_imaging::FitsCopy>, String> {
     match skotiq_imaging::frame_format(image_path) {
         Ok(skotiq_imaging::ImageFormat::Fits) | Err(_) => Ok(None),
-        Ok(_) => skotiq_imaging::FitsCopy::new(image_path, &std::env::temp_dir())
+        Ok(_) => skotiq_imaging::FitsCopy::new(image_path)
             .map(Some)
             .map_err(|e| format!("could not prepare the frame for the solver: {e}")),
     }

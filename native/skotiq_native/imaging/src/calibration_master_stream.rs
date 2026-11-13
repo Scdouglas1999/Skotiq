@@ -5,8 +5,11 @@
 //! whole stack: each band is read from disk with a seek, combined, and dropped.
 //! Fifty full-size bias frames therefore fit in the same few hundred megabytes
 //! as five. A FITS frame is read in place; a frame in another format (XISF, a
-//! camera raw file) is decoded once into a FITS copy beside the master, read
-//! the same way, and removed when the build ends.
+//! camera raw file) is decoded once into a FITS copy in the system's temporary
+//! folder ([`FitsCopy`]), read the same way, and removed when the build ends.
+//! Every frame's band is needed at once for the rejection, so the decoded
+//! frames are either all held in memory or all spilled to disk; the copies
+//! are that spill.
 //!
 //! The combine is a winsorized sigma-clipped mean (3σ low and high), the
 //! PixInsight default for calibration masters. The master is written as
@@ -187,14 +190,11 @@ struct BandSource {
 }
 
 impl BandSource {
-    /// `copies`: where a frame in another format is decoded to.
-    fn open(path: &Path, copies: &Path) -> Result<Self, String> {
+    fn open(path: &Path) -> Result<Self, String> {
         let describe = |e: FitsError| format!("{}: {e}", path.display());
         let copy = match frame_format(path).map_err(|e| format!("{}: {e}", path.display()))? {
             ImageFormat::Fits => None,
-            _ => Some(
-                FitsCopy::new(path, copies).map_err(|e| format!("{}: {e}", path.display()))?,
-            ),
+            _ => Some(FitsCopy::new(path).map_err(|e| format!("{}: {e}", path.display()))?),
         };
         let fits = copy.as_ref().map_or(path, FitsCopy::path);
         let file = File::open(fits).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -354,7 +354,7 @@ pub fn build_streamed_master(
     }
     let mut sources: Vec<BandSource> = paths
         .iter()
-        .map(|p| BandSource::open(p, output_dir))
+        .map(|p| BandSource::open(p))
         .collect::<Result<_, _>>()?;
     check_agreement(&sources)?;
 
