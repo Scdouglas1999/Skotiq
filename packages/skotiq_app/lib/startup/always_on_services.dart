@@ -154,6 +154,15 @@ final List<AlwaysOnService> alwaysOnServices = [
 
   // Equipment.
   AlwaysOnService(
+    'device events',
+    deviceServiceProvider,
+    // On a client too: it was built only when a screen first read it, so
+    // which screens had been opened decided whether a disconnect was shown.
+    _everyRole,
+    'device disconnects, reconnects and heartbeat health reaching the '
+        'device cards, and a mount command showing its result at once',
+  ),
+  AlwaysOnService(
     'USB disconnect log',
     usbDisconnectEventBridgeProvider,
     _everyRole,
