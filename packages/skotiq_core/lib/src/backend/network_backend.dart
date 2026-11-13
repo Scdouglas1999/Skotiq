@@ -97,7 +97,6 @@ import '../models/calibration/calibration_library_models.dart';
 import '../models/notes/journal_note.dart';
 import '../models/backend/backend_types.dart';
 import '../models/backend/remote_catalog_models.dart';
-import '../models/backend/remote_science_bundle.dart';
 import '../models/backend/remote_session_status.dart';
 import '../models/backend/remote_stacked_result.dart';
 import '../models/backend/remote_update_models.dart';
@@ -138,7 +137,6 @@ part 'network_backend/wire_decoding.dart';
 /// and is used by the Mobile app to control a remote Desktop/Headless instance.
 abstract class _NetworkBackendTransport {
   static const _requestIdHeader = 'x-request-id';
-  static const _apiPrefix = '/api/';
 
   final String serverHost;
   final int serverPort;
@@ -410,18 +408,15 @@ abstract class _NetworkBackendTransport {
   /// WebSocket scheme derived from [scheme]: `https` ⇒ `wss`, `http` ⇒ `ws`.
   String get _wsScheme => scheme == 'https' ? 'wss' : 'ws';
 
-  /// Build a REST API URI for [endpoint] (the path segment after `/api/`),
-  /// honouring the configured [scheme]. The [endpoint] may itself carry an
-  /// inline query string (e.g. `'calibration/darks/7?deleteFile=true'`); any
-  /// inline params are preserved and the optional [queryParameters] are merged
-  /// on top (explicit params win on key collision). Every REST URI is built
+  /// The URI of the request path [path] (from [_endpointPath]) with
+  /// [queryParameters], in the configured [scheme]. Every REST URI is built
   /// here, so the scheme is decided in one place.
-  Uri _apiUri(String endpoint, [Map<String, String>? queryParameters]) {
+  Uri _apiUri(String path, [Map<String, String>? queryParameters]) {
     final base = buildSkotiqServerUri(
       scheme: scheme,
       host: serverHost,
       port: serverPort,
-      pathAndQuery: '/api/$endpoint',
+      pathAndQuery: path,
     );
     if (queryParameters == null || queryParameters.isEmpty) {
       return base;
