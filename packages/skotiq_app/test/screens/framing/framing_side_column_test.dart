@@ -5,6 +5,7 @@
 
 import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel, MosaicStartCorner;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/framing/framing_screen.dart';
@@ -86,13 +87,12 @@ FramingState _mosaicState() => FramingState(
       mosaicEnabled: true,
       mosaicPanels: [
         for (var i = 0; i < 4; i++)
-          FramingMosaicPanel(
+          MosaicPanel(
             index: i,
-            column: i % 2,
+            col: i % 2,
             row: i ~/ 2,
-            centerRaHours: 5.588 + (i.isEven ? -0.05 : 0.05),
-            centerDecDegrees: -5.39 + (i < 2 ? 0.6 : -0.6),
-            name: 'M42 Panel ${i + 1}',
+            raHours: 5.588 + (i.isEven ? -0.05 : 0.05),
+            decDegrees: -5.39 + (i < 2 ? 0.6 : -0.6),
           ),
       ],
     );

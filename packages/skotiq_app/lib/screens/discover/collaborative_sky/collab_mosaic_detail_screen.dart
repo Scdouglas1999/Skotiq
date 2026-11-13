@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show mosaicPanelNumber;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -438,7 +439,7 @@ class _PanelRow extends StatelessWidget {
               alignment: Alignment.center,
               decoration: SkotiqDecorations.chip(colors, tone: colors.primary),
               child: Text(
-                '${panel.panelIndex + 1}',
+                '${mosaicPanelNumber(panel.panelIndex)}',
                 style: SkotiqTypography.labelStrongSm.copyWith(
                   color: colors.primary,
                 ),

@@ -1,36 +1,62 @@
 import 'dart:math' as math;
 
-/// A single mosaic panel center, expressed in equatorial coordinates.
+/// The corner of the grid a mosaic starts in, as the grid is drawn: north up
+/// and east left at rotation 0, the way the sky looks in the framing view.
+enum MosaicStartCorner { topLeft, topRight, bottomLeft, bottomRight }
+
+/// One panel of a mosaic: where it points and its number.
 ///
-/// This is the unit of the *one* canonical panel-layout calculation
-/// ([mosaicPanelCenters]) shared by the planetarium preview
-/// (`MosaicPlanner`) and the imaging-side `MosaicService`. It carries only
-/// the geometry both sides agree on — the RA/Dec center plus its grid index
-/// — so that neither package has to duplicate the spherical-grid math.
-class MosaicPanelCenter {
+/// This is the app's one panel numbering, used by the framing view, the mosaic
+/// wizard, the sequencer's panel targets and the FITS mosaic cards:
+///
+/// * [index] is the panel's place in capture order, from 0; the panel the
+///   operator sees numbered "1" is shot first. FITS `PANELIDX` is [number].
+/// * [row] counts from the top of the grid as drawn (north at rotation 0) and
+///   [col] from the left (east), both from 0, so row/column read the way the
+///   grid looks on screen and in FITS `PANELROW`/`PANELCOL`.
+///
+/// Capture order starts in the chosen [MosaicStartCorner] and, when serpentine,
+/// reverses direction on every other row, so a row change is one short slew.
+class MosaicPanel {
   /// Right ascension of the panel center, in hours, normalized to [0, 24).
   final double raHours;
 
   /// Declination of the panel center, in degrees.
   final double decDegrees;
 
-  /// 0-based row-major panel index.
+  /// 0-based place in capture order.
   final int index;
 
-  /// 0-based row index.
+  /// 0-based row, from the top of the grid as drawn.
   final int row;
 
-  /// 0-based column index.
+  /// 0-based column, from the left of the grid as drawn.
   final int col;
 
-  const MosaicPanelCenter({
+  const MosaicPanel({
     required this.raHours,
     required this.decDegrees,
     required this.index,
     required this.row,
     required this.col,
   });
+
+  /// The number the operator sees: 1 for the first panel shot.
+  int get number => mosaicPanelNumber(index);
+
+  /// "Panel 3".
+  String get name => mosaicPanelName(index);
 }
+
+/// The number the operator sees for the panel at capture-order [index].
+int mosaicPanelNumber(int index) => index + 1;
+
+/// The name of the panel at capture-order [index]: "Panel 3".
+String mosaicPanelName(int index) => 'Panel ${mosaicPanelNumber(index)}';
+
+/// The target a panel's frames are filed under: "M31 Mosaic Panel 3".
+String mosaicPanelTargetName(String mosaicName, int index) =>
+    '$mosaicName ${mosaicPanelName(index)}';
 
 /// Normalize an RA value in hours into the half-open range [0, 24).
 ///
@@ -92,23 +118,23 @@ double raOffsetHoursFromDegrees(double eastOffsetDegrees, double decDegrees) {
   return eastOffsetDegrees / 15.0 / cosDec;
 }
 
-/// Compute the panel centers of a rectangular mosaic grid — the single
-/// source of truth for panel layout across the app.
+/// Lay out a rectangular mosaic: every panel's center and number, in capture
+/// order. The single source of truth for panel layout and numbering across
+/// the app (see [MosaicPanel]).
 ///
 /// All angular inputs are in **degrees on the sky**:
 ///
 /// * [centerRaHours] / [centerDecDegrees] — the grid center.
 /// * [stepRaDegrees] / [stepDecDegrees] — the *effective* center-to-center
 ///   spacing between adjacent panels (already reduced by overlap).
-/// * [columns] / [rows] — grid dimensions (column = RA axis, row = Dec axis).
+/// * [columns] / [rows] — grid dimensions.
 /// * [rotationDegrees] — camera/grid rotation in the tangent plane.
 ///
-/// The grid is centered on ([centerRaHours], [centerDecDegrees]): column `c`
-/// sits at offset `(c - (columns-1)/2) * stepRaDegrees` east and row `r` at
-/// `(r - (rows-1)/2) * stepDecDegrees` north, optionally rotated, then mapped
-/// to RA/Dec with the cos(dec) compression via [raOffsetHoursFromDegrees].
-/// Panels are returned in row-major order (row outer, column inner).
-List<MosaicPanelCenter> mosaicPanelCenters({
+/// Column `c` sits `((columns-1)/2 - c) * stepRaDegrees` east of the center
+/// and row `r` `((rows-1)/2 - r) * stepDecDegrees` north of it, rotated, then
+/// mapped to RA/Dec with the cos(dec) compression via
+/// [raOffsetHoursFromDegrees].
+List<MosaicPanel> mosaicPanelCenters({
   required double centerRaHours,
   required double centerDecDegrees,
   required double stepRaDegrees,
@@ -116,9 +142,9 @@ List<MosaicPanelCenter> mosaicPanelCenters({
   required int columns,
   required int rows,
   double rotationDegrees = 0.0,
+  MosaicStartCorner startCorner = MosaicStartCorner.topLeft,
+  bool serpentine = true,
 }) {
-  final centers = <MosaicPanelCenter>[];
-
   final halfHorizontal = (columns - 1) / 2.0;
   final halfVertical = (rows - 1) / 2.0;
 
@@ -127,38 +153,42 @@ List<MosaicPanelCenter> mosaicPanelCenters({
   final cosRot = hasRotation ? math.cos(rotRad) : 1.0;
   final sinRot = hasRotation ? math.sin(rotRad) : 0.0;
 
-  var index = 0;
-  for (var row = 0; row < rows; row++) {
-    for (var col = 0; col < columns; col++) {
-      final colOffset = (col - halfHorizontal) * stepRaDegrees;
-      final rowOffset = (row - halfVertical) * stepDecDegrees;
+  final fromBottom = startCorner == MosaicStartCorner.bottomLeft ||
+      startCorner == MosaicStartCorner.bottomRight;
+  final fromRight = startCorner == MosaicStartCorner.topRight ||
+      startCorner == MosaicStartCorner.bottomRight;
+
+  final centers = <MosaicPanel>[];
+  for (var pass = 0; pass < rows; pass++) {
+    final row = fromBottom ? rows - 1 - pass : pass;
+    final rightToLeft = fromRight != (serpentine && pass.isOdd);
+    for (var step = 0; step < columns; step++) {
+      final col = rightToLeft ? columns - 1 - step : step;
+      final eastDeg = (halfHorizontal - col) * stepRaDegrees;
+      final northDeg = (halfVertical - row) * stepDecDegrees;
 
       final double dRaDeg;
       final double dDecDeg;
       if (hasRotation) {
-        dRaDeg = colOffset * cosRot - rowOffset * sinRot;
-        dDecDeg = colOffset * sinRot + rowOffset * cosRot;
+        dRaDeg = eastDeg * cosRot - northDeg * sinRot;
+        dDecDeg = eastDeg * sinRot + northDeg * cosRot;
       } else {
-        dRaDeg = colOffset;
-        dDecDeg = rowOffset;
+        dRaDeg = eastDeg;
+        dDecDeg = northDeg;
       }
 
-      final raHours = normalizeRaHours(
-        centerRaHours + raOffsetHoursFromDegrees(dRaDeg, centerDecDegrees),
-      );
-      final decDegrees = centerDecDegrees + dDecDeg;
-
       centers.add(
-        MosaicPanelCenter(
-          raHours: raHours,
-          decDegrees: decDegrees,
-          index: index++,
+        MosaicPanel(
+          raHours: normalizeRaHours(
+            centerRaHours + raOffsetHoursFromDegrees(dRaDeg, centerDecDegrees),
+          ),
+          decDegrees: centerDecDegrees + dDecDeg,
+          index: centers.length,
           row: row,
           col: col,
         ),
       );
     }
   }
-
   return centers;
 }

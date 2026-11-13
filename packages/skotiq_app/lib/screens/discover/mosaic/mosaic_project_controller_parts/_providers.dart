@@ -169,7 +169,6 @@ MosaicCaptureLauncher buildMosaicCaptureLauncher(Ref ref) {
     );
 
     final options = MosaicSequenceOptions(
-      serpentineOrdering: true,
       centerAfterSlew: true,
       autofocusPerPanel: false,
       // W1 STRENGTHEN (never weaken): default each panel's minAltitude to the

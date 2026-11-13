@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:skotiq_astro/skotiq_astro.dart' show mosaicPanelName;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
@@ -284,8 +285,8 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       } else {
         final detail = failed
             .map((o) => o.note == null
-                ? 'panel ${o.panelIndex + 1}'
-                : 'panel ${o.panelIndex + 1}: ${o.note}')
+                ? mosaicPanelName(o.panelIndex)
+                : '${mosaicPanelName(o.panelIndex)}: ${o.note}')
             .join('; ');
         state = state.copyWith(
           isIntegrating: false,
@@ -494,7 +495,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       } else {
         state = state.copyWith(
           isClaiming: false,
-          error: 'Panel ${panelIndex + 1} was not released — the hub no longer '
+          error: '${mosaicPanelName(panelIndex)} was not released — the hub no longer '
               'holds a claim for this device.',
         );
       }

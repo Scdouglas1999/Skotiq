@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../harness/in_memory_database.dart';
@@ -289,9 +290,49 @@ void main() {
       await pumpEventQueue();
 
       final panels = container.read(framingProvider).mosaicPanels;
-      final left = panels.firstWhere((p) => p.column == 0);
-      final right = panels.firstWhere((p) => p.column == 1);
-      expect(left.centerRaHours, greaterThan(right.centerRaHours));
+      final left = panels.firstWhere((p) => p.col == 0);
+      final right = panels.firstWhere((p) => p.col == 1);
+      expect(left.raHours, greaterThan(right.raHours));
+    });
+
+    test('Framing numbers a mosaic as the wizard and the sequence do',
+        () async {
+      final container = _container(
+        seed: FramingState(
+          target: _target(),
+          useCustomEquipment: true,
+          customEquipment: _equipment,
+          rotation: 12,
+        ),
+      );
+      final notifier = container.read(framingProvider.notifier);
+      notifier.setMosaicConfig(const FramingMosaicConfig(
+        columns: 3,
+        rows: 2,
+        overlapPercent: 20,
+        startCorner: MosaicStartCorner.bottomRight,
+      ));
+      notifier.setMosaicEnabled(true);
+      await pumpEventQueue();
+
+      final framing = container.read(framingProvider).mosaicPanels;
+      // The wizard's preview and every mosaic sequence come from here.
+      final service = const MosaicService().generatePanels(MosaicConfig(
+        centerRa: 5.0,
+        centerDec: 20.0,
+        panelWidthArcmin: _equipment.fovWidthDeg * 60,
+        panelHeightArcmin: _equipment.fovHeightDeg * 60,
+        overlapPercent: 20,
+        rotation: 12,
+        panelsHorizontal: 3,
+        panelsVertical: 2,
+        startCorner: MosaicStartCorner.bottomRight,
+      ));
+      String describe(MosaicPanel p) => '${p.number} ${p.name} '
+          '${p.row},${p.col} ${p.raHours.toStringAsFixed(9)} '
+          '${p.decDegrees.toStringAsFixed(9)}';
+      expect(framing.map(describe), service.map(describe));
+      expect((framing.first.row, framing.first.col), (1, 2));
     });
 
     test('single-panel grid sits on the aim, not the view center', () async {
@@ -310,16 +351,16 @@ void main() {
 
       var state = container.read(framingProvider);
       expect(state.mosaicPanels, hasLength(1));
-      expect(state.mosaicPanels.single.centerRaHours, closeTo(5.0, 1e-9));
-      expect(state.mosaicPanels.single.centerDecDegrees, closeTo(20.0, 1e-9));
+      expect(state.mosaicPanels.single.raHours, closeTo(5.0, 1e-9));
+      expect(state.mosaicPanels.single.decDegrees, closeTo(20.0, 1e-9));
 
       notifier.setAim(5.5, 21.0);
       await pumpEventQueue();
 
       state = container.read(framingProvider);
       expect(state.mosaicPanels, hasLength(1));
-      expect(state.mosaicPanels.single.centerRaHours, closeTo(5.5, 1e-9));
-      expect(state.mosaicPanels.single.centerDecDegrees, closeTo(21.0, 1e-9));
+      expect(state.mosaicPanels.single.raHours, closeTo(5.5, 1e-9));
+      expect(state.mosaicPanels.single.decDegrees, closeTo(21.0, 1e-9));
     });
   });
 }

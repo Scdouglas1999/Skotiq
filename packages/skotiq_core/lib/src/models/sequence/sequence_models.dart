@@ -16,7 +16,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show ScoringWeights;
+import 'package:skotiq_astro/skotiq_astro.dart' show ScoringWeights, mosaicPanelName;
 import 'package:uuid/uuid.dart';
 import '../imaging/imaging_models.dart' show FrameType;
 import '../notification/notification_categories.dart'
@@ -513,7 +513,10 @@ sealed class SequenceNode extends Equatable {
 /// Node category for coloring
 enum NodeCategory { instruction, trigger, logic, target }
 
-/// Information about a mosaic panel for multi-panel imaging
+/// A panel's mosaic identity, written into its frames' FITS mosaic cards.
+/// Numbered as the app numbers every mosaic panel (`MosaicPanel` in
+/// skotiq_astro): [panelIndex] in capture order, [row] from the top of the
+/// grid as drawn, [column] from the left.
 @Freezed(fromJson: true, toJson: true)
 abstract class MosaicPanelInfo with _$MosaicPanelInfo {
   const MosaicPanelInfo._();
@@ -527,7 +530,7 @@ abstract class MosaicPanelInfo with _$MosaicPanelInfo {
     required int column,
   }) = _MosaicPanelInfo;
 
-  String get displayLabel => 'Panel ${panelIndex + 1}/$totalPanels';
+  String get displayLabel => '${mosaicPanelName(panelIndex)}/$totalPanels';
 
   factory MosaicPanelInfo.fromJson(Map<String, dynamic> json) =>
       _$MosaicPanelInfoFromJson(json);

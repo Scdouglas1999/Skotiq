@@ -8,7 +8,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show meanRaHours;
+import 'package:skotiq_astro/skotiq_astro.dart' show meanRaHours, mosaicPanelName;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 
@@ -59,7 +59,7 @@ Future<void> _confirmForceRelease(
     builder: (dialogContext) => AlertDialog(
       title: const Text('Force release panel?'),
       content: Text(
-        'Panel ${panelIndex + 1} will be released back to pending on the hub, '
+        '${mosaicPanelName(panelIndex)} will be released back to pending on the hub, '
         'dropping its current claim or uploaded master. This cannot be undone.',
       ),
       actions: [
