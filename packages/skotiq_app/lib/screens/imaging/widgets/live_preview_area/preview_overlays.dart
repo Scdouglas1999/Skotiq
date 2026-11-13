@@ -250,22 +250,8 @@ SolvedWcs? _solvedWcsFromImage({
   required CapturedImageWcsData? wcs,
   required int width,
   required int height,
-}) {
-  if (wcs == null || !wcs.isPlateSolved) return null;
-  return solvedWcsFromStored(
-    raHours: wcs.solvedRaHours,
-    decDegrees: wcs.solvedDecDegrees,
-    rotationDeg: wcs.solvedRotationDegrees,
-    pixelScaleArcsec: wcs.solvedPixelScaleArcsecPerPixel,
-    imageWidth: width,
-    imageHeight: height,
-    cd1_1: wcs.cd1_1,
-    cd1_2: wcs.cd1_2,
-    cd2_1: wcs.cd2_1,
-    cd2_2: wcs.cd2_2,
-    sip: wcs.sip,
-  );
-}
+}) =>
+    wcs?.solvedWcs(width: width, height: height);
 
 SolvedWcs? _solvedWcsFromPlateSolve(PlateSolveData plateSolve) {
   final solved = plateSolve.toSolvedWcs();

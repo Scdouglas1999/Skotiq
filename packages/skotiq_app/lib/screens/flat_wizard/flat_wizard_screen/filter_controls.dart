@@ -45,6 +45,38 @@ class _FilterSelector extends ConsumerWidget {
   }
 }
 
+/// The instruction above the per-filter rows, naming only the controls the
+/// camera has: a DSLR reads ISO, a gain camera gain (and offset when it has
+/// one), and a camera with neither only sets frame counts.
+String _filterOverridesHint(ExposureSensitivity sensitivity) =>
+    switch (sensitivity) {
+      IsoSensitivity() => 'Set the ISO to match each filter’s lights. '
+          'Choose Default to inherit the camera default below.',
+      GainSensitivity(hasGain: true, hasOffset: true) =>
+        'Set gain and offset to match each filter’s lights. '
+            'Clear a field to inherit the camera defaults below.',
+      GainSensitivity(hasGain: true) => 'Set the gain to match each '
+          'filter’s lights. Clear a field to inherit the camera default below.',
+      GainSensitivity(hasOffset: true) => 'Set the offset to match each '
+          'filter’s lights. Clear a field to inherit the camera default below.',
+      GainSensitivity() => 'Set how many flats each filter takes. '
+          'Clear a field to use the frame count below.',
+    };
+
+/// The note under the camera settings every filter falls back to.
+String _cameraDefaultsNote(ExposureSensitivity sensitivity) =>
+    switch (sensitivity) {
+      IsoSensitivity() =>
+        'Every filter uses these unless its own ISO is set above.',
+      GainSensitivity(hasGain: true, hasOffset: true) =>
+        'Every filter uses these unless its own gain or offset is set above.',
+      GainSensitivity(hasGain: true) =>
+        'Every filter uses these unless its own gain is set above.',
+      GainSensitivity(hasOffset: true) =>
+        'Every filter uses these unless its own offset is set above.',
+      GainSensitivity() => 'Every filter uses these.',
+    };
+
 class _FilterChecklist extends ConsumerWidget {
   const _FilterChecklist({super.key});
 
@@ -65,10 +97,7 @@ class _FilterChecklist extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-            sensitivity.hasOffset
-                ? 'Set gain and offset to match each filter’s lights. Clear a field to inherit the camera defaults below.'
-                : 'Set the ISO to match each filter’s lights. Choose Default to inherit the camera default below.',
+        Text(_filterOverridesHint(sensitivity),
             style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted)),
         const SizedBox(height: SkotiqTokens.spaceMd),
         LayoutBuilder(builder: (context, constraints) {
@@ -76,7 +105,7 @@ class _FilterChecklist extends ConsumerWidget {
           return Row(children: [
             const SizedBox(width: 110, child: Text('Filter')),
             for (final label in [
-              sensitivity.label,
+              if (sensitivity.hasGain) sensitivity.label,
               if (sensitivity.hasOffset) 'Offset',
               'Frames',
             ])
@@ -195,7 +224,8 @@ class _FilterSettingsRow extends ConsumerWidget {
         final fields = Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
+            if (config.sensitivity.hasGain)
+              Expanded(
                 child: Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: SensitivityField(

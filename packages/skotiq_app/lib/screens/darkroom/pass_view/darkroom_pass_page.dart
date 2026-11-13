@@ -11,6 +11,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'pass_view.dart';
 import 'package:skotiq_core/providers.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class DarkroomPassPage extends ConsumerStatefulWidget {
   const DarkroomPassPage({super.key, required this.runId});
@@ -63,10 +64,8 @@ class _DarkroomPassPageState extends ConsumerState<DarkroomPassPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _stopRequested = false);
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'The pass could not be stopped: ${userFacingError(error)}',
-        severity: SkotiqAlertSeverity.error,
+      context.showErrorSnackBar(
+        'The pass could not be stopped: ${userFacingError(error)}',
       );
     }
   }

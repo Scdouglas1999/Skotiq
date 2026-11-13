@@ -14,6 +14,16 @@ import '../tables/targets.dart';
 
 part 'images_dao.g.dart';
 
+/// The anisotropic part of a frame's stored solve: the `solved_cd*` matrix and
+/// the `solved_sip` JSON. Any may be null when the solve was isotropic.
+typedef StoredWcsDistortion = ({
+  double? cd1_1,
+  double? cd1_2,
+  double? cd2_1,
+  double? cd2_2,
+  String? sip,
+});
+
 /// Thumbnail — slim image record returned by
 /// [ImagesDao.watchImagesByProducingNode] and friends. Carries only the
 /// columns the sequence-tree thumbnail strip needs so the watch query
@@ -538,10 +548,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   /// Read the anisotropic WCS columns for [id] — the `solved_cd*` matrix and
   /// the `solved_sip` blob. Any may be null when the stored solve was
   /// isotropic. Per frame: every solved frame's hooks read it.
-  Future<
-    ({double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip})?
-  >
-  getStoredWcsDistortion(int id) async {
+  Future<StoredWcsDistortion?> getStoredWcsDistortion(int id) async {
     final row = await customSelect(
       'SELECT solved_cd1_1, solved_cd1_2, solved_cd2_1, solved_cd2_2, '
       'solved_sip FROM captured_images WHERE id = ?',

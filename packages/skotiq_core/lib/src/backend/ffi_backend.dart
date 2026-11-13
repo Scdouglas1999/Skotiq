@@ -18,7 +18,7 @@ import '../models/site/location_settings.dart';
 import '../services/adaptive_swap_service.dart';
 import '../services/phd2_probe.dart';
 import '../services/phd2_status_poll.dart';
-import '../services/science/fits_header_writer.dart';
+import '../models/imaging/fits_keyword_write.dart';
 import '../services/stretch_pipeline_service.dart';
 import '../services/thumbnail_sidecar_service.dart';
 import '../utils/device_id.dart';

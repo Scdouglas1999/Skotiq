@@ -133,12 +133,9 @@ class _ReportBody extends ConsumerWidget {
             size: ButtonSize.small,
             onPressed: () {
               if (isRemote) {
-                SkotiqToastHelper.show(
-                  context: context,
-                  message: 'Session Review uses full-resolution files stored '
-                      'on the imaging host. Open Skotiq there to continue.',
-                  severity: SkotiqAlertSeverity.info,
-                  icon: LucideIcons.monitor,
+                context.showInfoSnackBar(
+                  'Session Review uses full-resolution files stored '
+                  'on the imaging host. Open Skotiq there to continue.',
                 );
                 return;
               }

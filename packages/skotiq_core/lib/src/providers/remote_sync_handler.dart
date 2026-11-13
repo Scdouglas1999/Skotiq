@@ -1,4 +1,3 @@
-import 'runtime_mirror/channels/exposure_channel.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +31,7 @@ import 'observing_list_provider.dart'
 import 'profiles_provider.dart';
 import 'runtime_mirror/channels/device_slot_channel.dart'
     show mirrorDevicesOfOlderHost;
+import 'runtime_mirror/channels/exposure_channel.dart';
 import 'runtime_mirror/client_runtime_mirror.dart';
 import 'planning_provider.dart' show projectListProvider;
 import 'scheduler_provider.dart'
@@ -39,10 +39,9 @@ import 'scheduler_provider.dart'
         integrationGoalsStreamProvider,
         schedulerPreviewDecisionProvider,
         targetConstraintsStreamProvider;
-import 'sequence/sequencer_run_event.dart' show SequencerRunEvent;
+import 'sequence/sequencer_run_event.dart' show NodeStarted, SequencerRunEvent;
 import 'sequence_provider.dart';
-import 'sequence_stats_provider.dart'
-    show sequenceRunsProvider, SequenceRunStats;
+import 'sequence_stats_provider.dart' show sequenceRunsProvider;
 import 'session_provider.dart';
 import 'plate_solver_provider.dart'
     show plateSolverDetectionProvider, plateSolverPreferenceProvider;
@@ -99,10 +98,9 @@ void applyHostLocalSyncEvent(ProviderContainer container, SkotiqEvent event) {
 
 /// A linked client following one event of its host, [backend].
 ///
-/// The host's devices, guider and the results only its process computes
-/// arrive as runtime channel values ([applyHostRuntimeUpdate]); its run is
-/// folded from its sequencer events; a change to its stored data re-reads
-/// that data.
+/// The host's devices, guider, run and the results only its process computes
+/// arrive as runtime channel values ([applyHostRuntimeUpdate]); a change to
+/// its stored data re-reads that data.
 void applyHostEventOnClient(
   ProviderContainer container,
   SkotiqBackend backend,
@@ -114,9 +112,8 @@ void applyHostEventOnClient(
       if (event.eventType == hostStateChangedEventType) {
         final change = HostDataChange.of(event.data);
         if (change == null) return;
-        if (change.entityType == HostMutationEntity.sequencer) {
-          _mirrorHostRunControl(container, change.action, event.data);
-        } else {
+        // The run's state arrives on its channel.
+        if (change.entityType != HostMutationEntity.sequencer) {
           _rereadChangedHostData(container, change, event.data);
         }
       } else if (event.eventType == hostRuntimeStateEventType) {
@@ -127,7 +124,7 @@ void applyHostEventOnClient(
       }
     case EventCategory.sequencer:
       if (_applySequenceLibraryNotice(container, event)) return;
-      _mirrorHostRunEvent(container, backend, event);
+      _followHostRunEvent(container, event);
     case EventCategory.imaging:
       _rereadImagesAfter(container, event);
       // The capture publisher runs only on the host, so the host's frame is

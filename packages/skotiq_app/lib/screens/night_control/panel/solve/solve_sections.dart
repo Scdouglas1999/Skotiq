@@ -11,7 +11,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../actions/night_action_controller.dart';
-import '../../actions/night_rig_ops.dart' show nightCenteringConfigProvider;
 import '../../actions/solve_and_sync.dart' show solveFrameSettings;
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/plan/plan_steps_provider.dart' show nightActiveStepProvider;
@@ -60,7 +59,6 @@ class NightSolveSettingsSection extends ConsumerWidget {
       profile: ref.watch(activeEquipmentProfileProvider),
     );
     final filter = ref.watch(filterWheelStateProvider).currentFilterName;
-    final centering = ref.watch(nightCenteringConfigProvider);
     final planCenter = ref.watch(nightPlanCenterNodeProvider);
     final exposure = frame.exposureTime;
     return NightPanelSection(
@@ -93,18 +91,17 @@ class NightSolveSettingsSection extends ConsumerWidget {
               },
             ),
           ),
-        if (centering != null)
-          NightPanelNote(
-            l10n.text(
-              settings?.blindSolve == true
-                  ? 'nightScopeSolveCenterRuleBlind'
-                  : 'nightScopeSolveCenterRule',
-              params: {
-                'arcsec': _number(centering.toleranceArcsec),
-                'attempts': '${centering.maxIterations}',
-              },
-            ),
+        NightPanelNote(
+          l10n.text(
+            settings?.blindSolve == true
+                ? 'nightScopeSolveCenterRuleBlind'
+                : 'nightScopeSolveCenterRule',
+            params: {
+              'arcsec': _number(ManualCentering.toleranceArcsec),
+              'attempts': '${ManualCentering.maxIterations}',
+            },
           ),
+        ),
         NightPanelButtonGrid(
           columns: 1,
           buttons: [

@@ -24,7 +24,7 @@ void main() {
 
     final targets = await loadDarkroomTargets(
       db,
-      readHeader: (_) async => const {},
+      readHeader: (_) async => FrameHeader(const {}),
     );
     expect(targets.keys, ['Frames with no target']);
   });

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import '../coordinate_system.dart';
 import '../astronomy/astronomy_calculations.dart';
@@ -465,61 +464,5 @@ class MosaicPlanner {
     }
 
     return optimalAngle;
-  }
-}
-
-class MosaicExporter {
-  static String toJson(MosaicPlan plan) {
-    final panels = plan.panelsInCaptureOrder
-        .map(
-          (p) => {
-            'index': p.index,
-            'name': p.name,
-            'row': p.row,
-            'column': p.column,
-            'ra_hours': p.center.ra,
-            'ra_deg': p.center.ra * 15,
-            'dec_deg': p.center.dec,
-            'rotation_deg': p.rotation,
-            'fov_width_deg': p.fovWidth,
-            'fov_height_deg': p.fovHeight,
-          },
-        )
-        .toList();
-
-    final data = {
-      'center_ra_hours': plan.center.ra,
-      'center_dec_deg': plan.center.dec,
-      'rows': plan.rows,
-      'columns': plan.columns,
-      'panel_count': plan.panelCount,
-      'effective_width_deg': plan.effectiveWidth,
-      'effective_height_deg': plan.effectiveHeight,
-      'overlap_horizontal': plan.config.overlap.horizontal,
-      'overlap_vertical': plan.config.overlap.vertical,
-      'rotation_deg': plan.config.rotation,
-      'panels': panels,
-    };
-
-    // Indented, fully-escaped, spec-valid JSON. Field order is preserved from
-    // the map literal above and panels stay in capture order.
-    return const JsonEncoder.withIndent('  ').convert(data);
-  }
-
-  static String toCsv(MosaicPlan plan) {
-    final buffer = StringBuffer();
-    buffer.writeln('Panel,Row,Column,RA_Hours,RA_Degrees,Dec_Degrees,Rotation');
-
-    for (final panel in plan.panelsInCaptureOrder) {
-      buffer.writeln(
-        '${panel.name},${panel.row},${panel.column},'
-        '${panel.center.ra.toStringAsFixed(6)},'
-        '${(panel.center.ra * 15).toStringAsFixed(6)},'
-        '${panel.center.dec.toStringAsFixed(6)},'
-        '${panel.rotation.toStringAsFixed(1)}',
-      );
-    }
-
-    return buffer.toString();
   }
 }

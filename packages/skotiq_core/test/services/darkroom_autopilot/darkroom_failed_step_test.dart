@@ -25,26 +25,26 @@ void main() {
   });
 
   test('the bridge may wrap the payload in its own exception text', () {
-    expect(
-      DarkroomFailedStep.tryDecode('AnyhowException($payload)')?.index,
-      1,
-    );
+    expect(DarkroomFailedStep.tryDecode('AnyhowException($payload)')?.index, 1);
   });
 
-  test('a sentence, a cancellation and a half payload are not failed steps', () {
-    expect(
-      DarkroomFailedStep.tryDecode('step 2 failed: stretch@1: bad'),
-      isNull,
-    );
-    expect(
-      DarkroomFailedStep.tryDecode(
-        '{"kind":"cancelled","renderId":"r","phase":"render"}',
-      ),
-      isNull,
-    );
-    expect(
-      DarkroomFailedStep.tryDecode('{"kind":"step_failed","index":1}'),
-      isNull,
-    );
-  });
+  test(
+    'a sentence, a cancellation and a half payload are not failed steps',
+    () {
+      expect(
+        DarkroomFailedStep.tryDecode('step 2 failed: stretch@1: bad'),
+        isNull,
+      );
+      expect(
+        DarkroomFailedStep.tryDecode(
+          '{"kind":"cancelled","renderId":"r","phase":"render"}',
+        ),
+        isNull,
+      );
+      expect(
+        DarkroomFailedStep.tryDecode('{"kind":"step_failed","index":1}'),
+        isNull,
+      );
+    },
+  );
 }

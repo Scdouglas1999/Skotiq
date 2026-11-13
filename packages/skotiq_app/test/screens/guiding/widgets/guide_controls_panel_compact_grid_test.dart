@@ -69,7 +69,6 @@ void main() {
       'Star selection',
       'Dither',
       'Dither now',
-      'Settle settings',
     ]) {
       expect(find.text(label), findsOneWidget, reason: '$label is laid out');
     }

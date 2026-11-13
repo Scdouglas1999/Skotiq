@@ -9,6 +9,7 @@ import '../../../localization/skotiq_localizations.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
 import '../night_tone_color.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Insets of a panel section, as on the boards (10 px top and bottom, 12 px
 /// at the sides).
@@ -541,7 +542,7 @@ class NightPanelLabel extends StatelessWidget {
   }
 }
 
-/// Runs a device command from a panel control. A failure shows as a toast
+/// Runs a device command from a panel control. A failure shows as a snackbar
 /// built from [errorKey] (a `{detail}` string); nothing is retried.
 Future<void> nightPanelAttempt(
   BuildContext context,
@@ -549,16 +550,13 @@ Future<void> nightPanelAttempt(
   Future<void> Function() action,
 ) async {
   final l10n = SkotiqLocalizations.of(context);
-  final overlay = Overlay.maybeOf(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
   try {
     await action();
   } catch (error) {
-    if (overlay == null || !overlay.mounted) return;
     final detail = userFacingError(error);
-    SkotiqToastHelper.showInOverlay(
-      overlay: overlay,
-      message: l10n.text(errorKey, params: <String, String>{'detail': detail}),
-      severity: SkotiqAlertSeverity.error,
+    messenger?.showErrorSnackBar(
+      l10n.text(errorKey, params: <String, String>{'detail': detail}),
     );
   }
 }

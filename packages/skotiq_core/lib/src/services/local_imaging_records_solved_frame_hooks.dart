@@ -23,7 +23,7 @@ Future<AtlasFoldSummary?> applyAtlasFoldDedup({
   required SkyAtlasService atlas,
   required int imageWidth,
   required int imageHeight,
-  SolvedWcsDistortion distortion = const SolvedWcsDistortion(),
+  StoredWcsDistortion? distortion,
 }) async {
   if (image.atlasFoldedAt != null) return null; // already folded — dedup
   final summary = await atlas.autoFoldCapturedImage(
@@ -95,46 +95,6 @@ Future<void> _driveCoImagingAutoContribute({
   }
 }
 
-/// The WCS the Pillar B ("First Light") difference scan runs a solved frame
-/// against.
-///
-/// `captured_images.solvedRa` is app-canonical **hours** on both the write side
-/// (the science pipeline persists `SolvedResult.raHours`) and every other read
-/// side, so the centre is carried across unconverted — it must land on the same
-/// sky tiles [SkyAtlasService.autoFoldCapturedImage] folds the frame into, and
-/// that builds its own centre from the identical column.
-///
-/// Callers guard `solvedRa`/`solvedDec`/`solvedPixelScale` before calling.
-@visibleForTesting
-SolvedWcs firstLightScanWcs({
-  required db.DbCapturedImage image,
-  required int imageWidth,
-  required int imageHeight,
-  required SolvedWcsDistortion distortion,
-  DecodedSip? sip,
-}) {
-  return SolvedWcs(
-    raHours: image.solvedRa!,
-    decDegrees: image.solvedDec!,
-    rotationDeg: image.solvedRotation ?? 0.0,
-    pixelScaleArcsec: image.solvedPixelScale!,
-    imageWidth: imageWidth,
-    imageHeight: imageHeight,
-    cd1_1: distortion.cd1_1,
-    cd1_2: distortion.cd1_2,
-    cd2_1: distortion.cd2_1,
-    cd2_2: distortion.cd2_2,
-    aOrder: sip?.aOrder ?? 0,
-    bOrder: sip?.bOrder ?? 0,
-    aCoeffs: sip?.aCoeffs ?? const [],
-    bCoeffs: sip?.bCoeffs ?? const [],
-    apOrder: sip?.apOrder ?? 0,
-    bpOrder: sip?.bpOrder ?? 0,
-    apCoeffs: sip?.apCoeffs ?? const [],
-    bpCoeffs: sip?.bpCoeffs ?? const [],
-  );
-}
-
 /// Run the Pillar B difference scan for a freshly-solved light frame, persist any
 /// transients, and feed the survivors to the active-session Narrator so its
 /// First Light detectors can announce them. Best-effort and self-contained: any
@@ -143,31 +103,10 @@ Future<void> _runFirstLightScan({
   required Ref ref,
   required LoggingService logger,
   required db.DbCapturedImage image,
-  required int imageWidth,
-  required int imageHeight,
-  required SolvedWcsDistortion distortion,
+  required SolvedWcs wcs,
 }) async {
   // Only difference real light frames (a solved flat/dark would be nonsense).
   if (!image.isLight) return;
-  final ra = image.solvedRa;
-  final dec = image.solvedDec;
-  final scale = image.solvedPixelScale;
-  if (ra == null || dec == null || scale == null || scale <= 0) return;
-
-  final sip = decodeSolvedSip(
-    await ref
-        .read(imagesDaoProvider)
-        .getStoredWcsDistortion(image.id)
-        .then((w) => w?.sip),
-  );
-  final wcs = firstLightScanWcs(
-    image: image,
-    imageWidth: imageWidth,
-    imageHeight: imageHeight,
-    distortion: distortion,
-    sip: sip,
-  );
-  if (!wcs.isValid) return;
 
   try {
     final rows = await ref

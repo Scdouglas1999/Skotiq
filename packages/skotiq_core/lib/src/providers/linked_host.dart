@@ -40,11 +40,7 @@ final linkedHostJobsProvider = linkedOnlyProvider((host) => host.jobs);
 
 final linkedHostUpdatesProvider = linkedOnlyProvider((host) => host.updates);
 
-final linkedHostScienceProvider = linkedOnlyProvider((host) => host.science);
-
 final linkedHostTransientsProvider = linkedOnlyProvider((host) => host.transients);
-
-final linkedHostSkyAtlasProvider = linkedOnlyProvider((host) => host.skyAtlas);
 
 final linkedHostControlProvider = linkedOnlyProvider((host) => host.control);
 
@@ -58,23 +54,13 @@ final linkedHostPostSessionProvider = linkedOnlyProvider((host) => host.postSess
 
 final linkedHostSequencesProvider = linkedOnlyProvider((host) => host.sequences);
 
-final linkedHostRuntimeMirrorProvider = linkedOnlyProvider((host) => host.runtimeMirror);
-
-final linkedHostSecondaryRigProvider = linkedOnlyProvider((host) => host.secondaryRig);
-
 final linkedHostPointingProvider = linkedOnlyProvider((host) => host.pointing);
 
 final linkedHostRigSettingsProvider = linkedOnlyProvider((host) => host.rigSettings);
 
-final linkedHostHistoryProvider = linkedOnlyProvider((host) => host.history);
-
-final linkedHostNotesProvider = linkedOnlyProvider((host) => host.notes);
-
 final linkedHostRunStateProvider = linkedOnlyProvider((host) => host.runState);
 
 final linkedHostCalibrationFramesProvider = linkedOnlyProvider((host) => host.calibrationFrames);
-
-final linkedHostReplayDebugProvider = linkedOnlyProvider((host) => host.replayDebug);
 
 final linkedHostWeatherProvider = linkedOnlyProvider((host) => host.weather);
 

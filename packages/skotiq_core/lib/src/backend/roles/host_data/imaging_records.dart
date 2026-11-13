@@ -1,5 +1,6 @@
 import '../../../models/imaging/session_status.dart';
-import '../../../database/daos/images_dao.dart' show ProducingNodeThumbnail;
+import '../../../database/daos/images_dao.dart'
+    show ProducingNodeThumbnail, StoredWcsDistortion;
 import '../../../database/database.dart'
     show CapturedImagesCompanion, DbCapturedImage, ImagingSession;
 
@@ -105,10 +106,7 @@ abstract interface class ImagingRecords {
 
   /// The stored CD matrix and SIP JSON of a solved frame. Null when the row
   /// is absent or the store is a linked host's, which does not serve them.
-  Future<
-    ({double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip})?
-  >
-  getStoredWcsDistortion(int id);
+  Future<StoredWcsDistortion?> getStoredWcsDistortion(int id);
 
   Future<void> stampProducingNode({
     required int imageId,

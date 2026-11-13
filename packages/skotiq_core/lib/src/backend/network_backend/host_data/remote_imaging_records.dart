@@ -2,7 +2,8 @@ import '../../../models/imaging/session_status.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart' show listEquals;
 
-import '../../../database/daos/images_dao.dart' show ProducingNodeThumbnail;
+import '../../../database/daos/images_dao.dart'
+    show ProducingNodeThumbnail, StoredWcsDistortion;
 import '../../../database/database.dart' as db;
 import '../../roles/host_data/host_imaging_records.dart';
 import '../../roles/host_data/imaging_records.dart';
@@ -214,10 +215,7 @@ final class RemoteImagingRecords implements ImagingRecords {
   void notifyGradedFrame(int id) {}
 
   @override
-  Future<
-    ({double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip})?
-  >
-  getStoredWcsDistortion(int id) async => null;
+  Future<StoredWcsDistortion?> getStoredWcsDistortion(int id) async => null;
 
   @override
   Future<void> stampProducingNode({

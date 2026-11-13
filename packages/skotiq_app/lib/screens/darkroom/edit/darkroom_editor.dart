@@ -46,6 +46,7 @@ import '../darkroom_measured_values.dart';
 import 'darkroom_image_library.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/darkroom_route.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'editor_parts/_image_surface.dart';
 part 'editor_parts/_viewport.dart';
@@ -233,11 +234,16 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   void _toast(String message, SkotiqAlertSeverity severity) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: message,
-        severity: severity,
-      );
+      switch (severity) {
+        case SkotiqAlertSeverity.error:
+          context.showErrorSnackBar(message);
+        case SkotiqAlertSeverity.warning:
+          context.showWarningSnackBar(message);
+        case SkotiqAlertSeverity.success:
+          context.showSuccessSnackBar(message);
+        case SkotiqAlertSeverity.info:
+          context.showInfoSnackBar(message);
+      }
     });
   }
 

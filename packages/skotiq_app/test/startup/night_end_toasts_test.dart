@@ -44,7 +44,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('NGC 891: masters ready from 2 nights.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(seconds: 11));
   });
 }

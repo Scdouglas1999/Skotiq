@@ -16,6 +16,7 @@ pub mod event_stream;
 pub mod finishing_analyze;
 pub mod finishing_combine;
 pub mod finishing_enhance;
+pub mod frame_file;
 pub mod guiding;
 pub mod heartbeat;
 // `pub(crate)` not `pub`: keep this submodule's name out of the crate-root

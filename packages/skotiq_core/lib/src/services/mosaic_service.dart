@@ -420,19 +420,39 @@ class MosaicService {
     int? Function(int panelIndex)? panelTargetId,
   }) {
     final panels = generatePanels(config);
+    return sequenceForPanels(
+      mosaicName: mosaicName,
+      panels: options.serpentineOrdering
+          ? _applySerpentineOrdering(panels, config.panelsHorizontal)
+          : panels,
+      rotation: config.rotation,
+      exposure: exposure,
+      options: options,
+      panelTargetId: panelTargetId,
+    );
+  }
+
+  /// The mosaic's sequence for [panels] already in capture order: one
+  /// [TargetHeaderNode] per panel, as [panelHeader] names and gates it, with
+  /// its slew, centering and exposures, under one [InstructionSetNode] named
+  /// [mosaicName]. [MosaicSequenceOptions.serpentineOrdering] is the caller's
+  /// to have applied.
+  Map<String, SequenceNode> sequenceForPanels({
+    required String mosaicName,
+    required List<MosaicPanel> panels,
+    required double rotation,
+    required MosaicExposureSettings exposure,
+    MosaicSequenceOptions options = const MosaicSequenceOptions(),
+    int? Function(int panelIndex)? panelTargetId,
+  }) {
     final nodes = <String, SequenceNode>{};
     const uuid = Uuid();
     final rootId = uuid.v4();
 
-    // Reorder panels if using serpentine ordering
-    final orderedPanels = options.serpentineOrdering
-        ? _applySerpentineOrdering(panels, config.panelsHorizontal)
-        : panels;
-
     final targetGroupIds = <String>[];
 
-    for (var i = 0; i < orderedPanels.length; i++) {
-      final panel = orderedPanels[i];
+    for (var i = 0; i < panels.length; i++) {
+      final panel = panels[i];
       final targetGroupId = uuid.v4();
       final childIds = <String>[];
 
@@ -530,26 +550,19 @@ class MosaicService {
         );
       }
 
-      nodes[targetGroupId] = TargetHeaderNode(
-        id: targetGroupId,
-        name: 'Panel ${panel.panelIndex + 1} [${panel.row},${panel.col}]',
-        targetName: '$mosaicName Panel ${panel.panelIndex + 1}',
-        raHours: panel.raHours,
-        decDegrees: panel.decDegrees,
-        rotation: config.rotation != 0.0 ? config.rotation : null,
-        priority: i,
+      nodes[targetGroupId] = panelHeader(
+        mosaicName: mosaicName,
+        panel: panel,
+        order: i,
+        totalPanels: panels.length,
+        rotation: rotation,
         minAltitude: options.minAltitude,
         maxAltitude: options.maxAltitude,
-        mosaicPanel: MosaicPanelInfo(
-          mosaicName: mosaicName,
-          panelIndex: panel.panelIndex,
-          totalPanels: panels.length,
-          row: panel.row,
-          column: panel.col,
-        ),
         // Stamp the panel's own capture target so frames written under this
         // header attribute to the per-panel `targets` row, not a shared one.
         catalogTargetId: panelTargetId?.call(panel.panelIndex),
+      ).copyWith(
+        id: targetGroupId,
         childIds: childIds,
         parentId: rootId,
         orderIndex: i,
@@ -565,6 +578,43 @@ class MosaicService {
     );
 
     return nodes;
+  }
+
+  /// The target header of one mosaic panel, without children: the one
+  /// definition of a panel's name, target name, mosaic identity (stamped
+  /// into its frames' FITS headers), rotation and altitude gate. [order] is
+  /// the panel's place in capture order. A bare header is what a drawn
+  /// mosaic adds to a sequence the operator is building; [sequenceForPanels]
+  /// gives the same header its slew, centering and exposures.
+  TargetHeaderNode panelHeader({
+    required String mosaicName,
+    required MosaicPanel panel,
+    required int order,
+    required int totalPanels,
+    required double rotation,
+    double? minAltitude,
+    double? maxAltitude,
+    int? catalogTargetId,
+  }) {
+    final name = '$mosaicName Panel ${panel.panelIndex + 1}';
+    return TargetHeaderNode(
+      name: name,
+      targetName: name,
+      raHours: panel.raHours,
+      decDegrees: panel.decDegrees,
+      rotation: rotation != 0.0 ? rotation : null,
+      priority: order,
+      minAltitude: minAltitude,
+      maxAltitude: maxAltitude,
+      mosaicPanel: MosaicPanelInfo(
+        mosaicName: mosaicName,
+        panelIndex: panel.panelIndex,
+        totalPanels: totalPanels,
+        row: panel.row,
+        column: panel.col,
+      ),
+      catalogTargetId: catalogTargetId,
+    );
   }
 
   /// Apply serpentine (snake) ordering to panels to minimize slew distance

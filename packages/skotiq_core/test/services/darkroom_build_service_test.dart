@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
@@ -63,12 +64,12 @@ void main() {
       tagsDao: CalibrationTagsDao(db),
     ),
     masters: IntegratedMastersDao(db),
-    readHeader: (_) async => {
+    readHeader: (_) async => FrameHeader({
       'INSTRUME': 'ZWO ASI2600MM Pro',
       'TELESCOP': 'RedCat 51',
-      'NAXIS1': '100',
-      'NAXIS2': '80',
-    },
+      'NAXIS1': 100,
+      'NAXIS2': 80,
+    }),
     operation: native.call,
     processingSettings: processingSettings,
   );
@@ -386,13 +387,13 @@ void main() {
           ),
           masters: IntegratedMastersDao(db),
           flatLibrary: flatDao,
-          readHeader: (path) async => {
-            'FILTER': "'Ha      '",
-            'GAIN': '76.',
-            'OFFSET': '15',
-            'XBINNING': '2',
-            'YBINNING': '2',
-          },
+          readHeader: (path) async => FrameHeader({
+            'FILTER': 'Ha',
+            'GAIN': 76.0,
+            'OFFSET': 15,
+            'XBINNING': 2,
+            'YBINNING': 2,
+          }),
           buildFlat: (args) async => {
             'width': 100,
             'height': 80,
@@ -423,7 +424,8 @@ void main() {
             tagsDao: CalibrationTagsDao(db),
           ),
           masters: IntegratedMastersDao(db),
-          readHeader: (_) async => {'NAXIS1': '$width', 'NAXIS2': '$height'},
+          readHeader: (_) async =>
+              FrameHeader({'NAXIS1': width, 'NAXIS2': height}),
           operation: native.call,
           freeSpace: (directory) async {
             asked.add(directory);

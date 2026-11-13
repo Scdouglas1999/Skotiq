@@ -100,35 +100,6 @@ abstract interface class NightRigOps {
 
 final nightRigOpsProvider = Provider<NightRigOps>(ServiceNightRigOps.new);
 
-/// The centering Center runs, from the settings and the active profile, so
-/// the Solve tab shows the tolerance and attempts Center really uses.
-CenteringConfig nightCenteringConfig({
-  required AppSettingsState settings,
-  required EquipmentProfileModel? profile,
-}) {
-  final exposure = profile?.defaultCenteringExposure;
-  // As the slew-and-center dialog builds it.
-  return CenteringConfig(
-    maxIterations: 5,
-    toleranceArcsec: 30.0,
-    exposureTime: exposure != null && exposure > 0 ? exposure : 5.0,
-    binning: profile?.defaultBinX ?? 2,
-    gain: profile?.defaultGain,
-    offset: profile?.defaultOffset,
-    syncMount: settings.centeringSyncMount,
-  );
-}
-
-/// [nightCenteringConfig] for the current settings; null until they load.
-final nightCenteringConfigProvider = Provider<CenteringConfig?>((ref) {
-  final settings = ref.watch(appSettingsProvider).valueOrNull;
-  if (settings == null) return null;
-  return nightCenteringConfig(
-    settings: settings,
-    profile: ref.watch(activeEquipmentProfileProvider),
-  );
-});
-
 class ServiceNightRigOps implements NightRigOps {
   ServiceNightRigOps(this._ref);
 
@@ -252,18 +223,15 @@ class ServiceNightRigOps implements NightRigOps {
 
   @override
   Future<CenteringResult> center(NightCenterTarget target) async {
-    final settings = await _ref.read(appSettingsProvider.future);
+    final centering = ManualCentering.of(
+      await _ref.read(appSettingsProvider.future),
+      _ref.read(activeEquipmentProfileProvider),
+    );
     final result = await _ref.read(centeringServiceProvider).centerOnTarget(
           targetRa: target.raHours,
           targetDec: target.decDegrees,
-          solverConfig: PlateSolverConfig(
-            timeoutSeconds: settings.plateSolveTimeout,
-            searchRadius: settings.plateSolveSearchRadius,
-          ),
-          config: nightCenteringConfig(
-            settings: settings,
-            profile: _ref.read(activeEquipmentProfileProvider),
-          ),
+          solverConfig: centering.solver,
+          config: centering.config,
           onStatusUpdate: (status) =>
               _ref.read(centeringStatusProvider.notifier).state = status,
         );

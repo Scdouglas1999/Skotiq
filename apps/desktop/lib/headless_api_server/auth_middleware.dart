@@ -309,10 +309,11 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             '[AUTH][$requestId] Rejected request to $path - invalid token',
           );
           return jsonForbidden(
-            {
-              'error': 'Access denied',
-              'message': ApiErrorBody.invalidTokenMessage,
-            },
+            const ApiErrorBody(
+              code: ApiErrorBody.invalidToken,
+              message: 'Invalid authentication token',
+              layout: ApiErrorLayout.codeAsError,
+            ).toJson(),
             headers: {HeadlessApiServer._requestIdHeader: requestId},
           );
         }

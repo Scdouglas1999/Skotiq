@@ -18,7 +18,7 @@
 //      [TailscaleSetupResult] for the caller to actually connect + persist.
 //
 // It deliberately does NOT perform the connect itself: main.dart owns the
-// canonical `_connectToServer` path (fetchServerInfo → pairing →
+// canonical `connectToRig` path (fetchServerInfo → pairing →
 // testServerConnection → BackendNotifier.connect → saveLastServer), and
 // duplicating that here would fork the pairing/compatibility logic. The
 // sheet is a focused data-collection step that hands a validated target

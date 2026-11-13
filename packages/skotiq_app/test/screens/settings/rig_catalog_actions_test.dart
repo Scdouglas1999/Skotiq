@@ -279,8 +279,11 @@ void main() {
       available: const [_availableStars],
     );
     when(() => backend.downloadCatalog('stars')).thenThrow(
-      Exception('Access denied: Token scope is not permitted for this '
-          'endpoint'),
+      const ServerError(
+        code: 'insufficient_scope',
+        message: 'Token scope is not permitted for this endpoint',
+        httpStatus: 403,
+      ),
     );
     await _pump(tester, backend);
 
@@ -290,6 +293,35 @@ void main() {
 
     expect(find.textContaining('Admin access'), findsOneWidget);
     expect(find.textContaining('Token scope is not permitted'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a token the rig no longer knows is not called a scope problem',
+      (tester) async {
+    final backend = _MockNetworkBackend();
+    _stubCatalogs(
+      backend,
+      status: const [_missingStars],
+      available: const [_availableStars],
+    );
+    // What the transport throws once the rig has refused this token.
+    when(() => backend.downloadCatalog('stars')).thenThrow(
+      const ServerError(
+        code: 'invalid_token',
+        message:
+            'Access denied: Invalid authentication token (not retried — '
+            'the host rejected this token)',
+        httpStatus: 403,
+      ),
+    );
+    await _pump(tester, backend);
+
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Download'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('Admin access'), findsNothing);
+    expect(find.textContaining('Invalid authentication token'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

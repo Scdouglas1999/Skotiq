@@ -207,21 +207,25 @@ void main() {
   test('isAccessLevelRefusal recognizes the host refusing a low scope', () {
     expect(
       isAccessLevelRefusal(
-        SkotiqError.fromString(
-          'Access denied: Token scope is not permitted for this endpoint: '
-          'this credential holds control on filesystem, and admin is '
-          'required.',
-        ),
+        ServerError.tryFromJson(const {
+          'error': 'insufficient_scope',
+          'code': 'insufficient_scope',
+          'message': 'Token scope is not permitted for this endpoint',
+          'requiredResource': 'filesystem',
+          'requiredLevel': 'admin',
+        }, httpStatus: 403),
       ),
       isTrue,
     );
+    // A token the host does not know is also a 403, and needs a new pairing,
+    // not a higher access level.
     expect(
       isAccessLevelRefusal(
-        const ServerError(
-          code: 'invalid_auth_token',
-          message: 'Access denied: Invalid authentication token',
-          httpStatus: 403,
-        ),
+        ServerError.tryFromJson(const {
+          'error': 'invalid_token',
+          'code': 'invalid_token',
+          'message': 'Invalid authentication token',
+        }, httpStatus: 403),
       ),
       isFalse,
     );

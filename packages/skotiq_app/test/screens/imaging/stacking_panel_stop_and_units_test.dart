@@ -136,7 +136,7 @@ Future<_Harness> _pumpPanel(
           saveMaster: (path) => service.saveMaster(filePath: path),
           writePreview: (_, __) async {},
           masters: ref.watch(integratedMastersDaoProvider),
-          readHeader: (_) async => const {'OBJECT': "'M 31'"},
+          readHeader: (_) async => FrameHeader(const {'OBJECT': 'M 31'}),
         );
       }),
       liveStackingProvider.overrideWith((ref) {
