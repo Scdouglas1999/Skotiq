@@ -1788,7 +1788,7 @@ async fn a_run_failed_by_its_meridian_flip_names_the_flip() {
 /// ended at the old site's dawn (live check, 2026-11-02).
 #[tokio::test]
 async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
     executor
         .update_trigger_state(|ts| {
             ts.set_observer_location(Some(37.97), Some(23.72));
@@ -1797,7 +1797,7 @@ async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
         .await;
     let (tx, rx) = tokio::sync::mpsc::channel(1);
     drop(rx);
-    executor.command_tx = Some(tx);
+    executor.commands.set(Some(tx));
 
     executor
         .handle()

@@ -114,7 +114,7 @@ pub struct SequenceExecutor {
     sequence: Option<SequenceDefinition>,
     /// The executor state, the progress snapshot and the event stream.
     run_state: RunCell,
-    command_tx: Option<mpsc::Sender<ExecutorCommand>>,
+    commands: RunCommands,
     /// Turns true when the spawned run has ended: instruction cancellation
     /// cleanup (including camera exposure abort), the stopping phase and
     /// terminal event emission are finished. Every stop request waits on it
@@ -214,7 +214,7 @@ impl SequenceExecutor {
         Self {
             sequence: None,
             run_state: RunCell::new(event_tx),
-            command_tx: None,
+            commands: RunCommands::default(),
             run_completion_rx: None,
             is_cancelled: Arc::new(AtomicBool::new(false)),
             root_node: None,
@@ -292,6 +292,9 @@ impl SequenceExecutor {
             run_state: self.run_state.clone(),
             settings: self.settings.clone(),
             trigger_manager: self.trigger_manager.clone(),
+            commands: self.commands.clone(),
+            decision_tx: self.decision_tx.clone(),
+            active_sequence_run_id: self.active_sequence_run_id.clone(),
         }
     }
 
@@ -339,6 +342,29 @@ pub struct ExecutorHandle {
     run_state: RunCell,
     settings: RunConfigStore,
     trigger_manager: Arc<RwLock<TriggerManager>>,
+    commands: RunCommands,
+    decision_tx: crate::decision::DecisionSender,
+    active_sequence_run_id: Arc<StdRwLock<Option<i64>>>,
+}
+
+/// The command channel of the run in progress, `None` between runs. The
+/// executor and its handle share it, so a run can be told something without
+/// taking the executor.
+#[derive(Clone, Default)]
+pub(crate) struct RunCommands(Arc<StdRwLock<Option<mpsc::Sender<ExecutorCommand>>>>);
+
+impl RunCommands {
+    pub(crate) fn sender(&self) -> Option<mpsc::Sender<ExecutorCommand>> {
+        self.0.read().clone()
+    }
+
+    pub(crate) fn set(&self, sender: Option<mpsc::Sender<ExecutorCommand>>) {
+        *self.0.write() = sender;
+    }
+
+    pub(crate) fn take(&self) -> Option<mpsc::Sender<ExecutorCommand>> {
+        self.0.write().take()
+    }
 }
 
 impl ExecutorHandle {

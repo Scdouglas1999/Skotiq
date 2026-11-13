@@ -246,14 +246,13 @@ impl MountOps for UnifiedDeviceOps {
 
     async fn request_mount_fault_hold(&self, mount_id: &str, message: &str) {
         tracing::warn!("[MOTION GUARD] {mount_id}: {message}");
-        let message = message.to_string();
-        // The executor lock is not taken from inside the run's own task.
-        tokio::spawn(async move {
-            let executor = skotiq_sequencer::get_executor().read().await;
-            if let Err(e) = executor.hold_for_mount_fault(&message).await {
-                tracing::error!("[MOTION GUARD] Could not hold the run: {e}");
-            }
-        });
+        let ops: skotiq_sequencer::SharedDeviceOps = std::sync::Arc::new(Self::new(self.app_state.clone()));
+        if let Err(e) = skotiq_sequencer::executor_handle()
+            .hold_for_mount_fault(message, &ops)
+            .await
+        {
+            tracing::error!("[MOTION GUARD] Could not hold the run: {e}");
+        }
     }
 }
 

@@ -259,10 +259,10 @@ async fn bounded<E: std::fmt::Display>(
 /// stop the guider directly. Returns whether a run was paused. The run
 /// announces its own pause when its state turns Paused.
 async fn hold_run_or_stop_guiding(message: &str) -> bool {
-    let held = {
-        let executor = skotiq_sequencer::get_executor().read().await;
-        executor.hold_for_mount_fault(message).await
-    };
+    let ops = crate::unified_device_ops::create_unified_device_ops();
+    let held = skotiq_sequencer::executor_handle()
+        .hold_for_mount_fault(message, &ops)
+        .await;
     match held {
         Ok(true) => true,
         Ok(false) => {

@@ -560,7 +560,7 @@ async fn stop_waits_for_executor_cleanup_acknowledgment() {
     let (command_tx, mut command_rx) = mpsc::channel(1);
     let (completion_tx, completion_rx) = tokio::sync::watch::channel(false);
     let cleanup_confirmed = Arc::new(AtomicBool::new(false));
-    executor.command_tx = Some(command_tx);
+    executor.commands.set(Some(command_tx));
     executor.run_completion_rx = Some(completion_rx);
 
     let cancellation = executor.is_cancelled.clone();
@@ -585,7 +585,7 @@ async fn stop_waits_for_executor_cleanup_acknowledgment() {
         cleanup_confirmed.load(Ordering::Acquire),
         "stop() must not return before executor cleanup is acknowledged"
     );
-    assert!(executor.command_tx.is_none());
+    assert!(executor.commands.sender().is_none());
 }
 
 /// `terminate_with` must always set the cancellation flag
