@@ -155,14 +155,33 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   /// database) outlives any transient message, and the restart is the operator's
   /// to perform. Written to [restoreRestartNoticeProvider] rather than to this
   /// [State] so leaving the screen does not clear it.
-  void _announceRestore(int itemsRestored, {required bool remote}) {
-    ref.read(restoreRestartNoticeProvider.notifier).state = remote
+  /// [notRestored] is what the merge kept out and why
+  /// ([RestoreResult.notRestoredNotice]).
+  void _announceRestore(
+    int itemsRestored, {
+    required bool remote,
+    String? notRestored,
+  }) {
+    final restart = remote
         ? 'Restored $itemsRestored items to the imaging host. Restart the '
             'host before the next run — until then it is running on the '
             'state it had before the restore.'
         : 'Restored $itemsRestored items. Restart Skotiq before the next '
             'run — until then this app is showing the state it had before '
             'the restore.';
+    ref.read(restoreRestartNoticeProvider.notifier).state =
+        notRestored == null ? restart : '$restart $notRestored';
+  }
+
+  /// The kept-out rows a linked host reports with its restore.
+  static String? _hostNotRestored(Map<String, dynamic> result) {
+    final rows = result['notRestored'];
+    return rows is Map
+        ? restoreNotRestoredNotice({
+            for (final MapEntry(:key, :value) in rows.entries)
+              if (key is String && value is int) key: value,
+          })
+        : null;
   }
 
   void _refreshAfterRestore() {
@@ -291,7 +310,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         final restored = result['itemsRestored'] as int? ?? 0;
         if (!mounted || !_backendStillMatches(token)) return;
         _refreshAfterRestore();
-        _announceRestore(restored, remote: true);
+        _announceRestore(
+          restored,
+          remote: true,
+          notRestored: _hostNotRestored(result),
+        );
       } else {
         final result = await ref.read(backupServiceProvider).restoreBackup(
               filePath: backup.filePath,
@@ -302,7 +325,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         }
         if (!mounted || !_backendStillMatches(token)) return;
         _refreshAfterRestore();
-        _announceRestore(result.itemsRestored, remote: false);
+        _announceRestore(
+          result.itemsRestored,
+          remote: false,
+          notRestored: result.notRestoredNotice,
+        );
       }
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
@@ -336,6 +363,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       if (_rejectRestoreDuringActiveRun()) return;
 
       int restored;
+      String? notRestored;
       if (backend.remoteHost case final linkedHost?) {
         final bytes = await ref.read(backupImportReaderProvider)(file);
         if (!_isCurrentImport(generation, token)) return;
@@ -347,6 +375,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           throw Exception(result['error'] ?? 'Restore failed');
         }
         restored = result['itemsRestored'] as int? ?? 0;
+        notRestored = _hostNotRestored(result);
       } else {
         final result = await ref.read(backupServiceProvider).restoreBackup(
               filePath: file.path,
@@ -356,11 +385,16 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           throw Exception(result.errorMessage ?? 'Restore failed');
         }
         restored = result.itemsRestored;
+        notRestored = result.notRestoredNotice;
       }
 
       if (!mounted || !_isCurrentImport(generation, token)) return;
       _refreshAfterRestore();
-      _announceRestore(restored, remote: backend.remoteHost != null);
+      _announceRestore(
+        restored,
+        remote: backend.remoteHost != null,
+        notRestored: notRestored,
+      );
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_isCurrentImport(generation, token)) return;

@@ -23,13 +23,38 @@ class RestoreResult {
   final int itemsRestored;
   final Map<String, int> categoryCounts;
 
+  /// Backup rows a merge kept out, by table: the database already holds a
+  /// different row under the same key, or such a row is the one they belong
+  /// to. They stay in the backup file.
+  final Map<String, int> notRestored;
+
   const RestoreResult({
     required this.success,
     this.errorMessage,
     required this.timestamp,
     this.itemsRestored = 0,
     this.categoryCounts = const {},
+    this.notRestored = const {},
   });
+
+  /// What a merge kept out and why, for the operator; null when it kept
+  /// nothing out.
+  String? get notRestoredNotice => restoreNotRestoredNotice(notRestored);
+}
+
+/// [RestoreResult.notRestoredNotice] for [notRestored] (table to rows), also
+/// for a restore result read from a linked host.
+String? restoreNotRestoredNotice(Map<String, int> notRestored) {
+  final total = notRestored.values.fold<int>(0, (sum, n) => sum + n);
+  if (total == 0) return null;
+  final tables = [
+    for (final MapEntry(key: table, value: rows) in notRestored.entries)
+      '${table.replaceAll('_', ' ')} $rows',
+  ].join(', ');
+  return '$total backup ${total == 1 ? 'row was' : 'rows were'} not restored '
+      '($tables): this database already holds a different record under the '
+      'same id, or one is the record they belong to, and a merge never '
+      'replaces or re-links your records. They are still in the backup file.';
 }
 
 class BackupMetadata {
