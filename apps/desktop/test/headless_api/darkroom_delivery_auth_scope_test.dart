@@ -23,6 +23,7 @@ import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 
 class _Reply {
   final int statusCode;
@@ -82,11 +83,11 @@ void main() {
         // A token that holds `system` and nothing else. Before the fix this
         // reached the delivery surface, because the surface WAS `system`.
         'system-only-token': HeadlessAuthGrant.forResources(const {
-          HeadlessResource.system: HeadlessAccessLevel.control,
+          ApiResource.system: HeadlessAccessLevel.control,
         }),
         // A token scoped to exactly the surface it is meant to use.
         'darkroom-token': HeadlessAuthGrant.forResources(const {
-          HeadlessResource.darkroom: HeadlessAccessLevel.control,
+          ApiResource.darkroom: HeadlessAccessLevel.control,
         }),
       },
     );

@@ -115,6 +115,28 @@ void main() {
     });
   });
 
+  group('ApiResource.tryParse', () {
+    test('reads every resource by the name grants and 403 bodies use', () {
+      for (final resource in ApiResource.values) {
+        expect(ApiResource.tryParse(resource.wireName), resource);
+      }
+    });
+
+    test('reads the other spellings a grant spec may use', () {
+      expect(ApiResource.tryParse(' FilterWheel '), ApiResource.filterWheel);
+      expect(ApiResource.tryParse('guider'), ApiResource.guiding);
+      expect(ApiResource.tryParse('weather'), ApiResource.safety);
+      expect(ApiResource.tryParse('files'), ApiResource.filesystem);
+      expect(ApiResource.tryParse('co-imaging'), ApiResource.coimaging);
+      expect(ApiResource.tryParse('collaboration'), ApiResource.constellation);
+    });
+
+    test('reads nothing else', () {
+      expect(ApiResource.tryParse('telescope'), isNull);
+      expect(ApiResource.tryParse(null), isNull);
+    });
+  });
+
   group('requests that match no route', () {
     test('are held to their verb on the path’s resource', () {
       final wrongVerb = apiRouteIndex.policyFor('GET', '/api/mount/slew');
