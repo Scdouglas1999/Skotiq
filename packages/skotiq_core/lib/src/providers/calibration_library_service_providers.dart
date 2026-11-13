@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'host_role.dart';
 import 'package:path/path.dart' as p;
-import '../backend/remote_host.dart';
 import '../backend/roles/host_data/calibration_library.dart';
 import 'database_provider.dart';
 import 'backend_provider.dart';
@@ -11,10 +11,9 @@ import '../services/calibration_library_service.dart';
 
 /// The calibration library of whichever machine is the imaging host: this
 /// process's own ([calibrationLibraryServiceProvider]), or the linked host's.
-final calibrationLibraryProvider = Provider<CalibrationLibrary>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.calibrationLibrary ??
-      ref.watch(calibrationLibraryServiceProvider),
+final calibrationLibraryProvider = hostRoleProvider<CalibrationLibrary>(
+  here: (ref) => ref.watch(calibrationLibraryServiceProvider),
+  linked: (ref, host) => host.calibrationLibrary,
 );
 
 /// The calibration library in this process's database.

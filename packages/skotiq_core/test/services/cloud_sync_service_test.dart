@@ -282,7 +282,7 @@ void main() {
       final service = SyncService(
         backupService: BackupService(
           database: database,
-          sequenceRepository: SequenceRepository(database.sequencesDao),
+          sequenceRepository: LocalSequenceRepository(database.sequencesDao),
           logger: logger,
           appVersion: '5.0.0-test',
         ),
@@ -557,7 +557,7 @@ void main() {
       service = SyncService(
         backupService: BackupService(
           database: db,
-          sequenceRepository: SequenceRepository(db.sequencesDao),
+          sequenceRepository: LocalSequenceRepository(db.sequencesDao),
           logger: logger,
         ),
         settingsDao: dao,
@@ -796,7 +796,7 @@ void main() {
       return SyncService(
         backupService: BackupService(
           database: database,
-          sequenceRepository: SequenceRepository(database.sequencesDao),
+          sequenceRepository: LocalSequenceRepository(database.sequencesDao),
           logger: logger,
         ),
         settingsDao: SettingsDao(database),

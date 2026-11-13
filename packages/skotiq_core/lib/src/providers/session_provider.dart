@@ -10,7 +10,7 @@ import 'equipment/camera_state_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
 import 'equipment/focuser_state_provider.dart';
 import 'imaging_provider.dart' show exposureSettingsProvider;
-import '../services/imaging_records_repository.dart';
+import '../services/local_imaging_records.dart';
 import '../services/quick_start_service.dart' show quickStartServiceProvider;
 import '../services/session_service.dart';
 import '../database/daos/sequence_checkpoints_dao.dart';
@@ -253,7 +253,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
         focuserPosition: capture?.focuserPosition,
       );
       await _ref
-          .read(imagingRecordsRepositoryProvider)
+          .read(imagingRecordsProvider)
           .updateEquipmentSnapshot(sessionId, snapshot.toJsonString());
     } catch (e) {
       _ref
@@ -501,7 +501,7 @@ final sessionServiceProvider = Provider<SessionService>((ref) {
   // by SessionService honor the user's TZ override
   final clock = ref.watch(clockProvider);
   final service = SessionService(
-    records: ref.watch(imagingRecordsRepositoryProvider),
+    records: ref.watch(imagingRecordsProvider),
     checkpointsDao: ref.watch(sequenceCheckpointsDaoProvider),
     logger: ref.watch(loggingServiceProvider),
     nowProvider: clock.now,

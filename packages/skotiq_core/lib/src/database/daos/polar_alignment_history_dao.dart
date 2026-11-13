@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../models/polar_alignment_config.dart';
+import '../../backend/roles/host_data/polar_alignment_log.dart';
 import '../database.dart';
 import '../tables/polar_alignment_history.dart';
 
@@ -10,7 +11,8 @@ part 'polar_alignment_history_dao.g.dart';
 
 @DriftAccessor(tables: [PolarAlignmentHistory])
 class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$PolarAlignmentHistoryDaoMixin {
+    with _$PolarAlignmentHistoryDaoMixin
+    implements PolarAlignmentLog{
   PolarAlignmentHistoryDao(super.db);
 
   Future<int> insertResult(PolarAlignmentResult result) {
@@ -36,6 +38,7 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
   ///
   /// If [profileId] is null, returns all history entries.
   /// Results are ordered by completion time, most recent first.
+  @override
   Future<List<PolarAlignmentHistoryEntry>> getHistoryForProfile(
     int? profileId, {
     int limit = 20,
@@ -51,6 +54,7 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
     return query.get();
   }
 
+  @override
   Future<PolarAlignmentHistoryEntry?> getLastAlignment(int? profileId) async {
     final query = select(polarAlignmentHistory)
       ..orderBy([(t) => OrderingTerm.desc(t.completedAt)])
@@ -64,6 +68,7 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
     return results.isEmpty ? null : results.first;
   }
 
+  @override
   Stream<List<PolarAlignmentHistoryEntry>> watchHistory(
     int? profileId, {
     int limit = 20,

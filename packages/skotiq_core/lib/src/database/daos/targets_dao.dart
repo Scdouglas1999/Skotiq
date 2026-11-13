@@ -56,6 +56,7 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     return (delete(targets)..where(_untrackedPredicate)).go();
   }
 
+  @override
   Future<List<DbTarget>> getAllTargets() => select(targets).get();
 
   @override

@@ -17,7 +17,7 @@ class _FixedBackendNotifier extends BackendNotifier {
 }
 
 void main() {
-  group('SequenceRepository.remote', () {
+  group('RemoteSequenceRepository', () {
     late _MockNetworkBackend backend;
     late ProviderContainer container;
 

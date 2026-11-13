@@ -1,8 +1,6 @@
-import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend/host_data/remote_host_records.dart';
-import '../backend/remote_host.dart';
+import 'host_role.dart';
 import '../backend/roles/host_data/host_records.dart';
 import '../database/database.dart' as db;
 import '../database/daos/equipment_profiles_dao.dart';
@@ -33,9 +31,9 @@ import '../database/daos/sky_atlas_dao.dart';
 import '../database/daos/stacked_results_dao.dart';
 import '../database/daos/transient_detections_dao.dart';
 import '../database/daos/tutorial_progress_dao.dart';
-import '../services/imaging_records_repository.dart';
-import 'backend_provider.dart';
+import '../services/local_imaging_records.dart';
 import 'host_settings/host_settings_providers.dart';
+import 'captured_image_rows.dart';
 
 export 'project_tracking_provider.dart';
 
@@ -173,31 +171,28 @@ final transientDetectionsDaoProvider = Provider<TransientDetectionsDao>((ref) {
 });
 
 /// The saved targets of whichever machine is the imaging host.
-final targetLibraryProvider = Provider<TargetLibrary>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(targetsDaoProvider),
+final targetLibraryProvider = hostRoleProvider<TargetLibrary>(
+  here: (ref) => ref.watch(targetsDaoProvider),
+  linked: (ref, host) => host.records,
 );
 
 /// The saved sequences of whichever machine is the imaging host.
-final sequenceLibraryProvider = Provider<SequenceLibrary>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(sequencesDaoProvider),
+final sequenceLibraryProvider = hostRoleProvider<SequenceLibrary>(
+  here: (ref) => ref.watch(sequencesDaoProvider),
+  linked: (ref, host) => host.records,
 );
 
 /// The equipment profiles of whichever machine is the imaging host.
-final equipmentProfileLibraryProvider = Provider<EquipmentProfileLibrary>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(equipmentProfilesDaoProvider),
-);
+final equipmentProfileLibraryProvider =
+    hostRoleProvider<EquipmentProfileLibrary>(
+      here: (ref) => ref.watch(equipmentProfilesDaoProvider),
+      linked: (ref, host) => host.records,
+    );
 
 /// The recorded sessions of whichever machine is the imaging host.
-final sessionHistoryProvider = Provider<SessionHistory>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(sessionsDaoProvider),
+final sessionHistoryProvider = hostRoleProvider<SessionHistory>(
+  here: (ref) => ref.watch(sessionsDaoProvider),
+  linked: (ref, host) => host.records,
 );
 
 // Convenience providers for watching data
@@ -227,222 +222,17 @@ final allSessionsProvider = StreamProvider<List<db.ImagingSession>>((ref) {
   return ref.watch(sessionHistoryProvider).watchAllSessions();
 });
 
-final allDbImagesProvider = StreamProvider<List<db.DbCapturedImage>>((ref) {
-  final rows = ref.watch(remoteImageRowsProvider);
-  if (rows != null) return rows.watch();
-  return ref.watch(imagesDaoProvider).watchAllImages();
-});
-
-/// Whether the imaging host has stored any frame.
-final hasCapturedImagesProvider = Provider<AsyncValue<bool>>((ref) {
-  if (ref.watch(remoteImageRowsProvider) != null) {
-    // A linked client already holds the host's rows.
-    return ref.watch(allDbImagesProvider).whenData((rows) => rows.isNotEmpty);
-  }
-  return ref.watch(_localHasCapturedImagesProvider);
-});
-
-final _localHasCapturedImagesProvider = StreamProvider<bool>(
-  (ref) => ref.watch(imagesDaoProvider).watchHasAnyImage(),
+final allDbImagesProvider = StreamProvider<List<db.DbCapturedImage>>(
+  (ref) => ref.watch(capturedImageRowsProvider).watchAll(),
 );
 
-/// A linked client's copy of the imaging host's `captured_images` rows; null
-/// on a process with its own database.
-final remoteImageRowsProvider = Provider<RemoteImageRows?>((ref) {
-  final host = ref.watch(backendProvider).remoteHost?.imagingRecords;
-  if (host == null) return null;
-  final rows = RemoteImageRows(
-    poll: () => pollHostImageRows(host),
-    fetchRow: host.getCapturedImageById,
-    fetchSessionRows: host.getSessionImageRows,
-  );
-  ref.onDispose(rows.dispose);
-  return rows;
-});
-
-/// The host's captured-image rows on a linked client.
-///
-/// The whole table is polled every 30 s, which put a new frame's row (its
-/// frame number, verdict and HFR) on a client's frame strip and session list
-/// a mean 15 s after the host's, in jumps of several frames. A frame the host
-/// announces is fetched at once instead: [addRows] for the ids of the host's
-/// session list, [refreshSessionOf] for a saved frame with no row here yet.
-/// The poll still runs, so a row the host changes later (a verdict, a solve)
-/// arrives within one cycle.
-class RemoteImageRows {
-  RemoteImageRows({
-    required Stream<List<db.DbCapturedImage>> Function() poll,
-    required Future<Map<String, dynamic>?> Function(int id) fetchRow,
-    required Future<List<Map<String, dynamic>>> Function(int sessionId)
-    fetchSessionRows,
-  }) : _poll = poll,
-       _fetchRow = fetchRow,
-       _fetchSessionRows = fetchSessionRows;
-
-  final Stream<List<db.DbCapturedImage>> Function() _poll;
-  final Future<Map<String, dynamic>?> Function(int id) _fetchRow;
-  final Future<List<Map<String, dynamic>>> Function(int sessionId)
-  _fetchSessionRows;
-
-  /// The newest full list from the poll.
-  List<db.DbCapturedImage>? _polled;
-
-  /// Rows fetched one at a time or by session since that list, by id.
-  final Map<int, db.DbCapturedImage> _fetched = {};
-  final Set<int> _inFlight = {};
-  final Set<StreamController<List<db.DbCapturedImage>>> _listeners = {};
-  StreamSubscription<List<db.DbCapturedImage>>? _pollSubscription;
-  bool _sessionRefreshRunning = false;
-  bool _sessionRefreshAgain = false;
-  bool _disposed = false;
-
-  /// The merged rows, newest capture first like `ImagesDao.watchAllImages`.
-  List<db.DbCapturedImage>? get current {
-    final polled = _polled;
-    if (polled == null) return null;
-    if (_fetched.isEmpty) return polled;
-    final byId = {for (final row in polled) row.id: row, ..._fetched};
-    return byId.values.toList()
-      ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
-  }
-
-  Stream<List<db.DbCapturedImage>> watch() {
-    late final StreamController<List<db.DbCapturedImage>> controller;
-    controller = StreamController<List<db.DbCapturedImage>>(
-      onListen: () {
-        _listeners.add(controller);
-        // A new listener is a rebuild of the provider, for instance after the
-        // host announced a change to its images: it waits for the table read
-        // again now, not for the rows from before the change.
-        unawaited(_pollSubscription?.cancel());
-        _pollSubscription = _poll().listen(
-          _onPolled,
-          onError: (Object error, StackTrace stackTrace) {
-            for (final listener in _listeners) {
-              if (_polled == null) listener.addError(error, stackTrace);
-            }
-          },
-        );
-      },
-      onCancel: () {
-        _listeners.remove(controller);
-        if (_listeners.isEmpty) {
-          unawaited(_pollSubscription?.cancel());
-          _pollSubscription = null;
-        }
-      },
-    );
-    return controller.stream;
-  }
-
-  void _onPolled(List<db.DbCapturedImage> rows) {
-    _polled = rows;
-    // The poll is the truth for every row it carries; a row fetched after the
-    // poll's request went out stays until the next one carries it too.
-    final newest = rows.isEmpty
-        ? 0
-        : rows.map((row) => row.id).reduce((a, b) => a > b ? a : b);
-    _fetched.removeWhere((id, _) => id <= newest);
-    _emit();
-  }
-
-  void _emit() {
-    if (_disposed) return;
-    final rows = current;
-    if (rows == null) return;
-    for (final listener in _listeners) {
-      listener.add(rows);
-    }
-  }
-
-  bool _known(int id) =>
-      _fetched.containsKey(id) ||
-      (_polled?.any((row) => row.id == id) ?? false);
-
-  /// Fetch the rows of [ids] this client does not have yet.
-  Future<void> addRows(Iterable<int> ids) async {
-    if (_polled == null) return; // The first poll brings them all.
-    final missing = [
-      for (final id in ids)
-        if (!_known(id) && !_inFlight.contains(id)) id,
-    ];
-    if (missing.isEmpty) return;
-    _inFlight.addAll(missing);
-    try {
-      final rows = await Future.wait([
-        for (final id in missing)
-          _fetchRow(id).then<Map<String, dynamic>?>(
-            (row) => row,
-            onError: (Object _) => null,
-          ),
-      ]);
-      if (_disposed) return;
-      var added = false;
-      for (final json in rows) {
-        if (json == null) continue;
-        final row = db.DbCapturedImage.fromJson(json);
-        _fetched[row.id] = row;
-        added = true;
-      }
-      if (added) _emit();
-    } finally {
-      _inFlight.removeAll(missing);
-    }
-  }
-
-  /// Fetch the rows of the session the newest known frame belongs to when a
-  /// frame saved at [filePath] has no row here yet. A rejected frame is not in
-  /// the host's session list, so its id never reaches [addRows].
-  Future<void> refreshSessionOf(String filePath) async {
-    final rows = current;
-    if (rows == null || rows.any((row) => row.filePath == filePath)) return;
-    final sessionId = rows
-        .map((row) => row.sessionId)
-        .firstWhere((id) => id != null, orElse: () => null);
-    if (sessionId == null) return;
-    if (_sessionRefreshRunning) {
-      _sessionRefreshAgain = true;
-      return;
-    }
-    _sessionRefreshRunning = true;
-    try {
-      do {
-        _sessionRefreshAgain = false;
-        final List<Map<String, dynamic>> json;
-        try {
-          json = await _fetchSessionRows(sessionId);
-        } on Object {
-          return; // The poll brings the row instead.
-        }
-        if (_disposed) return;
-        for (final row in json.map(db.DbCapturedImage.fromJson)) {
-          _fetched[row.id] = row;
-        }
-        _emit();
-      } while (_sessionRefreshAgain && !_disposed);
-    } finally {
-      _sessionRefreshRunning = false;
-    }
-  }
-
-  void dispose() {
-    _disposed = true;
-    unawaited(_pollSubscription?.cancel());
-    _pollSubscription = null;
-    for (final listener in _listeners.toList()) {
-      unawaited(listener.close());
-    }
-    _listeners.clear();
-  }
-}
+/// Whether the imaging host has stored any frame.
+final hasCapturedImagesProvider = Provider<AsyncValue<bool>>(
+  (ref) => ref.watch(capturedImageRowsProvider).hasAny(ref),
+);
 
 final capturedImageByIdProvider = FutureProvider.family<db.DbCapturedImage?, int>(
-  (ref, imageId) {
-    if (ref.watch(backendProvider).remoteHost != null) {
-      return ref.watch(imagingRecordsRepositoryProvider).getImageById(imageId);
-    }
-    return ref.watch(imagesDaoProvider).getImageById(imageId);
-  },
+  (ref, imageId) => ref.watch(imagingRecordsProvider).getImageById(imageId),
 );
 
 class CapturedImageWcsData {
@@ -478,28 +268,15 @@ class CapturedImageWcsData {
 
 final capturedImageWcsProvider =
     FutureProvider.family<CapturedImageWcsData?, int>((ref, imageId) async {
-      final linked = ref.watch(backendProvider).remoteHost != null;
-      db.DbCapturedImage? row;
-      ({
-        double? cd1_1,
-        double? cd1_2,
-        double? cd2_1,
-        double? cd2_2,
-        String? sip,
-      })?
-      distortion;
-      if (linked) {
-        row = await ref.watch(capturedImageByIdProvider(imageId).future);
-      } else {
-        final dao = ref.watch(imagesDaoProvider);
-        row = await dao.getImageById(imageId);
-        if (row != null && row.isPlateSolved) {
-          distortion = await dao.getStoredWcsDistortion(imageId);
-        }
-      }
+      final row = await ref.watch(capturedImageByIdProvider(imageId).future);
       if (row == null) {
         return null;
       }
+      final distortion = row.isPlateSolved
+          ? await ref
+                .watch(imagingRecordsProvider)
+                .getStoredWcsDistortion(imageId)
+          : null;
       return CapturedImageWcsData(
         id: row.id,
         isPlateSolved: row.isPlateSolved,

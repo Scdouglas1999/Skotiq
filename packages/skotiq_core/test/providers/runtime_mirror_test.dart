@@ -116,11 +116,7 @@ void main() {
       final client = _client(backend);
       addTearDown(client.dispose);
 
-      await applyRemoteSyncEvent(
-        client,
-        _overWire(updates.single.toEvent()),
-        networkBackend: backend,
-      );
+      applyHostEventOnClient(client, backend, _overWire(updates.single.toEvent()));
 
       final mirrored = client.read(plateSolveStateProvider).lastResult;
       expect(mirrored, isNotNull);
@@ -459,11 +455,7 @@ void main() {
       addTearDown(client.dispose);
       prepareClient?.call(client);
       for (final update in _updates(host.sent, channel)) {
-        await applyRemoteSyncEvent(
-          client,
-          _overWire(update.toEvent()),
-          networkBackend: backend,
-        );
+        applyHostEventOnClient(client, backend, _overWire(update.toEvent()));
       }
       return client;
     }

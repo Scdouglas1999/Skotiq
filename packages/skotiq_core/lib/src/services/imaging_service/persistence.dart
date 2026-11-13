@@ -49,7 +49,7 @@ extension _ImagingServicePersistence on ImagingService {
     required DateTime timestamp,
   }) async {
     if (!_hasBackendAuthority(backend)) return null;
-    final records = _ref.read(imagingRecordsRepositoryProvider);
+    final records = _ref.read(imagingRecordsProvider);
 
     final sessionState = _ref.read(sessionStateProvider);
     final sessionId = sessionState.dbSessionId;
@@ -159,27 +159,11 @@ extension _ImagingServicePersistence on ImagingService {
       if (!_hasBackendAuthority(backend)) return null;
     }
 
-    // Schedule fire-and-forget sidecar generation for ad-hoc
-    // captures (the sequencer-driven path goes through
-    // `insertSequenceFrame` which schedules its own sidecar). Local-only:
-    // the remote-companion case is handled by the host's headless server
-    // when it processes the `POST /api/images` request (see
-    // `session_handlers.dart::handleCreateImage`). We probe `_imagesDao`
-    // indirectly via the provider — when running against a remote
-    // backend the provider still points at the local (empty) DB, but the
-    // sidecar service is a no-op on an unreachable path so the
-    // ergonomics are the same.
-    if (_hasBackendAuthority(backend) &&
-        !records.isRemote &&
-        filePath.isNotEmpty) {
+    // A frame the sequencer stores gets its thumbnail from
+    // `insertSequenceFrame`; this is the ad-hoc capture path.
+    if (_hasBackendAuthority(backend) && filePath.isNotEmpty) {
       try {
-        final sidecarService = _ref.read(thumbnailSidecarServiceProvider);
-        final ImagesDao imagesDao = _ref.read(imagesDaoProvider);
-        sidecarService.scheduleSidecarWrite(
-          imageId: imageId,
-          fitsPath: filePath,
-          imagesDao: imagesDao,
-        );
+        records.scheduleThumbnail(imageId: imageId, fitsPath: filePath);
       } catch (e) {
         _logger.warning(
           'Failed to schedule sidecar for image $imageId ($filePath): $e',

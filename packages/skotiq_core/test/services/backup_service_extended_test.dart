@@ -55,7 +55,7 @@ void main() {
 
     BackupService serviceFor(SkotiqDatabase db) => BackupService(
       database: db,
-      sequenceRepository: SequenceRepository(db.sequencesDao),
+      sequenceRepository: LocalSequenceRepository(db.sequencesDao),
       logger: logger,
     );
 
@@ -253,7 +253,7 @@ void main() {
     });
 
     test('modern sequence nodes survive a full backup and restore', () async {
-      final sourceRepository = SequenceRepository(srcDb.sequencesDao);
+      final sourceRepository = LocalSequenceRepository(srcDb.sequencesDao);
       await sourceRepository.saveSequence(
         Sequence.create(
           name: 'Recovery plan',
@@ -299,7 +299,7 @@ void main() {
       expect(restore.success, isTrue, reason: restore.errorMessage);
       expect(restore.categoryCounts['sequences'], 1);
 
-      final restoredRepository = SequenceRepository(dstDb.sequencesDao);
+      final restoredRepository = LocalSequenceRepository(dstDb.sequencesDao);
       final restored = (await restoredRepository.loadAllSequences()).single;
       final recovery = restored.nodes['recovery'] as RecoveryNode;
       expect(recovery.name, 'Watch transparency');

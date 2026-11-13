@@ -13,11 +13,11 @@ import 'web_server_provider.dart' show remoteAccessServing;
 import '../models/backend/backend_types.dart';
 import '../settings/app_settings_state.g.dart';
 
-/// Keeps the desktop GUI aligned when a remote companion mutates state through
-/// the embedded [HeadlessApiServer] REST surface or when native EventBus events
-/// arrive while lazy services are not constructed.
+/// Keeps the host's own window in step with what happens through its server:
+/// a linked client changing state over the API, and native events that arrive
+/// while the service that would handle them is not built.
 ///
-/// Mobile clients use [remoteSessionSyncProvider] instead.
+/// A linked client follows its host with [remoteSessionSyncProvider].
 final hostLocalSyncProvider = Provider<void>((ref) {
   StreamSubscription<SkotiqEvent>? hubSub;
   StreamSubscription<SkotiqEvent>? backendSub;
@@ -43,7 +43,7 @@ final hostLocalSyncProvider = Provider<void>((ref) {
     // when the native EventBus path is quiet. This does not require LAN access.
     final hub = ref.read(hostMutationEventHubProvider);
     hubSub = hub.stream.listen((event) {
-      unawaited(applyRemoteSyncEvent(ref, event));
+      applyHostLocalSyncEvent(ref.container, event);
     });
 
     if (remoteAccessServing(ref)) {
@@ -51,7 +51,7 @@ final hostLocalSyncProvider = Provider<void>((ref) {
         if (event.eventType == hostStateChangedEventType) {
           return;
         }
-        unawaited(applyRemoteSyncEvent(ref, event));
+        applyHostLocalSyncEvent(ref.container, event);
       });
     }
   }

@@ -50,7 +50,7 @@ void main() {
 
   BackupService serviceFor(SkotiqDatabase db) => BackupService(
     database: db,
-    sequenceRepository: SequenceRepository(db.sequencesDao),
+    sequenceRepository: LocalSequenceRepository(db.sequencesDao),
     logger: logger,
   );
 

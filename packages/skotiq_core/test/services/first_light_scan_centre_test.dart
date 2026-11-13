@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as dbm;
-import 'package:skotiq_core/src/services/imaging_records_repository.dart'
+import 'package:skotiq_core/src/services/local_imaging_records.dart'
     show firstLightScanWcs;
 
 /// Atlas fold seam that records the frame WCS the fold was dispatched with.

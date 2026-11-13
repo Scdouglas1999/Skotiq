@@ -241,7 +241,7 @@ class _NoteEditorDialogState extends ConsumerState<NoteEditorDialog> {
     }
     setState(() => _saving = true);
     try {
-      final service = ref.read(notesRepositoryProvider);
+      final service = ref.read(notesJournalProvider);
       final JournalNote saved;
       if (widget.existing == null) {
         saved = await service.addNote(

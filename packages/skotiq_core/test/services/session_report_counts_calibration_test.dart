@@ -27,7 +27,7 @@ import 'package:skotiq_core/src/database/daos/sequence_runs_dao.dart';
 import 'package:skotiq_core/src/database/daos/sessions_dao.dart';
 import 'package:skotiq_core/src/database/daos/targets_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
-import 'package:skotiq_core/src/services/imaging_records_repository.dart';
+import 'package:skotiq_core/src/services/local_imaging_records.dart';
 import 'package:skotiq_core/src/services/session_report_service.dart';
 
 void main() {
@@ -44,12 +44,12 @@ void main() {
       sessionsDao = SessionsDao(db);
       imagesDao = ImagesDao(db);
       service = SessionReportService(
-        records: ImagingRecordsRepository.local(
+        records: LocalImagingRecords(
           sessionsDao: sessionsDao,
           imagesDao: imagesDao,
         ),
-        sequenceRunsDao: SequenceRunsDao(db),
-        targetsDao: TargetsDao(db),
+        runs: SequenceRunsDao(db),
+        targets: TargetsDao(db),
       );
     });
 

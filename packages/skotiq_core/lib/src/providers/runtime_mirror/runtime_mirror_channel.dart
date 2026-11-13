@@ -1,20 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/skotiq_backend.dart';
-import '../provider_reader.dart';
 
 /// Where a channel's value is being applied.
 class RuntimeApplyContext {
-  const RuntimeApplyContext(this.reader, {this.networkBackend});
+  const RuntimeApplyContext(this.container, {this.networkBackend});
 
   /// A `Ref`, `ProviderContainer` or `WidgetRef` (see [readProvider]).
-  final Object reader;
+  final ProviderContainer container;
 
   /// The connection to the host when applying on a linked client; null when
   /// the host applies a client's report to its own providers.
   final SkotiqBackend? networkBackend;
 
-  T read<T>(ProviderListenable<T> provider) => readProvider(reader, provider);
+  T read<T>(ProviderListenable<T> provider) => container.read(provider);
 }
 
 /// One piece of runtime state the imaging host shares with linked clients.
@@ -59,10 +58,10 @@ abstract class RuntimeMirrorChannel<T> {
   /// Its [apply] must leave a provider that already matches untouched.
   bool get reappliesOnReread => false;
 
-  T readSource(Object reader) => readProvider(reader, source);
+  T readSource(ProviderContainer container) => container.read(source);
 
-  Map<String, dynamic>? encodeCurrent(Object reader) =>
-      encode(readSource(reader));
+  Map<String, dynamic>? encodeCurrent(ProviderContainer container) =>
+      encode(readSource(container));
 
   ProviderSubscription<T> listen(Ref ref, void Function(T value) onChange) =>
       ref.listen<T>(source, (_, next) => onChange(next));
@@ -93,7 +92,7 @@ abstract class SharedStateChannel<T> extends RuntimeMirrorChannel<T> {
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     final next = decode(value);
-    if (readSource(context.reader) == next) return;
+    if (readSource(context.container) == next) return;
     write(context, next);
   }
 }

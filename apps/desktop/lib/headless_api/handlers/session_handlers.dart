@@ -471,7 +471,7 @@ class SessionHandlers implements RouteSource {
       final cd21 = optionalDouble(payload, 'solvedCd2_1');
       final cd22 = optionalDouble(payload, 'solvedCd2_2');
       await container
-          .read(imagingRecordsRepositoryProvider)
+          .read(imagingRecordsProvider)
           .updatePlateSolveResult(
             iid,
             solvedRa: requireDouble(payload, 'solvedRa'),

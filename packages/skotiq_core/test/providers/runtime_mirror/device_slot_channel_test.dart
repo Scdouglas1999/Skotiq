@@ -284,15 +284,12 @@ void main() {
 
       // The host's own window applies the guider releasing its camera; the
       // camera slot is not the guide camera's.
-      await applyRemoteSyncEvent(
-        host.container,
-        buildHostMutationEvent(
+      applyHostLocalSyncEvent(host.container, buildHostMutationEvent(
           entityType: HostMutationEntity.equipment,
           action: HostMutationAction.disconnected,
           entityId: 'sim_camera_2',
           extra: {'deviceType': 'camera', 'deviceId': 'sim_camera_2'},
-        ),
-      );
+        ));
       await settle(_slotInterval);
       await hydrateHostRuntimeState(client.container, client.backend);
 
@@ -317,17 +314,13 @@ void main() {
         ..setConnecting('sim_focuser_1', 'Simulated Focuser')
         ..connectFailed(StateError('unplugged'));
 
-      await applyRemoteSyncEvent(
-        client.container,
-        const SkotiqEvent(
+      applyHostEventOnClient(client.container, client.backend, const SkotiqEvent(
           timestamp: 1,
           severity: EventSeverity.info,
           category: EventCategory.equipment,
           eventType: 'Disconnected',
           data: {'device_type': 'focuser', 'device_id': 'sim_focuser_1'},
-        ),
-        networkBackend: client.backend,
-      );
+        ));
       await hydrateHostRuntimeState(client.container, client.backend);
 
       final slot = client.container.read(focuserStateProvider);

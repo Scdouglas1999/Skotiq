@@ -18,8 +18,7 @@ import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/session_provider.dart';
-import '../providers/database_provider.dart';
-import 'imaging_records_repository.dart';
+import 'local_imaging_records.dart';
 import '../providers/ui_notification_provider.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
@@ -32,8 +31,6 @@ import '../backend/skotiq_exception.dart'
         ValidationException;
 import 'capture_preview_loader.dart';
 import '../database/database.dart' show CapturedImagesCompanion;
-import '../database/daos/images_dao.dart' show ImagesDao;
-import '../providers/thumbnail_sidecar_provider.dart';
 import '../utils/host_paths.dart';
 import '../utils/utc_timestamp.dart';
 import 'frame_identity.dart';

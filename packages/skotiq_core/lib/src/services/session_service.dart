@@ -2,9 +2,9 @@ import 'dart:async';
 
 import '../database/daos/sequence_checkpoints_dao.dart';
 import '../database/session_orphan_sweep.dart';
-import 'imaging_records_repository.dart';
 import 'logging_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../backend/roles/host_data/imaging_records.dart';
 
 class SessionCheckpointConfig {
   /// Re-persist the current statistics on this interval even when no frame has
@@ -109,7 +109,7 @@ class SessionRecoveryInfo {
 }
 
 class SessionService {
-  final ImagingRecordsRepository _records;
+  final ImagingRecords _records;
   final SequenceCheckpointsDao?
   checkpointsDao; // Optional, for sequence integration
   final LoggingService _logger;
@@ -135,7 +135,7 @@ class SessionService {
   /// timezone. Defaults to [DateTime.now] for tests and for hosts that
   /// have not configured a TZ override
   SessionService({
-    required ImagingRecordsRepository records,
+    required ImagingRecords records,
     this.checkpointsDao,
     required LoggingService logger,
     DateTime Function()? nowProvider,

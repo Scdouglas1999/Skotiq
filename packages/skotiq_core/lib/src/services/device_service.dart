@@ -121,7 +121,7 @@ class DeviceService {
 
   /// Where each of this service's own connects stands; consulted before a
   /// native connection event writes a slot.
-  final ConnectAttempts _attempts = ConnectAttempts();
+  final ConnectAttempts _attempts;
   late final DeviceHeartbeatRouter _heartbeat;
   late final SwitchChannelService _switchChannels;
 
@@ -247,15 +247,14 @@ class DeviceService {
   /// The backend whose events this service is listening to.
   SkotiqBackend get eventSource => _backend;
 
-  /// Whether a connect of [deviceId] made through this service is in flight
-  /// or has just failed, so the slot is that connect's to write.
-  bool hasOwnConnectOf(String deviceId) => _attempts.isOwn(deviceId);
-
   /// True on a companion: the imaging host owns every device, so this client
   /// never tears one down to clean up after its own failed request.
   bool get _hostOwnsDevices => _backend.remoteHost != null;
 
-  DeviceService(this._ref, this._backend) {
+  /// [attempts] is shared with whatever else writes device slots (see
+  /// `connectAttemptsProvider`).
+  DeviceService(this._ref, this._backend, {ConnectAttempts? attempts})
+    : _attempts = attempts ?? ConnectAttempts() {
     _temperaturePoller = CameraTemperaturePoller(ref: _ref, backend: _backend);
     _warmupController = CameraWarmupController(ref: _ref, backend: _backend);
     _phd2Launcher = Phd2Launcher(ref: _ref);
@@ -410,7 +409,6 @@ class DeviceService {
     _focuserMoveSettleWatch?.cancel();
     _focuserMoveSettleWatch = null;
     _reconnectCoordinator.cancelAll();
-    _attempts.dispose();
   }
 
   /// Discover available devices of a specific type

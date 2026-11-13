@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../provider_reader.dart';
 import 'camera_state_provider.dart';
 import 'device_slots.dart';
 import 'dome_state_provider.dart';
@@ -24,7 +23,7 @@ import '../../models/backend/device_types.dart';
 /// in the slot (a guide camera, a second switch) is ignored.
 ///
 /// Returns whether the event was one of these settings.
-bool applyDevicePropertyChange(Object reader, Map<String, dynamic> data) {
+bool applyDevicePropertyChange(ProviderContainer container, Map<String, dynamic> data) {
   final wireType = data['device_type'];
   final deviceId = data['device_id'];
   final property = data['property'];
@@ -38,7 +37,7 @@ bool applyDevicePropertyChange(Object reader, Map<String, dynamic> data) {
   final deviceType = deviceTypeFromWireName(wireType);
   if (deviceType == null) return false;
 
-  T read<T>(ProviderListenable<T> provider) => readProvider(reader, provider);
+  T read<T>(ProviderListenable<T> provider) => container.read(provider);
 
   switch (deviceType) {
     case DeviceType.camera:
@@ -148,15 +147,15 @@ bool applyDevicePropertyChange(Object reader, Map<String, dynamic> data) {
 ///
 /// Returns whether the event was one of these and was applied.
 bool applyDeviceStateEvent(
-  Object reader,
+  ProviderContainer container,
   String eventType,
   Map<String, dynamic> data,
 ) {
-  T read<T>(ProviderListenable<T> provider) => readProvider(reader, provider);
+  T read<T>(ProviderListenable<T> provider) => container.read(provider);
   bool inSlot(DeviceType type) {
     final id = data['device_id'];
     if (id is! String || id.isEmpty) return true;
-    return readDeviceSlot(reader, type).deviceId == id;
+    return readDeviceSlot(container, type).deviceId == id;
   }
 
   int? intField(String key) => (data[key] as num?)?.toInt();
@@ -233,7 +232,7 @@ bool applyDeviceStateEvent(
 /// Apply a `CameraSettingsChanged` event: the camera's full gain, offset
 /// and binning as it reports them after a change or on connect. Returns
 /// whether it was for the camera in the slot.
-bool applyCameraSettings(Object reader, Map<String, dynamic> data) {
+bool applyCameraSettings(ProviderContainer container, Map<String, dynamic> data) {
   final deviceId = data['device_id'];
   final gain = data['gain'];
   final offset = data['offset'];
@@ -246,7 +245,7 @@ bool applyCameraSettings(Object reader, Map<String, dynamic> data) {
       binY is! num) {
     return false;
   }
-  final camera = readProvider(reader, cameraStateProvider.notifier);
+  final camera = container.read(cameraStateProvider.notifier);
   if (camera.deviceId != deviceId) return false;
   camera.updateReadout(
     gain: gain.toInt(),
