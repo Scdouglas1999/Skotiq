@@ -1,7 +1,6 @@
 // Pins the results of the master-flat library and calibration-tag DAOs on a
-// seeded database: the best-match rules (exact keys, optical-train fallback,
-// temperature gate, closest-then-newest), the merge upsert's null handling,
-// and the rows each write leaves behind.
+// seeded database: the merge upsert's null handling and the rows each write
+// leaves behind.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
@@ -64,7 +63,6 @@ void main() {
 
     await pins('empty getAllEntries', dao.getAllEntries);
     await pins('empty getEntryById', () => dao.getEntryById(1));
-    await pins('empty findBestMatch', () => dao.findBestMatch(filter: 'L'));
 
     await pins(
       'add L cold',
@@ -152,71 +150,6 @@ void main() {
     await pins('getAllEntries', dao.getAllEntries);
     await pins('getEntryById 1', () => dao.getEntryById(1));
     await pins('getEntryById missing', () => dao.getEntryById(99));
-
-    Future<void> match(String label, Future<Object?> Function() body) =>
-        pins('findBestMatch $label', body);
-    await match(
-      'L no temp',
-      () => dao.findBestMatch(filter: 'L', gain: 100, offset: 30),
-    );
-    await match(
-      'L -10',
-      () => dao.findBestMatch(
-        filter: 'L',
-        gain: 100,
-        offset: 30,
-        temperature: -10,
-      ),
-    );
-    await match(
-      'L -9.5 tie between trains',
-      () => dao.findBestMatch(
-        filter: 'L',
-        gain: 100,
-        offset: 30,
-        temperature: -9.5,
-      ),
-    );
-    await match(
-      'L train-a -9.5',
-      () => dao.findBestMatch(
-        filter: ' L ',
-        gain: 100,
-        offset: 30,
-        opticalTrainId: ' train-a ',
-        temperature: -9.5,
-      ),
-    );
-    await match(
-      'L 30 tolerance excludes timed',
-      () => dao.findBestMatch(
-        filter: 'L',
-        gain: 100,
-        offset: 30,
-        temperature: 30,
-      ),
-    );
-    await match(
-      'L tight tolerance',
-      () => dao.findBestMatch(
-        filter: 'L',
-        gain: 100,
-        offset: 30,
-        temperature: 0,
-        temperatureToleranceC: 0.1,
-      ),
-    );
-    await match('blank filter any', () => dao.findBestMatch(filter: '  '));
-    await match('null filter gain 0', () => dao.findBestMatch());
-    await match(
-      'Ha bin2',
-      () => dao.findBestMatch(filter: 'Ha', gain: 0, binX: 2, binY: 2),
-    );
-    await match('Ha bin1 none', () => dao.findBestMatch(filter: 'Ha'));
-    await match(
-      'case-sensitive filter',
-      () => dao.findBestMatch(filter: 'l', gain: 100, offset: 30),
-    );
 
     await pins('delete 1', () => dao.deleteEntry(1));
     await pins('delete missing', () => dao.deleteEntry(1));

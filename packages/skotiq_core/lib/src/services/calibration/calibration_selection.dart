@@ -1,6 +1,7 @@
 import '../../database/database.dart';
 import '../../models/calibration/calibration_library_models.dart';
 import '../../models/calibration/dark_library_match_tolerances.dart';
+import '../../models/imaging/integrated_master.dart';
 
 /// The dark chosen for a set of lights, and how far it is from an exact match.
 class DarkSelection {
@@ -181,6 +182,94 @@ DarkSelection? selectDark(
   return DarkSelection(
     record: pool.first,
     exposureScaled: scaled,
+    temperatureFellBack: fellBack,
+  );
+}
+
+/// The flat chosen for a set of lights.
+class FlatSelection {
+  const FlatSelection({
+    required this.record,
+    required this.qualifyingCount,
+    required this.temperatureFellBack,
+  });
+
+  final CalibrationMasterRecord record;
+
+  /// How many flats met every requirement; [record] is the newest of them.
+  final int qualifyingCount;
+
+  /// The lights state a temperature and no candidate is within the
+  /// temperature tolerance, so [record] is the newest one outside it.
+  final bool temperatureFellBack;
+}
+
+/// A `flat_library` row as a library record.
+CalibrationMasterRecord flatLibraryRecord(FlatLibraryEntry row) =>
+    CalibrationMasterRecord(
+      type: CalibrationMasterType.flat,
+      id: row.id,
+      filePath: row.filePath,
+      isMaster: true,
+      frameCount: row.masterFrameCount,
+      temperature: row.temperature,
+      gain: row.gain,
+      offset: row.offset,
+      binX: row.binX,
+      binY: row.binY,
+      filter: row.filter,
+      flatKind: row.flatKind,
+      width: row.width,
+      height: row.height,
+      opticalTrainId: row.opticalTrainId,
+      createdAt: row.createdAt,
+    );
+
+/// The one rule for which flat calibrates a light.
+///
+/// Requirements: the capture tuple as for darks ([calibrationTupleMatches],
+/// so a gain or offset the lights never recorded is not compared and an exact
+/// tuple is preferred), the lights' filter when they name one, and the lights'
+/// optical train when they name one (a flat with no train tag also passes).
+/// Temperature is a preference, as in PixInsight's
+/// WeightedBatchPreprocessing, which pairs flats by filter and binning only:
+/// flats within [temperatureToleranceC] win, and with none every qualifying
+/// flat stays and the pick is flagged [FlatSelection.temperatureFellBack].
+/// Dust and the optical train change from night to night, so the newest flat
+/// wins, a local record over a shared one on the same instant.
+FlatSelection? selectFlat(
+  Iterable<CalibrationMasterRecord> flats,
+  LightFrameContext ctx, {
+  required double temperatureToleranceC,
+}) {
+  final filter = ctx.filter?.trim() ?? '';
+  final train = ctx.opticalTrainId?.trim() ?? '';
+  var pool = preferExactCalibrationTuple([
+    for (final r in flats)
+      if (calibrationTupleMatches(r, ctx) &&
+          (filter.isEmpty || r.filter?.trim() == filter) &&
+          (train.isEmpty ||
+              r.opticalTrainId == null ||
+              r.opticalTrainId!.trim() == train))
+        r,
+  ], ctx);
+  if (pool.isEmpty) return null;
+
+  final within = pool
+      .where((r) => _withinTemperature(r, ctx, temperatureToleranceC))
+      .toList();
+  final fellBack = within.isEmpty;
+  if (!fellBack) pool = within;
+
+  pool.sort((a, b) {
+    final byDate = b.createdAt.compareTo(a.createdAt);
+    if (byDate != 0) return byDate;
+    if (a.isRemote != b.isRemote) return a.isRemote ? 1 : -1;
+    return 0;
+  });
+  return FlatSelection(
+    record: pool.first,
+    qualifyingCount: pool.length,
     temperatureFellBack: fellBack,
   );
 }

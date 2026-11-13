@@ -91,7 +91,7 @@ void main() {
 
     test('regression: exact-exposure-and-temperature match counts as'
         'covered with the default tolerances', () {
-      // The coverage UI and DarkLibraryDao.findBestMatch must agree on the
+      // The coverage UI and `selectDark` must agree on the
       // same 60.0s/60.0s pair: different tolerances have the UI claim "all
       // darks present" while the runtime match returns null on
       // floating-point representation alone.

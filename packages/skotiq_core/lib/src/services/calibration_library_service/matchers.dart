@@ -124,61 +124,22 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     LightFrameContext ctx,
     CalibrationMatchTolerances tol,
   ) {
+    final selection = selectFlat(
+      flats,
+      ctx,
+      temperatureToleranceC: tol.flatTemperatureC,
+    );
+    if (selection == null) return null;
+    final best = selection.record;
+    final tempFellBack = selection.temperatureFellBack;
     final wantFilter = ctx.filter?.trim();
-    var pool = flats.where((r) => calibrationTupleMatches(r, ctx)).toList();
-    if (wantFilter != null && wantFilter.isNotEmpty) {
-      pool = pool
-          .where((r) => r.filter != null && r.filter!.trim() == wantFilter)
-          .toList();
-    }
-    // Mirror FlatLibraryDao: when the context carries an optical-train tag,
-    // accept flats with a matching tag OR no tag at all (a generic flat).
     final wantTrain = ctx.opticalTrainId?.trim();
-    if (wantTrain != null && wantTrain.isNotEmpty) {
-      pool = pool
-          .where(
-            (r) =>
-                r.opticalTrainId == null ||
-                r.opticalTrainId!.trim() == wantTrain,
-          )
-          .toList();
-    }
-    pool = preferExactCalibrationTuple(pool, ctx);
-    if (pool.isEmpty) return null;
-
-    // Temperature gate at the flat tolerance, falling back when empty.
-    var tempFellBack = false;
-    if (ctx.temperature != null) {
-      final within = pool
-          .where(
-            (r) =>
-                r.temperature == null ||
-                (r.temperature! - ctx.temperature!).abs() <=
-                    tol.flatTemperatureC,
-          )
-          .toList();
-      if (within.isNotEmpty) {
-        pool = within;
-      } else {
-        tempFellBack = true;
-      }
-    }
-
-    // Flats are matched by filter + RECENCY: dust and the optical train
-    // drift over days, so the newest qualifying flat wins outright; a LOCAL
-    // flat breaks an exact same-day tie (you already have it).
-    pool.sort((a, b) {
-      final byDate = b.createdAt.compareTo(a.createdAt);
-      if (byDate != 0) return byDate;
-      if (a.isRemote != b.isRemote) return a.isRemote ? 1 : -1;
-      return 0;
-    });
-    final best = pool.first;
+    final qualifying = selection.qualifyingCount;
 
     final reasons = <String>[
       if (wantFilter != null && wantFilter.isNotEmpty)
         'Filter $wantFilter match (required for flats)',
-      'Newest of ${pool.length} qualifying flat${pool.length == 1 ? '' : 's'} '
+      'Newest of $qualifying qualifying flat${qualifying == 1 ? '' : 's'} '
           '(${ClockFormat.date(best.createdAt.toLocal())})',
     ];
     final warnings = <String>[];

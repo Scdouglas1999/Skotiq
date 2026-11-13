@@ -15,7 +15,7 @@ import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/calibration/shared_calibration_models.dart';
 import '../models/collaboration/collaboration_models.dart';
 import '../providers/async_scope.dart';
-import 'calibration/dark_selection.dart';
+import 'calibration/calibration_selection.dart';
 import 'calibration/fits_header_reader.dart';
 import 'calibration/shared_calibration_library.dart';
 import 'logging_service.dart';
@@ -151,10 +151,10 @@ class CalibrationLibraryService implements CalibrationLibrary {
   ///    exists (with a warning). Stacked masters beat raw frames. Older than
   ///    [CalibrationStalenessThresholds.darkStaleDays] warns.
   ///  * **Bias**: exact gain / offset / binning; newest wins.
-  ///  * **Flats**: matched by filter (exact, when the context has one) +
-  ///    recency; gain / offset / binning exact (mirrors
-  ///    [FlatLibraryDao.findBestMatch]). Older than `flatStaleDays` (7 d)
-  ///    warns — flats go bad with any dust or optical-train change. A flat
+  ///  * **Flats**: [selectFlat], the rule master accumulation also uses:
+  ///    filter (exact, when the context has one), the dark tuple rule,
+  ///    temperature within tolerance preferred, newest wins. Older than
+  ///    `flatStaleDays` (7 d) warns — flats go bad with any dust or optical-train change. A flat
   ///    without an optical-train tag matched against a context that has one
   ///    also warns.
   ///  * **Defect maps**: per camera id; nearest temperature bucket.
