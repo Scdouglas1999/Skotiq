@@ -55,7 +55,7 @@ pub(crate) enum CameraWidgetType {
 
 /// Camera file path - returned by gp_camera_capture
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CameraFilePath {
     pub(crate) name: [c_char; 128],
     pub(crate) folder: [c_char; 1024],
@@ -127,16 +127,44 @@ impl Default for CameraAbilities {
     }
 }
 
-// GP error codes
+/// Opaque list of every camera model the installed camlibs know.
+pub(crate) type CameraAbilitiesList = c_void;
+
+/// Opaque list of the ports libgphoto2 can open.
+pub(crate) type GPPortInfoList = c_void;
+
+/// One entry of a `GPPortInfoList`, owned by the list.
+pub(crate) type GPPortInfo = *mut c_void;
+
+// Result codes (gphoto2-port-result.h, gphoto2-result.h).
 pub(crate) const GP_OK: c_int = 0;
 pub(crate) const GP_ERROR: c_int = -1;
+pub(crate) const GP_ERROR_BAD_PARAMETERS: c_int = -2;
+pub(crate) const GP_ERROR_UNKNOWN_PORT: c_int = -5;
+pub(crate) const GP_ERROR_NOT_SUPPORTED: c_int = -6;
 pub(crate) const GP_ERROR_IO: c_int = -7;
-pub(crate) const GP_ERROR_NOT_SUPPORTED: c_int = -5;
-pub(crate) const GP_ERROR_CAMERA_BUSY: c_int = -110;
+pub(crate) const GP_ERROR_TIMEOUT: c_int = -10;
+pub(crate) const GP_ERROR_IO_READ: c_int = -34;
+pub(crate) const GP_ERROR_IO_WRITE: c_int = -35;
+pub(crate) const GP_ERROR_IO_USB_FIND: c_int = -52;
+pub(crate) const GP_ERROR_IO_USB_CLAIM: c_int = -53;
+pub(crate) const GP_ERROR_IO_LOCK: c_int = -60;
 pub(crate) const GP_ERROR_MODEL_NOT_FOUND: c_int = -105;
+pub(crate) const GP_ERROR_FILE_NOT_FOUND: c_int = -108;
+pub(crate) const GP_ERROR_CAMERA_BUSY: c_int = -110;
+pub(crate) const GP_ERROR_CAMERA_ERROR: c_int = -113;
+pub(crate) const GP_ERROR_NO_SPACE: c_int = -115;
 
-// Camera operations flags
-pub(crate) const GP_OPERATION_CAPTURE_IMAGE: c_int = 1 << 1;
+// CameraOperation bits of `CameraAbilities::operations` (gphoto2-abilities-list.h).
+pub(crate) const GP_OPERATION_CAPTURE_IMAGE: c_int = 1 << 0;
 pub(crate) const GP_OPERATION_CAPTURE_PREVIEW: c_int = 1 << 3;
-pub(crate) const GP_OPERATION_CONFIG: c_int = 1 << 2;
-pub(crate) const GP_OPERATION_TRIGGER_CAPTURE: c_int = 1 << 4;
+pub(crate) const GP_OPERATION_CONFIG: c_int = 1 << 4;
+pub(crate) const GP_OPERATION_TRIGGER_CAPTURE: c_int = 1 << 5;
+
+// CameraEventType (gphoto2-camera.h).
+pub(crate) const GP_EVENT_UNKNOWN: c_int = 0;
+pub(crate) const GP_EVENT_TIMEOUT: c_int = 1;
+pub(crate) const GP_EVENT_FILE_ADDED: c_int = 2;
+pub(crate) const GP_EVENT_FOLDER_ADDED: c_int = 3;
+pub(crate) const GP_EVENT_CAPTURE_COMPLETE: c_int = 4;
+pub(crate) const GP_EVENT_FILE_CHANGED: c_int = 5;

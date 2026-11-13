@@ -61,28 +61,6 @@ pub fn build_device_id(index: usize, model: &str, port: &str) -> String {
     )
 }
 
-/// Parse a shutter speed string (e.g., "1/250", "2.5", "30") to seconds.
-pub(crate) fn parse_shutter_speed_to_secs(speed: &str) -> Option<f64> {
-    let speed = speed.trim();
-
-    if speed.eq_ignore_ascii_case("bulb") {
-        return None;
-    }
-
-    // Handle fractional speeds like "1/250"
-    if let Some(pos) = speed.find('/') {
-        let num: f64 = speed[..pos].parse().ok()?;
-        let den: f64 = speed[pos + 1..].parse().ok()?;
-        if den != 0.0 {
-            return Some(num / den);
-        }
-        return None;
-    }
-
-    // Handle decimal speeds like "2.5" or "30"
-    speed.parse().ok()
-}
-
 /// Pick the Canon `eosremoterelease` Press / Release choice strings for bulb.
 ///
 /// The choice ORDER varies between libgphoto2 versions, so we match by name
@@ -163,4 +141,22 @@ pub(crate) fn resolve_max_adu(measured_white_level: Option<u32>, bit_depth: u32)
         Some(white) if white > 0 => white,
         _ => (1u32 << bit_depth.clamp(8, 16)) - 1,
     }
+}
+
+/// The extensions of the camera raw formats a body can write.
+const RAW_EXTENSIONS: &[&str] = &[
+    "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "raf", "orf", "rw2", "rwl", "pef",
+    "dng", "3fr", "iiq", "srw", "x3f", "mrw", "erf", "kdc", "dcr",
+];
+
+/// Whether a camera file name has a raw format's extension.
+pub(crate) fn is_raw_name(name: &str) -> bool {
+    name.rsplit_once('.')
+        .is_some_and(|(_, ext)| RAW_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()))
+}
+
+/// Of the files one capture wrote (a RAW+JPEG body writes two), the one to
+/// read: the first with a raw extension, else the first.
+pub(crate) fn raw_file_index(names: &[String]) -> usize {
+    names.iter().position(|name| is_raw_name(name)).unwrap_or(0)
 }

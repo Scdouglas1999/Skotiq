@@ -1,3 +1,5 @@
+use super::exposure::*;
+use super::models::*;
 use super::*;
 
 #[test]
@@ -80,7 +82,7 @@ fn gphoto2_version_from_array_reads_first_short_version() {
 /// `connect()` does before any frame has been decoded.
 fn camera_with_model_table(model: &str) -> GPhoto2Camera {
     let mut camera = GPhoto2Camera::new(0, model, "usb:001,002");
-    camera.detect_sensor_dimensions();
+    camera.adopt_model_table();
     camera
 }
 
@@ -92,9 +94,9 @@ fn max_adu_falls_back_to_model_table_before_any_frame_is_decoded() {
     assert_eq!(info.bit_depth, 12);
     assert_eq!(info.max_adu, 4095);
 
-    // Untabulated body: falls back to the table's 14-bit guess. This is the
-    // estimate the decoder is expected to correct on the first frame.
-    let untabulated = camera_with_model_table("Canon EOS 450D");
+    // Untabulated body: the 14-bit guess. This is the estimate the decoder is
+    // expected to correct on the first frame.
+    let untabulated = camera_with_model_table("Canon EOS 40D");
     let info = untabulated.get_sensor_info();
     assert_eq!(info.bit_depth, 14);
     assert_eq!(info.max_adu, 16383);
@@ -105,7 +107,7 @@ fn measured_12bit_white_level_overrides_the_14bit_estimate() {
     // A body that is NOT in the model table gets the 14-bit guess, but its
     // frames really top out at 4095. Publishing 16383 would put a 50% flat
     // target (8191) above anything the sensor can physically reach.
-    let mut camera = camera_with_model_table("Nikon D3200");
+    let mut camera = camera_with_model_table("Nikon DSC D3100");
     assert_eq!(camera.get_sensor_info().max_adu, 16383);
 
     camera.adopt_decoded_depth(12, 4095);
@@ -184,7 +186,13 @@ fn strings(items: &[&str]) -> Vec<String> {
     items.iter().map(|s| s.to_string()).collect()
 }
 
-fn widget(name: &str, label: &str, kind: CameraWidgetType, value: &str, choices: &[&str]) -> ConfigWidget {
+fn widget(
+    name: &str,
+    label: &str,
+    kind: CameraWidgetType,
+    value: &str,
+    choices: &[&str],
+) -> ConfigWidget {
     ConfigWidget {
         name: name.to_string(),
         label: label.to_string(),
@@ -216,9 +224,11 @@ fn camera_file(name: &str, bytes: Vec<u8>) -> skotiq_device::CameraFile {
 #[test]
 fn a_jpeg_download_is_refused_with_a_plain_reason() {
     let mut camera = camera_with_model_table("Canon EOS 1000D");
-    let jpeg = vec![0xFF, 0xD8, 0xFF, 0xE1, 0, 0x10, b'E', b'x', b'i', b'f', 0, 0];
+    let jpeg = vec![
+        0xFF, 0xD8, 0xFF, 0xE1, 0, 0x10, b'E', b'x', b'i', b'f', 0, 0,
+    ];
     let err = camera
-        .decode_raw_to_image_data(camera_file("IMG_0001.JPG", jpeg))
+        .decode_raw_to_image_data(camera_file("IMG_0001.JPG", jpeg), MadeExposure::Timed(1.0))
         .unwrap_err();
     assert!(err.to_string().contains("appears to be JPEG"), "{err}");
 }
@@ -246,7 +256,7 @@ fn every_makers_download_decodes() {
         let mut camera = camera_with_model_table(model);
         // A body that names no file gets one in the format its bytes are in.
         let image = camera
-            .decode_raw_to_image_data(camera_file("", bytes))
+            .decode_raw_to_image_data(camera_file("", bytes), MadeExposure::Timed(1.0))
             .unwrap_or_else(|e| panic!("{sample}: {e}"));
         let extension = sample.rsplit('.').next().unwrap();
         let saved = image.metadata.camera_file.expect("camera file kept");
@@ -267,14 +277,19 @@ fn every_makers_download_decodes() {
 #[test]
 fn iso_speeds_are_the_numbers_the_body_lists_without_auto() {
     // Canon EOS lists Auto first and the extended speeds as numbers.
-    let canon = iso_choices(&strings(&["Auto", "100", "125", "160", "25600", "51200", "102400"]));
+    let canon = iso_choices(&strings(&[
+        "Auto", "100", "125", "160", "25600", "51200", "102400",
+    ]));
     let speeds: Vec<i32> = canon.iter().map(|s| s.speed).collect();
     assert_eq!(speeds, vec![100, 125, 160, 25600, 51200, 102400]);
     assert_eq!(canon[0].choice, "100");
 
     // Step names carry no number and are not offered.
     let nikon = iso_choices(&strings(&["Hi 1", "64", "Lo 1", "32", "Auto ISO"]));
-    assert_eq!(nikon.iter().map(|s| s.speed).collect::<Vec<_>>(), vec![32, 64]);
+    assert_eq!(
+        nikon.iter().map(|s| s.speed).collect::<Vec<_>>(),
+        vec![32, 64]
+    );
 }
 
 #[test]
@@ -295,27 +310,60 @@ fn nikon_long_exposure_nr_is_found_and_switched_to_off() {
         vec![section(
             "capturesettings",
             vec![
-                widget("highisonr", "High ISO NR", CameraWidgetType::Radio, "Normal", &["Off", "Low", "Normal", "High"]),
-                widget("longexpnr", "Long Exp Noise Reduction", CameraWidgetType::Radio, "On", &["Off", "On"]),
+                widget(
+                    "highisonr",
+                    "High ISO NR",
+                    CameraWidgetType::Radio,
+                    "Normal",
+                    &["Off", "Low", "Normal", "High"],
+                ),
+                widget(
+                    "longexpnr",
+                    "Long Exp Noise Reduction",
+                    CameraWidgetType::Radio,
+                    "On",
+                    &["Off", "On"],
+                ),
             ],
         )],
     );
     let found = long_exposure_nr_widget(&tree).expect("longexpnr");
     assert_eq!(found.name, "longexpnr");
-    assert_eq!(noise_reduction_off(found), NoiseReductionOff::Choose("Off".to_string()));
+    assert_eq!(
+        noise_reduction_off(found),
+        NoiseReductionOff::Choose("Off".to_string())
+    );
     assert!(!reads_off(found));
 }
 
 #[test]
 fn long_exposure_nr_already_off_toggle_or_without_an_off_choice() {
-    let off = widget("longexpnr", "Long Exp Noise Reduction", CameraWidgetType::Radio, "Off", &["Off", "On"]);
+    let off = widget(
+        "longexpnr",
+        "Long Exp Noise Reduction",
+        CameraWidgetType::Radio,
+        "Off",
+        &["Off", "On"],
+    );
     assert_eq!(noise_reduction_off(&off), NoiseReductionOff::AlreadyOff);
     assert!(reads_off(&off));
 
-    let toggle = widget("longexposurenr", "Long Exposure NR", CameraWidgetType::Toggle, "1", &[]);
+    let toggle = widget(
+        "longexposurenr",
+        "Long Exposure NR",
+        CameraWidgetType::Toggle,
+        "1",
+        &[],
+    );
     assert_eq!(noise_reduction_off(&toggle), NoiseReductionOff::ClearToggle);
 
-    let stuck = widget("lexpnr", "Long exposure noise reduction", CameraWidgetType::Menu, "Auto", &["Auto", "On"]);
+    let stuck = widget(
+        "lexpnr",
+        "Long exposure noise reduction",
+        CameraWidgetType::Menu,
+        "Auto",
+        &["Auto", "On"],
+    );
     assert!(long_exposure_nr_widget(&stuck).is_some());
     assert_eq!(noise_reduction_off(&stuck), NoiseReductionOff::NoOffChoice);
 }
@@ -328,10 +376,430 @@ fn a_body_without_the_setting_shows_none() {
         vec![section(
             "settings",
             vec![
-                widget("highisonr", "High ISO speed NR", CameraWidgetType::Radio, "Off", &["Off", "On"]),
-                widget("customfuncex", "Custom Functions Ex", CameraWidgetType::Text, "b4,2,1,...", &[]),
+                widget(
+                    "highisonr",
+                    "High ISO speed NR",
+                    CameraWidgetType::Radio,
+                    "Off",
+                    &["Off", "On"],
+                ),
+                widget(
+                    "customfuncex",
+                    "Custom Functions Ex",
+                    CameraWidgetType::Text,
+                    "b4,2,1,...",
+                    &[],
+                ),
             ],
         )],
     );
     assert!(long_exposure_nr_widget(&tree).is_none());
+}
+
+/// Canon EOS `shutterspeed` in M mode (libgphoto2 2.5): bulb first, whole and
+/// decimal seconds, then fractions.
+const CANON_SPEEDS: &[&str] = &[
+    "bulb", "30", "25", "20", "15", "13", "10", "8", "6", "5", "4", "3.2", "2.5", "2", "1.6",
+    "1.3", "1", "0.8", "0.6", "0.5", "0.4", "0.3", "1/4", "1/5", "1/6", "1/8", "1/10", "1/250",
+    "1/4000",
+];
+
+/// Nikon `shutterspeed` (ExposureTime in 1/10000 s) and `shutterspeed2`.
+const NIKON_SPEEDS: &[&str] = &[
+    "0.0002s", "0.0040s", "0.5000s", "1.0000s", "30.0000s", "Bulb", "Time",
+];
+const NIKON_SPEEDS2: &[&str] = &[
+    "1/8000", "1/250", "1/2", "1", "15", "30", "Bulb", "Time", "x 200",
+];
+
+fn speeds(widget: &str, choices: &[&str]) -> ShutterSpeeds {
+    ShutterSpeeds::from_choices(widget, &strings(choices))
+}
+
+#[test]
+fn shutter_choices_of_every_maker_read_as_seconds() {
+    for (choice, seconds) in [
+        ("30", 30.0),
+        ("0.3", 0.3),
+        ("1/4000", 0.00025),
+        ("0.0040s", 0.004),
+        ("30.0000s", 30.0),
+        ("1/250s", 0.004),
+        ("1 1/3", 4.0 / 3.0),
+        ("1/3.2", 1.0 / 3.2),
+        ("30\"", 30.0),
+        ("2m", 120.0),
+        ("1.5m", 90.0),
+    ] {
+        let read = shutter_seconds(choice).unwrap_or_else(|| panic!("{choice} not read"));
+        assert!((read - seconds).abs() < 1e-9, "{choice}: {read}");
+    }
+    for not_timed in [
+        "bulb",
+        "Bulb",
+        "Time",
+        "x 200",
+        "Auto",
+        "65535/65535",
+        "60'",
+        "",
+    ] {
+        assert_eq!(shutter_seconds(not_timed), None, "{not_timed}");
+    }
+    let nikon = speeds("shutterspeed", NIKON_SPEEDS);
+    assert_eq!(
+        nikon.timed.len(),
+        5,
+        "Nikon's seconds-suffixed speeds are all read"
+    );
+    assert_eq!(nikon.bulb_choice.as_deref(), Some("Bulb"));
+    assert_eq!(nikon.longest(), Some(30.0));
+}
+
+#[test]
+fn an_exposure_uses_a_timed_speed_only_when_it_lasts_as_long() {
+    let canon = speeds("shutterspeed", CANON_SPEEDS);
+    let timed = |seconds| match plan_exposure("Canon EOS 6D", &canon, true, seconds).unwrap() {
+        ExposurePlan::Timed(speed) => Some(speed.choice),
+        ExposurePlan::Bulb => None,
+    };
+    assert_eq!(timed(30.0).as_deref(), Some("30"));
+    assert_eq!(timed(0.004).as_deref(), Some("1/250"));
+    assert_eq!(timed(2.5).as_deref(), Some("2.5"));
+    // Not one of the speeds: bulb for exactly the request, never the
+    // nearest speed recorded as the request (7 s was shot at 8 s before).
+    assert_eq!(timed(7.0), None);
+    assert_eq!(timed(45.0), None);
+    assert_eq!(timed(300.0), None);
+    // Under a second bulb cannot be timed: the nearest speed, which the
+    // frame then records.
+    assert_eq!(timed(0.7).as_deref(), Some("0.8"));
+}
+
+#[test]
+fn a_body_without_bulb_takes_the_nearest_speed_and_refuses_longer_exposures() {
+    let nikon = speeds("shutterspeed2", NIKON_SPEEDS2);
+    match plan_exposure("Nikon Z6", &nikon, false, 20.0).unwrap() {
+        ExposurePlan::Timed(speed) => assert_eq!(speed.choice, "15"),
+        other => panic!("{other:?}"),
+    }
+    let err = plan_exposure("Nikon Z6", &nikon, false, 120.0).unwrap_err();
+    assert!(
+        err.to_string().contains("longest shutter speed is 30 s"),
+        "{err}"
+    );
+    assert!(plan_exposure("Nikon Z6", &nikon, false, 0.0).is_err());
+    let none = ShutterSpeeds::default();
+    assert!(plan_exposure("Nikon Z6", &none, false, 10.0).is_err());
+    assert_eq!(
+        plan_exposure("Nikon Z6", &none, true, 0.5).unwrap(),
+        ExposurePlan::Bulb
+    );
+}
+
+#[test]
+fn the_exposure_range_follows_the_speeds_and_bulb() {
+    let canon = speeds("shutterspeed", CANON_SPEEDS);
+    assert_eq!(exposure_range(&canon, true), Some((0.00025, 3600.0)));
+    assert_eq!(exposure_range(&canon, false), Some((0.00025, 30.0)));
+    assert_eq!(
+        exposure_range(&ShutterSpeeds::default(), true),
+        Some((1.0, 3600.0))
+    );
+    assert_eq!(exposure_range(&ShutterSpeeds::default(), false), None);
+}
+
+#[test]
+fn a_frame_records_the_exposure_the_camera_made() {
+    // A timed speed: the camera's own record wins (a mode dial on Av would
+    // show here), else the speed.
+    assert_eq!(
+        recorded_exposure(&MadeExposure::Timed(30.0), Some(30.0)),
+        30.0
+    );
+    assert_eq!(
+        recorded_exposure(&MadeExposure::Timed(30.0), Some(1.0 / 60.0)),
+        1.0 / 60.0
+    );
+    assert_eq!(recorded_exposure(&MadeExposure::Timed(0.3), None), 0.3);
+    // Bulb: the measured open time, not the raw file's whole seconds.
+    assert_eq!(
+        recorded_exposure(&MadeExposure::Bulb(120.04), Some(120.0)),
+        120.04
+    );
+}
+
+fn detected(index: usize, model: &str, port: &str) -> DetectedGPhoto2Camera {
+    DetectedGPhoto2Camera {
+        model: model.to_string(),
+        port: port.to_string(),
+        index,
+        device_id: build_device_id(index, model, port),
+        sdk_version: None,
+    }
+}
+
+#[test]
+fn each_of_two_attached_bodies_opens_as_itself() {
+    let attached = [
+        detected(0, "Canon EOS 6d Mark II", "usb:001,004"),
+        detected(1, "Nikon Z6_2", "usb:001,007"),
+    ];
+    let nikon = select_camera(&attached, "Nikon Z6_2", "usb:001,007").unwrap();
+    assert_eq!(nikon.port, "usb:001,007");
+    let canon = select_camera(&attached, "Canon EOS 6d Mark II", "usb:001,004").unwrap();
+    assert_eq!(canon.port, "usb:001,004");
+}
+
+#[test]
+fn a_replugged_body_is_found_on_its_new_port() {
+    let attached = [
+        detected(0, "Canon EOS 6d Mark II", "usb:001,004"),
+        detected(1, "Nikon Z6_2", "usb:001,009"),
+    ];
+    assert_eq!(
+        select_camera(&attached, "Nikon Z6_2", "usb:001,007")
+            .unwrap()
+            .port,
+        "usb:001,009"
+    );
+    // Its old port now holds another body: still found by model.
+    let swapped = [
+        detected(0, "Canon EOS 6d Mark II", "usb:001,007"),
+        detected(1, "Nikon Z6_2", "usb:001,009"),
+    ];
+    assert_eq!(
+        select_camera(&swapped, "Nikon Z6_2", "usb:001,007")
+            .unwrap()
+            .port,
+        "usb:001,009"
+    );
+    // Gone, or two of the model and neither on the port: no guess.
+    assert!(matches!(
+        select_camera(&attached, "Sony Alpha-A7 III (PC Control)", "usb:001,003"),
+        Err(DriverError::DeviceNotFound(_))
+    ));
+    let twins = [
+        detected(0, "Nikon Z6_2", "usb:001,010"),
+        detected(1, "Nikon Z6_2", "usb:001,011"),
+    ];
+    assert!(matches!(
+        select_camera(&twins, "Nikon Z6_2", "usb:001,007"),
+        Err(DriverError::InvalidDevice(_))
+    ));
+    assert_eq!(
+        select_camera(&twins, "Nikon Z6_2", "usb:001,011")
+            .unwrap()
+            .index,
+        1
+    );
+}
+
+#[test]
+fn pixel_pitch_comes_from_the_body_libgphoto2_names() {
+    let pitch = |model: &str| sensor_spec(model).map(|s| s.pixel_um);
+    // Each of these took another body's numbers by substring before.
+    assert_eq!(pitch("Canon EOS R6m2"), Some(5.98));
+    assert_eq!(pitch("Canon EOS R6"), Some(6.56));
+    assert_eq!(pitch("Canon EOS R7"), Some(3.21));
+    assert_eq!(pitch("Canon EOS R50"), Some(3.72));
+    assert_eq!(pitch("Canon EOS 760D"), Some(3.72));
+    assert_eq!(pitch("Nikon DSC D7500"), Some(4.22));
+    assert_eq!(pitch("Nikon DSC D750"), Some(5.95));
+    assert_eq!(pitch("Nikon Z50"), Some(4.22));
+    assert_eq!(pitch("Pentax K10D"), Some(6.05));
+    // Generation marks in libgphoto2's spellings.
+    assert_eq!(pitch("Canon EOS 6d Mark II"), Some(5.67));
+    assert_eq!(pitch("Nikon Z6_2"), Some(5.94));
+    assert_eq!(pitch("Sony Alpha-A7III (Control)"), Some(5.93));
+    assert_eq!(pitch("Sony Alpha-A7 III (PC Control)"), Some(5.93));
+    assert_eq!(pitch("Sony Alpha-A7r II (Control)"), Some(4.51));
+    assert_eq!(pitch("Olympus E-M1 MII"), Some(3.32));
+    assert_eq!(pitch("Olympus E-M1 Mark II"), Some(3.32));
+    // Fujifilm bodies from the Fujifilm driver's table.
+    assert_eq!(pitch("Fuji Fujifilm X-T5"), Some(3.04));
+    assert_eq!(pitch("Fuji Fujifilm X-T20"), None);
+    // A body Skotiq does not list has no pitch (no fabricated 5.9 um).
+    assert_eq!(pitch("Canon EOS 40D"), None);
+    assert_eq!(pitch("Canon EOS 5D (normal mode)"), None);
+}
+
+fn canon_tree() -> ConfigWidget {
+    section(
+        "main",
+        vec![
+            section(
+                "actions",
+                vec![
+                    widget(
+                        "eosremoterelease",
+                        "Canon EOS Remote Release",
+                        CameraWidgetType::Radio,
+                        "None",
+                        &[
+                            "None",
+                            "Press Half",
+                            "Press Full",
+                            "Release Half",
+                            "Release Full",
+                            "Immediate",
+                        ],
+                    ),
+                    widget("bulb", "Bulb Mode", CameraWidgetType::Toggle, "0", &[]),
+                ],
+            ),
+            section(
+                "status",
+                vec![
+                    widget(
+                        "serialnumber",
+                        "Serial Number",
+                        CameraWidgetType::Text,
+                        "112233445566",
+                        &[],
+                    ),
+                    widget(
+                        "manufacturer",
+                        "Camera Manufacturer",
+                        CameraWidgetType::Text,
+                        "Canon Inc.",
+                        &[],
+                    ),
+                    widget(
+                        "cameramodel",
+                        "Camera Model",
+                        CameraWidgetType::Text,
+                        "Canon EOS 6D Mark II",
+                        &[],
+                    ),
+                    widget(
+                        "batterylevel",
+                        "Battery Level",
+                        CameraWidgetType::Text,
+                        "15%",
+                        &[],
+                    ),
+                ],
+            ),
+            section(
+                "settings",
+                vec![widget(
+                    "capturetarget",
+                    "Capture Target",
+                    CameraWidgetType::Radio,
+                    "Internal RAM",
+                    &["Internal RAM", "Memory card"],
+                )],
+            ),
+            section(
+                "capturesettings",
+                vec![widget(
+                    "shutterspeed",
+                    "Shutter Speed",
+                    CameraWidgetType::Radio,
+                    "30",
+                    CANON_SPEEDS,
+                )],
+            ),
+        ],
+    )
+}
+
+#[test]
+fn a_body_says_what_it_is_and_how_it_opens_for_bulb() {
+    let tree = canon_tree();
+    let facts = body_facts(&tree);
+    assert_eq!(facts.serial.as_deref(), Some("112233445566"));
+    assert_eq!(facts.battery_percent(), Some(15));
+    assert!(facts.captures_to_ram());
+    assert!(!facts.needs_session_reset_after_capture());
+    assert!(matches!(
+        bulb_control(&tree),
+        Some(BulbWidget::EosRemoteRelease { ref press, ref release })
+            if press == "Press Full" && release == "Release Full"
+    ));
+    assert_eq!(shutter_speeds(&tree).unwrap().widget, "shutterspeed");
+
+    let nikon = section(
+        "main",
+        vec![
+            widget("bulb", "Bulb Mode", CameraWidgetType::Toggle, "0", &[]),
+            widget(
+                "serialnumber",
+                "Serial Number",
+                CameraWidgetType::Text,
+                "0000000000",
+                &[],
+            ),
+            widget(
+                "shutterspeed",
+                "Shutter Speed",
+                CameraWidgetType::Radio,
+                "1.0000s",
+                NIKON_SPEEDS,
+            ),
+            widget(
+                "shutterspeed2",
+                "Shutter Speed 2",
+                CameraWidgetType::Radio,
+                "1",
+                NIKON_SPEEDS2,
+            ),
+            widget(
+                "capturetarget",
+                "Capture Target",
+                CameraWidgetType::Radio,
+                "Memory card",
+                &["Internal RAM", "Memory card"],
+            ),
+        ],
+    );
+    let facts = body_facts(&nikon);
+    assert_eq!(facts.serial, None, "an unset serial is no serial");
+    assert!(!facts.captures_to_ram());
+    assert_eq!(bulb_control(&nikon), Some(BulbWidget::BulbToggle));
+    assert_eq!(shutter_speeds(&nikon).unwrap().widget, "shutterspeed2");
+
+    let neither = section("main", vec![]);
+    assert_eq!(bulb_control(&neither), None);
+
+    let sony = |model: &str| BodyFacts {
+        manufacturer: Some("Sony Corporation".into()),
+        model: Some(model.into()),
+        ..Default::default()
+    };
+    assert!(sony("ILCE-7M3").needs_session_reset_after_capture());
+    assert!(!sony("ILCE-7RM4").needs_session_reset_after_capture());
+}
+
+#[test]
+fn of_a_raw_and_jpeg_pair_the_raw_file_is_read() {
+    assert_eq!(
+        raw_file_index(&strings(&["IMG_0001.JPG", "IMG_0001.CR2"])),
+        1
+    );
+    assert_eq!(
+        raw_file_index(&strings(&["DSC_0001.NEF", "DSC_0001.JPG"])),
+        0
+    );
+    assert_eq!(raw_file_index(&strings(&["capt0000.jpg"])), 0);
+}
+
+#[test]
+fn libgphoto2_results_read_as_the_header_defines_them() {
+    assert!(matches!(gp_error(-6, "x"), DriverError::NotSupported));
+    assert!(matches!(gp_error(-5, "x"), DriverError::DeviceNotFound(_)));
+    assert!(matches!(gp_error(-52, "x"), DriverError::Disconnected));
+    assert!(gp_error(-53, "opening").to_string().contains("gvfs"));
+    assert!(gp_error(-7, "capture").to_string().contains("lost contact"));
+    // CameraOperation bits as gphoto2-abilities-list.h numbers them.
+    assert_eq!(
+        [
+            GP_OPERATION_CAPTURE_IMAGE,
+            GP_OPERATION_CAPTURE_PREVIEW,
+            GP_OPERATION_CONFIG,
+            GP_OPERATION_TRIGGER_CAPTURE
+        ],
+        [1, 8, 16, 32]
+    );
 }

@@ -129,6 +129,44 @@ pub(crate) fn detect_cameras_with(sdk: &GPhoto2Sdk) -> Vec<DetectedGPhoto2Camera
     }
 }
 
+/// The attached camera a connect opens: the one on the recorded port when it
+/// is still this model there, else the only attached camera of this model
+/// (a USB replug gives a body a new port number).
+pub(crate) fn select_camera<'a>(
+    detected: &'a [DetectedGPhoto2Camera],
+    model: &str,
+    port: &str,
+) -> Result<&'a DetectedGPhoto2Camera, DriverError> {
+    if let Some(same) = detected
+        .iter()
+        .find(|c| !port.is_empty() && c.port == port && c.model == model)
+    {
+        return Ok(same);
+    }
+    let mut same_model = detected.iter().filter(|c| c.model == model);
+    match (same_model.next(), same_model.next()) {
+        (Some(only), None) => {
+            if !port.is_empty() {
+                tracing::info!(
+                    "gPhoto2: {} is now on {} (it was on {})",
+                    model,
+                    only.port,
+                    port
+                );
+            }
+            Ok(only)
+        }
+        (None, _) => Err(DriverError::DeviceNotFound(format!(
+            "gPhoto2: {model} is not attached. Check that it is switched on, connected by USB \
+             and set to PC (PTP) connection mode."
+        ))),
+        (Some(_), Some(_)) => Err(DriverError::InvalidDevice(format!(
+            "gPhoto2: several {model} bodies are attached and none is on {port}, the port this \
+             one was found on. Search for devices again and pick the body."
+        ))),
+    }
+}
+
 pub fn is_sdk_available() -> bool {
     GPhoto2Sdk::is_available()
 }
