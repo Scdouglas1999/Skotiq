@@ -12,8 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless/headless_auth_config.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/pairing_handlers.dart'
-import 'package:skotiq_remote_protocol/wire.dart';
     show PairingMode;
+import 'package:skotiq_remote_protocol/wire.dart';
 
 void main() {
   group('parseHeadlessAuthConfig — defaults (no CLI args)', () {
