@@ -4,7 +4,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/services.dart' as core_services
+import 'package:skotiq_core/providers.dart' as core_providers
     show stopGuidingForMove;
 
 import 'command_action_result.dart';
@@ -186,7 +186,7 @@ class MountCommandService {
   /// the move may go.
   Future<CommandActionResult?> stopGuidingForMove() async {
     try {
-      await core_services.stopGuidingForMove(_ref);
+      await core_providers.stopGuidingForMove(_ref);
       return null;
     } on GuidingDidNotStopException catch (e) {
       return CommandActionResult.failure('$e');

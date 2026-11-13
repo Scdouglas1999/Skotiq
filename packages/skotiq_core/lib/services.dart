@@ -88,7 +88,6 @@ export 'src/services/scheduler/rejection_labels.dart';
 export 'src/services/planning/project_service.dart';
 export 'src/services/planning/forecast_planning_service.dart';
 export 'src/services/focus_model_service.dart';
-export 'src/services/guiding_for_move.dart';
 // Predictive autofocus persisted per-filter learning + drift detection.
 export 'src/services/predictive_af_service.dart';
 export 'src/services/logging_service.dart';

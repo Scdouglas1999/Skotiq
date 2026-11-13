@@ -6,7 +6,6 @@ import '../backend/roles/device_backend.dart';
 import 'plate_solve_service.dart';
 import 'imaging_service.dart';
 import 'device_service.dart';
-import 'guiding_for_move.dart';
 import '../providers/backend_provider.dart';
 import '../providers/constellation_provider.dart'
     show coImagingSessionServiceProvider;

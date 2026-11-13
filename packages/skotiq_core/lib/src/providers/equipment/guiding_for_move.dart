@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../errors/error_text.dart';
-import '../providers/equipment/guider_state_provider.dart';
-import '../providers/guiding_provider.dart' show phd2ControllerProvider;
+import '../../errors/error_text.dart';
+import '../guiding_provider.dart' show phd2ControllerProvider;
+import 'guider_state_provider.dart';
 
 /// Guiding could not be stopped before a mount move, so the move must not go.
 class GuidingDidNotStopException implements Exception {
