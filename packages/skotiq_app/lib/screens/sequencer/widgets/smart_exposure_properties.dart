@@ -18,6 +18,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/accessible_dropdown.dart';
+import '../../../widgets/sensitivity_field.dart';
 import '../../imaging/widgets/depthlock/depthlock_presentation.dart';
 import 'node_property_widgets.dart';
 
@@ -404,7 +405,7 @@ class _PlanList extends StatelessWidget {
   }
 }
 
-class _PlanRow extends StatelessWidget {
+class _PlanRow extends ConsumerWidget {
   final SkotiqColors colors;
   final FilterPlan plan;
   final int index;
@@ -427,8 +428,41 @@ class _PlanRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final recommendation = exposureContext?.recommendForFilter(plan.filterName);
+    // A control the connected camera does not have gets no field.
+    final sensitivity = ref.watch(cameraSensitivityProvider);
+    final gainField = sensitivity.hasGain
+        ? NodePropertyField(
+            colors: colors,
+            label: sensitivity.label,
+            child: SensitivityField(
+              value: plan.gain,
+              sensitivity: sensitivity,
+              onChanged: (v) => onChanged(plan.copyWith(gain: v)),
+              gainField: (_) => NodeNumberInput(
+                colors: colors,
+                value: (plan.gain ?? 0).toDouble(),
+                min: 0,
+                max: 1000,
+                onChanged: (v) => onChanged(plan.copyWith(gain: v.toInt())),
+              ),
+            ),
+          )
+        : null;
+    final offsetField = sensitivity.hasOffset
+        ? NodePropertyField(
+            colors: colors,
+            label: 'Offset',
+            child: NodeNumberInput(
+              colors: colors,
+              value: (plan.offset ?? 0).toDouble(),
+              min: 0,
+              max: 1000,
+              onChanged: (v) => onChanged(plan.copyWith(offset: v.toInt())),
+            ),
+          )
+        : null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
@@ -541,30 +575,10 @@ class _PlanRow extends StatelessWidget {
                 ),
               ),
             ],
-            _FieldPair(
-              first: NodePropertyField(
-                colors: colors,
-                label: 'Gain',
-                child: NodeNumberInput(
-                  colors: colors,
-                  value: (plan.gain ?? 0).toDouble(),
-                  min: 0,
-                  max: 1000,
-                  onChanged: (v) => onChanged(plan.copyWith(gain: v.toInt())),
-                ),
-              ),
-              second: NodePropertyField(
-                colors: colors,
-                label: 'Offset',
-                child: NodeNumberInput(
-                  colors: colors,
-                  value: (plan.offset ?? 0).toDouble(),
-                  min: 0,
-                  max: 1000,
-                  onChanged: (v) => onChanged(plan.copyWith(offset: v.toInt())),
-                ),
-              ),
-            ),
+            if (gainField != null && offsetField != null)
+              _FieldPair(first: gainField, second: offsetField)
+            else if (gainField ?? offsetField case final field?)
+              field,
             _FieldPair(
               first: NodePropertyField(
                 colors: colors,
@@ -734,7 +748,8 @@ class _BudgetInputState extends State<_BudgetInput> {
     super.initState();
     _controller = TextEditingController(
       text: widget.node.integrationBudgetSecs > 0
-          ? DurationFormat.seconds(widget.node.integrationBudgetSecs, style: DurationStyle.short)
+          ? DurationFormat.seconds(widget.node.integrationBudgetSecs,
+              style: DurationStyle.short)
           : '',
     );
   }
@@ -745,7 +760,8 @@ class _BudgetInputState extends State<_BudgetInput> {
     if (oldWidget.node.integrationBudgetSecs !=
         widget.node.integrationBudgetSecs) {
       _controller.text = widget.node.integrationBudgetSecs > 0
-          ? DurationFormat.seconds(widget.node.integrationBudgetSecs, style: DurationStyle.short)
+          ? DurationFormat.seconds(widget.node.integrationBudgetSecs,
+              style: DurationStyle.short)
           : '';
     }
   }
