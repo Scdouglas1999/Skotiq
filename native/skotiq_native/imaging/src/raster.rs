@@ -98,9 +98,9 @@ pub fn write_raster(path: &Path, image: &ImageData, format: RasterFormat) -> Res
                 _ => 2,
             }];
             if format == RasterFormat::Tiff {
-                image::codecs::tiff::TiffEncoder::new(file).write_image(&bytes, w, h, color.into())?;
+                image::codecs::tiff::TiffEncoder::new(file).write_image(&bytes, w, h, color)?;
             } else {
-                image::codecs::png::PngEncoder::new(file).write_image(&bytes, w, h, color.into())?;
+                image::codecs::png::PngEncoder::new(file).write_image(&bytes, w, h, color)?;
             }
         }
         RasterFormat::Jpeg { quality } => {
@@ -128,7 +128,7 @@ pub fn write_raster(path: &Path, image: &ImageData, format: RasterFormat) -> Res
                 ),
             };
             image::codecs::jpeg::JpegEncoder::new_with_quality(file, quality.clamp(1, 100))
-                .write_image(&bytes, w, h, color.into())?;
+                .write_image(&bytes, w, h, color)?;
         }
     }
     Ok(())
