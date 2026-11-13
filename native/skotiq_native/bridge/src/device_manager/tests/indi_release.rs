@@ -154,3 +154,57 @@ async fn an_indi_focuser_heartbeat_goes_through_its_handle() {
 
     assert_eq!(healthy, Ok(true));
 }
+
+/// A client on a loopback server that answers getProperties with what
+/// INDI's CCD simulator defines once it is connected.
+async fn connected_ccd_simulator() -> skotiq_indi::IndiClient {
+    let definitions = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../indi/tests/drivers/ccd_simulator.after.xml"),
+    )
+    .expect("the recorded definitions");
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let port = listener.local_addr().expect("address").port();
+    tokio::spawn(async move {
+        let (socket, _) = listener.accept().await.expect("accept");
+        let (reader, mut writer) = socket.into_split();
+        let mut lines = BufReader::new(reader).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if line.contains("<getProperties") {
+                let _ = writer.write_all(definitions.as_bytes()).await;
+            }
+        }
+    });
+    let mut client = skotiq_indi::IndiClient::new("127.0.0.1", Some(port));
+    client.connect().await.expect("connect");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    while !client.has_property("CCD Simulator", "CCD_INFO").await {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "definitions arrived"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    client
+}
+
+/// The CCD simulator keeps its default duration (1 s) in CCD_EXPOSURE while
+/// it is idle. The status read that value as time left, so a camera that had
+/// just connected read "exposing" and every capture was refused until an
+/// abort.
+#[tokio::test]
+async fn an_indi_camera_at_rest_with_a_duration_left_in_ccd_exposure_is_idle() {
+    use crate::device_manager::rig::camera::{Camera, IndiCameraHandle};
+
+    let client = std::sync::Arc::new(tokio::sync::RwLock::new(connected_ccd_simulator().await));
+    let duration = client
+        .read()
+        .await
+        .get_number("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE")
+        .await;
+    assert_eq!(duration, Some(1.0), "the recording has the idle duration");
+
+    let camera = IndiCameraHandle::new("indi:127.0.0.1:1:CCD Simulator", client, "CCD Simulator");
+    let status = camera.status().await.expect("status");
+    assert_eq!(status.state, crate::device::CameraState::Idle);
+}

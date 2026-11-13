@@ -522,20 +522,25 @@ impl Camera for IndiCameraHandle {
                     device_id
                 ))
             })?;
-        let exposure_value = locked_client
-            .get_number(&device_name, indi::CCD_EXPOSURE, indi::CCD_EXPOSURE_VALUE)
-            .await;
-
-        // Determine camera state based on exposure value
-        let state = match exposure_value {
-            Some(v) if v > 0.0 => crate::device::CameraState::Exposing,
-            Some(_) => crate::device::CameraState::Idle,
-            None => {
-                return Err(DeviceOpError::hardware(Some(device_id.to_string()), format!(
-                    "INDI camera {} missing required property CCD_EXPOSURE.CCD_EXPOSURE_VALUE; cannot determine camera state.",
-                    device_id
-                )))
-            }
+        // CCD_EXPOSURE is Busy while the camera exposes. Its value is the
+        // time left during an exposure, but at rest a driver may leave the
+        // last or the default duration in it.
+        if !locked_client
+            .has_property(&device_name, indi::CCD_EXPOSURE)
+            .await
+        {
+            return Err(DeviceOpError::hardware(Some(device_id.to_string()), format!(
+                "INDI camera {} missing required property CCD_EXPOSURE.CCD_EXPOSURE_VALUE; cannot determine camera state.",
+                device_id
+            )));
+        }
+        let state = if locked_client
+            .is_property_busy(&device_name, indi::CCD_EXPOSURE)
+            .await
+        {
+            crate::device::CameraState::Exposing
+        } else {
+            crate::device::CameraState::Idle
         };
 
         // Read sensor info from INDI CCD_INFO property.
