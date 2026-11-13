@@ -1,5 +1,5 @@
 use super::*;
-use crate::ascom_sensor_type::is_colour_sensor;
+use skotiq_device::ascom::sensor_type::is_colour_sensor;
 
 /// Get capabilities for an Alpaca camera or mount
 ///

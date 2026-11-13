@@ -289,7 +289,7 @@ async fn a_moved_camera_is_still_refused_without_an_expectation() {
 #[tokio::test]
 async fn a_vendor_filter_wheel_behind_its_handle_reports_model_and_serial() {
     use crate::device_manager::handle::DeviceHandle;
-    use crate::device_manager::rig::filter_wheel::VendorFilterWheel;
+    use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
 
     let manager = build_device_manager();
     let info = DeviceInfo {
@@ -306,7 +306,7 @@ async fn a_vendor_filter_wheel_behind_its_handle_reports_model_and_serial() {
     manager.register_device(info.clone(), false).await;
     manager.handles.insert(
         &info.id,
-        DeviceHandle::FilterWheel(Arc::new(VendorFilterWheel::new(
+        DeviceHandle::FilterWheel(Arc::new(DriverFilterWheel::vendor(
             &info.id,
             Box::new(FakeIdentityDevice {
                 id: info.id.clone(),

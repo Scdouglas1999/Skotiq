@@ -1,9 +1,15 @@
-//! A vendor SDK camera.
+//! A camera behind a [`CameraDriver`]: a vendor SDK camera, an Alpaca camera
+//! or an INDI camera.
+//!
+//! Which requests an operation makes of the camera is the driver's; this
+//! file adds what is the same for every driver: the sentences an operator
+//! reads and the status and capability shapes the application uses.
 
-use super::{Camera, ExposureAborts};
+use super::{no_preview, Camera, ExposureAborts};
+use crate::device::DriverType;
 use crate::device_capabilities::{CameraCapabilities, DeviceCapabilities};
 use crate::device_manager::identity::DeviceIdentity;
-use crate::device_manager::rig::{Exclusive, RigDriver};
+use crate::device_manager::rig::{RigDriver, Slot};
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
@@ -12,59 +18,139 @@ use skotiq_device::{
     CameraDriver, DriverError, ExposureAbort, ExposureParams, ImageData, SubFrame,
 };
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
-pub(crate) struct VendorCamera {
+type Driver = dyn CameraDriver + Send + Sync;
+
+/// What differs by protocol around a [`CameraDriver`].
+struct Protocol {
+    /// "Native", "Alpaca", "INDI": in "Native camera not connected".
+    name: &'static str,
+    /// The protocol inside a sentence: "native SDK", "Alpaca", "INDI".
+    in_sentence: &'static str,
+    /// Where a description of the camera comes from, and what a camera
+    /// without live view is said to be driven by.
+    driver_type: DriverType,
+}
+
+const VENDOR: Protocol = Protocol {
+    name: "Native",
+    in_sentence: "native SDK",
+    driver_type: DriverType::Native,
+};
+
+const ALPACA: Protocol = Protocol {
+    name: "Alpaca",
+    in_sentence: "Alpaca",
+    driver_type: DriverType::Alpaca,
+};
+
+const INDI: Protocol = Protocol {
+    name: "INDI",
+    in_sentence: "INDI",
+    driver_type: DriverType::Indi,
+};
+
+pub(crate) struct DriverCamera {
     device_id: String,
-    driver: Arc<Exclusive<Box<dyn CameraDriver + Send + Sync>>>,
+    driver: Arc<Slot<Driver>>,
     aborts: ExposureAborts,
     /// The driver's way to give up a frame read in flight, when it has one.
     give_up: Option<Arc<dyn ExposureAbort>>,
+    protocol: &'static Protocol,
 }
 
-impl VendorCamera {
-    pub(crate) fn new(device_id: &str, driver: Box<dyn CameraDriver + Send + Sync>) -> Self {
+impl DriverCamera {
+    /// A vendor SDK camera: the driver keeps state between calls, so it is
+    /// reached one call at a time.
+    pub(crate) fn vendor(device_id: &str, driver: Box<Driver>) -> Self {
         Self {
             device_id: device_id.to_string(),
             give_up: driver.exposure_abort(),
-            driver: Arc::new(Exclusive::new(driver)),
+            driver: Arc::new(Slot::held(driver)),
             aborts: ExposureAborts::new(),
+            protocol: &VENDOR,
         }
+    }
+
+    pub(crate) fn alpaca(device_id: &str, camera: skotiq_alpaca::AlpacaCameraDriver) -> Self {
+        Self {
+            device_id: device_id.to_string(),
+            give_up: None,
+            driver: Arc::new(Slot::per_call(move || {
+                Box::new(camera.clone()) as Box<Driver>
+            })),
+            aborts: ExposureAborts::new(),
+            protocol: &ALPACA,
+        }
+    }
+
+    pub(crate) fn indi(
+        device_id: &str,
+        client: Arc<RwLock<skotiq_indi::IndiClient>>,
+        device_name: &str,
+    ) -> Self {
+        let device_name = device_name.to_string();
+        Self {
+            device_id: device_id.to_string(),
+            give_up: None,
+            driver: Arc::new(Slot::per_call(move || {
+                Box::new(skotiq_indi::IndiCamera::new(client.clone(), &device_name))
+                    as Box<Driver>
+            })),
+            aborts: ExposureAborts::new(),
+            protocol: &INDI,
+        }
+    }
+
+    fn gone(&self) -> DeviceOpError {
+        DeviceOpError::not_connected(
+            Some(self.device_id.clone()),
+            format!("{} camera not connected", self.protocol.name),
+        )
+    }
+
+    fn failed(&self, what: String, error: DriverError) -> DeviceOpError {
+        DeviceOpError::caused_by(
+            Some(self.device_id.clone()),
+            format!("{what}: {error}"),
+            error,
+        )
     }
 }
 
 #[async_trait]
-impl RigDriver for VendorCamera {
+impl RigDriver for DriverCamera {
     async fn disconnect(&self) -> Result<(), DriverError> {
-        self.driver.write().await.disconnect().await
+        match self.driver.take().await {
+            Some(mut camera) => camera.disconnect().await,
+            None => Ok(()),
+        }
     }
 
     async fn heartbeat(&self) -> Result<bool, String> {
-        let camera = self.driver.read().await;
-        if !camera.is_connected() {
+        let Some(camera) = self.driver.read().await else {
             return Ok(false);
-        }
-        // The status read, because every camera answers it; a body
-        // without a thermometer (every DSLR and mirrorless camera)
-        // answers a temperature read "not supported".
-        camera
-            .get_status()
-            .await
-            .map(|_| true)
-            .map_err(|e| format!("Native camera liveness probe failed: {}", e))
+        };
+        camera.heartbeat().await.map_err(|e| {
+            format!(
+                "{} camera liveness probe failed: {}",
+                self.protocol.name, e
+            )
+        })
     }
 
     async fn identity(&self) -> Option<DeviceIdentity> {
-        let camera = self.driver.read().await;
-        Some(DeviceManager::identity_from_camera(
-            &self.device_id,
-            camera.as_ref(),
-        ))
+        if self.protocol.driver_type != DriverType::Native {
+            return None;
+        }
+        let camera = self.driver.read().await?;
+        Some(DeviceManager::identity_from_camera(&self.device_id, &*camera))
     }
 }
 
-
 #[async_trait]
-impl Camera for VendorCamera {
+impl Camera for DriverCamera {
     fn aborts(&self) -> &ExposureAborts {
         &self.aborts
     }
@@ -79,10 +165,11 @@ impl Camera for VendorCamera {
         subframe: Option<SubFrame>,
         frame_type: skotiq_device::FrameType,
     ) -> Result<(), DeviceOpError> {
-        let device_id = self.device_id.as_str();
-        let mut driver = self.driver.write().await;
-        let camera = &mut *driver;
-        tracing::info!("DeviceManager: Starting Native SDK exposure");
+        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
+        tracing::info!(
+            "DeviceManager: Starting {} exposure",
+            self.protocol.in_sentence
+        );
         let params = ExposureParams {
             duration_secs: duration,
             bin_x,
@@ -94,11 +181,10 @@ impl Camera for VendorCamera {
             frame_type,
         };
         camera.start_exposure(params).await.map_err(|e| {
-            DeviceOpError::caused_by(
-                Some(device_id.to_string()),
+            self.failed(
                 format!(
-                    "Failed to start native SDK camera exposure on {}: {}",
-                    device_id, e
+                    "Failed to start {} camera exposure on {}",
+                    self.protocol.in_sentence, self.device_id
                 ),
                 e,
             )
@@ -106,8 +192,7 @@ impl Camera for VendorCamera {
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DeviceOpError> {
-        let driver = self.driver.read().await;
-        let camera = &*driver;
+        let camera = self.driver.read().await.ok_or_else(|| self.gone())?;
         camera
             .is_exposure_complete()
             .await
@@ -119,16 +204,32 @@ impl Camera for VendorCamera {
         if let Some(give_up) = &self.give_up {
             give_up.request();
         }
-        let mut driver = self.driver.write().await;
-        let camera = &mut *driver;
+        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
         camera.abort_exposure().await.map_err(DeviceOpError::from)
     }
 
+    /// A held driver's read runs to its end on its own task, under the
+    /// device lock, so the stop command and the next exposure follow it in
+    /// order. A per-call client's read only waits for the camera and is
+    /// dropped with this call.
     async fn read_frame(&self) -> Result<ImageData, DeviceOpError> {
+        if let Slot::PerCall(_) = *self.driver {
+            let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
+            return camera.download_image().await.map_err(|e| {
+                self.failed(
+                    format!(
+                        "Failed to download image from {} camera {}",
+                        self.protocol.in_sentence, self.device_id
+                    ),
+                    e,
+                )
+            });
+        }
         let driver = Arc::clone(&self.driver);
+        let gone = self.gone();
         let read = tokio::spawn(async move {
-            let mut driver = driver.write().await;
-            driver.download_image().await.map_err(DeviceOpError::from)
+            let mut camera = driver.write().await.ok_or(gone)?;
+            camera.download_image().await.map_err(DeviceOpError::from)
         });
         read.await.unwrap_or_else(|stopped| {
             Err(DeviceOpError::hardware(
@@ -139,21 +240,22 @@ impl Camera for VendorCamera {
     }
 
     async fn capture_preview(&self) -> Result<Vec<u8>, DeviceOpError> {
-        let driver = self.driver.read().await;
-        let camera = &*driver;
-        camera.capture_preview().await.map_err(DeviceOpError::from)
+        let camera = self.driver.read().await.ok_or_else(|| self.gone())?;
+        camera.capture_preview().await.map_err(|e| match e {
+            DriverError::NotSupported if self.protocol.driver_type != DriverType::Native => {
+                no_preview(self.protocol.driver_type, &self.device_id)
+            }
+            e => DeviceOpError::from(e),
+        })
     }
 
     async fn status(&self) -> Result<crate::device::CameraStatus, DeviceOpError> {
-        let driver = self.driver.read().await;
-        let camera = &*driver;
-        let native_status = camera.get_status().await.map_err(DeviceOpError::from)?;
-        let capabilities = camera.capabilities();
-        let sensor_info = camera.get_sensor_info();
-
+        let camera = self.driver.read().await.ok_or_else(|| self.gone())?;
+        let report = camera.report().await.map_err(DeviceOpError::from)?;
+        let (status, sensor) = (report.status, report.sensor);
         Ok(crate::device::CameraStatus {
             connected: camera.is_connected(),
-            state: match native_status.state {
+            state: match status.state {
                 skotiq_device::CameraState::Idle => crate::device::CameraState::Idle,
                 skotiq_device::CameraState::Waiting => crate::device::CameraState::Waiting,
                 skotiq_device::CameraState::Exposing => crate::device::CameraState::Exposing,
@@ -161,52 +263,43 @@ impl Camera for VendorCamera {
                 skotiq_device::CameraState::Downloading => crate::device::CameraState::Download,
                 skotiq_device::CameraState::Error => crate::device::CameraState::Error,
             },
-            sensor_temp: native_status.sensor_temp,
-            cooler_power: native_status.cooler_power,
-            target_temp: native_status.target_temp,
-            cooler_on: native_status.cooler_on,
-            gain: native_status.gain,
-            offset: native_status.offset,
-            bin_x: native_status.bin_x,
-            bin_y: native_status.bin_y,
-            sensor_width: sensor_info.width,
-            sensor_height: sensor_info.height,
-            pixel_size_x: sensor_info.pixel_size_x,
-            pixel_size_y: sensor_info.pixel_size_y,
-            // The DRIVER owns this value. Re-deriving it from
-            // `bit_depth` here overwrote whatever the vendor SDK
-            // reported with the ADC range, which is a different
-            // quantity: an ASI1600MM (12-bit, Raw16 left-justified)
-            // was published as `maxAdu: 4095` while its frames
-            // measurably contained values up to 65504. See the
-            // `skotiq_device::SensorInfo` contract.
-            // 0 = the driver never populated it; 65535 is the
-            // container ceiling and the documented fallback (see the
-            // `unwrap_or` policy in this module's header).
-            max_adu: if sensor_info.max_adu == 0 {
+            sensor_temp: status.sensor_temp,
+            cooler_power: status.cooler_power,
+            target_temp: status.target_temp,
+            cooler_on: status.cooler_on,
+            gain: status.gain,
+            offset: status.offset,
+            bin_x: status.bin_x,
+            bin_y: status.bin_y,
+            sensor_width: sensor.width,
+            sensor_height: sensor.height,
+            pixel_size_x: sensor.pixel_size_x,
+            pixel_size_y: sensor.pixel_size_y,
+            // The driver owns this value: it is the largest value in the
+            // delivered pixels, not `2^bit_depth - 1` (see
+            // `skotiq_device::SensorInfo`). 0 is a driver that never filled
+            // it in; 65535 is the container's ceiling.
+            max_adu: if sensor.max_adu == 0 {
                 65535
             } else {
-                sensor_info.max_adu
+                sensor.max_adu
             },
-            saturation_adu: sensor_info.saturation_adu,
-            can_cool: capabilities.can_cool,
-            can_set_gain: capabilities.can_set_gain,
-            can_set_offset: capabilities.can_set_offset,
+            saturation_adu: sensor.saturation_adu,
+            can_cool: report.can_cool,
+            can_set_gain: report.can_set_gain,
+            can_set_offset: report.can_set_offset,
         })
     }
 
     async fn recommended_settings(
         &self,
     ) -> Result<skotiq_device::CameraRecommendedSettings, DeviceOpError> {
-        let device_id = self.device_id.as_str();
-        let driver = self.driver.read().await;
-        let camera = &*driver;
+        let camera = self.driver.read().await.ok_or_else(|| self.gone())?;
         camera.get_recommended_settings().await.map_err(|e| {
-            DeviceOpError::caused_by(
-                Some(device_id.to_string()),
+            self.failed(
                 format!(
-                    "Failed to query recommended settings for native camera {}: {}",
-                    device_id, e
+                    "Failed to query recommended settings for {} camera {}",
+                    self.protocol.in_sentence, self.device_id
                 ),
                 e,
             )
@@ -214,15 +307,12 @@ impl Camera for VendorCamera {
     }
 
     async fn set_gain(&self, gain: i32) -> Result<(), DeviceOpError> {
-        let device_id = self.device_id.as_str();
-        let mut driver = self.driver.write().await;
-        let camera = &mut *driver;
+        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
         camera.set_gain(gain).await.map_err(|e| {
-            DeviceOpError::caused_by(
-                Some(device_id.to_string()),
+            self.failed(
                 format!(
-                    "Failed to set native SDK camera {} gain to {}: {}",
-                    device_id, gain, e
+                    "Failed to set {} camera {} gain to {}",
+                    self.protocol.in_sentence, self.device_id, gain
                 ),
                 e,
             )
@@ -230,14 +320,12 @@ impl Camera for VendorCamera {
     }
 
     async fn set_offset(&self, offset: i32) -> Result<(), DeviceOpError> {
-        let mut driver = self.driver.write().await;
-        let camera = &mut *driver;
+        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
         camera.set_offset(offset).await.map_err(DeviceOpError::from)
     }
 
     async fn set_binning(&self, bin_x: i32, bin_y: i32) -> Result<(), DeviceOpError> {
-        let mut driver = self.driver.write().await;
-        let camera = &mut *driver;
+        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
         camera
             .set_binning(bin_x, bin_y)
             .await
@@ -245,8 +333,7 @@ impl Camera for VendorCamera {
     }
 
     async fn set_readout_mode(&self, mode_index: i32) -> Result<(), DeviceOpError> {
-        let mut driver = self.driver.write().await;
-        let camera = &mut *driver;
+        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
         let mode = skotiq_device::ReadoutMode {
             name: format!("Mode {}", mode_index),
             description: String::new(),
@@ -267,18 +354,31 @@ impl Camera for VendorCamera {
         enabled: bool,
         target_temp: Option<f64>,
     ) -> Result<(), DeviceOpError> {
-        let mut driver = self.driver.write().await;
-        let camera = &mut *driver;
+        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
         camera
             .set_cooler(enabled, target_temp)
             .await
             .map_err(DeviceOpError::from)
     }
 
-    /// A snapshot: a read the SDK refuses mid-transition leaves its field
+    /// A snapshot: a read the driver refuses mid-transition leaves its field
     /// absent, and the equipment view re-reads on its timer.
-    async fn capabilities(&self, _device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        let camera = self.driver.read().await;
+    async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+        match self.protocol.driver_type {
+            DriverType::Alpaca => {
+                return crate::device_capabilities::get_alpaca_capabilities(device_id).await
+            }
+            DriverType::Indi => {
+                return crate::device_capabilities::get_indi_capabilities(device_id).await
+            }
+            _ => {}
+        }
+        let camera = self.driver.read().await.ok_or_else(|| {
+            SkotiqError::hardware_error(
+                device_id,
+                format!("{} camera not connected", self.protocol.name),
+            )
+        })?;
         let native_caps = camera.capabilities();
         let sensor_info = camera.get_sensor_info();
         let gain_range = camera.get_gain_range().await.ok();

@@ -250,7 +250,7 @@ async fn a_kernel_driver_device_with_no_pitch_opens_from_its_id() {
 async fn the_focuser_moves_by_the_difference_and_stays_inside_its_travel() {
     let mut focuser = FliFocuser::new("FLI-0201".to_string());
     focuser.connect().await.expect("connect");
-    assert_eq!(focuser.get_max_position(), 7000);
+    assert_eq!(focuser.get_max_position().await, 7000);
     assert_eq!(focuser.get_position().await.expect("pos"), 3000);
     clear_log();
     focuser.move_to(2500).await.expect("move");
@@ -272,7 +272,7 @@ async fn the_focuser_moves_by_the_difference_and_stays_inside_its_travel() {
 async fn the_wheel_moves_to_zero_based_slots_and_names_them() {
     let mut wheel = FliFilterWheel::new("FLI-0301".to_string());
     wheel.connect().await.expect("connect");
-    assert_eq!(wheel.get_filter_count(), 7);
+    assert_eq!(wheel.get_filter_count().await, 7);
     eprintln!(
         "position before the first move: {:?}",
         wheel.get_position().await

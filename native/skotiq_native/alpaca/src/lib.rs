@@ -10,6 +10,7 @@ mod mount;
 
 mod accessory;
 mod camera;
+mod camera_driver;
 mod client;
 mod covercalibrator;
 mod discovery;
@@ -33,6 +34,7 @@ pub use observingconditions::*;
 pub use rotator::*;
 pub use safetymonitor::*;
 pub use switch::*;
+pub use camera_driver::AlpacaCameraDriver;
 pub use mount::AlpacaMount;
 pub use telescope::*;
 

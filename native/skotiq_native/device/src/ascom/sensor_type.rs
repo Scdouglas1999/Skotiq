@@ -13,11 +13,10 @@
 //! pattern is unknown", which leaves the frame undebayered and the `BAYERPAT`
 //! card unwritten rather than debayered wrongly.
 //!
-//! Both ASCOM transports carry this same enum — the Windows COM worker in
-//! `ascom_wrapper` and the Alpaca HTTP download path — so the mapping lives
-//! here, compiled and regression-tested on every platform.
+//! Both ASCOM transports carry this same enum, so the mapping lives here,
+//! compiled and tested on every platform.
 
-use skotiq_device::BayerPattern;
+use crate::BayerPattern;
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 

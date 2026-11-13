@@ -467,11 +467,11 @@ impl FocuserDriver for ZwoFocuser {
         }
     }
 
-    fn get_max_position(&self) -> i32 {
+    async fn get_max_position(&self) -> i32 {
         self.max_position
     }
 
-    fn get_step_size(&self) -> f64 {
+    async fn get_step_size(&self) -> f64 {
         // Resolved at connect time from the quirks DB; 0.0 here is the contract
         // the trait offers for "unknown" and is surfaced to callers as such. The
         // tracing::error makes the missing-entry case loud and diagnosable rather

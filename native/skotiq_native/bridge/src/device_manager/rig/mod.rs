@@ -7,7 +7,8 @@
 //! 2. `DeviceManager::reconnect_cancel_tokens`.
 //! 3. `DeviceManager::handles`: a map lookup, insert or remove. A std lock, so
 //!    its guard never crosses an `.await`.
-//! 4. A device's own lock, [`Exclusive`], reached through a handle that was
+//! 4. A device's own lock (a held [`Slot`], or `Exclusive` for an ASCOM COM
+//!    wrapper), reached through a handle that was
 //!    cloned out of `handles` first. Held for one driver call, never together
 //!    with 1-3 and never two devices' at once.
 //! 5. What a driver call takes inside itself: a vendor SDK mutex, the INDI
@@ -57,16 +58,18 @@ pub(crate) trait RigDriver: Send + Sync {
     }
 }
 
-/// A driver that needs `&mut self` for commands (a vendor SDK driver, an ASCOM
-/// wrapper), shared by taking its lock for one call at a time: `read` for a
-/// call that takes `&self`, `write` for one that takes `&mut self`.
+/// An ASCOM COM wrapper, shared by taking its lock for one call at a time:
+/// `read` for a call that takes `&self`, `write` for one that takes
+/// `&mut self`.
 ///
-/// The ASCOM wrappers only send commands to the STA worker and would work
+/// The wrappers only send commands to the STA worker and would work
 /// unlocked. They stay behind the lock so that a read issued while a blocking
 /// COM command runs waits here, with no timeout running, instead of timing out
 /// in the worker's queue and counting as a failed read.
+#[cfg(windows)]
 pub(crate) struct Exclusive<D>(RwLock<D>);
 
+#[cfg(windows)]
 impl<D> Exclusive<D> {
     pub(crate) fn new(driver: D) -> Self {
         Self(RwLock::new(driver))

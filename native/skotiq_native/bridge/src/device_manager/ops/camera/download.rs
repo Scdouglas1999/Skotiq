@@ -17,7 +17,7 @@ impl DeviceManager {
 
 #[cfg(test)]
 mod alpaca_bayer_gate_tests {
-    use crate::ascom_sensor_type::{bayer_pattern_from_sensor, has_nameable_bayer_order};
+    use skotiq_device::ascom::sensor_type::{bayer_pattern_from_sensor, has_nameable_bayer_order};
     use skotiq_device::BayerPattern;
     use std::cell::Cell;
 

@@ -153,7 +153,7 @@ impl skotiq_device::FilterWheelDriver for FakeIdentityDevice {
     async fn is_moving(&self) -> Result<bool, skotiq_device::DriverError> {
         Ok(false)
     }
-    fn get_filter_count(&self) -> i32 {
+    async fn get_filter_count(&self) -> i32 {
         5
     }
     async fn get_filter_names(&self) -> Result<Vec<String>, skotiq_device::DriverError> {
