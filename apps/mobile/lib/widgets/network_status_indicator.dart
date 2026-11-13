@@ -9,6 +9,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/network_service.dart';
+import 'package:skotiq_core/models.dart';
 
 /// How the active session reaches the headless server. Drives the LAN-vs-
 /// Tailscale badge + icon on the indicator so the operator can tell at a

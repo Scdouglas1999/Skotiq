@@ -33,7 +33,6 @@ import '../models/site/location_settings.dart';
 import '../services/adaptive_swap_service.dart';
 import '../services/disk_space_service.dart';
 import '../services/end_of_night_calibration/eon_service.dart';
-import '../services/endpoint_sanitizer.dart';
 import '../services/home_assistant/home_assistant_discovery_config.dart';
 import '../services/home_assistant/home_assistant_host_settings.dart';
 import '../services/live_stacking_service.dart';
@@ -102,6 +101,12 @@ import 'skotiq_exception.dart'
 import '../models/calibration/calibration_library_models.dart';
 import '../models/notes/journal_note.dart';
 import '../models/backend/backend_types.dart';
+import '../models/backend/remote_catalog_models.dart';
+import '../models/backend/remote_science_bundle.dart';
+import '../models/backend/remote_session_status.dart';
+import '../models/backend/remote_stacked_result.dart';
+import '../models/backend/remote_update_models.dart';
+import '../models/backend/backend_connection_state.dart';
 
 // The rows the host writes and this client reads.
 export 'package:skotiq_remote_protocol/wire_models.dart';
@@ -127,8 +132,6 @@ part 'network_backend/mount_guard_operations.dart';
 part 'network_backend/runtime_mirror_operations.dart';
 part 'network_backend/imaging_profile_operations.dart';
 part 'network_backend/webrtc_subscription.dart';
-part 'network_backend/wire_models.dart';
-part 'network_backend/wire_history_models.dart';
 part 'network_backend/connection_lifecycle.dart';
 part 'network_backend/event_tracking.dart';
 part 'network_backend/http_transport.dart';
