@@ -91,10 +91,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 
 import '../models/errors/skotiq_error.dart' as dart_error;
-// Error parsing: parse the headless server's structured error
-// envelope ({code, message, details}) into a typed [ServerError] so the
-// mobile companion can branch on the machine-readable `code` instead of
-// substring-matching the message text.
 import 'remote_display_jpeg.dart';
 import 'skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
