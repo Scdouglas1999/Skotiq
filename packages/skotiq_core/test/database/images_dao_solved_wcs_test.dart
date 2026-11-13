@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
-import 'package:skotiq_core/src/services/wcs/wcs_sip_codec.dart';
+import 'package:skotiq_core/src/models/imaging/sip_terms.dart';
 
 /// v51 wiring: the full anisotropic WCS (four `solved_cd*` scalars + the
 /// `solved_sip` JSON blob) persists on `captured_images` and rebuilds a
@@ -14,7 +14,7 @@ import 'package:skotiq_core/src/services/wcs/wcs_sip_codec.dart';
 void main() {
   group('solved_sip codec', () {
     test('round-trips a low-order SIP block', () {
-      final json = encodeSolvedSip(
+      final json = encodeSolvedSip((
         aOrder: 2,
         bOrder: 2,
         aCoeffs: const [0.0, 0.0, 1.2e-6, 0.0, -3.4e-7, 0.0, 0.0, 0.0, 0.0],
@@ -23,7 +23,7 @@ void main() {
         bpOrder: 1,
         apCoeffs: const [0.0, 0.0, 0.0, 0.0],
         bpCoeffs: const [0.0, 0.0, 0.0, 0.0],
-      );
+      ));
       expect(json, isNotNull);
 
       final decoded = decodeSolvedSip(json)!;
@@ -37,7 +37,7 @@ void main() {
 
     test('no forward distortion encodes to null', () {
       expect(
-        encodeSolvedSip(
+        encodeSolvedSip((
           aOrder: 0,
           bOrder: 0,
           aCoeffs: const [],
@@ -46,7 +46,7 @@ void main() {
           bpOrder: 0,
           apCoeffs: const [],
           bpCoeffs: const [],
-        ),
+        )),
         isNull,
       );
       expect(decodeSolvedSip(null), isNull);
@@ -83,7 +83,7 @@ void main() {
       const scaleDeg = scaleArcsec / 3600.0;
       final cosR = math.cos(rotationDeg * math.pi / 180.0);
       final sinR = math.sin(rotationDeg * math.pi / 180.0);
-      final sipJson = encodeSolvedSip(
+      final sipJson = encodeSolvedSip((
         aOrder: 2,
         bOrder: 2,
         aCoeffs: const [0.0, 0.0, 1.1e-6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -92,7 +92,7 @@ void main() {
         bpOrder: 0,
         apCoeffs: const [],
         bpCoeffs: const [],
-      );
+      ));
 
       final id = await insertFrame('L_cd.fits');
       await imagesDao.updatePlateSolveResult(
@@ -126,10 +126,7 @@ void main() {
         cd1_2: stored.cd1_2,
         cd2_1: stored.cd2_1,
         cd2_2: stored.cd2_2,
-        aOrder: sip.aOrder,
-        bOrder: sip.bOrder,
-        aCoeffs: sip.aCoeffs,
-        bCoeffs: sip.bCoeffs,
+        sip: sip,
       );
       expect(solved.hasCdMatrix, isTrue);
       expect(solved.hasForwardSip, isTrue);

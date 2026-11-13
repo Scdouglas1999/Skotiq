@@ -38,7 +38,7 @@ import '../services/live_stacking_service.dart';
 import '../services/logging_service.dart';
 import '../services/phd2_probe.dart';
 import '../services/scheduler/horizon_profile.dart';
-import '../services/science/fits_header_writer.dart';
+import '../models/imaging/fits_keyword_write.dart';
 import '../services/sync/sync_service.dart';
 import 'roles/host_data/host_backups.dart';
 import 'roles/host_data/host_calibration_frames.dart';

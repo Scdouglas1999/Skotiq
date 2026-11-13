@@ -17,7 +17,9 @@ export 'src/models/equipment_profile_validation.dart';
 export 'src/models/settings/app_settings.dart';
 export 'src/models/errors/server_error.dart';
 export 'src/models/imaging/imaging_models.dart';
+export 'src/models/imaging/fits_keyword_write.dart';
 export 'src/models/imaging/frame_files.dart';
+export 'src/models/imaging/sip_terms.dart';
 export 'src/models/imaging/camera_preset.dart';
 export 'src/models/imaging/auto_stretch_settings.dart';
 // Stack-and-Share Loop (component C7): config, progress, result, export models.

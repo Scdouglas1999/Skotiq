@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../imaging/sip_terms.dart';
+
 part 'science_models/quality_and_visualization.dart';
 part 'science_models/solver_and_photometry.dart';
 part 'science_models/transparency_and_maps.dart';

@@ -322,8 +322,10 @@ mixin _$PlateSolveData {
  int get imageHeight;// pixels
 // The solver's CD matrix (deg/pixel). It carries the frame's parity,
 // which [rotation] cannot; null on solves that reported none.
- double? get cd1_1; double? get cd1_2; double? get cd2_1; double? get cd2_2;// SIP distortion block in the `solved_sip` encoding (wcs_sip_codec).
- String? get sip;
+ double? get cd1_1; double? get cd1_2; double? get cd2_1; double? get cd2_2;// SIP distortion block in the `solved_sip` encoding (sip_terms.dart).
+ String? get sip;// The 0-based pixel the solution is referenced at; null for the image
+// centre, where every solver references its solve.
+ double? get referenceX; double? get referenceY;
 /// Create a copy of PlateSolveData
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -336,16 +338,16 @@ $PlateSolveDataCopyWith<PlateSolveData> get copyWith => _$PlateSolveDataCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlateSolveData&&(identical(other.ra, ra) || other.ra == ra)&&(identical(other.dec, dec) || other.dec == dec)&&(identical(other.pixelScale, pixelScale) || other.pixelScale == pixelScale)&&(identical(other.rotation, rotation) || other.rotation == rotation)&&(identical(other.fieldWidth, fieldWidth) || other.fieldWidth == fieldWidth)&&(identical(other.fieldHeight, fieldHeight) || other.fieldHeight == fieldHeight)&&(identical(other.imageWidth, imageWidth) || other.imageWidth == imageWidth)&&(identical(other.imageHeight, imageHeight) || other.imageHeight == imageHeight)&&(identical(other.cd1_1, cd1_1) || other.cd1_1 == cd1_1)&&(identical(other.cd1_2, cd1_2) || other.cd1_2 == cd1_2)&&(identical(other.cd2_1, cd2_1) || other.cd2_1 == cd2_1)&&(identical(other.cd2_2, cd2_2) || other.cd2_2 == cd2_2)&&(identical(other.sip, sip) || other.sip == sip));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlateSolveData&&(identical(other.ra, ra) || other.ra == ra)&&(identical(other.dec, dec) || other.dec == dec)&&(identical(other.pixelScale, pixelScale) || other.pixelScale == pixelScale)&&(identical(other.rotation, rotation) || other.rotation == rotation)&&(identical(other.fieldWidth, fieldWidth) || other.fieldWidth == fieldWidth)&&(identical(other.fieldHeight, fieldHeight) || other.fieldHeight == fieldHeight)&&(identical(other.imageWidth, imageWidth) || other.imageWidth == imageWidth)&&(identical(other.imageHeight, imageHeight) || other.imageHeight == imageHeight)&&(identical(other.cd1_1, cd1_1) || other.cd1_1 == cd1_1)&&(identical(other.cd1_2, cd1_2) || other.cd1_2 == cd1_2)&&(identical(other.cd2_1, cd2_1) || other.cd2_1 == cd2_1)&&(identical(other.cd2_2, cd2_2) || other.cd2_2 == cd2_2)&&(identical(other.sip, sip) || other.sip == sip)&&(identical(other.referenceX, referenceX) || other.referenceX == referenceX)&&(identical(other.referenceY, referenceY) || other.referenceY == referenceY));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,ra,dec,pixelScale,rotation,fieldWidth,fieldHeight,imageWidth,imageHeight,cd1_1,cd1_2,cd2_1,cd2_2,sip);
+int get hashCode => Object.hash(runtimeType,ra,dec,pixelScale,rotation,fieldWidth,fieldHeight,imageWidth,imageHeight,cd1_1,cd1_2,cd2_1,cd2_2,sip,referenceX,referenceY);
 
 @override
 String toString() {
-  return 'PlateSolveData(ra: $ra, dec: $dec, pixelScale: $pixelScale, rotation: $rotation, fieldWidth: $fieldWidth, fieldHeight: $fieldHeight, imageWidth: $imageWidth, imageHeight: $imageHeight, cd1_1: $cd1_1, cd1_2: $cd1_2, cd2_1: $cd2_1, cd2_2: $cd2_2, sip: $sip)';
+  return 'PlateSolveData(ra: $ra, dec: $dec, pixelScale: $pixelScale, rotation: $rotation, fieldWidth: $fieldWidth, fieldHeight: $fieldHeight, imageWidth: $imageWidth, imageHeight: $imageHeight, cd1_1: $cd1_1, cd1_2: $cd1_2, cd2_1: $cd2_1, cd2_2: $cd2_2, sip: $sip, referenceX: $referenceX, referenceY: $referenceY)';
 }
 
 
@@ -356,7 +358,7 @@ abstract mixin class $PlateSolveDataCopyWith<$Res>  {
   factory $PlateSolveDataCopyWith(PlateSolveData value, $Res Function(PlateSolveData) _then) = _$PlateSolveDataCopyWithImpl;
 @useResult
 $Res call({
- double ra, double dec, double pixelScale, double rotation, double fieldWidth, double fieldHeight, int imageWidth, int imageHeight, double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip
+ double ra, double dec, double pixelScale, double rotation, double fieldWidth, double fieldHeight, int imageWidth, int imageHeight, double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip, double? referenceX, double? referenceY
 });
 
 
@@ -373,7 +375,7 @@ class _$PlateSolveDataCopyWithImpl<$Res>
 
 /// Create a copy of PlateSolveData
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? ra = null,Object? dec = null,Object? pixelScale = null,Object? rotation = null,Object? fieldWidth = null,Object? fieldHeight = null,Object? imageWidth = null,Object? imageHeight = null,Object? cd1_1 = freezed,Object? cd1_2 = freezed,Object? cd2_1 = freezed,Object? cd2_2 = freezed,Object? sip = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? ra = null,Object? dec = null,Object? pixelScale = null,Object? rotation = null,Object? fieldWidth = null,Object? fieldHeight = null,Object? imageWidth = null,Object? imageHeight = null,Object? cd1_1 = freezed,Object? cd1_2 = freezed,Object? cd2_1 = freezed,Object? cd2_2 = freezed,Object? sip = freezed,Object? referenceX = freezed,Object? referenceY = freezed,}) {
   return _then(_self.copyWith(
 ra: null == ra ? _self.ra : ra // ignore: cast_nullable_to_non_nullable
 as double,dec: null == dec ? _self.dec : dec // ignore: cast_nullable_to_non_nullable
@@ -388,7 +390,9 @@ as double?,cd1_2: freezed == cd1_2 ? _self.cd1_2 : cd1_2 // ignore: cast_nullabl
 as double?,cd2_1: freezed == cd2_1 ? _self.cd2_1 : cd2_1 // ignore: cast_nullable_to_non_nullable
 as double?,cd2_2: freezed == cd2_2 ? _self.cd2_2 : cd2_2 // ignore: cast_nullable_to_non_nullable
 as double?,sip: freezed == sip ? _self.sip : sip // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,referenceX: freezed == referenceX ? _self.referenceX : referenceX // ignore: cast_nullable_to_non_nullable
+as double?,referenceY: freezed == referenceY ? _self.referenceY : referenceY // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -473,10 +477,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double ra,  double dec,  double pixelScale,  double rotation,  double fieldWidth,  double fieldHeight,  int imageWidth,  int imageHeight,  double? cd1_1,  double? cd1_2,  double? cd2_1,  double? cd2_2,  String? sip)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double ra,  double dec,  double pixelScale,  double rotation,  double fieldWidth,  double fieldHeight,  int imageWidth,  int imageHeight,  double? cd1_1,  double? cd1_2,  double? cd2_1,  double? cd2_2,  String? sip,  double? referenceX,  double? referenceY)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PlateSolveData() when $default != null:
-return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWidth,_that.fieldHeight,_that.imageWidth,_that.imageHeight,_that.cd1_1,_that.cd1_2,_that.cd2_1,_that.cd2_2,_that.sip);case _:
+return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWidth,_that.fieldHeight,_that.imageWidth,_that.imageHeight,_that.cd1_1,_that.cd1_2,_that.cd2_1,_that.cd2_2,_that.sip,_that.referenceX,_that.referenceY);case _:
   return orElse();
 
 }
@@ -494,10 +498,10 @@ return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWi
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double ra,  double dec,  double pixelScale,  double rotation,  double fieldWidth,  double fieldHeight,  int imageWidth,  int imageHeight,  double? cd1_1,  double? cd1_2,  double? cd2_1,  double? cd2_2,  String? sip)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double ra,  double dec,  double pixelScale,  double rotation,  double fieldWidth,  double fieldHeight,  int imageWidth,  int imageHeight,  double? cd1_1,  double? cd1_2,  double? cd2_1,  double? cd2_2,  String? sip,  double? referenceX,  double? referenceY)  $default,) {final _that = this;
 switch (_that) {
 case _PlateSolveData():
-return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWidth,_that.fieldHeight,_that.imageWidth,_that.imageHeight,_that.cd1_1,_that.cd1_2,_that.cd2_1,_that.cd2_2,_that.sip);case _:
+return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWidth,_that.fieldHeight,_that.imageWidth,_that.imageHeight,_that.cd1_1,_that.cd1_2,_that.cd2_1,_that.cd2_2,_that.sip,_that.referenceX,_that.referenceY);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -514,10 +518,10 @@ return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWi
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double ra,  double dec,  double pixelScale,  double rotation,  double fieldWidth,  double fieldHeight,  int imageWidth,  int imageHeight,  double? cd1_1,  double? cd1_2,  double? cd2_1,  double? cd2_2,  String? sip)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double ra,  double dec,  double pixelScale,  double rotation,  double fieldWidth,  double fieldHeight,  int imageWidth,  int imageHeight,  double? cd1_1,  double? cd1_2,  double? cd2_1,  double? cd2_2,  String? sip,  double? referenceX,  double? referenceY)?  $default,) {final _that = this;
 switch (_that) {
 case _PlateSolveData() when $default != null:
-return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWidth,_that.fieldHeight,_that.imageWidth,_that.imageHeight,_that.cd1_1,_that.cd1_2,_that.cd2_1,_that.cd2_2,_that.sip);case _:
+return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWidth,_that.fieldHeight,_that.imageWidth,_that.imageHeight,_that.cd1_1,_that.cd1_2,_that.cd2_1,_that.cd2_2,_that.sip,_that.referenceX,_that.referenceY);case _:
   return null;
 
 }
@@ -529,7 +533,7 @@ return $default(_that.ra,_that.dec,_that.pixelScale,_that.rotation,_that.fieldWi
 @JsonSerializable()
 
 class _PlateSolveData implements PlateSolveData {
-  const _PlateSolveData({required this.ra, required this.dec, required this.pixelScale, required this.rotation, required this.fieldWidth, required this.fieldHeight, required this.imageWidth, required this.imageHeight, this.cd1_1, this.cd1_2, this.cd2_1, this.cd2_2, this.sip});
+  const _PlateSolveData({required this.ra, required this.dec, required this.pixelScale, required this.rotation, required this.fieldWidth, required this.fieldHeight, required this.imageWidth, required this.imageHeight, this.cd1_1, this.cd1_2, this.cd2_1, this.cd2_2, this.sip, this.referenceX, this.referenceY});
   factory _PlateSolveData.fromJson(Map<String, dynamic> json) => _$PlateSolveDataFromJson(json);
 
 @override final  double ra;
@@ -552,8 +556,12 @@ class _PlateSolveData implements PlateSolveData {
 @override final  double? cd1_2;
 @override final  double? cd2_1;
 @override final  double? cd2_2;
-// SIP distortion block in the `solved_sip` encoding (wcs_sip_codec).
+// SIP distortion block in the `solved_sip` encoding (sip_terms.dart).
 @override final  String? sip;
+// The 0-based pixel the solution is referenced at; null for the image
+// centre, where every solver references its solve.
+@override final  double? referenceX;
+@override final  double? referenceY;
 
 /// Create a copy of PlateSolveData
 /// with the given fields replaced by the non-null parameter values.
@@ -568,16 +576,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PlateSolveData&&(identical(other.ra, ra) || other.ra == ra)&&(identical(other.dec, dec) || other.dec == dec)&&(identical(other.pixelScale, pixelScale) || other.pixelScale == pixelScale)&&(identical(other.rotation, rotation) || other.rotation == rotation)&&(identical(other.fieldWidth, fieldWidth) || other.fieldWidth == fieldWidth)&&(identical(other.fieldHeight, fieldHeight) || other.fieldHeight == fieldHeight)&&(identical(other.imageWidth, imageWidth) || other.imageWidth == imageWidth)&&(identical(other.imageHeight, imageHeight) || other.imageHeight == imageHeight)&&(identical(other.cd1_1, cd1_1) || other.cd1_1 == cd1_1)&&(identical(other.cd1_2, cd1_2) || other.cd1_2 == cd1_2)&&(identical(other.cd2_1, cd2_1) || other.cd2_1 == cd2_1)&&(identical(other.cd2_2, cd2_2) || other.cd2_2 == cd2_2)&&(identical(other.sip, sip) || other.sip == sip));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PlateSolveData&&(identical(other.ra, ra) || other.ra == ra)&&(identical(other.dec, dec) || other.dec == dec)&&(identical(other.pixelScale, pixelScale) || other.pixelScale == pixelScale)&&(identical(other.rotation, rotation) || other.rotation == rotation)&&(identical(other.fieldWidth, fieldWidth) || other.fieldWidth == fieldWidth)&&(identical(other.fieldHeight, fieldHeight) || other.fieldHeight == fieldHeight)&&(identical(other.imageWidth, imageWidth) || other.imageWidth == imageWidth)&&(identical(other.imageHeight, imageHeight) || other.imageHeight == imageHeight)&&(identical(other.cd1_1, cd1_1) || other.cd1_1 == cd1_1)&&(identical(other.cd1_2, cd1_2) || other.cd1_2 == cd1_2)&&(identical(other.cd2_1, cd2_1) || other.cd2_1 == cd2_1)&&(identical(other.cd2_2, cd2_2) || other.cd2_2 == cd2_2)&&(identical(other.sip, sip) || other.sip == sip)&&(identical(other.referenceX, referenceX) || other.referenceX == referenceX)&&(identical(other.referenceY, referenceY) || other.referenceY == referenceY));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,ra,dec,pixelScale,rotation,fieldWidth,fieldHeight,imageWidth,imageHeight,cd1_1,cd1_2,cd2_1,cd2_2,sip);
+int get hashCode => Object.hash(runtimeType,ra,dec,pixelScale,rotation,fieldWidth,fieldHeight,imageWidth,imageHeight,cd1_1,cd1_2,cd2_1,cd2_2,sip,referenceX,referenceY);
 
 @override
 String toString() {
-  return 'PlateSolveData(ra: $ra, dec: $dec, pixelScale: $pixelScale, rotation: $rotation, fieldWidth: $fieldWidth, fieldHeight: $fieldHeight, imageWidth: $imageWidth, imageHeight: $imageHeight, cd1_1: $cd1_1, cd1_2: $cd1_2, cd2_1: $cd2_1, cd2_2: $cd2_2, sip: $sip)';
+  return 'PlateSolveData(ra: $ra, dec: $dec, pixelScale: $pixelScale, rotation: $rotation, fieldWidth: $fieldWidth, fieldHeight: $fieldHeight, imageWidth: $imageWidth, imageHeight: $imageHeight, cd1_1: $cd1_1, cd1_2: $cd1_2, cd2_1: $cd2_1, cd2_2: $cd2_2, sip: $sip, referenceX: $referenceX, referenceY: $referenceY)';
 }
 
 
@@ -588,7 +596,7 @@ abstract mixin class _$PlateSolveDataCopyWith<$Res> implements $PlateSolveDataCo
   factory _$PlateSolveDataCopyWith(_PlateSolveData value, $Res Function(_PlateSolveData) _then) = __$PlateSolveDataCopyWithImpl;
 @override @useResult
 $Res call({
- double ra, double dec, double pixelScale, double rotation, double fieldWidth, double fieldHeight, int imageWidth, int imageHeight, double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip
+ double ra, double dec, double pixelScale, double rotation, double fieldWidth, double fieldHeight, int imageWidth, int imageHeight, double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip, double? referenceX, double? referenceY
 });
 
 
@@ -605,7 +613,7 @@ class __$PlateSolveDataCopyWithImpl<$Res>
 
 /// Create a copy of PlateSolveData
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? ra = null,Object? dec = null,Object? pixelScale = null,Object? rotation = null,Object? fieldWidth = null,Object? fieldHeight = null,Object? imageWidth = null,Object? imageHeight = null,Object? cd1_1 = freezed,Object? cd1_2 = freezed,Object? cd2_1 = freezed,Object? cd2_2 = freezed,Object? sip = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? ra = null,Object? dec = null,Object? pixelScale = null,Object? rotation = null,Object? fieldWidth = null,Object? fieldHeight = null,Object? imageWidth = null,Object? imageHeight = null,Object? cd1_1 = freezed,Object? cd1_2 = freezed,Object? cd2_1 = freezed,Object? cd2_2 = freezed,Object? sip = freezed,Object? referenceX = freezed,Object? referenceY = freezed,}) {
   return _then(_PlateSolveData(
 ra: null == ra ? _self.ra : ra // ignore: cast_nullable_to_non_nullable
 as double,dec: null == dec ? _self.dec : dec // ignore: cast_nullable_to_non_nullable
@@ -620,7 +628,9 @@ as double?,cd1_2: freezed == cd1_2 ? _self.cd1_2 : cd1_2 // ignore: cast_nullabl
 as double?,cd2_1: freezed == cd2_1 ? _self.cd2_1 : cd2_1 // ignore: cast_nullable_to_non_nullable
 as double?,cd2_2: freezed == cd2_2 ? _self.cd2_2 : cd2_2 // ignore: cast_nullable_to_non_nullable
 as double?,sip: freezed == sip ? _self.sip : sip // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,referenceX: freezed == referenceX ? _self.referenceX : referenceX // ignore: cast_nullable_to_non_nullable
+as double?,referenceY: freezed == referenceY ? _self.referenceY : referenceY // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 

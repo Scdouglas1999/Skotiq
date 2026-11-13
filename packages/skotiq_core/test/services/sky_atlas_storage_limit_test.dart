@@ -64,6 +64,7 @@ DbCapturedImage _light(int id) => DbCapturedImage(
   solvedRa: 5.575,
   solvedDec: -5.39,
   solvedPixelScale: 1.5,
+  solvedRotation: 0.0,
   capturedAt: DateTime.utc(2026, 6, 11, 22),
   createdAt: DateTime.utc(2026, 6, 11, 22),
   isAccepted: true,
