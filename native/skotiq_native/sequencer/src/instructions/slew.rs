@@ -385,7 +385,10 @@ async fn slew_mount(
                                 }
                             }
                         }
-                        Err(e) => InstructionResult::failure(e),
+                        Err(crate::slew_arrival::SlewWaitError::Cancelled) => {
+                            InstructionResult::cancelled("Slew cancelled")
+                        }
+                        Err(e) => InstructionResult::failure(e.to_string()),
                     }
                 }
                 Err(e) => InstructionResult::failure(format!("Slew failed: {}", e)).caused_by(&e),

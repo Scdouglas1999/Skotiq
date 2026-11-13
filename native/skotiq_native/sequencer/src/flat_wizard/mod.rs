@@ -200,7 +200,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                     hfr_values: Vec::new(),
                 }
             }
-            (WizardRunStatus::Cancelled, _) => InstructionResult::failure("Operation cancelled"),
+            (WizardRunStatus::Cancelled, _) => InstructionResult::cancelled("Flat wizard cancelled"),
             (WizardRunStatus::Failed(msg), _) => {
                 let result = InstructionResult::failure(msg);
                 match &self.cause {
