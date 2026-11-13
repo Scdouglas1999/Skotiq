@@ -62,7 +62,7 @@ void main() {
 
   test('a frame the host lists is fetched by id at once', () async {
     final seen = <List<int>>[];
-    final sub = rows.watch().listen((r) => seen.add([for (final x in r) x.id]));
+    final sub = rows.watchAll().listen((r) => seen.add([for (final x in r) x.id]));
     poll.add([_row(3), _row(2), _row(1)]);
     await pumpEventQueue();
 
@@ -76,7 +76,7 @@ void main() {
   });
 
   test('the next poll replaces what was fetched one by one', () async {
-    final stream = rows.watch();
+    final stream = rows.watchAll();
     final seen = <List<int>>[];
     final sub = stream.listen((r) => seen.add([for (final x in r) x.id]));
     poll.add([_row(2), _row(1)]);
@@ -92,7 +92,7 @@ void main() {
   });
 
   test('a saved frame with no row reads its session again', () async {
-    final sub = rows.watch().listen((_) {});
+    final sub = rows.watchAll().listen((_) {});
     poll.add([_row(2), _row(1)]);
     await pumpEventQueue();
 
@@ -127,12 +127,12 @@ void main() {
       fetchSessionRows: (_) async => const [],
     );
     addTearDown(rebuilt.dispose);
-    final first = rebuilt.watch().listen((_) {});
+    final first = rebuilt.watchAll().listen((_) {});
     poll.add([_row(1)]);
     await pumpEventQueue();
 
     final seen = <List<int>>[];
-    final second = rebuilt.watch().listen(
+    final second = rebuilt.watchAll().listen(
       (r) => seen.add([for (final x in r) x.id]),
     );
     await first.cancel();

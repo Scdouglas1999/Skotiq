@@ -247,7 +247,7 @@ void main() {
   _FakeSyncService makeService({SyncConfig? initial}) => _FakeSyncService(
         backupService: BackupService(
           database: db,
-          sequenceRepository: SequenceRepository(db.sequencesDao),
+          sequenceRepository: LocalSequenceRepository(db.sequencesDao),
           logger: logger,
         ),
         settingsDao: SettingsDao(db),

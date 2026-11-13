@@ -38,13 +38,10 @@ void main() {
     test('equipment Disconnected clears the switch card', () async {
       markSwitchConnected();
 
-      await applyRemoteSyncEvent(
-        container,
-        _equipmentEvent('Disconnected', const {
+      applyHostLocalSyncEvent(container, _equipmentEvent('Disconnected', const {
           'device_type': 'switch',
           'device_id': 'switch-1',
-        }),
-      );
+        }));
 
       expect(
         container.read(switchStateProvider).connectionState,
@@ -75,21 +72,15 @@ void main() {
       ];
 
       for (final wireType in wireTypes) {
-        await applyRemoteSyncEvent(
-          container,
-          _equipmentEvent('Connected', {
+        applyHostLocalSyncEvent(container, _equipmentEvent('Connected', {
             'device_type': wireType,
             'device_id': 'dev-$wireType',
             'device_name': wireType,
-          }),
-        );
-        await applyRemoteSyncEvent(
-          container,
-          _equipmentEvent('Disconnected', {
+          }));
+        applyHostLocalSyncEvent(container, _equipmentEvent('Disconnected', {
             'device_type': wireType,
             'device_id': 'dev-$wireType',
-          }),
-        );
+          }));
       }
 
       final leftConnected = <String, DeviceConnectionState>{

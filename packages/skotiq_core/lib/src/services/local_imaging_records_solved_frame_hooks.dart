@@ -1,14 +1,11 @@
-part of '../imaging_records_repository.dart';
+part of 'local_imaging_records.dart';
 
 /// Invoked after a freshly solved light frame's WCS is persisted locally, so
 /// Pillar A ("Your Sky") can fold that frame into the personal sky atlas. The
 /// callback owns its own error handling — it must never throw back into the
-/// solve-persist path. Wired by [imagingRecordsRepositoryProvider]; absent for
-/// remote companions (the appliance folds on its own host side).
+/// solve-persist path. Wired by [imagingRecordsProvider] on the host.
 typedef SolvedFrameFoldHook = Future<void> Function(int capturedImageId);
 
-/// Repository provider — local DAOs or remote host API.
-///
 /// The Pillar A ("Your Sky") fold-dedup gate, separate from the local
 /// solve-persist hook so the production path and its test exercise the SAME
 /// logic instead of a re-implementation.

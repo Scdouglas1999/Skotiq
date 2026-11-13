@@ -8,7 +8,6 @@
 // run, the host's active session.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -32,27 +31,8 @@ final nightSessionIdProvider = Provider<int?>((ref) {
         ? ref.watch(completedImagingRunProvider)?.result.dbSessionId
         : terminal.dbSessionId;
   }
-  if (ref.watch(backendProvider).remoteHost == null) return null;
-  // Sorted newest first on both paths, so the first active row is the
-  // host's current session.
-  final sessions = ref.watch(allSessionsProvider).valueOrNull;
-  if (sessions == null) return null;
-  for (final session in sessions) {
-    if (session.status == 'active') return session.id;
-  }
-  // A host that does not share its run record: a run that ended here closed
-  // its session on the host, and the newest session is the one it ran.
-  if (sessions.isNotEmpty && ref.watch(lastEndedRunProvider) != null) {
-    return sessions.first.id;
-  }
-  return null;
+  return ref.watch(watchedHostSessionIdProvider);
 });
-
-final _hostSessionRowsProvider =
-    StreamProvider.autoDispose.family<List<DbCapturedImage>, int>(
-  (ref, sessionId) =>
-      ref.watch(imagesDaoProvider).watchImagesForSession(sessionId),
-);
 
 /// The observing night Tonight shows: local noon to the next local noon,
 /// the night Darkroom groups frames by. It is the night of the run Tonight
@@ -65,13 +45,6 @@ final nightWindowProvider = Provider<({DateTime start, DateTime end})>((ref) {
   );
 });
 
-final _hostNightRowsProvider = StreamProvider.autoDispose
-    .family<List<DbCapturedImage>, ({DateTime start, DateTime end})>(
-  (ref, window) => ref
-      .watch(imagesDaoProvider)
-      .watchImagesCapturedBetween(window.start, window.end),
-);
-
 /// Every captured_images row of the observing night, oldest first, across
 /// every run and session it held.
 ///
@@ -81,20 +54,7 @@ final _hostNightRowsProvider = StreamProvider.autoDispose
 /// the night over on the host and on every linked client.
 final nightSessionRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   final window = ref.watch(nightWindowProvider);
-  if (ref.watch(backendProvider).remoteHost != null) {
-    // The host's rows arrive through the remote-aware poll of all images.
-    final rows = ref.watch(allDbImagesProvider).valueOrNull;
-    if (rows == null) return const <DbCapturedImage>[];
-    return rows
-        .where(
-          (row) =>
-              !row.capturedAt.isBefore(window.start) &&
-              row.capturedAt.isBefore(window.end),
-        )
-        .toList()
-      ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-  }
-  return ref.watch(_hostNightRowsProvider(window)).valueOrNull ??
+  return ref.watch(imageRowsCapturedBetweenProvider(window)).valueOrNull ??
       const <DbCapturedImage>[];
 });
 
@@ -104,14 +64,7 @@ final nightSessionRowsProvider = Provider<List<DbCapturedImage>>((ref) {
 final nightRunRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   final sessionId = ref.watch(nightSessionIdProvider);
   if (sessionId == null) return const <DbCapturedImage>[];
-  if (ref.watch(backendProvider).remoteHost != null) {
-    // The host's rows arrive through the remote-aware poll of all images.
-    final rows = ref.watch(allDbImagesProvider).valueOrNull;
-    if (rows == null) return const <DbCapturedImage>[];
-    return rows.where((row) => row.sessionId == sessionId).toList()
-      ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-  }
-  return ref.watch(_hostSessionRowsProvider(sessionId)).valueOrNull ??
+  return ref.watch(sessionImageRowsProvider(sessionId)).valueOrNull ??
       const <DbCapturedImage>[];
 });
 
@@ -141,7 +94,7 @@ final nightRunLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
 /// strip loads thumbnails through the existing thumbnail service by file.
 final nightSessionFramesProvider = Provider<List<StripFrameVm>>((ref) {
   final rows = ref.watch(nightSessionLightRowsProvider);
-  final remote = ref.watch(backendProvider).remoteHost != null;
+  final remote = ref.watch(isRemoteModeProvider);
   return <StripFrameVm>[
     for (var i = 0; i < rows.length; i++)
       StripFrameVm(

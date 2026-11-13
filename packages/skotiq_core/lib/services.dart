@@ -26,10 +26,10 @@ export 'src/services/phd2_status_poll.dart';
 export 'src/services/phd2_probe.dart'
     show Phd2ProbeOutcome, Phd2ProbeResult, normalizePhd2ProbeHost, probePhd2;
 export 'src/services/device_matching_service.dart';
-export 'src/services/imaging_records_repository.dart'
+export 'src/services/local_imaging_records.dart'
     show
-        ImagingRecordsRepository,
-        imagingRecordsRepositoryProvider,
+        LocalImagingRecords,
+        imagingRecordsProvider,
         SolvedFrameFoldHook,
         applyAtlasFoldDedup;
 export 'src/services/imaging_service.dart';
@@ -41,6 +41,8 @@ export 'src/services/first_light/first_light_orchestrator.dart';
 export 'src/services/centering_service.dart';
 export 'src/services/profile_service.dart';
 export 'src/services/sequence_repository.dart';
+export 'src/services/local_sequence_repository.dart';
+export 'src/services/remote_sequence_repository.dart';
 export 'src/services/sequence_file_service.dart';
 export 'src/services/open_plan_service.dart';
 export 'src/services/snippet_file_service.dart';

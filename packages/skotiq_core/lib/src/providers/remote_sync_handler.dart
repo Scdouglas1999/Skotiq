@@ -6,12 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/bridge_event_mapper.dart' show tryBridgeEventFromCoreEvent;
+import '../backend/bridge_events.dart' as bridge;
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/backend/host_mutation_event.dart';
 import '../models/backend/host_runtime_update.dart';
 import '../models/imaging/imaging_models.dart'
     show CapturePreviewSource, ExposureSettings, FramePurpose;
-import '../services/device_service_lifecycle.dart';
 import '../services/capture_preview_loader.dart'
     show capturedImageDataFromResult;
 import '../services/imaging_service.dart'
@@ -22,7 +22,7 @@ import 'current_frame_analysis_provider.dart' show hostFrameSolvesProvider;
 import 'database_provider.dart';
 import 'host_settings/host_settings_providers.dart'
     show hostSettingsStoreProvider;
-import 'backend_provider.dart';
+import 'async_scope.dart';
 import 'equipment_provider.dart';
 import 'event_provider.dart' show eventHistoryProvider;
 import 'guiding_provider.dart' show guidingStopReasonProvider;
@@ -30,7 +30,6 @@ import 'imaging_provider.dart' show exposureSettingsProvider;
 import 'observing_list_provider.dart'
     show listedCatalogIdsProvider, observingListsProvider;
 import 'profiles_provider.dart';
-import 'provider_reader.dart';
 import 'runtime_mirror/channels/device_slot_channel.dart'
     show mirrorDevicesOfOlderHost;
 import 'runtime_mirror/client_runtime_mirror.dart';
@@ -52,6 +51,7 @@ import 'target_progress_provider.dart'
     show allTargetProgressProvider, targetProgressProvider;
 import '../models/backend/backend_types.dart';
 import 'capture_preview_loader_provider.dart';
+import 'device_service_providers.dart';
 
 part 'remote_sync/equipment_mirror.dart';
 part 'remote_sync/imaging_mirror.dart';
@@ -59,101 +59,102 @@ part 'remote_sync/guiding_mirror.dart';
 part 'remote_sync/sequencer_mirror.dart';
 part 'remote_sync/host_mutation.dart';
 part 'remote_sync/device_mapping.dart';
-part 'remote_sync/reader_access.dart';
 part 'remote_sync/session_hydration.dart';
 
-/// Applies a backend or host-sync event to Riverpod state so UI refreshes
-/// without navigation. Used by remote companions, the
-/// desktop host when remote access is enabled, and API mutation publishers.
-Future<void> applyRemoteSyncEvent(
-  Object reader,
-  SkotiqEvent event, {
-  SkotiqBackend? networkBackend,
-}) async {
-  if (networkBackend != null &&
-      !_isCurrentRemoteBackend(reader, networkBackend)) {
-    return;
-  }
-  if (event.eventType == 'BackendReconnected' && networkBackend != null) {
-    await hydrateRemoteSessionState(reader, networkBackend);
-    return;
-  }
-
+/// The host's own window following what happened through its server: a
+/// linked client connected a device, started a capture or changed stored
+/// data, or the native side announced it while no service was listening.
+void applyHostLocalSyncEvent(ProviderContainer container, SkotiqEvent event) {
   switch (event.category) {
     case EventCategory.system:
-      _applySystemSyncEvent(reader, event, networkBackend: networkBackend);
-      break;
-    // A linked client takes the host's devices and guider from the runtime
-    // channels; the host's own window follows the events.
+      if (event.eventType != hostStateChangedEventType) return;
+      final change = HostDataChange.of(event.data);
+      if (change == null) return;
+      switch (change.entityType) {
+        case HostMutationEntity.equipment:
+          _applyEquipmentMutationFromHost(container, change.action, event.data);
+        case HostMutationEntity.guider:
+          _applyGuiderMutationFromHost(container, change.action, event.data);
+        default:
+          _rereadChangedHostData(container, change, event.data);
+      }
     case EventCategory.equipment:
-      if (networkBackend == null) _applyEquipmentEvent(reader, event);
-      break;
+      _applyEquipmentEvent(container, event);
     case EventCategory.guiding:
-      if (networkBackend == null) _applyGuidingEvent(reader, event);
-      break;
+      _applyGuidingEvent(container, event);
     case EventCategory.sequencer:
-      _applySequencerEvent(reader, event, networkBackend: networkBackend);
-      break;
+      // The run's own events are folded by the executor attached to it.
+      _applySequenceLibraryNotice(container, event);
     case EventCategory.imaging:
-      if (event.eventType == 'ImageCaptured' ||
-          event.eventType == 'ImageSaved') {
-        _invalidateHostCapturedImages(reader);
-      }
-      // Remote parity: the host-local capture path publishes
-      // `currentImageProvider` via [CapturePreviewPublisher]; that path never
-      // runs on a remote companion (no local executor), so the
-      // dashboard's "current frame" hero tile would stay blank during a
-      // host-run sequence. When the host reports a fresh frame, pull it over
-      // the existing remoted JPEG path and publish it locally so the tile +
-      // histogram/stats update exactly as they do on the host.
-      //
-      // `ImageReady` is the canonical "host has a freshly decoded frame"
-      // event (carries width/height); `ImageSaved`/`ImageCaptured` are also
-      // accepted so the tile still populates if the ready event is missed.
-      if (networkBackend != null &&
-          (event.eventType == 'ImageReady' ||
-              event.eventType == 'ImageSaved' ||
-              event.eventType == 'ImageCaptured')) {
-        unawaited(_publishRemoteCurrentFrame(reader, networkBackend));
-      }
-      // Mirror the per-frame exposure countdown onto the camera card and the
-      // exposure-progress readouts. These imaging events drive
-      // [cameraStateProvider.setExposing] / [exposureProgressProvider] the way
-      // ImagingService does for a capture it runs itself. A linked client
-      // follows every exposure the host runs; the host follows the ones it
-      // did not start (a client's snapshot, an API capture), which it used to
-      // run with no "Exposing" countdown and no Abort.
-      if (networkBackend != null) {
-        _applyExposureMirror(reader, event.eventType, event.data);
-      } else {
-        _applyForeignExposureOnHost(reader, event.eventType, event.data);
-      }
-      break;
+      _rereadImagesAfter(container, event);
+      // A capture the host runs itself drives its own countdown; this shows
+      // one it did not start (a client's snapshot, an API capture).
+      _applyForeignExposureOnHost(container, event);
     case EventCategory.safety:
     case EventCategory.polarAlignment:
     case EventCategory.job:
     case EventCategory.session:
     case EventCategory.catalog:
-      // /// no remote-sync invalidations needed; these
-      // categories are end-state notifications consumed by UI widgets
-      // (toasts, progress badges) rather than caches.
       break;
   }
 }
 
-void _applySystemSyncEvent(
-  Object reader,
-  SkotiqEvent event, {
-  SkotiqBackend? networkBackend,
-}) {
-  if (event.eventType == hostStateChangedEventType) {
-    _applyHostMutation(reader, event.data, onHost: networkBackend == null);
-  } else if (event.eventType == hostRuntimeStateEventType &&
-      networkBackend != null) {
-    final update = HostRuntimeUpdate.fromJson(event.data);
-    if (update != null) {
-      applyHostRuntimeUpdate(reader, update, networkBackend: networkBackend);
-    }
+/// A linked client following one event of its host, [backend].
+///
+/// The host's devices, guider and the results only its process computes
+/// arrive as runtime channel values ([applyHostRuntimeUpdate]); its run is
+/// folded from its sequencer events; a change to its stored data re-reads
+/// that data.
+void applyHostEventOnClient(
+  ProviderContainer container,
+  SkotiqBackend backend,
+  SkotiqEvent event,
+) {
+  if (container.backendScopeOver(backend).isStale) return;
+  switch (event.category) {
+    case EventCategory.system:
+      if (event.eventType == hostStateChangedEventType) {
+        final change = HostDataChange.of(event.data);
+        if (change == null) return;
+        if (change.entityType == HostMutationEntity.sequencer) {
+          _mirrorHostRunControl(container, change.action, event.data);
+        } else {
+          _rereadChangedHostData(container, change, event.data);
+        }
+      } else if (event.eventType == hostRuntimeStateEventType) {
+        final update = HostRuntimeUpdate.fromJson(event.data);
+        if (update != null) {
+          applyHostRuntimeUpdate(container, update, networkBackend: backend);
+        }
+      }
+    case EventCategory.sequencer:
+      if (_applySequenceLibraryNotice(container, event)) return;
+      _mirrorHostRunEvent(container, backend, event);
+    case EventCategory.imaging:
+      _rereadImagesAfter(container, event);
+      // The capture publisher runs only on the host, so the host's frame is
+      // fetched here when it says one is ready; a saved or captured frame
+      // counts too, in case the ready event was missed.
+      if (event.eventType == 'ImageReady' ||
+          event.eventType == 'ImageSaved' ||
+          event.eventType == 'ImageCaptured') {
+        unawaited(_publishRemoteCurrentFrame(container, backend));
+      }
+      _applyExposureMirror(container, event);
+    case EventCategory.equipment:
+    case EventCategory.guiding:
+    case EventCategory.safety:
+    case EventCategory.polarAlignment:
+    case EventCategory.job:
+    case EventCategory.session:
+    case EventCategory.catalog:
+      break;
+  }
+}
+
+void _rereadImagesAfter(ProviderContainer container, SkotiqEvent event) {
+  if (event.eventType == 'ImageCaptured' || event.eventType == 'ImageSaved') {
+    _invalidateHostCapturedImages(container);
   }
 }
 
@@ -164,12 +165,11 @@ void _applySystemSyncEvent(
 /// its dimensions, it takes the host's saved path, target and capture settings,
 /// which the last-frame endpoint does not carry.
 void requestHostCurrentFrame(
-  Object reader,
+  ProviderContainer container,
   SkotiqBackend backend, {
   HostFrameHint? hint,
 }) {
-  final fetchState = _remoteFrameFetchStates[reader] ??=
-      _RemoteFrameFetchState();
+  final fetchState = container.read(_remoteFrameFetchStateProvider);
   fetchState.hint = hint;
-  unawaited(_publishRemoteCurrentFrame(reader, backend));
+  unawaited(_publishRemoteCurrentFrame(container, backend));
 }

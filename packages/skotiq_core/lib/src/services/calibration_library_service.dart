@@ -80,15 +80,8 @@ class CalibrationLibraryService implements CalibrationLibrary {
   final CalibrationStalenessThresholds thresholds;
   final DateTime Function() _now;
 
-  bool get _hasAuthority => _host?.isCurrent ?? true;
-
-  void _ensureAuthority() {
-    if (_hasAuthority) return;
-    throw StateError(
-      'The imaging host changed while the calibration library was loading. '
-      'The stale result was discarded; try again on the current host.',
-    );
-  }
+  void _ensureAuthority() =>
+      _host?.ensureCurrent('the calibration library was loading');
 
   /// All library records matching [filter], newest first.
   ///

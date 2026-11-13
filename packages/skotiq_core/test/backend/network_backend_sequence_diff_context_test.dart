@@ -49,7 +49,7 @@ void main() {
       final backend = _backend(fake);
       addTearDown(backend.dispose);
 
-      final repository = SequenceRepository.remote(
+      final repository = RemoteSequenceRepository(
         backend,
         SequenceFileService(),
       );
@@ -75,7 +75,7 @@ void main() {
         );
       final backend = _backend(fake);
       addTearDown(backend.dispose);
-      final repository = SequenceRepository.remote(
+      final repository = RemoteSequenceRepository(
         backend,
         SequenceFileService(),
       );

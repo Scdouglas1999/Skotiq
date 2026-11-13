@@ -179,13 +179,13 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       case 'CameraSettingsChanged':
-        applyCameraSettings(_ref, data);
+        applyCameraSettings(_ref.container, data);
         break;
 
       case 'PropertyChanged':
         // Gain, offset, binning, slot names and the other settings the native
         // DeviceManager publishes whoever changed them.
-        applyDevicePropertyChange(_ref, data);
+        applyDevicePropertyChange(_ref.container, data);
         break;
 
       // The camera's own temperature reading, published natively from the
@@ -201,7 +201,7 @@ extension _DeviceServiceEventHandling on DeviceService {
       case 'CameraCoolingReached':
       case 'CameraWarmingStarted':
       case 'CameraWarmingCompleted':
-        applyDeviceStateEvent(_ref, event.eventType, data);
+        applyDeviceStateEvent(_ref.container, event.eventType, data);
         break;
 
       // Mount Slew Events
@@ -274,13 +274,13 @@ extension _DeviceServiceEventHandling on DeviceService {
 
       // Focuser Events
       case 'FocuserMoveStarted':
-        if (applyDeviceStateEvent(_ref, event.eventType, data)) {
+        if (applyDeviceStateEvent(_ref.container, event.eventType, data)) {
           _watchFocuserMoveSettle();
         }
         break;
 
       case 'FocuserMoveCompleted':
-        if (applyDeviceStateEvent(_ref, event.eventType, data)) {
+        if (applyDeviceStateEvent(_ref.container, event.eventType, data)) {
           _focuserMoveSettleWatch?.cancel();
           _focuserMoveSettleWatch = null;
         }
@@ -388,7 +388,7 @@ extension _DeviceServiceEventHandling on DeviceService {
   bool _isSlotMount(Map<String, dynamic> data) {
     final id = data['device_id'];
     if (id is! String || id.isEmpty) return true;
-    return readDeviceSlot(_ref, DeviceType.mount).deviceId == id;
+    return readDeviceSlot(_ref.container, DeviceType.mount).deviceId == id;
   }
 
   bool _isGuideCameraEvent(String? deviceType, String? deviceId) {
@@ -438,7 +438,7 @@ extension _DeviceServiceEventHandling on DeviceService {
       return;
     }
     if (type != null) {
-      readDeviceConnectionNotifier(_ref, type)
+      readDeviceConnectionNotifier(_ref.container, type)
         ..setConnecting(deviceId, resolvedName)
         ..setConnected();
       // A new connection starts with no stale readings.
@@ -470,7 +470,7 @@ extension _DeviceServiceEventHandling on DeviceService {
     final type = deviceTypeFromWireName(deviceType);
     if (type != null) {
       readDeviceConnectionNotifier(
-        _ref,
+        _ref.container,
         type,
       ).setConnecting(deviceId, resolvedName);
     }
@@ -497,7 +497,7 @@ extension _DeviceServiceEventHandling on DeviceService {
     if (tracked == null || tracked.isEmpty) {
       // A slot that holds no device but shows why a connect failed keeps
       // saying so; only a new connect or the user clears it.
-      return readDeviceSlot(_ref, type).connectionState !=
+      return readDeviceSlot(_ref.container, type).connectionState !=
           DeviceConnectionState.error;
     }
     if (tracked == eventDeviceId) return true;
@@ -603,7 +603,7 @@ extension _DeviceServiceEventHandling on DeviceService {
         default:
           break;
       }
-      readDeviceConnectionNotifier(_ref, type).setDisconnected();
+      readDeviceConnectionNotifier(_ref.container, type).setDisconnected();
     }
     unawaited(_attemptReconnect(type, deviceId));
   }
@@ -674,14 +674,14 @@ extension _DeviceServiceEventHandling on DeviceService {
         'device-error-unknown-type',
       );
     } else if (!isGuideCamera) {
-      final before = readDeviceSlot(_ref, type);
+      final before = readDeviceSlot(_ref.container, type);
       if (before.connectionState == DeviceConnectionState.connecting &&
           before.deviceId == deviceId) {
         final verb = before.lastError == null ? 'connect' : 'reconnect';
         toldMessage = 'The ${type.noun} did not $verb: $fullMessage';
       }
       readDeviceConnectionNotifier(
-        _ref,
+        _ref.container,
         type,
       ).setError(Exception(fullMessage));
     }

@@ -355,7 +355,7 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     }
     ensureAuthority();
 
-    resetAllEquipmentStateNotifiers(_ref);
+    resetAllEquipmentStateNotifiers(_ref.container);
 
     // Completed/failed progress belongs to the outgoing imaging host. When an
     // unreachable remote is explicitly abandoned we also clear its last known

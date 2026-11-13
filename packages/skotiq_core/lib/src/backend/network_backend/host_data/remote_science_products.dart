@@ -5,6 +5,7 @@ import '../../../database/database.dart'
         FramePhotometricCalibrationRow,
         LineRatioProductRow,
         MovingObjectCandidateRow,
+        PhotometricTransformRow,
         PhotometryMeasurementRow,
         PsfFieldTileRow,
         ScienceFrameQualityMetricsRow,
@@ -38,6 +39,15 @@ final class RemoteScienceProducts implements ScienceProducts {
       interval: _interval,
     ),
     _bundlesEqual,
+  );
+
+  @override
+  Stream<List<PhotometricTransformRow>> watchTransformsForProfile(
+    int? equipmentProfileId,
+  ) => _poll.watch(
+    () => _host.getPhotometricTransforms(profileId: equipmentProfileId),
+    listEquals,
+    interval: _interval,
   );
 
   Stream<T> _session<T>(

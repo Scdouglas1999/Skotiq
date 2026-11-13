@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'host_role.dart';
 
-import '../backend/remote_host.dart';
 import '../backend/roles/host_data/observing_lists_store.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/observing_lists_dao.dart';
@@ -19,10 +19,9 @@ final observingListsDaoProvider = Provider<ObservingListsDao>((ref) {
 
 /// The observing lists of whichever machine is the imaging host: this
 /// process's database, or the linked host's.
-final observingListsStoreProvider = Provider<ObservingListsStore>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.observingLists ??
-      ref.watch(observingListsDaoProvider),
+final observingListsStoreProvider = hostRoleProvider<ObservingListsStore>(
+  here: (ref) => ref.watch(observingListsDaoProvider),
+  linked: (ref, host) => host.observingLists,
 );
 
 /// Reactive stream of all observing lists.

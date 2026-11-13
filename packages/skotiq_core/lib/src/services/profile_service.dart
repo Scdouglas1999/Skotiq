@@ -9,7 +9,6 @@ import '../database/database.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_validation.dart';
-import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
@@ -23,6 +22,7 @@ import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
 import '../providers/device_service_providers.dart';
 import '../providers/logging_service_provider.dart';
+import '../providers/async_scope.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';
@@ -33,10 +33,10 @@ class ProfileService {
 
   ProfileService(this._ref);
 
-  _BackendAuthority get _authority {
-    final owner = _ref.read(backendProvider.notifier);
-    return (owner: owner, backend: owner.currentBackend);
-  }
+  /// Read through the container: a continuation that outlives a backend swap
+  /// must not touch this service's own `Ref`.
+  _BackendAuthority get _authority =>
+      _ref.container.backendScopes().begin();
 
   EquipmentProfilesNotifier get _profilesNotifier =>
       _ref.read(equipmentProfilesProvider.notifier);
@@ -45,7 +45,7 @@ class ProfileService {
   /// Load and activate a profile, optionally connecting devices
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {
     final authority = _authority;
-    final backend = authority.backend;
+    final backend = authority.value;
     if (backend.remoteHost != null) {
       await backend.loadProfile(profileId.toString());
       _requireAuthority(authority);
@@ -171,7 +171,7 @@ class ProfileService {
 
   Future<String> exportAllProfilesToJson() async {
     final authority = _authority;
-    final backend = authority.backend;
+    final backend = authority.value;
     final List<ProfileExportData> exportData;
     if (backend.remoteHost != null) {
       final profiles = await backend.getProfiles();
@@ -259,7 +259,7 @@ class ProfileService {
 
   Future<int> createProfile(String name, {String? description}) async {
     final authority = _authority;
-    if (authority.backend.remoteHost != null) {
+    if (authority.value.remoteHost != null) {
       final id = await _profilesNotifier.createProfile(
         name: name,
         description: description,
@@ -282,7 +282,7 @@ class ProfileService {
 
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final authority = _authority;
-    if (authority.backend.remoteHost != null) {
+    if (authority.value.remoteHost != null) {
       final id = await _profilesNotifier.duplicateProfile(sourceId, newName);
       _requireAuthority(authority);
       return id;
@@ -297,7 +297,7 @@ class ProfileService {
 
   Future<void> deleteProfile(int profileId) async {
     final authority = _authority;
-    if (authority.backend.remoteHost != null) {
+    if (authority.value.remoteHost != null) {
       await _profilesNotifier.deleteProfile(profileId);
       _requireAuthority(authority);
       return;

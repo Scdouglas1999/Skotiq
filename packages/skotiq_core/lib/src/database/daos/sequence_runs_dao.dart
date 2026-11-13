@@ -121,6 +121,7 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Get all runs ordered by most recent first.
+  @override
   Future<List<SequenceRun>> getAllRuns() {
     return (select(
       sequenceRuns,

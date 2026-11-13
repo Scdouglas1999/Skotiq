@@ -35,7 +35,7 @@ void main() {
     );
     addTearDown(backend.dispose);
     final service = SessionService(
-      records: ImagingRecordsRepository.remote(backend),
+      records: RemoteImagingRecords(backend),
       logger: LoggingService(),
     );
     addTearDown(service.dispose);
@@ -80,7 +80,7 @@ void main() {
       );
       addTearDown(backend.dispose);
       final service = SessionService(
-        records: ImagingRecordsRepository.remote(backend),
+        records: RemoteImagingRecords(backend),
         logger: LoggingService(),
       );
       addTearDown(service.dispose);
@@ -125,7 +125,7 @@ void main() {
     );
     addTearDown(backend.dispose);
     final service = SessionService(
-      records: ImagingRecordsRepository.remote(backend),
+      records: RemoteImagingRecords(backend),
       logger: LoggingService(),
     );
     addTearDown(service.dispose);
@@ -170,7 +170,7 @@ void main() {
       );
       addTearDown(backend.dispose);
       final service = SessionService(
-        records: ImagingRecordsRepository.remote(backend),
+        records: RemoteImagingRecords(backend),
         logger: LoggingService(),
       );
       addTearDown(service.dispose);
@@ -228,7 +228,7 @@ void main() {
     );
     addTearDown(backend.dispose);
     final service = SessionService(
-      records: ImagingRecordsRepository.remote(backend),
+      records: RemoteImagingRecords(backend),
       logger: LoggingService(),
     );
     addTearDown(service.dispose);
@@ -276,7 +276,7 @@ void main() {
     );
     addTearDown(backend.dispose);
     final service = SessionService(
-      records: ImagingRecordsRepository.remote(backend),
+      records: RemoteImagingRecords(backend),
       logger: LoggingService(),
     );
     final statuses = <String>[];

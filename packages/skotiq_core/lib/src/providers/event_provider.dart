@@ -32,7 +32,7 @@ final skotiqEventsProvider = StreamProvider<SkotiqEvent>((ref) {
   // collapsed envelope on `NetworkBackend.eventStream` (WebSocket).
   if (backend.remoteHost != null) {
     // `HostStateChanged` is a host-mutation SYNC envelope (applied separately
-    // by applyRemoteSyncEvent), NOT a Rust telemetry event. The typed bridge
+    // by applyHostEventOnClient), NOT a Rust telemetry event. The typed bridge
     // mapper has no case for it, so its `default` arm turns every one into a
     // `SystemEvent.error` — which the dashboard flags critical and shows as a
     // "Critical · System" toast. Since the master emits HostStateChanged

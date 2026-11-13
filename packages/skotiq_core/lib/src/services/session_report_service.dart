@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'package:skotiq_astro/format.dart';
 import '../utils/fwhm_conversion.dart';
 import '../database/daos/science_dao.dart';
-import '../database/daos/sequence_runs_dao.dart';
-import '../database/daos/targets_dao.dart';
-import 'imaging_records_repository.dart';
+import '../backend/roles/host_data/host_records.dart';
+import '../backend/roles/host_data/imaging_records.dart';
 import '../database/database.dart';
 import '../models/session_report.dart';
 
@@ -31,19 +30,19 @@ import '../models/session_report.dart';
 ///     non-sequencer path increments only that column.
 ///   * Errors: error message lists from the same `sequence_runs` rows.
 class SessionReportService {
-  final ImagingRecordsRepository _records;
-  final SequenceRunsDao _sequenceRunsDao;
-  final TargetsDao _targetsDao;
+  final ImagingRecords _records;
+  final RunHistory _runs;
+  final TargetLibrary _targets;
   final ScienceDao? _scienceDao;
 
   SessionReportService({
-    required ImagingRecordsRepository records,
-    required SequenceRunsDao sequenceRunsDao,
-    required TargetsDao targetsDao,
+    required ImagingRecords records,
+    required RunHistory runs,
+    required TargetLibrary targets,
     ScienceDao? scienceDao,
   }) : _records = records,
-       _sequenceRunsDao = sequenceRunsDao,
-       _targetsDao = targetsDao,
+       _runs = runs,
+       _targets = targets,
        _scienceDao = scienceDao;
 
   /// Per-frame REAL SNR from the science pipeline, keyed by captured-image
@@ -239,21 +238,10 @@ class SessionReportService {
     final targetNames = <int, String>{};
     final knownIds = byTarget.keys.whereType<int>().toList(growable: false);
     if (knownIds.isNotEmpty) {
-      // On a slave the local `targets` table is empty, so resolve names through
-      // the remote-aware records repository (host `/api/targets`); otherwise the
-      // report shows "Target N" for every imaged object.
-      if (_records.isRemote) {
-        final remoteNames = await _records.getTargetNamesRemote();
-        for (final id in knownIds) {
-          final name = remoteNames[id];
-          if (name != null) targetNames[id] = name;
-        }
-      } else {
-        final all = await _targetsDao.getAllTargets();
-        for (final t in all) {
-          if (knownIds.contains(t.id)) {
-            targetNames[t.id] = t.name;
-          }
+      final all = await _targets.getAllTargets();
+      for (final t in all) {
+        if (knownIds.contains(t.id)) {
+          targetNames[t.id] = t.name;
         }
       }
     }
@@ -564,13 +552,7 @@ class SessionReportService {
   Future<List<SequenceRun>> _findRelatedSequenceRuns(
     ImagingSession session,
   ) async {
-    // On a slave the local `sequence_runs` table is never populated, so reading
-    // the DAO yields []  — the mount/op counts and error/warning sections would
-    // render a confident-but-false "no flips, no autofocus, no errors". Pull the
-    // master's real run history through the remote-aware records repository.
-    final allRuns = _records.isRemote
-        ? await _records.getAllSequenceRunsRemote()
-        : await _sequenceRunsDao.getAllRuns();
+    final allRuns = await _runs.getAllRuns();
     final start = session.startTime;
     final end = session.endTime ?? DateTime.now();
     return allRuns.where((r) {

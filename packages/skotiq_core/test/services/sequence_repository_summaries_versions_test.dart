@@ -19,7 +19,7 @@ void main() {
   setUp(() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     fileService = SequenceFileService();
-    repo = SequenceRepository(
+    repo = LocalSequenceRepository(
       db.sequencesDao,
       runsDao: db.sequenceRunsDao,
       versionsDao: db.sequenceVersionsDao,

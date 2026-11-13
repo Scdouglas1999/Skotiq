@@ -489,11 +489,11 @@ class DeviceReconnectCoordinator {
   }
 
   bool _getAutoReconnectFor(DeviceType type) =>
-      readDeviceSlot(_ref, type).autoReconnectEnabled;
+      readDeviceSlot(_ref.container, type).autoReconnectEnabled;
 
   Future<void> _performReconnection(DeviceType type, String deviceId) async {
     await _connect(type, deviceId);
-    final slot = readDeviceSlot(_ref, type);
+    final slot = readDeviceSlot(_ref.container, type);
     validateReconnectOutcome(
       type: type,
       connectionState: slot.connectionState,

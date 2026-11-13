@@ -1036,6 +1036,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     return query.getSingleOrNull();
   }
 
+  @override
   Stream<List<PhotometricTransformRow>> watchTransformsForProfile(
     int? equipmentProfileId,
   ) {

@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/imaging/imaging_models.dart';
-import '../../database_provider.dart' show remoteImageRowsProvider;
 import '../../imaging_provider.dart';
 import '../runtime_mirror_channel.dart';
+import '../../captured_image_rows.dart';
 
 /// The frames in the imaging host's session list (its Imaging screen's
 /// Session block and Session frames tab), as `captured_images` ids, oldest
@@ -56,6 +56,6 @@ class SessionFramesChannel extends RuntimeMirrorChannel<List<CapturedImage>> {
     context.read(hostSessionFrameIdsProvider.notifier).state = ids;
     // The rows behind new ids are fetched now rather than at the next poll of
     // the host's whole image table, up to 30 s away.
-    unawaited(context.read(remoteImageRowsProvider)?.addRows(ids));
+    unawaited(context.read(capturedImageRowsProvider).addRows(ids));
   }
 }

@@ -40,7 +40,7 @@ void main() {
     // this way, so the setting is the only thing that can redirect it.
     service = BackupService(
       database: database,
-      sequenceRepository: SequenceRepository(database.sequencesDao),
+      sequenceRepository: LocalSequenceRepository(database.sequencesDao),
       logger: logger,
     );
   });

@@ -204,8 +204,8 @@ final projectListProvider = StreamProvider<List<Project>>((ref) {
 
   // On a remote SLAVE the projects live in the HOST DB and there is no local
   // mutation stream to bridge — service.watchChanges() never fires — so poll
-  // the host on a fixed tick with a change-guard (mirrors database_provider's
-  // _pollRemote). Host-side project CRUD surfaces within the interval.
+  // the host on a fixed tick with a change-guard. Host-side project CRUD
+  // surfaces within the interval.
   if (backend.remoteHost != null) {
     return resilientDistinctPoll(
       fetch: service.listProjects,

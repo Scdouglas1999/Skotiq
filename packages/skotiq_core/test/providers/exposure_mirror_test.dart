@@ -13,13 +13,10 @@ class _FixedBackendNotifier extends BackendNotifier {
   }
 }
 
-/// Tests for the slave-side per-frame exposure-countdown mirror
-/// (`_applyExposureMirror`, reached via [applyRemoteSyncEvent] for
-/// imaging-category exposure events). A remote companion has no local capture
-/// loop, so these host events are the slave's ONLY source for the camera card's
-/// "Exposing" status and the remaining-time countdown. The mirror is gated on a
-/// non-null [NetworkBackend] so it never double-applies on the host (where
-/// ImagingService already owns this state).
+/// A linked client has no capture loop of its own, so its host's imaging
+/// events are its only source for the camera card's "Exposing" and the
+/// countdown ([applyHostEventOnClient]). The host follows the same events
+/// only for an exposure it did not start ([applyHostLocalSyncEvent]).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -50,15 +47,12 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await applyRemoteSyncEvent(
-        container,
-        imagingEvent('ExposureStarted', {
-          'durationSecs': 60.0,
-          'frameNumber': 3,
-          'totalFrames': 10,
-        }),
-        networkBackend: backend,
-      );
+      applyHostEventOnClient(container, backend, imagingEvent('ExposureStarted', {
+          'duration_secs': 60.0,
+          'frame_type': 'light',
+          'frame': 3,
+          'total': 10,
+        }));
 
       expect(container.read(cameraStateProvider).isExposing, isTrue);
       final progress = container.read(exposureProgressProvider);
@@ -81,14 +75,10 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await applyRemoteSyncEvent(
-      container,
-      imagingEvent('ExposureProgress', {
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
         'progress': 0.25,
         'remainingSecs': 45.0,
-      }),
-      networkBackend: backend,
-    );
+      }));
 
     final camera = container.read(cameraStateProvider);
     expect(camera.isExposing, isTrue);
@@ -111,21 +101,13 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await applyRemoteSyncEvent(
-      container,
-      imagingEvent('ExposureProgress', {
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
         'progress': 0.5,
         'remainingSecs': 30.0,
-      }),
-      networkBackend: backend,
-    );
+      }));
     expect(container.read(cameraStateProvider).isExposing, isTrue);
 
-    await applyRemoteSyncEvent(
-      container,
-      imagingEvent('ExposureComplete', const {}),
-      networkBackend: backend,
-    );
+    applyHostEventOnClient(container, backend, imagingEvent('ExposureComplete', const {}));
     expect(container.read(cameraStateProvider).isExposing, isFalse);
     expect(
       container.read(exposureProgressProvider),
@@ -148,19 +130,11 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await applyRemoteSyncEvent(
-        container,
-        imagingEvent('ExposureProgress', {
+      applyHostEventOnClient(container, backend, imagingEvent('ExposureProgress', {
           'progress': 0.5,
           'remainingSecs': 30.0,
-        }),
-        networkBackend: backend,
-      );
-      await applyRemoteSyncEvent(
-        container,
-        imagingEvent(ending, const {'error': 'driver fault'}),
-        networkBackend: backend,
-      );
+        }));
+      applyHostEventOnClient(container, backend, imagingEvent(ending, const {'error': 'driver fault'}));
 
       expect(container.read(cameraStateProvider).isExposing, isFalse);
       expect(container.read(exposureProgressProvider), ExposureProgress.idle());
@@ -175,15 +149,10 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await applyRemoteSyncEvent(
-        container,
-        imagingEvent('ExposureProgress', {
+      applyHostLocalSyncEvent(container, imagingEvent('ExposureProgress', {
           'progress': 0.5,
           'remainingSecs': 30.0,
-        }),
-        // No networkBackend => host path; ImagingService already owns this state,
-        // so the mirror must NOT run (would double-apply).
-      );
+        }));
 
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     },

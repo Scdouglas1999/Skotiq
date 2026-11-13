@@ -3,11 +3,11 @@ import 'dart:async';
 import '../../../models/imaging/imaging_models.dart'
     show CapturedImageData, ExposureSettings, FramePurpose, FrameType;
 import '../../../services/imaging_service.dart' show currentImageProvider;
-import '../../database_provider.dart' show remoteImageRowsProvider;
 import '../../remote_sync_handler.dart'
     show HostFrameHint, requestHostCurrentFrame;
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
+import '../../captured_image_rows.dart';
 
 /// The frame on the host's screen, as metadata only.
 ///
@@ -61,7 +61,9 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
         // The host's path: a Windows host's separators are not this
         // process's.
         !saved.split(RegExp(r'[\\/]')).last.startsWith('liveview_')) {
-      unawaited(context.read(remoteImageRowsProvider)?.refreshSessionOf(saved));
+      unawaited(
+        context.read(capturedImageRowsProvider).refreshSessionOf(saved),
+      );
     }
     final shown = context.read(currentImageProvider);
     if (shown != null) {
@@ -91,7 +93,7 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
     final gain = jsonInt(value['gain']);
     final offset = jsonInt(value['offset']);
     requestHostCurrentFrame(
-      context.reader,
+      context.container,
       backend,
       hint: width == null || height == null
           ? null

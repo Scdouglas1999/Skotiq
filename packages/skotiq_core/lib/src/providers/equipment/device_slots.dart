@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../device_heartbeat_health_provider.dart';
-import '../provider_reader.dart';
 import 'camera_state_provider.dart';
 import 'cover_calibrator_state_provider.dart';
 import 'device_connection_notifier.dart';
@@ -180,21 +179,18 @@ DeviceType? deviceTypeFromWireName(String raw) =>
     _typeByWireName[raw.toLowerCase()];
 
 /// The live state of [deviceType]'s slot.
-///
-/// [reader] is a `Ref`, a `WidgetRef` or a `ProviderContainer`; see
-/// [readProvider].
-DeviceSlotState<Object?> readDeviceSlot(Object reader, DeviceType deviceType) =>
-    readProvider(reader, deviceType.slot.state);
+DeviceSlotState<Object?> readDeviceSlot(ProviderContainer container, DeviceType deviceType) =>
+    container.read(deviceType.slot.state);
 
 /// The name [deviceType]'s card shows, or null when the slot has none.
-String? readDeviceSlotName(Object reader, DeviceType deviceType) =>
-    readDeviceSlot(reader, deviceType).deviceName;
+String? readDeviceSlotName(ProviderContainer container, DeviceType deviceType) =>
+    readDeviceSlot(container, deviceType).deviceName;
 
 /// The notifier that drives [deviceType]'s slot.
 DeviceConnectionNotifier readDeviceConnectionNotifier(
-  Object reader,
+  ProviderContainer container,
   DeviceType deviceType,
-) => readProvider(reader, deviceType.slot.notifier);
+) => container.read(deviceType.slot.notifier);
 
 /// Put every slot back to disconnected.
 ///
@@ -204,17 +200,17 @@ DeviceConnectionNotifier readDeviceConnectionNotifier(
 /// `includeGuider: false` when the guider is re-read from its own source
 /// (PHD2 is not always in the host's device list).
 void resetAllEquipmentStateNotifiers(
-  Object reader, {
+  ProviderContainer container, {
   bool includeGuider = true,
   bool clearHeartbeatHealth = true,
 }) {
   for (final slot in deviceSlots) {
     if (slot.type == DeviceType.guider && !includeGuider) continue;
-    readProvider(reader, slot.notifier).setDisconnected();
+    container.read(slot.notifier).setDisconnected();
   }
   if (!clearHeartbeatHealth) return;
   try {
-    readProvider(reader, deviceHeartbeatHealthProvider.notifier).clearAll();
+    container.read(deviceHeartbeatHealthProvider.notifier).clearAll();
   } on Object {
     // The heartbeat provider can be mid-disposal during shutdown.
   }
