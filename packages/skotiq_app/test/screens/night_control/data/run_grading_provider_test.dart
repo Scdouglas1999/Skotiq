@@ -66,6 +66,11 @@ SkotiqEvent _typedFrameRejected({
       'consecutive_rejects': consecutiveRejects,
       'accepted_total': acceptedTotal,
       'rejected_total': rejectedTotal,
+      // The capture record every frame event carries.
+      'exposure_secs': 60.0,
+      'bin_x': 1,
+      'bin_y': 1,
+      'frame_type': 'Light',
     },
   );
 }
@@ -94,6 +99,11 @@ SkotiqEvent _typedFrameAccepted({
       'star_count': starCount,
       'accepted_total': acceptedTotal,
       'rejected_total': rejectedTotal,
+      // The capture record every frame event carries.
+      'exposure_secs': 60.0,
+      'bin_x': 1,
+      'bin_y': 1,
+      'frame_type': 'Light',
     },
   );
 }
