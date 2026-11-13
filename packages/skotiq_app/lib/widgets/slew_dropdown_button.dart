@@ -598,8 +598,6 @@ class _CenteringDialogWithResultState
     if (!mounted || host.isStale) return;
 
     final solverConfig = PlateSolverConfig(
-      type: PlateSolverType.astap,
-      executablePath: appSettings.astapPath,
       timeoutSeconds: appSettings.plateSolveTimeout,
       searchRadius: appSettings.plateSolveSearchRadius,
     );

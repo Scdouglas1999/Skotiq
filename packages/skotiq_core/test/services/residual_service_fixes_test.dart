@@ -761,7 +761,7 @@ void main() {
       expect(nodes.single.recoveryConfig, equals(null));
     });
 
-    test('plate solve fallback preserves backend error details', () async {
+    test('a failed backend solve keeps the backend\'s error', () async {
       final backend = MockBackend();
       when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
       when(
@@ -789,15 +789,11 @@ void main() {
       final service = container.read(plate_solve.plateSolveServiceProvider);
       final result = await service.solve(
         'missing.fit',
-        const plate_solve.PlateSolverConfig(
-          type: plate_solve.PlateSolverType.astap,
-          executablePath: 'C:/missing/astap.exe',
-        ),
+        const plate_solve.PlateSolverConfig(),
       );
 
       expect(result.success, isFalse);
-      expect(result.error, contains('backend failed'));
-      expect(result.error, contains('Local fallback failed'));
+      expect(result.error, 'Plate solve failed: backend failed');
     });
 
     test('dark library deduplicates entries by file path', () async {

@@ -1,21 +1,7 @@
-//! Rust half of the shared `.wcs` conformance fixture.
-//!
-//! The golden headers and the expected parses live in
-//! `test_fixtures/wcs_conformance/` at the repo root and are read by BOTH this
-//! module and
-//! `packages/skotiq_core/test/services/wcs_conformance_test.dart`.
-//!
-//! Skotiq parses a `.wcs` sidecar twice — here (every FFI/network solve) and
-//! in `PlateSolveService` on the Dart side (the local fallback that runs
-//! precisely when this one has already failed). The two drifted apart once: this
-//! parser was fixed to card-split a terminator-free FITS header while the Dart
-//! copy still split on newlines, so ASTAP would solve, the Dart parse would
-//! report `CRVAL1` missing, and `Plate Solve & Center` failed every attempt
-//! against a solution the solver had already found. One fixture, two consumers,
-//! so the next drift is a red build instead of a lost night.
-//!
-//! Where the two parsers genuinely differ, the fixture carries a written
-//! `divergence` and neither implementation is changed — see the fixture README.
+//! The `.wcs` conformance fixture: golden headers written the way solvers
+//! write them (`test_fixtures/wcs_conformance/` at the repo root) and the exact
+//! card split and parse this parser produces for each. Every solve reads its
+//! `.wcs` here, so a change to the split or the parse is a red build.
 
 use super::{parse_wcs_file_inner, PlateSolveError};
 use serde_json::Value;
@@ -83,7 +69,7 @@ fn assert_close(actual: f64, expected: &Value, label: &str) {
 }
 
 #[test]
-fn card_split_matches_the_dart_fits_header_cards() {
+fn card_split_matches_the_fixture() {
     for case in load_cases() {
         let id = case["id"].as_str().expect("case.id");
         let content = header_of(&case);
@@ -224,54 +210,6 @@ fn parse_matches_the_pinned_rust_expectations() {
                 other => panic!("{id}: expected WcsMissingKeyword ({why}), got {other:?}"),
             },
             other => panic!("{id}: unknown expected outcome {other:?}"),
-        }
-    }
-}
-
-/// A case whose two sides disagree MUST carry a written reason. This is the rule
-/// that keeps the fixture honest: an undocumented disagreement is a bug report,
-/// not a passing test. Mirrored on the Dart side so neither suite can be the
-/// only one enforcing it.
-#[test]
-fn every_divergence_from_the_dart_parser_is_documented() {
-    for case in load_cases() {
-        let id = case["id"].as_str().expect("case.id");
-        let dart_ok = case["dart"]["success"].as_bool().expect("dart.success");
-        let rust_ok = case["rust"]["outcome"] == "ok";
-
-        if dart_ok != rust_ok {
-            assert!(
-                case["divergence"].is_string(),
-                "{id}: Dart says success={dart_ok} and Rust says {}; that has to \
-                 be explained in the fixture",
-                case["rust"]["outcome"]
-            );
-            continue;
-        }
-        if dart_ok && rust_ok {
-            // Position is the one thing they must never disagree about: a solve
-            // is the same solve whichever parser read it.
-            assert_exact(
-                expected_f64(&case["rust"]["ra"]),
-                &case["dart"]["ra"],
-                &format!("{id} ra agreement"),
-            );
-            assert_exact(
-                expected_f64(&case["rust"]["dec"]),
-                &case["dart"]["dec"],
-                &format!("{id} dec agreement"),
-            );
-            let same = |a: &Value, b: &Value| {
-                let (x, y) = (expected_f64(a), expected_f64(b));
-                (x.is_nan() && y.is_nan()) || (x - y).abs() <= 1e-9
-            };
-            let agree = same(&case["rust"]["pixel_scale"], &case["dart"]["pixel_scale"])
-                && same(&case["rust"]["rotation"], &case["dart"]["rotation"]);
-            assert!(
-                agree || case["divergence"].is_string(),
-                "{id}: the two parsers report different scale/rotation and the \
-                 fixture does not say why"
-            );
         }
     }
 }

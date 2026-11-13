@@ -364,8 +364,6 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
           targetRa: to.ra,
           targetDec: to.dec,
           solverConfig: PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: settings.astapPath,
             timeoutSeconds: settings.plateSolveTimeout,
             searchRadius: settings.plateSolveSearchRadius,
           ),
