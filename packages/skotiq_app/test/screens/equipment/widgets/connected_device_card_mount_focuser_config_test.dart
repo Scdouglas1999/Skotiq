@@ -188,7 +188,7 @@ void main() {
       final before = handle.container
           .read(appSettingsProvider)
           .requireValue
-          .backlashCompensation;
+          .afBacklashIn;
 
       await _openDialog(tester);
       await tester.enterText(coeffField(), '2.0');
@@ -200,7 +200,7 @@ void main() {
         handle.container
             .read(appSettingsProvider)
             .requireValue
-            .backlashCompensation,
+            .afBacklashIn,
         before,
       );
     });
@@ -218,7 +218,7 @@ void main() {
       expect(find.text('Focuser configuration'), findsNothing);
       final state = handle.container.read(appSettingsProvider).requireValue;
       expect(state.tempCoefficient, 0);
-      expect(state.backlashCompensation, 10000);
+      expect(state.afBacklashIn, 10000);
     });
   });
 }

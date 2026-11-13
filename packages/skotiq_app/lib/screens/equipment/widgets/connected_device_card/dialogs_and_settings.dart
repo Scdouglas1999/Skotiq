@@ -1,5 +1,12 @@
 part of '../connected_device_card.dart';
 
+final _coefficientCodec = NumberCodec.of(
+  AppSettingDefs.tempCoefficient,
+  decimals: 1,
+  unit: 'steps/°C',
+);
+final _backlashCodec = IntCodec.of(AppSettingDefs.afBacklashIn);
+
 extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
   /// The mount's meridian flips are the run's: every run arms its own flip
   /// trigger from Settings > Sequencer > Meridian flip, so this dialog holds
@@ -43,14 +50,6 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     );
   }
 
-  // Canonical backlash-compensation bounds, mirroring the autofocus backlash
-  // IN/OUT fields and the driver step limit (0..10000 steps). The coefficient
-  // is only required to be finite: it is legitimately negative (default -12
-  // steps/°C) and zero is the documented "track but do not move" state, so no
-  // narrow range is imposed.
-  static const int _minBacklashSteps = 0;
-  static const int _maxBacklashSteps = 10000;
-
   void _showFocuserSettingsDialog() async {
     late final AppSettingsState settings;
     try {
@@ -65,9 +64,6 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
 
     bool tempComp = settings.tempCompensation;
     var coefficientText = settings.tempCoefficient.toString();
-    // `afBacklashIn`, the figure every path to the focuser actually reads;
-    // `backlashCompensation` is persisted and displayed but operationally
-    // unread. See the note in `_BacklashSettingRow`.
     var backlashText = settings.afBacklashIn.toString();
     // Bumped when a measured figure is adopted, so the field's key changes and
     // it rebuilds showing the new `initialValue`. A controller would be the
@@ -102,23 +98,24 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                       ? null
                       : () async {
                           if (isSaving) return;
-                          final coeff = double.tryParse(coefficientText.trim());
-                          if (coeff == null || !coeff.isFinite) {
-                            setState(() => errorText =
-                                'Temp coefficient must be a finite number.');
-                            return;
-                          }
-                          final backlash = int.tryParse(backlashText.trim());
-                          if (backlash == null) {
-                            setState(() => errorText =
-                                'Backlash must be a whole number of steps.');
-                            return;
-                          }
-                          if (backlash < _minBacklashSteps ||
-                              backlash > _maxBacklashSteps) {
-                            setState(() => errorText =
-                                'Backlash must be between $_minBacklashSteps '
-                                    'and $_maxBacklashSteps steps.');
+                          final coefficient = _coefficientCodec
+                              .parse(coefficientText);
+                          final backlash = _backlashCodec.parse(backlashText);
+                          // A number out of range is refused, not clamped:
+                          // the note says what the bound is.
+                          final refused = !coefficient.isOk
+                              ? 'Temperature coefficient: '
+                                  '${coefficient.invalid}'
+                              : !backlash.isOk
+                                  ? 'Backlash: ${backlash.invalid}'
+                                  : coefficient.note != null
+                                      ? 'Temperature coefficient: '
+                                          '${coefficient.note}'
+                                      : backlash.note != null
+                                          ? 'Backlash: ${backlash.note}'
+                                          : null;
+                          if (refused != null) {
+                            setState(() => errorText = refused);
                             return;
                           }
                           setState(() {
@@ -129,11 +126,10 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             final notifier = ref.read(
                               appSettingsProvider.notifier,
                             );
-                            await notifier.setAfBacklashIn(backlash);
                             await notifier.setFocuserCompensationConfig(
                               tempCompensation: tempComp,
-                              tempCoefficient: coeff,
-                              backlashCompensation: backlash,
+                              tempCoefficient: coefficient.value!,
+                              backlashIn: backlash.value!,
                             );
                             if (!context.mounted || host.isStale) return;
                             Navigator.pop(context);
@@ -212,8 +208,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                     style: SkotiqTypography.body
                         .copyWith(color: colors.textPrimary),
                     decoration: InputDecoration(
-                      labelText:
-                          'Backlash Compensation ($_minBacklashSteps - $_maxBacklashSteps steps)',
+                      labelText: 'Backlash Compensation '
+                          '(${_backlashCodec.min} - ${_backlashCodec.max} steps)',
                       labelStyle: SkotiqTypography.bodySm
                           .copyWith(color: colors.textMuted),
                       enabledBorder: OutlineInputBorder(

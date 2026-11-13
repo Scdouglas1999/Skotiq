@@ -219,7 +219,9 @@ class SequenceSerializer {
   String _temperatureCompensationMetadata(AppSettingsState settings) =>
       jsonEncode({
         'steps_per_degree': settings.tempCoefficient,
-        'min_steps': settings.tempCompensationMinSteps.clamp(1, 10000),
+        'min_steps': AppSettingDefs.tempCompensationMinSteps.clean(
+          settings.tempCompensationMinSteps,
+        ),
       });
 
   /// The frame watch's settings for this run, as the JSON string the native
