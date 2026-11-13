@@ -335,7 +335,7 @@ void main() {
           triggerId: kTargetEndWhenTriggerId,
           triggerName:
               'The end condition on "Dusk Field" (time ≥ 2026-08-17 12:38 UTC)',
-          action: kTargetEndWhenSkipAction,
+          action: 'SkipTarget',
         );
         await Future<void>.delayed(Duration.zero);
 
@@ -377,7 +377,7 @@ void main() {
         emitTriggerFired(
           triggerId: kTargetEndWhenTriggerId,
           triggerName: 'The end condition on "Dusk Field" (time ≥ noon)',
-          action: kTargetEndWhenSkipAction,
+          action: 'SkipTarget',
         );
         await Future<void>.delayed(Duration.zero);
       }
@@ -396,7 +396,7 @@ void main() {
           triggerId: kTargetEndWhenTriggerId,
           triggerName:
               'The end condition on "NGC0891" (time ≥ 2026-10-22 09:48 UTC)',
-          action: kTargetEndWhenSkipAction,
+          action: 'SkipTarget',
         );
         eventController.add(
           bridge_event.SkotiqEvent(

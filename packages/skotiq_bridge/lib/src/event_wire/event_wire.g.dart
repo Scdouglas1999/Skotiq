@@ -853,7 +853,7 @@ WireEvent _encodeSequencerEvent(SequencerEvent event) => switch (event) {
     <String, Object?>{
       'trigger_id': event.triggerId,
       'trigger_name': event.triggerName,
-      'action': event.action,
+      'action': encodeSequencerTriggerAction(event.action),
     },
   ),
   SequencerEvent_InstructionProgress() => (
@@ -1170,7 +1170,9 @@ SequencerEvent? _decodeSequencerEvent(
       return SequencerEvent.triggerFired(
         triggerId: wireString(d, 'trigger_id'),
         triggerName: wireString(d, 'trigger_name'),
-        action: wireString(d, 'action'),
+        action:
+            decodeSequencerTriggerAction(d['action']) ??
+            SequencerTriggerAction.notify,
       );
     case 'InstructionProgress':
       return SequencerEvent.instructionProgress(
@@ -1785,6 +1787,47 @@ SequencerErrorKind? decodeSequencerErrorKind(Object? raw) => switch (raw) {
   'cancelled' => SequencerErrorKind.cancelled,
   _ => null,
 };
+
+String encodeSequencerTriggerAction(SequencerTriggerAction value) =>
+    switch (value) {
+      SequencerTriggerAction.continue_ => 'Continue',
+      SequencerTriggerAction.pause => 'Pause',
+      SequencerTriggerAction.autofocus => 'Autofocus',
+      SequencerTriggerAction.nextTarget => 'NextTarget',
+      SequencerTriggerAction.retry => 'Retry',
+      SequencerTriggerAction.parkAndAbort => 'ParkAndAbort',
+      SequencerTriggerAction.customBranch => 'CustomBranch',
+      SequencerTriggerAction.meridianFlip => 'MeridianFlip',
+      SequencerTriggerAction.dither => 'Dither',
+      SequencerTriggerAction.recenter => 'Recenter',
+      SequencerTriggerAction.pauseAndWaitForClear => 'PauseAndWaitForClear',
+      SequencerTriggerAction.slewToGapAndContinue => 'SlewToGapAndContinue',
+      SequencerTriggerAction.switchTargetOrFilter => 'SwitchTargetOrFilter',
+      SequencerTriggerAction.notify => 'Notify',
+      SequencerTriggerAction.abort => 'Abort',
+      SequencerTriggerAction.skipTarget => 'SkipTarget',
+    };
+
+SequencerTriggerAction? decodeSequencerTriggerAction(Object? raw) =>
+    switch (raw) {
+      'Continue' => SequencerTriggerAction.continue_,
+      'Pause' => SequencerTriggerAction.pause,
+      'Autofocus' => SequencerTriggerAction.autofocus,
+      'NextTarget' => SequencerTriggerAction.nextTarget,
+      'Retry' => SequencerTriggerAction.retry,
+      'ParkAndAbort' => SequencerTriggerAction.parkAndAbort,
+      'CustomBranch' => SequencerTriggerAction.customBranch,
+      'MeridianFlip' => SequencerTriggerAction.meridianFlip,
+      'Dither' => SequencerTriggerAction.dither,
+      'Recenter' => SequencerTriggerAction.recenter,
+      'PauseAndWaitForClear' => SequencerTriggerAction.pauseAndWaitForClear,
+      'SlewToGapAndContinue' => SequencerTriggerAction.slewToGapAndContinue,
+      'SwitchTargetOrFilter' => SequencerTriggerAction.switchTargetOrFilter,
+      'Notify' => SequencerTriggerAction.notify,
+      'Abort' => SequencerTriggerAction.abort,
+      'SkipTarget' => SequencerTriggerAction.skipTarget,
+      _ => null,
+    };
 
 /// Every event type this build sends, by family, for tests and tables that
 /// must cover them all.

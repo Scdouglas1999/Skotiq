@@ -370,7 +370,7 @@ void main() {
               sequenceStopTriggerDecision(
                 triggerId: 'dawn_approaching',
                 triggerName: 'Dawn Approaching',
-                action: 'ParkAndAbort',
+                action: SequencerTriggerAction.parkAndAbort,
               ),
             );
         container.read(mountStateProvider.notifier).setConnecting('mount');

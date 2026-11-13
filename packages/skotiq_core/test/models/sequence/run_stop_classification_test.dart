@@ -4,7 +4,8 @@
 // really emits.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_bridge/skotiq_bridge.dart' show SequencerStop;
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show SequencerStop, SequencerTriggerAction;
 import 'package:skotiq_core/src/models/sequence/run_stop_classification.dart';
 
 void main() {
@@ -110,7 +111,7 @@ void main() {
         sequenceStopTriggerDecision(
           triggerId: 'weather_unsafe',
           triggerName: 'Weather Unsafe',
-          action: kParkAndAbortTriggerAction,
+          action: SequencerTriggerAction.parkAndAbort,
         )?.originLabel,
         'the Weather Unsafe trigger',
       );
@@ -120,16 +121,9 @@ void main() {
     // reading it as authorship would blame it for whatever ended the run an
     // hour later. "Abort" ends the run without parking and names nobody.
     test('a fire whose action does not park and end the run names nobody', () {
-      for (final action in const [
-        'Continue',
-        'Pause',
-        'Autofocus',
-        'NextTarget',
-        'Dither',
-        'Recenter',
-        'Abort',
-        'Notify',
-      ]) {
+      for (final action in SequencerTriggerAction.values.where(
+        (action) => action != SequencerTriggerAction.parkAndAbort,
+      )) {
         expect(
           sequenceStopTriggerDecision(
             triggerId: 'focus_drift',
