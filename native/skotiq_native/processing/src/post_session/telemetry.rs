@@ -311,7 +311,7 @@ mod tests {
     /// What the preview costs per sub at this sensor's size, against the
     /// normalization it runs beside. Opt-in: it times work, not behavior.
     ///
-    /// `cargo test -p skotiq_bridge --release -- --ignored --nocapture passviz_preview_cost`
+    /// `cargo test -p skotiq_processing --release -- --ignored --nocapture passviz_preview_cost`
     #[test]
     #[ignore = "timing measurement; run by hand in release"]
     fn passviz_preview_cost() {

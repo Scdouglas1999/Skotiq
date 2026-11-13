@@ -221,13 +221,6 @@ enum CalibrationApi implements ApiEndpoint {
       rate: ApiRateTier.control,
     ),
   ),
-  applyDefectMap(
-    ApiRoute.post(
-      '/api/calibration/defect-maps/apply',
-      resource: ApiResource.calibration,
-      rate: ApiRateTier.control,
-    ),
-  ),
   getDefectMapStatus(
     ApiRoute.get(
       '/api/calibration/defect-maps/status',

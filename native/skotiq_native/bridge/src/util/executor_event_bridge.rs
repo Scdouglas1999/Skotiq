@@ -121,11 +121,9 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
         // The one-shot autofocus publishes its own points; forwarding these
         // too would double the V-curve and log a line per point.
         ExecutorEvent::AutofocusProgress { .. } => return,
-        // Its outcome does go out. The caller that started the sweep gets the
-        // result back, but every other window drew the sweep from the events
-        // and would show it running for the rest of the night: on 2026-11-07
-        // an autofocus started through the REST API succeeded and the host's
-        // focus panel read "point 13 of 13" with only a Cancel button.
+        // Its outcome does go out: only the caller that started the sweep gets
+        // the result back, and every other window, which drew the sweep from
+        // the events, needs it to stop showing the sweep as running.
         ExecutorEvent::AutofocusFinished {
             focuser_id,
             status,

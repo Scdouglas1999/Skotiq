@@ -1087,8 +1087,8 @@ void main() {
         expect(engine.stopCount, 1);
       },
     );
-    test('master flat and bias files are read by the native frame reader, '
-        'whatever their format', () async {
+    test('master flat and bias are handed to calibration by path, whatever '
+        'their format', () async {
       // A PixInsight master is an XISF file; the frames below are no FITS.
       final dir = await Directory.systemTemp.createTemp('stack_share_masters');
       addTearDown(() => dir.delete(recursive: true));
@@ -1129,15 +1129,7 @@ void main() {
         ),
       );
 
-      expect(engine.calls, contains('read:${flat.path}'));
-      expect(engine.calls, contains('read:${bias.path}'));
-      expect(
-        calibration,
-        everyElement(
-          'flat [100, 200, 300, 400] '
-          'bias [100, 200, 300, 400]',
-        ),
-      );
+      expect(calibration, everyElement('flat ${flat.path} bias ${bias.path}'));
       expect(calibration, hasLength(2));
     });
   });
@@ -1534,15 +1526,15 @@ class _RecordingCalibration extends CalibrationService {
   final List<String> calls;
 
   @override
-  Uint16List calibrateData({
+  Future<Uint16List> calibrateData({
     required int width,
     required int height,
     required List<int> lightData,
-    Uint16List? darkData,
-    Uint16List? flatData,
-    Uint16List? biasData,
-  }) {
-    calls.add('flat $flatData bias $biasData');
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
+  }) async {
+    calls.add('flat $flatPath bias $biasPath');
     return Uint16List.fromList(lightData);
   }
 }

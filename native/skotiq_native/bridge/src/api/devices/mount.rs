@@ -248,7 +248,7 @@ mod tests {
             display_name: "Simulated Mount".to_string(),
         };
         let manager = get_device_manager();
-        manager.register_device(info.clone(), false).await;
+        crate::simulator::register_connected(manager, info.clone()).await;
         manager
             .connect_simulator(&info)
             .await
@@ -330,7 +330,7 @@ mod tests {
             unique_id: None,
             display_name: "Simulated Mount".to_string(),
         };
-        get_device_manager().register_device(info, false).await;
+        crate::simulator::register_connected(get_device_manager(), info).await;
         get_sim_mount().write().await.status.connected = true;
     }
 
