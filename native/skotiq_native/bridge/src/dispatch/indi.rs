@@ -4,7 +4,7 @@
 //! provide INDI-only logic: the shared server connections, device discovery,
 //! connection and the per-device health check.
 
-use crate::device::*;
+use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::DeviceManager;
 use std::sync::Arc;
@@ -38,27 +38,24 @@ fn handle(
     client: Arc<RwLock<skotiq_indi::IndiClient>>,
     device_name: &str,
 ) -> Option<DeviceHandle> {
-    use crate::device_manager::rig::camera::DriverCamera;
+    use crate::device_manager::rig::camera::driver::DriverCamera;
     use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
     use crate::device_manager::rig::focuser::DriverFocuser;
-    use crate::device_manager::rig::mount::DriverMount;
-    use skotiq_indi::*;
+    use crate::device_manager::rig::mount::driver::DriverMount;
+    use skotiq_indi::{
+        IndiCoverCalibrator, IndiDome, IndiRotator, IndiSafetyMonitor, IndiSwitchDevice,
+        IndiWeather,
+    };
     Some(match info.device_type {
-        DeviceType::Camera => DeviceHandle::Camera(Arc::new(DriverCamera::indi(
-            &info.id,
-            client,
-            device_name,
-        ))),
-        DeviceType::Mount => DeviceHandle::Mount(Arc::new(DriverMount::indi(
-            &info.id,
-            client,
-            device_name,
-        ))),
-        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(DriverFocuser::indi(
-            &info.id,
-            client,
-            device_name,
-        ))),
+        DeviceType::Camera => {
+            DeviceHandle::Camera(Arc::new(DriverCamera::indi(&info.id, client, device_name)))
+        }
+        DeviceType::Mount => {
+            DeviceHandle::Mount(Arc::new(DriverMount::indi(&info.id, client, device_name)))
+        }
+        DeviceType::Focuser => {
+            DeviceHandle::Focuser(Arc::new(DriverFocuser::indi(&info.id, client, device_name)))
+        }
         DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(DriverFilterWheel::indi(
             &info.id,
             client,
@@ -86,7 +83,7 @@ fn handle(
 
 impl DeviceManager {
     pub(crate) fn parse_indi_device_id(device_id: &str) -> Result<(String, u16, String), String> {
-        let parsed = crate::device_id::parse_device_id_cached(device_id)
+        let parsed = crate::device_id::cache::parse_device_id_cached(device_id)
             .map_err(|e| format!("Invalid INDI device ID format: {}", e))?;
         match parsed.connection_info {
             crate::device_id::ConnectionInfo::Indi {

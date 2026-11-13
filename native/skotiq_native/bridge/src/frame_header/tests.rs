@@ -884,7 +884,7 @@ async fn a_dslr_frame_records_its_iso_as_gain_and_isospeed() {
 #[tokio::test]
 async fn a_sequence_frame_and_a_manual_capture_take_their_format_from_the_run_config() {
 
-    let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+    let _serialized = crate::simulator::sim_singleton_test_lock()
         .lock()
         .await;
     let handle = skotiq_sequencer::executor_handle();
@@ -895,7 +895,7 @@ async fn a_sequence_frame_and_a_manual_capture_take_their_format_from_the_run_co
         xisf_compression: skotiq_imaging::XisfCompression::from_name("zstd+sh").unwrap(),
         xisf_checksums: true,
     };
-    crate::api::api_sequencer_apply_run_config(serde_json::to_string(&xisf).unwrap())
+    crate::api::sequencer::runtime_config::api_sequencer_apply_run_config(serde_json::to_string(&xisf).unwrap())
         .await
         .expect("the run config applies");
 

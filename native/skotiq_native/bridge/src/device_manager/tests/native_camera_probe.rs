@@ -1,6 +1,7 @@
 //! The heartbeat's liveness probe of a native camera.
 
 use super::*;
+use crate::device::DriverType;
 use skotiq_device::{
     CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver, DriverError,
     ExposureParams, ImageData, ReadoutMode, SensorInfo, SubFrame, Vendor, VendorFeatures,

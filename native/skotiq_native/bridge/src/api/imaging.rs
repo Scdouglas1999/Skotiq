@@ -1,6 +1,3 @@
-// split from monolithic api.rs
-#![allow(unused_imports)]
-// Shared imports inherited from the monolithic api.rs.
 //
 // # `as`-cast policy
 //
@@ -44,29 +41,19 @@
 //
 // Hard-error paths (FFI deserialisation failures, missing-device errors)
 // remain `Result<_, String>` propagation; no error class is silenced.
-use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::error::*;
-use crate::event::*;
-use crate::state::*;
-use crate::storage::{AppSettings, ObserverLocation};
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
+use crate::state::get_state;
 use crate::unified_device_ops::create_unified_device_ops;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
-    DebayerAlgorithm, FitsHeader, ImageData,
-};
+use skotiq_imaging::ImageData;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
+use std::time::Instant;
 use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-// Sibling-module items via the parent's pub use re-exports.
-use super::*;
 
 /// Global cancellation token for autofocus
 pub(crate) static AUTOFOCUS_CANCEL_TOKEN: OnceLock<Arc<AtomicBool>> = OnceLock::new();
@@ -205,7 +192,7 @@ pub async fn api_run_autofocus(
 
     use serde::Deserialize;
     use skotiq_sequencer::instructions::{
-        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress, InstructionContext,
+        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress,
     };
     use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning, NodeStatus};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -806,7 +793,7 @@ pub async fn api_clear_device_image(device_id: String) -> Result<(), SkotiqError
 /// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
 /// the stop, which must not be downloaded as a frame.
 pub async fn api_camera_cancel_exposure(device_id: String) -> Result<(), SkotiqError> {
-    crate::unified_device_ops::mark_camera_exposure_aborted(&device_id).await;
+    crate::unified_device_ops::exposure_wait::mark_camera_exposure_aborted(&device_id).await;
     get_device_manager()
         .camera_abort_exposure(&device_id)
         .await
@@ -1017,9 +1004,7 @@ pub async fn api_read_fits_linear_data(
 }
 
 mod quality_math;
-pub(crate) use quality_math::{
-    compute_quality_maps_from_linear_data, mad, median, percentile, percentile_sorted,
-};
+pub(crate) use quality_math::compute_quality_maps_from_linear_data;
 
 /// Compute quality maps from the last captured image in memory for a device.
 pub async fn api_compute_last_capture_quality_maps(
@@ -1964,7 +1949,7 @@ pub fn api_calibrate_image_file(
         _ => None,
     };
 
-    let flat = crate::api::post_session::load_optional_flat(&flat_path)
+    let flat = crate::api::post_session::helpers::load_optional_flat(&flat_path)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to read flat frame: {e}")))?;
 
     let bias = match &bias_path {
@@ -1977,7 +1962,7 @@ pub fn api_calibrate_image_file(
         _ => None,
     };
 
-    let calibrated = crate::api::post_session::calibrate_with_flat_state(
+    let calibrated = crate::api::post_session::helpers::calibrate_with_flat_state(
         &light_result.image,
         dark.as_ref(),
         flat.as_ref(),

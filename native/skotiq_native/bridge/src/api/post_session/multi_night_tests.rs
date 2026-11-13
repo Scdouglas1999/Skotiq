@@ -1,9 +1,13 @@
 //! The multi-night master build and the PixInsight delivery, over synthetic
 //! star fields written to disk.
 
-use super::*;
-use skotiq_imaging::add_wcs_headers;
-use std::path::PathBuf;
+use crate::api::post_session::entrypoints::api_master_accumulate;
+use crate::api::post_session::helpers::image_to_f64;
+use crate::api::post_session::multi_night::{NO_SUBS_KIND, STAR_SIGNAL_FORMULA};
+use skotiq_imaging::{
+    add_wcs_headers, read_frame, read_frame_header, write_fits, FitsHeader, ImageData,
+};
+use std::path::{Path, PathBuf};
 
 const W: u32 = 384;
 const H: u32 = 288;

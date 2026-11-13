@@ -2,9 +2,10 @@
 
 use std::time::Duration;
 
-use super::detector::{Finding, LostReason, MotionKind};
 use super::{config, now, unix_now, with_registry, FaultRecord, LostRecord};
-use crate::event::{EventSeverity, SafetyEvent};
+use crate::device_manager::motion_guard::detector::{Finding, LostReason, MotionKind};
+use crate::event::equipment::EventSeverity;
+use crate::event::system::SafetyEvent;
 
 /// Rounds of stop commands the guard sends to a mount that keeps moving.
 const STOP_ROUNDS: u32 = 3;
@@ -19,7 +20,7 @@ const REMINDER_SECS: f64 = 15.0 * 60.0;
 const AUTO_RECOVERY_QUIET: Duration = Duration::from_secs(30);
 
 fn publish(event: SafetyEvent, severity: EventSeverity) {
-    crate::api::get_state().publish_safety_event(event, severity);
+    crate::state::get_state().publish_safety_event(event, severity);
 }
 
 fn position_text(ra_hours: f64, dec_deg: f64, altitude_deg: Option<f64>) -> String {
@@ -211,7 +212,7 @@ async fn stop_round(device_id: &str, round: u32) {
             entry.responding = true;
         }
     });
-    let manager = crate::api::get_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     let mut results = Vec::new();
     let mut note = |what: &str, result: Result<(), String>| {
         results.push(match result {
@@ -501,7 +502,7 @@ pub async fn recovery_sync(device_id: &str, ra_hours: f64, dec_deg: f64) -> Resu
             .or_default()
             .recovery_sync = true;
     });
-    let result = crate::api::get_device_manager()
+    let result = crate::device_manager::get_device_manager()
         .mount_sync(device_id, ra_hours, dec_deg)
         .await
         .map_err(|e| format!("The sync failed: {e}"));
@@ -541,13 +542,13 @@ async fn recovery_camera(camera_id: Option<String>) -> Option<String> {
     if run_camera.is_some() {
         return run_camera;
     }
-    if let Some(id) = crate::api::get_state()
+    if let Some(id) = crate::state::get_state()
         .get_profile_device_id(crate::device::DeviceType::Camera)
         .await
     {
         return Some(id);
     }
-    crate::api::get_device_manager()
+    crate::device_manager::get_device_manager()
         .first_connected_device_id(crate::device::DeviceType::Camera)
         .await
 }
@@ -578,7 +579,7 @@ pub async fn solve_for_recovery(
     if !solved.success {
         return Err("The frame did not plate solve. Check the sky and the focus.".to_string());
     }
-    let status = crate::api::get_device_manager()
+    let status = crate::device_manager::get_device_manager()
         .mount_get_status(device_id)
         .await
         .map_err(|e| format!("The mount did not report its position: {e}"))?;
@@ -668,7 +669,7 @@ async fn auto_recover(device_id: &str) -> Result<(), String> {
         solve.separation_deg
     );
     recovery_sync(device_id, solve.ra_hours, solve.dec_deg).await?;
-    crate::api::sequencer::api_sequencer_resume()
+    crate::api::sequencer::lifecycle::api_sequencer_resume()
         .await
         .map_err(|e| format!("The run did not resume: {e}"))?;
     Ok(())
@@ -676,19 +677,21 @@ async fn auto_recover(device_id: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod hold_tests {
+    
     use super::hold_run_or_stop_guiding;
-    use crate::api::get_state;
-    use crate::api::sequencer::{
-        api_sequencer_start, get_sequence_executor, run_sequencer_event_loop,
-    };
-    use crate::event::{EventPayload, SequencerEvent};
+    use crate::state::get_state;
+    use crate::api::sequencer::event_bridge::run_sequencer_event_loop;
+    use crate::api::sequencer::get_sequence_executor;
+    use crate::api::sequencer::lifecycle::api_sequencer_start;
+    use crate::event::bus::EventPayload;
+    use crate::event::sequencer::SequencerEvent;
 
     /// The guard asks the run to pause and the run announces it when its
     /// state turns Paused. The guard used to publish a Paused of its own as
     /// well, so one mount fault logged "Sequence paused" twice.
     #[tokio::test]
     async fn a_mount_fault_hold_puts_one_paused_on_the_wire() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+        let _serialized = crate::simulator::sim_singleton_test_lock()
             .lock()
             .await;
         let mut sequence = skotiq_sequencer::SequenceDefinition::new("Long wait".to_string());
@@ -702,7 +705,7 @@ mod hold_tests {
             children: vec![],
         });
         sequence.root_node_id = Some("wait".to_string());
-        crate::api::sequencer::wait_for_no_event_listeners().await;
+        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
         let mut run_events = {
             let mut executor = get_sequence_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(

@@ -17,7 +17,7 @@
 
 use crate::device::{DeviceType, DriverType};
 use crate::device_manager::DeviceManager;
-use crate::event::{EquipmentEvent, EventSeverity};
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use crate::state::SharedAppState;
 
 /// `PropertyChanged.property` names for settings with no event of their own.
@@ -82,7 +82,7 @@ impl DeviceManager {
             Ok(status) => {
                 let gain_is_iso = matches!(
                     crate::device_capabilities::get_device_capabilities(device_id).await,
-                    Ok(crate::device_capabilities::DeviceCapabilities::Camera(caps))
+                    Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps))
                         if !caps.iso_speeds.is_empty()
                 );
                 self.publish_state_event(EquipmentEvent::CameraSettingsChanged {
@@ -203,7 +203,7 @@ impl DeviceManager {
         let mount_id = mount_id.to_string();
         // The watch outlives this call, so it reads through the process-wide
         // manager, the same one the heartbeat tasks use.
-        let manager = crate::api::get_device_manager().clone();
+        let manager = crate::device_manager::get_device_manager().clone();
         tokio::spawn(async move {
             // Once a second: every read is a driver round trip, and the
             // caller usually runs its own faster watch beside this one.
@@ -239,6 +239,7 @@ impl DeviceManager {
                 Ok(progress) if progress.near_target => {
                     app_state.publish_equipment_event(
                         EquipmentEvent::MountSlewCompleted {
+                            device_id: mount_id,
                             ra: ra_hours,
                             dec: dec_degrees,
                         },

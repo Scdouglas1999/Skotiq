@@ -1,4 +1,6 @@
-use super::*;
+use crate::event::equipment::EventSeverity;
+use flutter_rust_bridge::frb;
+use serde::{Deserialize, Serialize};
 
 /// What a [`SequencerEvent::Error`] means for the run it came from. The
 /// sequencer decides this where the problem happens, because only it knows

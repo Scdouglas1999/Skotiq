@@ -1,4 +1,11 @@
-use super::*;
+use crate::builtin_guider::config::{GuiderConfig, Vec2};
+use crate::builtin_guider::metrics::{guide_reference_weight, PulseDebt};
+use crate::guider::TrackedGuideStar;
+use skotiq_imaging::{DetectedStar, ImageData};
+use std::sync::{Arc, OnceLock};
+use std::time::Instant;
+use tokio::sync::{Mutex, RwLock};
+use tokio::task::JoinHandle;
 
 /// Derive the guide camera's angular sampling from physical pixel pitch and
 /// focal length. Binning enlarges each centroid pixel by the same factor.

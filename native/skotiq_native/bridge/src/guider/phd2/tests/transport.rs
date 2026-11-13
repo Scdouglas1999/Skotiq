@@ -1,7 +1,7 @@
 //! Exercise connection recovery through the same bridge entry point the flip uses.
 use super::super::*;
+use crate::event::bus::EventPayload;
 use std::io::{BufRead, BufReader, Write};
-use crate::event::EventPayload;
 use std::net::TcpListener;
 
 #[tokio::test]

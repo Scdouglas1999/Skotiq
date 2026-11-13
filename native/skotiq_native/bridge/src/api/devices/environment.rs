@@ -1,7 +1,7 @@
 //! Weather and safety-monitor status reads exposed to Dart.
 
-use crate::api::get_device_manager;
 use crate::device::{SafetyStatus, WeatherConditions};
+use crate::device_manager::get_device_manager;
 use crate::error::SkotiqError;
 
 /// Read the latest observing-conditions values from a connected device.

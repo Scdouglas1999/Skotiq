@@ -15,7 +15,9 @@
 //!   cargo test -p skotiq_bridge --release -- --ignored --nocapture darkroom_real
 //! ```
 
-use super::*;
+use crate::api::darkroom::entrypoints::{
+    api_darkroom_registry, api_darkroom_render_export, api_darkroom_render_preview,
+};
 
 fn real_masters() -> (Vec<String>, String) {
     let dir = std::env::var("DARKROOM_MASTERS")

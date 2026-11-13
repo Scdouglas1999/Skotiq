@@ -17,7 +17,7 @@ use skotiq_imaging::color_composite::{
 };
 use skotiq_imaging::recipe::{MasterSource, OpContext, OpImage, Recipe, RecipeStep};
 
-use super::state::{base_pyramid, LoadedMaster};
+use crate::api::darkroom::state::{base_pyramid, LoadedMaster};
 
 /// One master offered to a composite.
 #[derive(Debug, Clone, Default, Deserialize)]

@@ -53,8 +53,6 @@ mod render;
 mod schema;
 mod state;
 
-pub use entrypoints::*;
-
 #[cfg(test)]
 mod tests;
 

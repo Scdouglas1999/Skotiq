@@ -1,4 +1,5 @@
-use super::*;
+use crate::api::polar_alignment::pole_slew::POLE_REGION_OFFSET_DEG;
+use crate::device_manager::get_device_manager;
 
 // How a polar-alignment frame is plate solved.
 //

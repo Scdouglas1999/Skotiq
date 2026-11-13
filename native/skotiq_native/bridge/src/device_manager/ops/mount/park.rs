@@ -1,5 +1,6 @@
-use super::*;
-use crate::event::EquipmentEvent;
+use crate::device_manager::DeviceManager;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 
 impl DeviceManager {
     /// Park the mount, publishing `MountParkStarted` before the command and
@@ -17,9 +18,13 @@ impl DeviceManager {
             device_id,
             crate::device_manager::motion_guard::CommandKind::Park,
         );
-        self.publish_state_event(EquipmentEvent::MountParkStarted);
+        self.publish_state_event(EquipmentEvent::MountParkStarted {
+            device_id: device_id.to_string(),
+        });
         self.mount_park_dispatch(device_id).await?;
-        self.publish_state_event(EquipmentEvent::MountParkCompleted);
+        self.publish_state_event(EquipmentEvent::MountParkCompleted {
+            device_id: device_id.to_string(),
+        });
         Ok(())
     }
 
@@ -30,7 +35,9 @@ impl DeviceManager {
             crate::device_manager::motion_guard::CommandKind::Unpark,
         );
         self.mount_unpark_dispatch(device_id).await?;
-        self.publish_state_event(EquipmentEvent::MountUnparked);
+        self.publish_state_event(EquipmentEvent::MountUnparked {
+            device_id: device_id.to_string(),
+        });
         Ok(())
     }
 }

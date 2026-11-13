@@ -25,14 +25,9 @@
 
 use crate::device::DriverType;
 use crate::error::SkotiqError;
-use lru::LruCache;
 use serde::{Deserialize, Serialize};
-use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
 
-pub(crate) mod cache;
-pub use cache::*;
+pub mod cache;
 #[cfg(test)]
 // `unwrap_or` policy: the test helpers in this module
 // use `unwrap_or_else(|e| panic!(...))` as a richer-message replacement

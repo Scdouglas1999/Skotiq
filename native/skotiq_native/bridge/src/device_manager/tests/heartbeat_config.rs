@@ -1,4 +1,5 @@
 use super::*;
+use crate::device::DriverType;
 use crate::device_manager::policy::policy;
 
 #[test]

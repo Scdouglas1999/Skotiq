@@ -36,10 +36,10 @@
 //! existing UI consumer (`SequenceExecutor._handleSequencerEvent`) treats the
 //! `Error` SequencerEvent as the catch-all log line.
 
-use crate::event::{
-    create_event_auto_id, EventCategory, EventPayload, EventSeverity, SequencerErrorKind,
-    SequencerEvent,
-};
+use crate::event::bus::EventPayload;
+use crate::event::correlation::create_event_auto_id;
+use crate::event::equipment::{EventCategory, EventSeverity};
+use crate::event::sequencer::{SequencerErrorKind, SequencerEvent};
 use crate::state::SharedAppState;
 use skotiq_sequencer::ExecutorEvent;
 use tokio::sync::broadcast;
@@ -100,7 +100,7 @@ pub(crate) fn publish_autofocus_finished(
         "result": result,
     });
     state.publish_equipment_event(
-        crate::event::EquipmentEvent::PropertyChanged {
+        crate::event::equipment::EquipmentEvent::PropertyChanged {
             device_type: "focuser".to_string(),
             device_id: focuser_id.to_string(),
             property: "AutofocusFinished".to_string(),
@@ -171,7 +171,7 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::EquipmentEvent;
+    use crate::event::equipment::EquipmentEvent;
     use skotiq_sequencer::NodeStatus;
 
     /// On 2026-11-07 an autofocus started through the REST API succeeded and

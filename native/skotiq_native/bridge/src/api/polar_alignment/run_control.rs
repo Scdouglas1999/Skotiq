@@ -1,4 +1,7 @@
-use super::*;
+use std::sync::atomic::{AtomicBool as PolarAtomicBool, AtomicU64, Ordering as PolarOrdering};
+use std::sync::OnceLock;
+use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 /// Track whether polar alignment is running
 pub(crate) static POLAR_ALIGN_RUNNING: OnceLock<PolarAtomicBool> = OnceLock::new();

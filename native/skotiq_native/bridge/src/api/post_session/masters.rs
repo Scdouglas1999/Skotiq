@@ -1,4 +1,28 @@
-use super::*;
+use crate::api::post_session::args::{CalibrationArgs, IntegrationSettingsArgs};
+use crate::api::post_session::calibration_report::{
+    append_fold_calibration, build_calibration_report, read_fold_calibration_log,
+    write_fold_calibration_history, CalibrationReport, FoldCalibration, FoldCalibrationRecord,
+};
+use crate::api::post_session::cancel::{check_stage, RUNS};
+use crate::api::post_session::helpers::{
+    aligned_quality, build_normalization_config, build_registration_config, build_weight_formula,
+    ensure_parent_dir, exposures_per_light, extract_channel, image_to_f64, load_optional_master,
+    to_u16_for_preview, write_channel, write_preview_png,
+};
+use crate::api::post_session::multi_night::{calibrate_for_fold, fold_masters, OnGrid};
+use crate::run_cancel::CancelToken;
+use serde::{Deserialize, Serialize};
+use skotiq_imaging::calibration_masters::{build_master_flat, MasterFlatConfig};
+use skotiq_imaging::frame_weighting::{accumulation_weights, FrameQuality, FrameQualityConfig};
+use skotiq_imaging::integration::IntegrationFrame;
+use skotiq_imaging::master_accumulation::{
+    AccumulationMode, IntegratedMaster, MasterCreateConfig, OnlineClip,
+};
+use skotiq_imaging::normalization::{apply_normalization, estimate_normalization, CoverageMask};
+use skotiq_imaging::registration::RegistrationConfig;
+use skotiq_imaging::stacking::{CombineMethod, MasterOutputType};
+use skotiq_imaging::{read_frame_header, read_image, write_fits, FitsHeader, ImageData, PixelType};
+use std::path::Path;
 
 /// Turn a sidecar deserialize failure into an operator-honest message.
 ///
@@ -404,7 +428,7 @@ struct FoldOutcome {
 fn fold_into(
     open: &mut OpenMaster,
     args: &MasterAddArgs,
-    cancel: Option<&RunCancelToken>,
+    cancel: Option<&CancelToken>,
 ) -> Result<FoldOutcome, String> {
     let exposures = exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
     let geom = open.master.geometry.clone();
@@ -428,7 +452,7 @@ fn fold_into(
     let fold_total = args.light_paths.len() as u32;
     for (i, path) in args.light_paths.iter().enumerate() {
         if let Some(cancel) = cancel {
-            cancel.check("registering", Some(i as u32), Some(fold_total))?;
+            check_stage(cancel, "registering", Some(i as u32), Some(fold_total))?;
         }
         let exposure = (exposures[i] > 0.0).then_some(exposures[i]);
         let calibrated = calibrate_for_fold(path, exposure, &args.calibration, &masters)?;
@@ -511,7 +535,7 @@ fn fold_into(
     // Last cancellation point: a committed fold must never be reported as
     // cancelled.
     if let Some(cancel) = cancel {
-        cancel.check("integrating", None, None)?;
+        check_stage(cancel, "integrating", None, None)?;
     }
     let report = open
         .master
@@ -553,8 +577,8 @@ pub(crate) fn master_add(args_json: &str) -> Result<MasterAccumulateResult, Stri
     // at finalize, so a short list must not be back-filled with zeros.
     exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
 
-    let cancel = RunCancelToken::register(&args.run_id)?;
-    cancel.check("calibrating", None, None)?;
+    let cancel = RUNS.register(&args.run_id)?;
+    check_stage(&cancel, "calibrating", None, None)?;
 
     // What the calibration masters for this fold actually are, measured against
     // the fold's anchor sub.

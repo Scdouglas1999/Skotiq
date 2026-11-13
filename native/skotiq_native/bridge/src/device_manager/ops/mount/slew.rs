@@ -1,5 +1,7 @@
-use super::*;
-use crate::event::EquipmentEvent;
+use crate::device::DeviceType;
+use crate::device_manager::DeviceManager;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 
 impl DeviceManager {
     // Mount control
@@ -28,7 +30,11 @@ impl DeviceManager {
         self.mount_slew_dispatch(device_id, ra, dec).await?;
         // The driver returning means the slew has started, not finished: the
         // completion event waits for the mount to arrive (see `state_events`).
-        self.publish_state_event(EquipmentEvent::MountSlewStarted { ra, dec });
+        self.publish_state_event(EquipmentEvent::MountSlewStarted {
+            device_id: device_id.to_string(),
+            ra,
+            dec,
+        });
         self.spawn_slew_completion_watch(device_id, ra, dec).await;
         Ok(())
     }

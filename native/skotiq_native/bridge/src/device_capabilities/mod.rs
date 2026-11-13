@@ -46,36 +46,29 @@
 //! }
 //! ```
 
-use crate::device_id::parse_device_id_cached;
+use crate::device_capabilities::alpaca::get_alpaca_capabilities;
+use crate::device_capabilities::ascom::get_ascom_capabilities;
+use crate::device_capabilities::cache::{
+    capability_cache, CapabilityCacheEntry, CAPABILITY_CACHE_TTL,
+};
+use crate::device_capabilities::indi::get_indi_capabilities;
+use crate::device_capabilities::native::get_native_capabilities;
+use crate::device_capabilities::types::{DeviceCapabilities, ShutterStatus};
+use crate::device_id::cache::parse_device_id_cached;
 use crate::error::SkotiqError;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
+use std::time::Instant;
 // Re-use enums from device module to avoid FRB conflicts
-use crate::device::{CalibratorState, CoverState, TrackingRate};
 
 // Import native traits for connect/disconnect and live filter-wheel queries.
-#[cfg(windows)]
-use skotiq_device::DeviceDriver;
 
 pub(crate) mod alpaca;
-pub(crate) use alpaca::*;
 pub(crate) mod ascom;
-pub(crate) use ascom::*;
 pub(crate) mod cache;
-pub(crate) use cache::*;
 pub(crate) mod indi;
-pub(crate) use indi::*;
 pub(crate) mod native;
-pub(crate) use native::*;
-pub(crate) mod simulator;
-pub(crate) use simulator::*;
 #[cfg(test)]
 mod tests;
-pub(crate) mod types;
-pub use types::*;
+pub mod types;
 
 /// Re-read the LIVE readings that share the capability structs, overwriting
 /// whatever the cache is holding for them.
@@ -113,7 +106,7 @@ pub use types::*;
 /// Not covered: [`DeviceCapabilities::Switch`] — refreshing it needs one
 /// round trip per switch, and [`WeatherCapabilities`] has no live fields.
 async fn refresh_volatile_state(device_id: &str, capabilities: &mut DeviceCapabilities) {
-    let mgr = crate::api::get_device_manager();
+    let mgr = crate::device_manager::get_device_manager();
     match capabilities {
         DeviceCapabilities::Camera(caps) => {
             if let Ok(status) = mgr.camera_get_status(device_id).await {
@@ -272,7 +265,7 @@ async fn read_capabilities(
     parsed: &crate::device_id::ParsedDeviceId,
 ) -> Result<DeviceCapabilities, SkotiqError> {
     use crate::device::{DeviceType, DriverType};
-    let mgr = crate::api::get_device_manager();
+    let mgr = crate::device_manager::get_device_manager();
     let registered_type = mgr.get_device(device_id).await.map(|d| d.info.device_type);
     match registered_type {
         Some(
@@ -294,7 +287,9 @@ async fn read_capabilities(
                 DriverType::Ascom => get_ascom_capabilities(device_id).await,
                 DriverType::Indi => get_indi_capabilities(device_id).await,
                 DriverType::Native => get_native_capabilities(device_id).await,
-                DriverType::Simulator => get_simulator_capabilities(parsed).await,
+                DriverType::Simulator => {
+                    crate::simulator::capabilities::get_simulator_capabilities(parsed).await
+                }
             }
         }
     }

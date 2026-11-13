@@ -11,9 +11,13 @@
 //! re-calibrated frames refused with reasons, duplicate events ignored,
 //! the queue shedding under load, and the verdict source's policy.
 
-use super::engine::{DepthLockService, EventSink, IngestOutcome, QUEUE_CAPACITY};
-use super::store::{tests::spec, GoalDefinition, GoalStore};
-use crate::event::{DepthLockEvent, EventPayload, SkotiqEvent};
+use super::store::tests::spec;
+use crate::depthlock_service::engine::{
+    DepthLockService, EventSink, IngestOutcome, QUEUE_CAPACITY,
+};
+use crate::depthlock_service::store::{GoalDefinition, GoalStore};
+use crate::event::bus::{EventPayload, SkotiqEvent};
+use crate::event::depthlock_events::DepthLockEvent;
 use skotiq_imaging::depthlock::input::{
     AcquisitionSettings, CompatibilityPolicy, ReferenceGeometry,
 };
@@ -888,7 +892,7 @@ async fn full_sensor_frame_cost() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn suggest_floor_reads_the_goal_files() {
     let night = synthetic_night("floor", 1, 0.0);
-    let suggestion = crate::api::api_depthlock_suggest_floor(
+    let suggestion = crate::api::depthlock::api_depthlock_suggest_floor(
         path(&night.reference),
         path(&night.dark),
         path(&night.flat),
@@ -903,7 +907,7 @@ async fn suggest_floor_reads_the_goal_files() {
         "{suggestion:?}"
     );
     assert!(suggestion.source.contains("Derived from the masters"));
-    let explicit = crate::api::api_depthlock_suggest_floor(
+    let explicit = crate::api::depthlock::api_depthlock_suggest_floor(
         path(&night.reference),
         path(&night.dark),
         path(&night.flat),
@@ -913,7 +917,7 @@ async fn suggest_floor_reads_the_goal_files() {
     .await
     .unwrap();
     assert_eq!(explicit.aperture_pixels, 2.5);
-    assert!(crate::api::api_depthlock_suggest_floor(
+    assert!(crate::api::depthlock::api_depthlock_suggest_floor(
         path(&night.reference),
         path(&night.dir.join("missing.fits")),
         path(&night.flat),
