@@ -126,6 +126,7 @@ impl CameraOps for CenterContentionOps {
             sensor_type: Some("Monochrome".to_string()),
             color_filter: None,
             camera_file: None,
+            readout_mode: None,
         })
     }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {

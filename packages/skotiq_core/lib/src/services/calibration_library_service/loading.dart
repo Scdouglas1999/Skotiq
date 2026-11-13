@@ -91,6 +91,7 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     height: record.height,
     cameraId: tag?.cameraId,
     opticalTrainId: record.opticalTrainId,
+    readoutMode: record.readoutMode,
     createdAt: record.createdAt,
     tags: tag?.tags ?? const [],
     notes: tag?.notes,
@@ -166,6 +167,38 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       temperature: temperature,
       filter: filterName,
     );
+  }
+
+  /// [records] with the dark and bias frames' read modes (`READOUTM`) read
+  /// from their headers, for matching lights that state one. Best-effort, as
+  /// [_enrich].
+  Future<List<CalibrationMasterRecord>> _withReadoutModes(
+    List<CalibrationMasterRecord> records,
+  ) async => [
+    for (final record in records)
+      if (record.readoutMode != null ||
+          record.filePath == null ||
+          (record.type != CalibrationMasterType.dark &&
+              record.type != CalibrationMasterType.bias))
+        record
+      else
+        record.copyWith(readoutMode: await _readoutModeOf(record.filePath!)),
+  ];
+
+  Future<String?> _readoutModeOf(String path) async {
+    try {
+      if (!await File(path).exists()) return null;
+      return FitsHeaderReader.stringValue(
+        await headerReader.readPrimaryHeader(path),
+        'READOUTM',
+      );
+    } catch (e) {
+      Log.warning(
+        'Read mode of $path not read: $e',
+        source: 'CalibrationLibraryService',
+      );
+      return null;
+    }
   }
 
   Future<void> _deleteFileIfExists(String path) async {

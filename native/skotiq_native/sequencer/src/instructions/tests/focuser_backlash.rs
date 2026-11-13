@@ -296,6 +296,7 @@ fn render_with_sigma(
         sensor_type: Some("Monochrome".to_string()),
         color_filter: None,
         camera_file: None,
+        readout_mode: None,
     }
 }
 
@@ -1139,6 +1140,7 @@ fn rig_fixture(name: &str) -> ImageData {
         sensor_type: Some("Monochrome".to_string()),
         color_filter: None,
         camera_file: None,
+        readout_mode: None,
     }
 }
 

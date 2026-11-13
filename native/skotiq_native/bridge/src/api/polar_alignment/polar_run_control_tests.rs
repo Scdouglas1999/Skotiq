@@ -94,6 +94,7 @@ fn raw_frame(width: u32, height: u32, data: Vec<u16>) -> crate::last_frame::RawF
             offset: Some(21),
             temperature: None,
             bits_per_pixel: 16,
+            readout_mode: None,
         },
     }
 }

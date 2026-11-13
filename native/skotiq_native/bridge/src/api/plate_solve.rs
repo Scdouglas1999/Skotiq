@@ -1583,6 +1583,7 @@ mod solve_hint_tests {
             sensor_type: None,
             color_filter: None,
             camera_file: None,
+            readout_mode: None,
         }
     }
 

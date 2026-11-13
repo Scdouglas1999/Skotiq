@@ -278,6 +278,7 @@ impl CameraOps for UnifiedDeviceOps {
                     offset,
                     temperature: native_image.metadata.temperature,
                     bits_per_pixel: native_image.bits_per_pixel,
+                    readout_mode: native_image.metadata.readout_mode.clone(),
                 },
             },
             duration_secs,
@@ -316,6 +317,7 @@ impl CameraOps for UnifiedDeviceOps {
             sensor_type,
             color_filter: native_image.bayer_pattern,
             camera_file: native_image.metadata.camera_file,
+            readout_mode: native_image.metadata.readout_mode,
         })
     }
 
