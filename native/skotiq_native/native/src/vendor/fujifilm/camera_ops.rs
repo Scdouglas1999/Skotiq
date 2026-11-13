@@ -16,6 +16,10 @@ impl DeviceDriver for FujifilmCamera {
         Vendor::Fujifilm
     }
 
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
+    }
+
     fn is_connected(&self) -> bool {
         self.session.is_some()
     }
@@ -25,7 +29,7 @@ impl DeviceDriver for FujifilmCamera {
             return Ok(());
         }
         let sdk = FujifilmSdk::lock().await?;
-        let session = session::join(&sdk, &self.serial_number).await?;
+        let session = session::join(&sdk, &self.address).await?;
         let camera_handle = session.handle();
         self.firmware_version = session.firmware().to_string();
         let actual_name = session.product().to_string();

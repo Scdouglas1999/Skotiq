@@ -6,6 +6,8 @@ use super::{closed, Exclusive, RigDriver};
 use crate::api::devices::simulation::get_sim_filterwheel;
 use crate::device_capabilities::FilterWheelCapabilities;
 use crate::device_manager::ops::{sim_faults, sim_gate};
+use crate::device_manager::identity::DeviceIdentity;
+use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -80,6 +82,14 @@ impl RigDriver for VendorFilterWheel {
             .await
             .map(|_| true)
             .map_err(|e| format!("Native filter wheel liveness probe failed: {}", e))
+    }
+
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        let driver = self.driver.read().await;
+        Some(DeviceManager::identity_from_device(
+            &self.device_id,
+            driver.as_ref(),
+        ))
     }
 }
 

@@ -128,7 +128,7 @@ macro_rules! alpaca_device {
 
         impl $name {
             pub fn new(device: &$crate::AlpacaDevice) -> Self {
-                assert_eq!(device.device_type, $crate::AlpacaDeviceType::$device_type);
+                assert_eq!(device.device_type, skotiq_device::ascom::AscomDeviceType::$device_type);
                 Self {
                     client: $crate::AlpacaClient::new(device),
                     $($($field: Default::default(),)*)?
@@ -138,7 +138,7 @@ macro_rules! alpaca_device {
             /// Create from server details
             pub fn from_server(base_url: &str, device_number: u32) -> Self {
                 let device = $crate::AlpacaDevice::from_server(
-                    $crate::AlpacaDeviceType::$device_type,
+                    skotiq_device::ascom::AscomDeviceType::$device_type,
                     base_url,
                     device_number,
                 );

@@ -43,44 +43,13 @@ pub struct AscomDevice {
     pub description: String,
 }
 
-/// ASCOM device types as defined by ASCOM standard
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AscomDeviceType {
-    Camera,
-    Telescope,
-    Focuser,
-    FilterWheel,
-    Rotator,
-    Dome,
-    SafetyMonitor,
-    ObservingConditions,
-    Switch,
-    CoverCalibrator,
-}
-
-impl AscomDeviceType {
-    /// Get the registry key name for this device type
-    pub fn registry_name(&self) -> &'static str {
-        match self {
-            AscomDeviceType::Camera => "Camera",
-            AscomDeviceType::Telescope => "Telescope",
-            AscomDeviceType::Focuser => "Focuser",
-            AscomDeviceType::FilterWheel => "FilterWheel",
-            AscomDeviceType::Rotator => "Rotator",
-            AscomDeviceType::Dome => "Dome",
-            AscomDeviceType::SafetyMonitor => "SafetyMonitor",
-            AscomDeviceType::ObservingConditions => "ObservingConditions",
-            AscomDeviceType::Switch => "Switch",
-            AscomDeviceType::CoverCalibrator => "CoverCalibrator",
-        }
-    }
-}
+use skotiq_device::ascom::AscomDeviceType;
 
 /// Discover ASCOM devices of a specific type
 /// Returns a list of available drivers registered in the Windows Registry
 #[cfg(windows)]
 pub fn discover_devices(device_type: AscomDeviceType) -> Vec<AscomDevice> {
-    windows::discover_devices(device_type.registry_name())
+    windows::discover_devices(device_type.name())
 }
 
 /// Discover ASCOM devices (non-Windows shim)

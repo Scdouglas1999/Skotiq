@@ -56,7 +56,7 @@ fn decode_put_response_still_reads_a_present_value() {
 #[test]
 fn test_transaction_id_uniqueness_single_thread() {
     let device = AlpacaDevice {
-        device_type: AlpacaDeviceType::Camera,
+        device_type: AscomDeviceType::Camera,
         device_number: 0,
         server_name: String::new(),
         manufacturer: String::new(),
@@ -79,7 +79,7 @@ fn test_transaction_id_uniqueness_multi_thread() {
     use std::sync::Mutex;
 
     let device = AlpacaDevice {
-        device_type: AlpacaDeviceType::Camera,
+        device_type: AscomDeviceType::Camera,
         device_number: 0,
         server_name: String::new(),
         manufacturer: String::new(),
@@ -130,7 +130,7 @@ fn test_transaction_id_uniqueness_multi_thread() {
 #[test]
 fn test_client_id_per_instance() {
     let device = AlpacaDevice {
-        device_type: AlpacaDeviceType::Camera,
+        device_type: AscomDeviceType::Camera,
         device_number: 0,
         server_name: String::new(),
         manufacturer: String::new(),
@@ -146,7 +146,7 @@ fn test_client_id_per_instance() {
 #[test]
 fn test_transaction_id_atomicity() {
     let device = AlpacaDevice {
-        device_type: AlpacaDeviceType::Camera,
+        device_type: AscomDeviceType::Camera,
         device_number: 0,
         server_name: String::new(),
         manufacturer: String::new(),

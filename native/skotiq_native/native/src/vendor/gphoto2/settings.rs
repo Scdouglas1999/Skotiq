@@ -3,6 +3,8 @@
 //! functions over a snapshot of the widget tree, so they are tested against
 //! the trees real bodies present.
 
+use super::exposure::{ShutterSpeeds, SHUTTER_WIDGETS};
+use super::utils::{pick_eos_bulb_choices, pick_raw_format_choice};
 use super::CameraWidgetType;
 
 /// One ISO speed the body offers: the number, and the choice string
@@ -127,4 +129,116 @@ pub(crate) fn noise_reduction_off(widget: &ConfigWidget) -> NoiseReductionOff {
 /// Whether the switch reads off.
 pub(crate) fn reads_off(widget: &ConfigWidget) -> bool {
     widget.value.as_deref().is_some_and(means_off)
+}
+
+pub(crate) fn widget_named<'a>(root: &'a ConfigWidget, names: &[&str]) -> Option<&'a ConfigWidget> {
+    let mut all = Vec::new();
+    root.walk(&mut all);
+    names
+        .iter()
+        .find_map(|name| all.iter().find(|w| w.name == *name).copied())
+}
+
+/// What a body says about itself in its configuration tree.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct BodyFacts {
+    pub(crate) manufacturer: Option<String>,
+    pub(crate) model: Option<String>,
+    pub(crate) serial: Option<String>,
+    /// As the body words it ("100%", "50", "Full").
+    pub(crate) battery: Option<String>,
+    /// Where a capture is stored ("Internal RAM", "Memory card").
+    pub(crate) capture_target: Option<String>,
+}
+
+pub(crate) fn body_facts(root: &ConfigWidget) -> BodyFacts {
+    let text = |names: &[&str]| {
+        widget_named(root, names)
+            .and_then(|w| w.value.as_deref())
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_string)
+    };
+    BodyFacts {
+        manufacturer: text(&["manufacturer"]),
+        model: text(&["cameramodel", "model"]),
+        // An unset serial reads as zeros on some bodies; it identifies nothing.
+        serial: text(&["serialnumber", "eosserialnumber"])
+            .filter(|s| s.chars().any(|c| c != '0' && !c.is_whitespace())),
+        battery: text(&["batterylevel"]),
+        capture_target: text(&["capturetarget"]),
+    }
+}
+
+impl BodyFacts {
+    /// A capture kept in the camera's memory (not on its card) has to be
+    /// deleted after it is read, or the buffer fills and capture stops.
+    pub(crate) fn captures_to_ram(&self) -> bool {
+        self.capture_target
+            .as_deref()
+            .is_some_and(|t| t.to_ascii_lowercase().contains("ram"))
+    }
+
+    /// The battery charge in percent, when the body words it as a number.
+    pub(crate) fn battery_percent(&self) -> Option<u32> {
+        let level = self.battery.as_deref()?;
+        let digits: String = level.chars().take_while(char::is_ascii_digit).collect();
+        digits.parse().ok().filter(|p| *p <= 100)
+    }
+
+    /// Sony ILCE bodies (A7 II, A7 III) take only one capture per PTP
+    /// session; the INDI driver closes the session after each one, except on
+    /// the A7R IV, where the reset stops further captures
+    /// (gphoto_driver.cpp:1441-1445).
+    pub(crate) fn needs_session_reset_after_capture(&self) -> bool {
+        let sony = self
+            .manufacturer
+            .as_deref()
+            .is_some_and(|m| m.contains("Sony"));
+        let model = self.model.as_deref().unwrap_or_default();
+        sony && model.contains("ILCE") && !model.contains("7RM4")
+    }
+}
+
+/// The body's shutter speeds as its first shutter widget lists them now.
+pub(crate) fn shutter_speeds(root: &ConfigWidget) -> Option<ShutterSpeeds> {
+    let widget = widget_named(root, &SHUTTER_WIDGETS)?;
+    Some(ShutterSpeeds::from_choices(&widget.name, &widget.choices))
+}
+
+/// How this body opens and closes the shutter for bulb.
+///
+/// Canon's `eosremoterelease` first, as the INDI driver does
+/// (gphoto_driver.cpp:1889-1894), else the `bulb` toggle libgphoto2 2.5
+/// gives Canon EOS, Nikon, Sony, Fujifilm, Olympus and Panasonic bodies.
+/// `gp_camera_trigger_capture` does not hold a shutter open, so a body with
+/// neither has no bulb.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum BulbWidget {
+    /// Opens by selecting `press` ("Press Full"), closes with `release`;
+    /// the choice strings differ between libgphoto2 versions.
+    EosRemoteRelease { press: String, release: String },
+    /// The `bulb` toggle: 1 open, 0 closed.
+    BulbToggle,
+}
+
+pub(crate) fn bulb_control(root: &ConfigWidget) -> Option<BulbWidget> {
+    if let Some(release) =
+        widget_named(root, &["eosremoterelease"]).filter(|w| !w.choices.is_empty())
+    {
+        let (press, release) = pick_eos_bulb_choices(&release.choices);
+        return Some(BulbWidget::EosRemoteRelease { press, release });
+    }
+    widget_named(root, &["bulb"]).map(|_| BulbWidget::BulbToggle)
+}
+
+/// The body's ISO widget: its name and the speeds it offers.
+pub(crate) fn iso_widget(root: &ConfigWidget) -> Option<&ConfigWidget> {
+    widget_named(root, &["iso", "eos-iso"])
+}
+
+/// The image-format widget and the RAW choice to force before a capture.
+pub(crate) fn raw_format(root: &ConfigWidget) -> Option<(String, Option<String>)> {
+    let widget = widget_named(root, &["imageformat", "imagequality"])?;
+    Some((widget.name.clone(), pick_raw_format_choice(&widget.choices)))
 }

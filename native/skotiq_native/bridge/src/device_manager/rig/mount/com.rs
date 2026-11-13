@@ -5,7 +5,8 @@
 //! the same span of wrapper calls. Each wrapper call is one command on the
 //! wrapper's queue, run by the STA worker.
 
-use super::{wait_for_ascom_pulse_end, Mount};
+use super::{pulse_error, Mount};
+use skotiq_device::ascom::telescope::wait_for_pulse_end;
 use crate::ascom_wrapper::mount::AscomMountWrapper;
 use crate::device::*;
 use crate::device_capabilities::DeviceCapabilities;
@@ -395,10 +396,11 @@ impl Mount for ComMount {
             .pulse_guide(dir, duration_ms)
             .await
             .map_err(DeviceOpError::from)?;
-        wait_for_ascom_pulse_end(device_id, started, duration_ms, || async move {
+        wait_for_pulse_end(started, duration_ms, || async move {
             mount.read().await.is_pulse_guiding().await
         })
         .await
+        .map_err(|e| pulse_error(device_id, e))
     }
 
     async fn set_tracking_rate(&self, rate: i32) -> Result<(), DeviceOpError> {

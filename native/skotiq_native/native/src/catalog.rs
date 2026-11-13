@@ -154,6 +154,25 @@ pub fn split_id(id: &str) -> Option<(&str, &str)> {
     (!token.is_empty() && !address.is_empty()).then_some((token, address))
 }
 
+/// The family a device id names and the address inside it. An accessory is
+/// named by its own token (`native:zwo_efw:0`) or by a segment after the
+/// vendor's (`native:zwo:efw:0`).
+pub fn family_of_id(id: &str) -> Option<(&'static Family, &str)> {
+    let (token, address) = split_id(id)?;
+    let by_segment = FAMILIES.iter().find_map(|family| {
+        let rest = address
+            .strip_prefix(family.subtype?)?
+            .strip_prefix(':')?;
+        (family.base == token).then_some((family, rest))
+    });
+    by_segment.or_else(|| {
+        FAMILIES
+            .iter()
+            .find(|f| f.token() == token || f.aliases.contains(&token))
+            .map(|family| (family, address))
+    })
+}
+
 /// The family an id token names for a device of `kind`.
 ///
 /// Kinds this crate has no driver trait for (a guide camera registered as a
@@ -845,21 +864,10 @@ pub static FAMILIES: &[Family] = &[
                     .collect())
             })
         }),
-        // `<index>:<port as hex>:<model>`. libgphoto2 opens by index; an id
-        // written before the port was recorded, or a port that does not
-        // decode, leaves the port empty and libgphoto2 finds it by index.
         open: Open::Now(|r| {
-            let mut segments = r.address.split(':');
-            let index = number(
-                segments.next().unwrap_or_default(),
-                "Invalid gPhoto2 camera index",
-            )?;
-            let port = segments
-                .next()
-                .and_then(crate::vendor::gphoto2::decode_port_component)
-                .unwrap_or_default();
             Ok(NativeHandle::Camera(Box::new(
-                crate::vendor::gphoto2::GPhoto2Camera::new(index, r.name, &port),
+                crate::vendor::gphoto2::GPhoto2Camera::from_address(r.address, r.name)
+                    .map_err(BadAddress)?,
             )))
         }),
     },

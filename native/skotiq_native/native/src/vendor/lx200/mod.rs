@@ -190,10 +190,10 @@ mod home_tests {
 
     /// The capability flag the UI gates the Home button on must agree with
     /// whether `find_home` can do anything.
-    #[test]
-    fn only_onstep_advertises_a_home_command() {
-        assert!(Lx200Mount::new_onstep("TEST_PORT".to_string()).can_find_home());
-        assert!(!Lx200Mount::new_meade("TEST_PORT".to_string()).can_find_home());
+    #[tokio::test]
+    async fn only_onstep_advertises_a_home_command() {
+        assert!(Lx200Mount::new_onstep("TEST_PORT".to_string()).can_find_home().await.unwrap_or(false));
+        assert!(!Lx200Mount::new_meade("TEST_PORT".to_string()).can_find_home().await.unwrap_or(false));
     }
 
     /// OnStep's `:hF#` resets the mount's idea of where it points to the
@@ -208,13 +208,13 @@ mod home_tests {
     #[tokio::test]
     async fn only_onstep_can_set_park() {
         let mut onstep = Lx200Mount::new_onstep("TEST_PORT".to_string());
-        assert!(onstep.can_set_park());
+        assert!(onstep.can_set_park().await.unwrap_or(false));
         assert!(matches!(
             onstep.set_park().await,
             Err(DriverError::NotConnected)
         ));
         let mut meade = Lx200Mount::new_meade("TEST_PORT".to_string());
-        assert!(!meade.can_set_park());
+        assert!(!meade.can_set_park().await.unwrap_or(false));
         assert!(matches!(
             meade.set_park().await,
             Err(DriverError::NotSupported)

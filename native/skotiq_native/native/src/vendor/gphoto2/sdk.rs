@@ -77,7 +77,7 @@ crate::load_vendor_sdk! {
         camera_file_delete: b"gp_camera_file_delete\0" => unsafe extern "C" fn(*mut GPCamera, *const c_char, *const c_char, *mut GPContext) -> c_int,
         file_new: b"gp_file_new\0" => unsafe extern "C" fn(*mut *mut CameraFile) -> c_int,
         file_unref: b"gp_file_unref\0" => unsafe extern "C" fn(*mut CameraFile) -> c_int,
-        file_get_data_and_size: b"gp_file_get_data_and_size\0" => unsafe extern "C" fn(*mut CameraFile, *mut *const c_char, *mut u64) -> c_int,
+        file_get_data_and_size: b"gp_file_get_data_and_size\0" => unsafe extern "C" fn(*mut CameraFile, *mut *const c_char, *mut c_ulong) -> c_int,
         file_free: b"gp_file_free\0" => unsafe extern "C" fn(*mut CameraFile) -> c_int,
         list_new: b"gp_list_new\0" => unsafe extern "C" fn(*mut *mut CameraList) -> c_int,
         list_count: b"gp_list_count\0" => unsafe extern "C" fn(*mut CameraList) -> c_int,
@@ -100,6 +100,18 @@ crate::load_vendor_sdk! {
         widget_free: b"gp_widget_free\0" => unsafe extern "C" fn(*mut CameraWidget) -> c_int,
         camera_get_abilities: b"gp_camera_get_abilities\0" => unsafe extern "C" fn(*mut GPCamera, *mut CameraAbilities) -> c_int,
         camera_get_summary: b"gp_camera_get_summary\0" => unsafe extern "C" fn(*mut GPCamera, *mut GPCameraText, *mut GPContext) -> c_int,
+        camera_set_abilities: b"gp_camera_set_abilities\0" => unsafe extern "C" fn(*mut GPCamera, CameraAbilities) -> c_int,
+        camera_set_port_info: b"gp_camera_set_port_info\0" => unsafe extern "C" fn(*mut GPCamera, GPPortInfo) -> c_int,
+        abilities_list_new: b"gp_abilities_list_new\0" => unsafe extern "C" fn(*mut *mut CameraAbilitiesList) -> c_int,
+        abilities_list_load: b"gp_abilities_list_load\0" => unsafe extern "C" fn(*mut CameraAbilitiesList, *mut GPContext) -> c_int,
+        abilities_list_lookup_model: b"gp_abilities_list_lookup_model\0" => unsafe extern "C" fn(*mut CameraAbilitiesList, *const c_char) -> c_int,
+        abilities_list_get_abilities: b"gp_abilities_list_get_abilities\0" => unsafe extern "C" fn(*mut CameraAbilitiesList, c_int, *mut CameraAbilities) -> c_int,
+        abilities_list_free: b"gp_abilities_list_free\0" => unsafe extern "C" fn(*mut CameraAbilitiesList) -> c_int,
+        port_info_list_new: b"gp_port_info_list_new\0" => unsafe extern "C" fn(*mut *mut GPPortInfoList) -> c_int,
+        port_info_list_load: b"gp_port_info_list_load\0" => unsafe extern "C" fn(*mut GPPortInfoList) -> c_int,
+        port_info_list_lookup_path: b"gp_port_info_list_lookup_path\0" => unsafe extern "C" fn(*mut GPPortInfoList, *const c_char) -> c_int,
+        port_info_list_get_info: b"gp_port_info_list_get_info\0" => unsafe extern "C" fn(*mut GPPortInfoList, c_int, *mut GPPortInfo) -> c_int,
+        port_info_list_free: b"gp_port_info_list_free\0" => unsafe extern "C" fn(*mut GPPortInfoList) -> c_int,
     },
     // Library metadata: absent from some distro builds, so never fatal.
     optional_symbols: {
@@ -124,29 +136,45 @@ impl Default for GPCameraText {
 
 pub(crate) fn check_gp_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     if code >= GP_OK {
-        return Ok(());
+        Ok(())
+    } else {
+        Err(gp_error(code, operation))
     }
+}
+
+/// What a failed libgphoto2 call means, in words a camera owner can act on.
+pub(crate) fn gp_error(code: c_int, operation: &str) -> DriverError {
+    let sdk = |what: &str| DriverError::SdkError(format!("gPhoto2 {operation}: {what}"));
     match code {
-        GP_ERROR => Err(DriverError::SdkError(format!(
-            "gPhoto2 {}: general error",
-            operation
-        ))),
-        GP_ERROR_IO => Err(DriverError::SdkError(format!(
-            "gPhoto2 {}: I/O error - camera may be disconnected or in use by another application",
-            operation
-        ))),
-        GP_ERROR_NOT_SUPPORTED => Err(DriverError::NotSupported),
-        GP_ERROR_CAMERA_BUSY => Err(DriverError::SdkError(format!(
-            "gPhoto2 {}: camera busy - another operation is in progress",
-            operation
-        ))),
-        GP_ERROR_MODEL_NOT_FOUND => Err(DriverError::DeviceNotFound(format!(
-            "gPhoto2 {}: camera model not found",
-            operation
-        ))),
-        _ => Err(DriverError::SdkError(format!(
-            "gPhoto2 {}: error code {}",
-            operation, code
-        ))),
+        GP_ERROR_NOT_SUPPORTED => DriverError::NotSupported,
+        GP_ERROR_IO_USB_FIND => DriverError::Disconnected,
+        GP_ERROR_IO_USB_CLAIM | GP_ERROR_IO_LOCK => sdk(
+            "another program has the camera open. On Linux this is usually the desktop's \
+             camera auto-mount (gvfs-gphoto2-volume-monitor) or a photo app: unmount the camera \
+             in the file manager or close that app, then connect again.",
+        ),
+        GP_ERROR_IO | GP_ERROR_IO_READ | GP_ERROR_IO_WRITE | GP_ERROR_TIMEOUT => sdk(
+            "lost contact with the camera over USB. Check the cable, and that the camera has \
+             not switched itself off (turn its auto power off off).",
+        ),
+        GP_ERROR_CAMERA_BUSY => {
+            sdk("the camera is busy (still writing a frame, or showing a menu or review image).")
+        }
+        GP_ERROR_CAMERA_ERROR => sdk(
+            "the camera refused. Check that the mode dial is on M (or B) and that the camera \
+             is not showing a menu.",
+        ),
+        GP_ERROR_NO_SPACE => sdk("the camera's memory card is full."),
+        GP_ERROR_FILE_NOT_FOUND | GP_ERROR_DIRECTORY_NOT_FOUND => {
+            sdk("the camera no longer has the file.")
+        }
+        GP_ERROR_MODEL_NOT_FOUND => DriverError::DeviceNotFound(format!(
+            "gPhoto2 {operation}: the installed libgphoto2 does not know this camera model"
+        )),
+        GP_ERROR_UNKNOWN_PORT => DriverError::DeviceNotFound(format!(
+            "gPhoto2 {operation}: the camera's USB port is gone"
+        )),
+        GP_ERROR_BAD_PARAMETERS => sdk("the camera did not accept the value."),
+        _ => sdk(&format!("failed (libgphoto2 code {code})")),
     }
 }

@@ -52,7 +52,16 @@ impl RigDriver for VendorCamera {
             .map(|_| true)
             .map_err(|e| format!("Native camera liveness probe failed: {}", e))
     }
+
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        let camera = self.driver.read().await;
+        Some(DeviceManager::identity_from_camera(
+            &self.device_id,
+            camera.as_ref(),
+        ))
+    }
 }
+
 
 #[async_trait]
 impl Camera for VendorCamera {
@@ -344,13 +353,5 @@ impl Camera for VendorCamera {
             exposure_max,
             ..Default::default()
         }))
-    }
-
-    async fn identity(&self) -> Option<DeviceIdentity> {
-        let camera = self.driver.read().await;
-        Some(DeviceManager::identity_from_camera(
-            &self.device_id,
-            camera.as_ref(),
-        ))
     }
 }

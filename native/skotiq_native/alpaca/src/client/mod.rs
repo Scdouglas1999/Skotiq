@@ -10,7 +10,8 @@ pub use config::*;
 pub use error::*;
 pub use version::*;
 
-use crate::{AlpacaDevice, AlpacaDeviceType};
+use crate::AlpacaDevice;
+use skotiq_device::ascom::AscomDeviceType;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{de::DeserializeOwned, Deserialize};
@@ -121,7 +122,7 @@ pub struct AlpacaClient {
     http_client: Option<Client>,
     http_client_error: Option<String>,
     base_url: String,
-    device_type: AlpacaDeviceType,
+    device_type: AscomDeviceType,
     device_number: u32,
     timeout_config: TimeoutConfig,
     retry_config: RetryConfig,
@@ -237,7 +238,7 @@ impl AlpacaClient {
             "{}/api/{}/{}/{}/{}",
             self.base_url,
             self.api_version.as_str(),
-            self.device_type.as_str(),
+            self.device_type.alpaca_path(),
             self.device_number,
             member.to_ascii_lowercase()
         )
@@ -287,7 +288,7 @@ impl AlpacaClient {
 
         Err(AlpacaError::RetryExhausted {
             attempts: self.retry_config.max_attempts,
-            last_error: last_error.to_string(),
+            last_error: Box::new(last_error),
         })
     }
 

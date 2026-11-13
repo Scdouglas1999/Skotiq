@@ -10,6 +10,8 @@ use super::{Exclusive, RigDriver};
 use crate::api::devices::simulation::get_sim_focuser;
 use crate::device_capabilities::FocuserCapabilities;
 use crate::device_manager::ops::{sim_faults, sim_gate};
+use crate::device_manager::identity::DeviceIdentity;
+use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{focuser_move_with_timeout, with_timeout_str, Timeouts};
@@ -83,6 +85,14 @@ impl RigDriver for VendorFocuser {
             .await
             .map(|_| true)
             .map_err(|e| format!("Native focuser liveness probe failed: {}", e))
+    }
+
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        let driver = self.driver.read().await;
+        Some(DeviceManager::identity_from_device(
+            &self.device_id,
+            driver.as_ref(),
+        ))
     }
 }
 
@@ -188,9 +198,13 @@ impl Focuser for VendorFocuser {
             .ok()
             .flatten();
         let is_moving = self.driver.read().await.is_moving().await.unwrap_or(false);
-        let (max_position, step_size) = {
+        let (max_position, step_size, can_halt) = {
             let focuser = self.driver.read().await;
-            (focuser.get_max_position(), focuser.get_step_size())
+            (
+                focuser.get_max_position(),
+                focuser.get_step_size(),
+                focuser.can_halt(),
+            )
         };
         Ok(FocuserCapabilities {
             max_position,
@@ -199,7 +213,7 @@ impl Focuser for VendorFocuser {
             position,
             temperature,
             is_moving,
-            can_halt: true,
+            can_halt,
             ..Default::default()
         })
     }
@@ -503,5 +517,85 @@ impl Focuser for SimFocuser {
             can_reverse: true,
             ..Default::default()
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skotiq_device::{DeviceDriver, Vendor};
+
+    /// A focuser with no stop command, as a camera lens driven through its
+    /// body is.
+    #[derive(Debug)]
+    struct Lens;
+
+    #[async_trait]
+    impl DeviceDriver for Lens {
+        fn id(&self) -> &str {
+            "native:test_lens:0"
+        }
+        fn name(&self) -> &str {
+            "Lens"
+        }
+        fn vendor(&self) -> Vendor {
+            Vendor::Fujifilm
+        }
+        fn is_connected(&self) -> bool {
+            true
+        }
+        async fn connect(&mut self) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn disconnect(&mut self) -> Result<(), DriverError> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl FocuserDriver for Lens {
+        async fn move_to(&mut self, _position: i32) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn move_relative(&mut self, _steps: i32) -> Result<(), DriverError> {
+            Ok(())
+        }
+        async fn get_position(&self) -> Result<i32, DriverError> {
+            Ok(100)
+        }
+        async fn is_moving(&self) -> Result<bool, DriverError> {
+            Ok(false)
+        }
+        fn can_halt(&self) -> bool {
+            false
+        }
+        async fn halt(&mut self) -> Result<(), DriverError> {
+            Err(DriverError::NotSupported)
+        }
+        async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
+            Ok(None)
+        }
+        fn get_max_position(&self) -> i32 {
+            1000
+        }
+        fn get_step_size(&self) -> f64 {
+            0.0
+        }
+    }
+
+    /// Every vendor focuser was offered a Halt, and the lens answered it
+    /// with success although nothing stops a lens.
+    #[tokio::test]
+    async fn a_focuser_that_cannot_halt_offers_no_halt_and_refuses_one() {
+        let focuser = VendorFocuser::new("native:test_lens:0", Box::new(Lens));
+        let capabilities = focuser
+            .capabilities("native:test_lens:0")
+            .await
+            .expect("capabilities");
+        assert!(!capabilities.can_halt);
+        assert!(matches!(
+            focuser.halt().await,
+            Err(DeviceOpError::Unsupported { .. })
+        ));
     }
 }

@@ -148,7 +148,9 @@ impl IndiClient {
     ) -> IndiResult<()> {
         if let Some(limits) = self.get_number_limits(device, property, element).await {
             if let (Some(min), Some(max)) = (limits.min, limits.max) {
-                if value < min || value > max {
+                // Equal limits mean the number has no range (INDI protocol,
+                // defNumber: "ignore if min == max").
+                if min != max && (value < min || value > max) {
                     return Err(IndiError::ValueOutOfRange {
                         device: device.to_string(),
                         property: property.to_string(),

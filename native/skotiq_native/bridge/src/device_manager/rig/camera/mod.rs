@@ -41,7 +41,6 @@ pub(crate) use vendor::VendorCamera;
 use super::RigDriver;
 use crate::device::DriverType;
 use crate::device_capabilities::DeviceCapabilities;
-use crate::device_manager::identity::DeviceIdentity;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -103,12 +102,6 @@ pub(crate) trait Camera: RigDriver {
     ) -> Result<(), DeviceOpError>;
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError>;
-
-    /// What the connected camera says it is; `None` where the protocol gives
-    /// the driver nothing to say.
-    async fn identity(&self) -> Option<DeviceIdentity> {
-        None
-    }
 }
 
 /// Announces an abort to the downloads of one camera that are in flight.

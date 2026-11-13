@@ -25,12 +25,12 @@ async fn full_session(fake: &FakeMount, knobs: &Knobs, mount: &mut dyn MountDriv
     )));
     fake.mark(&format!(
         "  can_slew={} can_sync={} can_pulse_guide={} can_set_tracking_rate={} can_find_home={} can_set_park={}",
-        mount.can_slew(),
-        mount.can_sync(),
-        mount.can_pulse_guide(),
-        mount.can_set_tracking_rate(),
-        mount.can_find_home(),
-        mount.can_set_park()
+        mount.can_slew().await,
+        mount.can_sync().await,
+        mount.can_pulse_guide().await,
+        mount.can_set_tracking_rate().await,
+        mount.can_find_home().await.unwrap_or(false),
+        mount.can_set_park().await.unwrap_or(false)
     ));
 
     let _ = step!(fake, "get_coordinates", mount.get_coordinates().await);
@@ -201,7 +201,7 @@ async fn ioptron_alt_azimuth_mount() {
     fake.mark(&fake.scrub(&format!(
         "  name={} can_pulse_guide={}",
         mount.name(),
-        mount.can_pulse_guide()
+        mount.can_pulse_guide().await
     )));
     let _ = step!(
         fake,
