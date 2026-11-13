@@ -21,10 +21,7 @@ void main() {
         'mount',
       );
       expect(
-        resourceKeyForEndpoint(
-          method: 'POST',
-          path: '/api/filter-wheel/position',
-        ),
+        resourceKeyForEndpoint(method: 'POST', path: '/api/filter-wheel/position'),
         'filter-wheel',
       );
       expect(

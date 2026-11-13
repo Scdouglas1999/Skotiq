@@ -98,14 +98,13 @@ class FramingHandlers implements RouteSource {
           .toList(),
     };
 
-    Future<CenteringResult> runCentering() => container
-        .read(centeringServiceProvider)
-        .centerOnTarget(
-          targetRa: ra,
-          targetDec: dec,
-          solverConfig: centering.solver,
-          config: centering.config,
-        );
+    Future<CenteringResult> runCentering() =>
+        container.read(centeringServiceProvider).centerOnTarget(
+              targetRa: ra,
+              targetDec: dec,
+              solverConfig: centering.solver,
+              config: centering.config,
+            );
 
     final mgr = jobManager;
     final preferLegacy = requestPrefersLegacyBlocking(request);

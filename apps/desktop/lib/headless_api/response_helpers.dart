@@ -318,10 +318,7 @@ Future<Response> fileDownloadResponse(
   } on PathAccessException {
     return jsonForbidden({'error': 'permission_denied', 'path': file.path});
   } on FileSystemException catch (e) {
-    return jsonInternalServerError({
-      'error': 'stat_failed',
-      'detail': e.message,
-    });
+    return jsonInternalServerError({'error': 'stat_failed', 'detail': e.message});
   }
 
   final fileName = p.basename(file.path);
@@ -329,8 +326,8 @@ Future<Response> fileDownloadResponse(
   final contentType = lower.endsWith('.fits') || lower.endsWith('.fit')
       ? 'application/fits'
       : lower.endsWith('.xisf')
-      ? 'application/x-xisf'
-      : 'application/octet-stream';
+          ? 'application/x-xisf'
+          : 'application/octet-stream';
   final etag = '"$etagKey-${mtime.millisecondsSinceEpoch}"';
   final rangeHeader = request.headers['range'];
   final ifRange = request.headers['if-range'];

@@ -8,7 +8,7 @@ import '../validation.dart';
 /// centering of the host's own settings and active profile, with each field
 /// the request names taking that field's place.
 Future<({CenteringConfig config, PlateSolverConfig solver})>
-centeringForRequest(
+    centeringForRequest(
   ProviderContainer container,
   Map<String, dynamic> payload,
 ) async {
@@ -19,15 +19,14 @@ centeringForRequest(
   final defaults = manual.config;
   return (
     config: CenteringConfig(
-      maxIterations:
-          optionalInt(payload, 'maxIterations', min: 1, max: 20) ??
+      maxIterations: optionalInt(payload, 'maxIterations', min: 1, max: 20) ??
           defaults.maxIterations,
       toleranceArcsec:
           optionalDouble(payload, 'toleranceArcsec', min: 0.1, max: 3600) ??
-          defaults.toleranceArcsec,
+              defaults.toleranceArcsec,
       exposureTime:
           optionalDouble(payload, 'exposureTime', min: 0.01, max: 600) ??
-          defaults.exposureTime,
+              defaults.exposureTime,
       binning:
           optionalInt(payload, 'binning', min: 1, max: 16) ?? defaults.binning,
       gain: optionalInt(payload, 'gain', min: 0) ?? defaults.gain,

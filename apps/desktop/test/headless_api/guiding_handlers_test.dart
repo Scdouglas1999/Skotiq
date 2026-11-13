@@ -201,7 +201,9 @@ void main() {
           state: 'Guiding',
           connected: true,
           pixelScale: 3.22,
-          trackedStars: [GuideStar(id: 0, x: 10, y: 12, snr: 18, isLock: true)],
+          trackedStars: [
+            GuideStar(id: 0, x: 10, y: 12, snr: 18, isLock: true),
+          ],
         ),
       );
       when(() => backend.guiderGetCalibration()).thenAnswer(
@@ -222,87 +224,73 @@ void main() {
       addTearDown(hostContainer.dispose);
       final handlers = GuidingHandlers(hostContainer);
 
-      final status =
-          jsonDecode(
-                await (await handlers.handleGuiderGetStatus(
-                  Request(
-                    'GET',
-                    Uri.parse('http://localhost/api/guider/status'),
-                  ),
-                )).readAsString(),
-              )
-              as Map;
+      final status = jsonDecode(
+        await (await handlers.handleGuiderGetStatus(
+          Request('GET', Uri.parse('http://localhost/api/guider/status')),
+        )).readAsString(),
+      ) as Map;
       final decoded = Phd2Status.fromJson(status.cast<String, dynamic>());
       expect(decoded.deviceId, builtinGuiderDeviceId);
       expect(decoded.pixelScale, 3.22);
       expect(decoded.trackedStars.single.isLock, isTrue);
 
-      final calibration =
-          jsonDecode(
-                await (await handlers.handleGuiderGetCalibration(
-                  Request(
-                    'GET',
-                    Uri.parse('http://localhost/api/guider/calibration'),
-                  ),
-                )).readAsString(),
-              )
-              as Map;
+      final calibration = jsonDecode(
+        await (await handlers.handleGuiderGetCalibration(
+          Request('GET', Uri.parse('http://localhost/api/guider/calibration')),
+        )).readAsString(),
+      ) as Map;
       expect(calibration['isCalibrated'], isTrue);
       expect(calibration['raAngle'], 10.2);
       expect(calibration['raRate'], 16.0);
     });
 
-    test(
-      'dithering a paused guider is a conflict with a plain sentence',
-      () async {
-        final backend = _MockBackend();
-        when(
-          () => backend.eventStream,
-        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-        when(
-          () => backend.guiderDither(
-            amount: any(named: 'amount'),
-            raOnly: any(named: 'raOnly'),
-            settlePixels: any(named: 'settlePixels'),
-            settleTime: any(named: 'settleTime'),
-            settleTimeout: any(named: 'settleTimeout'),
-          ),
-        ).thenThrow(
-          const bridge.SkotiqError.invalidState(
-            'Guiding is paused. Resume guiding before dithering.',
-          ),
-        );
-        final hostContainer = ProviderContainer(
-          overrides: [
-            backendProvider.overrideWith(
-              (ref) => _FixedBackendNotifier(ref, backend),
-            ),
-          ],
-        );
-        addTearDown(hostContainer.dispose);
-
-        final handlers = GuidingHandlers(hostContainer);
-        final response =
-            await errorTranslationMiddleware(
-              logError: (_, {fields}) {},
-              requestIdFor: (_) => 'test-request-id',
-            )(handlers.handleGuiderDither)(
-              Request(
-                'POST',
-                Uri.parse('http://localhost/api/guider/dither'),
-                body: jsonEncode({'amount': 3.0}),
-              ),
-            );
-
-        expect(response.statusCode, HttpStatus.conflict);
-        final body = jsonDecode(await response.readAsString()) as Map;
-        expect(body['error'], 'device_error');
-        expect(
-          body['message'],
+    test('dithering a paused guider is a conflict with a plain sentence', () async {
+      final backend = _MockBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(
+        () => backend.guiderDither(
+          amount: any(named: 'amount'),
+          raOnly: any(named: 'raOnly'),
+          settlePixels: any(named: 'settlePixels'),
+          settleTime: any(named: 'settleTime'),
+          settleTimeout: any(named: 'settleTimeout'),
+        ),
+      ).thenThrow(
+        const bridge.SkotiqError.invalidState(
           'Guiding is paused. Resume guiding before dithering.',
-        );
-      },
-    );
+        ),
+      );
+      final hostContainer = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(hostContainer.dispose);
+
+      final handlers = GuidingHandlers(hostContainer);
+      final response = await errorTranslationMiddleware(
+        logError: (_, {fields}) {},
+        requestIdFor: (_) => 'test-request-id',
+      )(handlers.handleGuiderDither)(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/guider/dither'),
+          body: jsonEncode({'amount': 3.0}),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.conflict);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(body['error'], 'device_error');
+      expect(
+        body['message'],
+        'Guiding is paused. Resume guiding before dithering.',
+      );
+    });
 
     test('pause and resume reach the host guider', () async {
       final backend = _MockBackend();
@@ -565,7 +553,12 @@ void main() {
 
     Future<Response> guiderStarImage(String qs) => translateHandlerErrors(
       handlers.handleGuiderGetStarImage(
-        Request('GET', Uri.parse('http://localhost/api/guider/star-image$qs')),
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/guider/star-image$qs',
+          ),
+        ),
       ),
     );
 
@@ -611,10 +604,7 @@ void main() {
     test('missing lock position is a structured conflict', () async {
       final response = await translateHandlerErrors(
         handlers.handleGuiderGetLockPosition(
-          Request(
-            'GET',
-            Uri.parse('http://localhost/api/guider/lock-position'),
-          ),
+          Request('GET', Uri.parse('http://localhost/api/guider/lock-position')),
         ),
       );
 

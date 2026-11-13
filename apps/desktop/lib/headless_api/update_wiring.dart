@@ -35,3 +35,4 @@ Future<String> getOrCreatePushSecret(
   }
   return secret.value;
 }
+

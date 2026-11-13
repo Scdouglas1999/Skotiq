@@ -80,9 +80,7 @@ void main() {
   });
 
   test('a run that owns the cooler refuses the warm-up with 409', () async {
-    container
-        .read(runRecordProvider.notifier)
-        .setLifecycle(SequenceExecutionState.running);
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
 
     final response = await handlers.handleCameraStartWarmUp(
       _post('/api/camera/warm-up'),
