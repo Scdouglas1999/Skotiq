@@ -196,6 +196,13 @@ final RegExp _wrapper = RegExp(
   dotAll: true,
 );
 
+/// The bridge union's debug rendering after the words of whoever caught it:
+/// `Failed to start: SkotiqError.operationFailed(field0: text)`.
+final RegExp _prefixedBridgeUnion = RegExp(
+  r'^(.+?: )SkotiqError\.\w+\(field0: (.*)\)$',
+  dotAll: true,
+);
+
 /// The first stack frame, in Dart's or Rust's rendering.
 final RegExp _stackStart = RegExp(
   r'\n\s*(?:#0\s|Stack backtrace:|stack backtrace:|   0: )',
@@ -214,6 +221,11 @@ String _clean(String text) {
     final wrapped = _wrapper.firstMatch(out);
     if (wrapped != null) {
       out = wrapped.group(1)!.trim();
+      continue;
+    }
+    final prefixed = _prefixedBridgeUnion.firstMatch(out);
+    if (prefixed != null) {
+      out = '${prefixed.group(1)}${prefixed.group(2)!.trim()}';
       continue;
     }
     // A class name with nothing after it ("Exception:") is an empty message.

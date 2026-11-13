@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/remote_host.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/sequence_stats_provider.dart';
+import '../../models/sequence/sequence_run_status.dart';
 import '../../models/sequence/terminal_run_result.dart';
 import '../../providers/end_of_night_calibration/eon_providers.dart';
 import '../end_of_night_calibration/eon_service.dart';
@@ -83,7 +84,7 @@ final nightEndCoordinatorProvider = Provider<void>((ref) {
           _nightDecisionTimeout,
           onTimeout: () {
             classified = false;
-            return next.runStatus == 'completed'
+            return next.runStatus == SequenceRunStatus.completed
                 ? EonEndReason.targetsComplete
                 : null;
           },

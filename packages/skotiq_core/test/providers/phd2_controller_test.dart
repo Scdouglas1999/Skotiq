@@ -415,64 +415,67 @@ void main() {
   });
 
   group('settle semantics', () {
-    test('start and dither send the guiding settings, whoever calls them', () async {
-      final events = StreamController<SkotiqEvent>.broadcast();
-      addTearDown(events.close);
-      final backend = _MockBackend();
-      when(() => backend.eventStream).thenAnswer((_) => events.stream);
-      when(
-        () => backend.guiderStartGuiding(
-          settlePixels: any(named: 'settlePixels'),
-          settleTime: any(named: 'settleTime'),
-          settleTimeout: any(named: 'settleTimeout'),
-        ),
-      ).thenAnswer((_) async {});
-      when(
-        () => backend.guiderDither(
-          amount: any(named: 'amount'),
-          raOnly: any(named: 'raOnly'),
-          settlePixels: any(named: 'settlePixels'),
-          settleTime: any(named: 'settleTime'),
-          settleTimeout: any(named: 'settleTimeout'),
-        ),
-      ).thenAnswer((_) async {});
+    test(
+      'start and dither send the guiding settings, whoever calls them',
+      () async {
+        final events = StreamController<SkotiqEvent>.broadcast();
+        addTearDown(events.close);
+        final backend = _MockBackend();
+        when(() => backend.eventStream).thenAnswer((_) => events.stream);
+        when(
+          () => backend.guiderStartGuiding(
+            settlePixels: any(named: 'settlePixels'),
+            settleTime: any(named: 'settleTime'),
+            settleTimeout: any(named: 'settleTimeout'),
+          ),
+        ).thenAnswer((_) async {});
+        when(
+          () => backend.guiderDither(
+            amount: any(named: 'amount'),
+            raOnly: any(named: 'raOnly'),
+            settlePixels: any(named: 'settlePixels'),
+            settleTime: any(named: 'settleTime'),
+            settleTimeout: any(named: 'settleTimeout'),
+          ),
+        ).thenAnswer((_) async {});
 
-      final container = _container(
-        backend,
-        settings: const AppSettingsState(
-          settleThreshold: 2.5,
-          settleTime: 20,
-          settleTimeout: 90,
-          ditherScale: 'Large',
-          ditherRaOnly: true,
-        ),
-      );
-      addTearDown(container.dispose);
-      _markConnected(container);
-      await container.read(appSettingsProvider.future);
-      final controller = container.read(phd2ControllerProvider);
+        final container = _container(
+          backend,
+          settings: const AppSettingsState(
+            settleThreshold: 2.5,
+            settleTime: 20,
+            settleTimeout: 90,
+            ditherScale: 'Large',
+            ditherRaOnly: true,
+          ),
+        );
+        addTearDown(container.dispose);
+        _markConnected(container);
+        await container.read(appSettingsProvider.future);
+        final controller = container.read(phd2ControllerProvider);
 
-      await controller.startGuiding();
-      verify(
-        () => backend.guiderStartGuiding(
-          settlePixels: 2.5,
-          settleTime: 20,
-          settleTimeout: 90,
-        ),
-      ).called(1);
+        await controller.startGuiding();
+        verify(
+          () => backend.guiderStartGuiding(
+            settlePixels: 2.5,
+            settleTime: 20,
+            settleTimeout: 90,
+          ),
+        ).called(1);
 
-      container.read(guiderStateProvider.notifier).setGuiding(true);
-      await controller.dither();
-      verify(
-        () => backend.guiderDither(
-          amount: 10,
-          raOnly: true,
-          settlePixels: 2.5,
-          settleTime: 20,
-          settleTimeout: 90,
-        ),
-      ).called(1);
-    });
+        container.read(guiderStateProvider.notifier).setGuiding(true);
+        await controller.dither();
+        verify(
+          () => backend.guiderDither(
+            amount: 10,
+            raOnly: true,
+            settlePixels: 2.5,
+            settleTime: 20,
+            settleTimeout: 90,
+          ),
+        ).called(1);
+      },
+    );
 
     test('start normalizes an impossible settleTimeout < settleTime', () async {
       final events = StreamController<SkotiqEvent>.broadcast();

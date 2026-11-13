@@ -1,4 +1,5 @@
 import 'sequence_models.dart' show SequenceExecutionState;
+import 'sequence_run_status.dart';
 
 /// Immutable, one-shot result of a fully-finalized sequence run.
 ///
@@ -33,9 +34,8 @@ class SequenceTerminalRunResult {
   /// (a stop / abort).
   final SequenceExecutionState outcome;
 
-  /// The durable run-row status recorded for this run (`completed`, `failed`,
-  /// `stopped`, `paused-stopped`).
-  final String runStatus;
+  /// The durable run-row status recorded for this run.
+  final SequenceRunStatus runStatus;
 
   /// The finished run's `sequence_runs.id`, captured before finalization
   /// cleared `currentRunIdProvider`. Null when the run never got a row.

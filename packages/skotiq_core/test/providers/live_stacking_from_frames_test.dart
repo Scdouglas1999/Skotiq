@@ -102,28 +102,30 @@ void main() {
     expect(state.stats.stackedFrameCount, 3);
   });
 
-  test('Stop during the catch-up adds nothing after the frame in flight',
-      () async {
-    final notifier = container.read(liveStackingProvider.notifier);
-    container.read(liveStackingServiceProvider);
-    service.gate = Completer<void>();
+  test(
+    'Stop during the catch-up adds nothing after the frame in flight',
+    () async {
+      final notifier = container.read(liveStackingProvider.notifier);
+      container.read(liveStackingServiceProvider);
+      service.gate = Completer<void>();
 
-    final start = notifier.startFromFrames(
-      '/n/f1.fits',
-      ['/n/f2.fits', '/n/f3.fits', '/n/f4.fits'],
-    );
-    await pumpEventQueue();
-    expect(service.calls.last, 'add /n/f2.fits');
+      final start = notifier.startFromFrames('/n/f1.fits', [
+        '/n/f2.fits',
+        '/n/f3.fits',
+        '/n/f4.fits',
+      ]);
+      await pumpEventQueue();
+      expect(service.calls.last, 'add /n/f2.fits');
 
-    final stop = notifier.stop();
-    service.gate!.complete();
-    await Future.wait([start, stop]);
+      final stop = notifier.stop();
+      service.gate!.complete();
+      await Future.wait([start, stop]);
 
-    expect(service.calls, [
-      'start /n/f1.fits',
-      'add /n/f2.fits',
-      'stop',
-    ]);
-    expect(container.read(liveStackingProvider).status, LiveStackingStatus.idle);
-  });
+      expect(service.calls, ['start /n/f1.fits', 'add /n/f2.fits', 'stop']);
+      expect(
+        container.read(liveStackingProvider).status,
+        LiveStackingStatus.idle,
+      );
+    },
+  );
 }

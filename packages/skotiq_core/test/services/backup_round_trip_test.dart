@@ -46,9 +46,8 @@ Future<List<String>> _seedEveryTable(SkotiqDatabase db) async {
   final parents = <String, List<String>>{
     for (final t in tables)
       t: [
-        for (final fk in await db
-            .customSelect('PRAGMA foreign_key_list("$t")')
-            .get())
+        for (final fk
+            in await db.customSelect('PRAGMA foreign_key_list("$t")').get())
           if (fk.read<String>('table') != t) fk.read<String>('table'),
       ],
   };
@@ -65,9 +64,8 @@ Future<List<String>> _seedEveryTable(SkotiqDatabase db) async {
     if (t == 'app_settings' || t == 'weather_settings') continue;
     final columns = await db.customSelect('PRAGMA table_info("$t")').get();
     final fks = {
-      for (final fk in await db
-          .customSelect('PRAGMA foreign_key_list("$t")')
-          .get())
+      for (final fk
+          in await db.customSelect('PRAGMA foreign_key_list("$t")').get())
         fk.read<String>('from'): fk.read<String>('table'),
     };
     final row = <String, Object?>{};
@@ -110,22 +108,21 @@ Future<List<String>> _seedEveryTable(SkotiqDatabase db) async {
 /// restore matches profiles by name, so their ids may differ.
 Future<List<Map<String, Object?>>> _rows(SkotiqDatabase db, String t) async {
   final profileNames = {
-    for (final r in await db
-        .customSelect('SELECT id, name FROM equipment_profiles')
-        .get())
+    for (final r
+        in await db
+            .customSelect('SELECT id, name FROM equipment_profiles')
+            .get())
       r.read<int>('id'): r.read<String>('name'),
   };
   final profileLinks = [
-    for (final fk in await db
-        .customSelect('PRAGMA foreign_key_list("$t")')
-        .get())
+    for (final fk
+        in await db.customSelect('PRAGMA foreign_key_list("$t")').get())
       if (fk.read<String>('table') == 'equipment_profiles')
         fk.read<String>('from'),
   ];
   return [
-    for (final r in await db
-        .customSelect('SELECT * FROM "$t" ORDER BY rowid')
-        .get())
+    for (final r
+        in await db.customSelect('SELECT * FROM "$t" ORDER BY rowid').get())
       {
         ...r.data,
         for (final c in profileLinks)
@@ -156,7 +153,11 @@ Future<void> _roundTrip(SkotiqDatabase source, Directory dir) async {
     if (t == 'app_settings' || backupRowRules.containsKey(t)) continue;
     final there = await _rows(target, t);
     if (backupExcludedTables.containsKey(t)) {
-      expect(there, isEmpty, reason: '$t is excluded: ${backupExcludedTables[t]}');
+      expect(
+        there,
+        isEmpty,
+        reason: '$t is excluded: ${backupExcludedTables[t]}',
+      );
       continue;
     }
     final here = await _rows(source, t);
@@ -217,7 +218,9 @@ void main() {
               .where((f) => f.path.endsWith('.db'))
               .toList();
     if (copies.isEmpty) {
-      markTestSkipped('SKOTIQ_REAL_DB_DIR is not set; no real database checked');
+      markTestSkipped(
+        'SKOTIQ_REAL_DB_DIR is not set; no real database checked',
+      );
       return;
     }
     for (final original in copies) {

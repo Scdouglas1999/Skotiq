@@ -149,25 +149,36 @@ void main() {
     expect((sent.single.value?['readings'] as Map)['altitude'], 62.1);
   });
 
-  test('the periodic re-read of unchanged devices changes no client state', () async {
-    final host = mirrorHost();
-    _connect(host.container.read(mountStateProvider.notifier), 'm', 'Mount');
-    _connect(host.container.read(focuserStateProvider.notifier), 'f', 'Foc');
-    _connect(host.container.read(filterWheelStateProvider.notifier), 'w', 'W');
-    _connect(host.container.read(guiderStateProvider.notifier), 'g', 'Guider');
-    await settle(_slotInterval);
-    final client = mirrorClient(host.container);
-    await hydrateHostRuntimeState(client.container, client.backend);
+  test(
+    'the periodic re-read of unchanged devices changes no client state',
+    () async {
+      final host = mirrorHost();
+      _connect(host.container.read(mountStateProvider.notifier), 'm', 'Mount');
+      _connect(host.container.read(focuserStateProvider.notifier), 'f', 'Foc');
+      _connect(
+        host.container.read(filterWheelStateProvider.notifier),
+        'w',
+        'W',
+      );
+      _connect(
+        host.container.read(guiderStateProvider.notifier),
+        'g',
+        'Guider',
+      );
+      await settle(_slotInterval);
+      final client = mirrorClient(host.container);
+      await hydrateHostRuntimeState(client.container, client.backend);
 
-    var changes = 0;
-    for (final slot in deviceSlots) {
-      client.container.listen(slot.state, (_, _) => changes++);
-    }
-    await hydrateHostRuntimeState(client.container, client.backend);
-    await hydrateHostRuntimeState(client.container, client.backend);
+      var changes = 0;
+      for (final slot in deviceSlots) {
+        client.container.listen(slot.state, (_, _) => changes++);
+      }
+      await hydrateHostRuntimeState(client.container, client.backend);
+      await hydrateHostRuntimeState(client.container, client.backend);
 
-    expect(changes, 0);
-  });
+      expect(changes, 0);
+    },
+  );
 
   test('a device the host disconnects leaves the client, and the reason a '
       'device dropped arrives with it', () async {
@@ -284,12 +295,15 @@ void main() {
 
       // The host's own window applies the guider releasing its camera; the
       // camera slot is not the guide camera's.
-      applyHostLocalSyncEvent(host.container, buildHostMutationEvent(
+      applyHostLocalSyncEvent(
+        host.container,
+        buildHostMutationEvent(
           entityType: HostMutationEntity.equipment,
           action: HostMutationAction.disconnected,
           entityId: 'sim_camera_2',
           extra: {'deviceType': 'camera', 'deviceId': 'sim_camera_2'},
-        ));
+        ),
+      );
       await settle(_slotInterval);
       await hydrateHostRuntimeState(client.container, client.backend);
 
@@ -314,13 +328,17 @@ void main() {
         ..setConnecting('sim_focuser_1', 'Simulated Focuser')
         ..connectFailed(StateError('unplugged'));
 
-      applyHostEventOnClient(client.container, client.backend, const SkotiqEvent(
+      applyHostEventOnClient(
+        client.container,
+        client.backend,
+        const SkotiqEvent(
           timestamp: 1,
           severity: EventSeverity.info,
           category: EventCategory.equipment,
           eventType: 'Disconnected',
           data: {'device_type': 'focuser', 'device_id': 'sim_focuser_1'},
-        ));
+        ),
+      );
       await hydrateHostRuntimeState(client.container, client.backend);
 
       final slot = client.container.read(focuserStateProvider);

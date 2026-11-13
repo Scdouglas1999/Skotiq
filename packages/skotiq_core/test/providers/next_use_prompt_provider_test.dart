@@ -319,31 +319,33 @@ void main() {
       },
     );
 
-    test('a plan loaded from the library is not met with Smart Night', () async {
-      final container = containerFor();
-      container.listen(nextUsePromptProvider, (_, __) {});
-      await container.read(nextUseDismissedActionsProvider.future);
-      await container.read(savedSequenceSummariesProvider.future);
-      expect(
-        container.read(nextUsePromptProvider)?.id,
-        NextUseActionId.buildSmartNight,
-      );
-
-      container.read(currentSequenceProvider.notifier).loadSequence(
-        planFromLibrary(),
-      );
-
-      final completed = container.read(nextUseCompletedActionsProvider);
-      expect(completed, contains(NextUseActionId.buildSmartNight));
-      expect(completed, contains(NextUseActionId.frameTarget));
-      expect(
-        container.read(nextUsePromptProvider)?.id,
-        isNot(anyOf(
+    test(
+      'a plan loaded from the library is not met with Smart Night',
+      () async {
+        final container = containerFor();
+        container.listen(nextUsePromptProvider, (_, __) {});
+        await container.read(nextUseDismissedActionsProvider.future);
+        await container.read(savedSequenceSummariesProvider.future);
+        expect(
+          container.read(nextUsePromptProvider)?.id,
           NextUseActionId.buildSmartNight,
-          NextUseActionId.frameTarget,
-        )),
-      );
-    });
+        );
+
+        container
+            .read(currentSequenceProvider.notifier)
+            .loadSequence(planFromLibrary());
+
+        final completed = container.read(nextUseCompletedActionsProvider);
+        expect(completed, contains(NextUseActionId.buildSmartNight));
+        expect(completed, contains(NextUseActionId.frameTarget));
+        expect(
+          container.read(nextUsePromptProvider)?.id,
+          isNot(
+            anyOf(NextUseActionId.buildSmartNight, NextUseActionId.frameTarget),
+          ),
+        );
+      },
+    );
 
     test('a saved sequence counts as a planned night', () async {
       final container = ProviderContainer(

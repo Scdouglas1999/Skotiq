@@ -293,10 +293,7 @@ void main() {
     native.buildGate = Completer<void>();
     final running = container
         .read(darkroomBuildJobsProvider.notifier)
-        .startUnattended(
-          'NGC891',
-          requireCalibration: false,
-        );
+        .startUnattended('NGC891', requireCalibration: false);
     await native.buildStarted.future;
     final job = container.read(darkroomBuildJobsProvider)!;
     expect(job.overallTotal, 5);
@@ -309,10 +306,7 @@ void main() {
     () async {
       final job = await container
           .read(darkroomBuildJobsProvider.notifier)
-          .startUnattended(
-            'NGC891',
-            requireCalibration: false,
-          );
+          .startUnattended('NGC891', requireCalibration: false);
       expect(job.stage, DarkroomJobStage.done);
       expect(job.unattended, isTrue);
       expect(native.built, ['L', 'R']);
@@ -332,10 +326,7 @@ void main() {
       ];
       final job = await container
           .read(darkroomBuildJobsProvider.notifier)
-          .startUnattended(
-            'NGC891',
-            requireCalibration: false,
-          );
+          .startUnattended('NGC891', requireCalibration: false);
       expect(job.stage, DarkroomJobStage.awaitingReview);
       expect(native.built, isEmpty);
       expect(
@@ -376,10 +367,7 @@ void main() {
       addTearDown(small.dispose);
       final job = await small
           .read(darkroomBuildJobsProvider.notifier)
-          .startUnattended(
-            'NGC891',
-            requireCalibration: false,
-          );
+          .startUnattended('NGC891', requireCalibration: false);
       expect(job.stage, DarkroomJobStage.failed);
       expect(native.built, isEmpty);
       expect(job.error, contains('needs 5.0 GiB'));
@@ -406,11 +394,7 @@ void main() {
     );
     final job = await container
         .read(darkroomBuildJobsProvider.notifier)
-        .startUnattended(
-          'NGC891',
-          requireCalibration: false,
-          announce: false,
-        );
+        .startUnattended('NGC891', requireCalibration: false, announce: false);
     expect(job.stage, DarkroomJobStage.done);
     expect(
       notifications.sent,
@@ -482,10 +466,7 @@ void main() {
         'and accepting it builds into its own folder', () async {
       native.retained = .55;
       final jobs = container.read(darkroomBuildJobsProvider.notifier);
-      await jobs.startUnattended(
-        'NGC891',
-        requireCalibration: false,
-      );
+      await jobs.startUnattended('NGC891', requireCalibration: false);
       await jobs.flush();
 
       final after = restart();
@@ -508,10 +489,7 @@ void main() {
         'resumes from its folder', () async {
       final jobs = container.read(darkroomBuildJobsProvider.notifier);
       native.buildGate = Completer<void>();
-      final running = jobs.startUnattended(
-        'NGC891',
-        requireCalibration: false,
-      );
+      final running = jobs.startUnattended('NGC891', requireCalibration: false);
       await native.buildStarted.future;
       await jobs.flush();
 
@@ -546,15 +524,9 @@ void main() {
       );
       native.retained = .55;
       final jobs = container.read(darkroomBuildJobsProvider.notifier);
-      await jobs.startUnattended(
-        'NGC891',
-        requireCalibration: false,
-      );
+      await jobs.startUnattended('NGC891', requireCalibration: false);
       native.retained = .9;
-      await jobs.startUnattended(
-        'M81',
-        requireCalibration: false,
-      );
+      await jobs.startUnattended('M81', requireCalibration: false);
       expect(container.read(darkroomBuildJobsProvider)!.target, 'M81');
       final held = container.read(darkroomHeldBuildsProvider);
       expect(held.single.target, 'NGC891');

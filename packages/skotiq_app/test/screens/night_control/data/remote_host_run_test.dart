@@ -173,7 +173,7 @@ void main() {
     const imaging = SequenceTerminalRunResult(
       generation: 4,
       outcome: SequenceExecutionState.completed,
-      runStatus: 'completed',
+      runStatus: SequenceRunStatus.completed,
       runId: 41,
       dbSessionId: 113,
     );
@@ -183,7 +183,7 @@ void main() {
       terminal: const SequenceTerminalRunResult(
         generation: 5,
         outcome: SequenceExecutionState.idle,
-        runStatus: 'stopped',
+        runStatus: SequenceRunStatus.stopped,
         runId: 42,
         dbSessionId: 114,
         isCalibration: true,
@@ -215,7 +215,8 @@ void main() {
     );
   });
 
-  test('a run the host ended for another plan does not finish the plan this '
+  test(
+      'a run the host ended for another plan does not finish the plan this '
       'client shows', () async {
     final plan = TwoTargetPlan();
     final backend = _link();
@@ -240,12 +241,14 @@ void main() {
       client,
       backend,
       lastEnded: ended(),
-      stopEvidence: const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+      stopEvidence:
+          const SequenceStopDecision(SequenceStopAuthor.operatorPress),
     );
     expect(client.read(nightHeaderProvider).ending, NightRunEnding.stopped);
 
     // The host has since opened another plan.
-    _hostRecord(client, backend, lastEnded: ended(), lastEndedPlanLoaded: false);
+    _hostRecord(client, backend,
+        lastEnded: ended(), lastEndedPlanLoaded: false);
     expect(client.read(nightRunPhaseProvider), isNot(NightRunPhase.finished));
   });
 
@@ -334,7 +337,7 @@ void main() {
     const result = SequenceTerminalRunResult(
       generation: 7,
       outcome: SequenceExecutionState.failed,
-      runStatus: 'failed',
+      runStatus: SequenceRunStatus.failed,
       runId: 50,
       dbSessionId: 130,
     );
@@ -375,7 +378,8 @@ void main() {
 
   // Owner, 2026-11-08: a crash or an update mid-night must not start the
   // night over. The restored run opens a new session on the host.
-  test('a host restarted mid-night: the client lists the whole night, the '
+  test(
+      'a host restarted mid-night: the client lists the whole night, the '
       'plan counts the restored run', () async {
     final plan = TwoTargetPlan();
     final runStart = DateTime(2026, 11, 7, 21, 10);

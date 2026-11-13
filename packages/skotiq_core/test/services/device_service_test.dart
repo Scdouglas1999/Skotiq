@@ -125,7 +125,6 @@ void main() {
         final state = container.read(cameraStateProvider);
         expect(state.connectionState, DeviceConnectionState.connected);
         expect(state.deviceId, deviceId);
-
       },
     );
 

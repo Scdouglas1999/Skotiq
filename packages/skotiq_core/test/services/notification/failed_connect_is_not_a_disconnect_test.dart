@@ -54,40 +54,48 @@ void main() {
     await router.dispose();
   });
 
-  test('an error while a device is connecting is not told as a disconnect',
-      () async {
-    events
-      ..add(_equipment('Connecting'))
-      ..add(_equipment('Error', message: 'no power'));
-    await _settle();
-    expect(disconnects(), isEmpty);
-  });
+  test(
+    'an error while a device is connecting is not told as a disconnect',
+    () async {
+      events
+        ..add(_equipment('Connecting'))
+        ..add(_equipment('Error', message: 'no power'));
+      await _settle();
+      expect(disconnects(), isEmpty);
+    },
+  );
 
-  test('an error on a device that had connected is told as a disconnect',
-      () async {
-    events
-      ..add(_equipment('Connecting'))
-      ..add(_equipment('Connected'))
-      ..add(_equipment('Error', message: 'USB cable unplugged'));
-    await _settle();
-    expect(disconnects(), hasLength(1));
-  });
+  test(
+    'an error on a device that had connected is told as a disconnect',
+    () async {
+      events
+        ..add(_equipment('Connecting'))
+        ..add(_equipment('Connected'))
+        ..add(_equipment('Error', message: 'USB cable unplugged'));
+      await _settle();
+      expect(disconnects(), hasLength(1));
+    },
+  );
 
-  test('an error on a device never seen connecting is told as a disconnect',
-      () async {
-    events.add(_equipment('Error', message: 'USB cable unplugged'));
-    await _settle();
-    expect(disconnects(), hasLength(1));
-  });
+  test(
+    'an error on a device never seen connecting is told as a disconnect',
+    () async {
+      events.add(_equipment('Error', message: 'USB cable unplugged'));
+      await _settle();
+      expect(disconnects(), hasLength(1));
+    },
+  );
 
-  test('a lost device is told once, not again for each failed reconnect',
-      () async {
-    events
-      ..add(_equipment('Connected'))
-      ..add(_equipment('Error', message: 'USB cable unplugged'))
-      ..add(_equipment('Connecting'))
-      ..add(_equipment('Error', message: 'device not found'));
-    await _settle();
-    expect(disconnects(), hasLength(1));
-  });
+  test(
+    'a lost device is told once, not again for each failed reconnect',
+    () async {
+      events
+        ..add(_equipment('Connected'))
+        ..add(_equipment('Error', message: 'USB cable unplugged'))
+        ..add(_equipment('Connecting'))
+        ..add(_equipment('Error', message: 'device not found'));
+      await _settle();
+      expect(disconnects(), hasLength(1));
+    },
+  );
 }

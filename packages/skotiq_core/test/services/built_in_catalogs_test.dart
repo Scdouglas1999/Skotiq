@@ -22,13 +22,13 @@ void main() {
     // Serve `packages/skotiq_core/...` asset keys from the source tree.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMessageHandler('flutter/assets', (message) async {
-      final key = utf8.decode(message!.buffer.asUint8List());
-      const prefix = 'packages/skotiq_core/';
-      if (!key.startsWith(prefix)) return null;
-      final file = File(p.join(packageRoot, key.substring(prefix.length)));
-      if (!await file.exists()) return null;
-      return ByteData.sublistView(await file.readAsBytes());
-    });
+          final key = utf8.decode(message!.buffer.asUint8List());
+          const prefix = 'packages/skotiq_core/';
+          if (!key.startsWith(prefix)) return null;
+          final file = File(p.join(packageRoot, key.substring(prefix.length)));
+          if (!await file.exists()) return null;
+          return ByteData.sublistView(await file.readAsBytes());
+        });
   });
 
   tearDownAll(() {

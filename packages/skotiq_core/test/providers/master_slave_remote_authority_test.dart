@@ -180,11 +180,14 @@ void main() {
         ],
       );
 
-      applyHostLocalSyncEvent(container, buildHostMutationEvent(
+      applyHostLocalSyncEvent(
+        container,
+        buildHostMutationEvent(
           entityType: HostMutationEntity.target,
           action: HostMutationAction.created,
           entityId: '2',
-        ));
+        ),
+      );
 
       final targets = await container.read(allDbTargetsProvider.future);
       expect(targets, hasLength(2));

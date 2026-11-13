@@ -44,7 +44,10 @@ void main() {
       latitudeDeg: lat,
       longitudeDeg: lon,
     );
-    return (dusk: tw.astronomicalDusk!.toUtc(), dawn: tw.astronomicalDawn!.toUtc());
+    return (
+      dusk: tw.astronomicalDusk!.toUtc(),
+      dawn: tw.astronomicalDawn!.toUtc(),
+    );
   }
 
   /// Builds hourly cloud frames at a fixed [opacity] covering

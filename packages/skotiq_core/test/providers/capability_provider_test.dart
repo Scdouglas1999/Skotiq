@@ -76,48 +76,51 @@ void main() {
   /// native driver answered with a 0 x 0, 0-bit sensor, the answer was kept
   /// for the life of the app, and the pre-flight check said "Connect a
   /// camera" with the camera connected.
-  test('capabilities are read again when the camera finishes connecting', () async {
-    final backend = MockBackend();
-    when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
-    when(
-      () => backend.polarAlignmentEvents,
-    ).thenAnswer((_) => const Stream.empty());
-    var connected = false;
-    when(() => backend.getCameraCapabilities('native:zwo:1')).thenAnswer(
-      (_) async => connected
-          ? const CameraCapabilities(
-              maxWidth: 4656,
-              maxHeight: 3520,
-              bitDepth: 12,
-            )
-          : const CameraCapabilities(maxWidth: 0, maxHeight: 0, bitDepth: 0),
-    );
-    final container = ProviderContainer(
-      overrides: [
-        backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
-      ],
-    );
-    addTearDown(container.dispose);
-    final subscription = container.listen(
-      cameraCapabilitiesProvider('native:zwo:1'),
-      (_, _) {},
-    );
-    addTearDown(subscription.close);
+  test(
+    'capabilities are read again when the camera finishes connecting',
+    () async {
+      final backend = MockBackend();
+      when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
+      when(
+        () => backend.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      var connected = false;
+      when(() => backend.getCameraCapabilities('native:zwo:1')).thenAnswer(
+        (_) async => connected
+            ? const CameraCapabilities(
+                maxWidth: 4656,
+                maxHeight: 3520,
+                bitDepth: 12,
+              )
+            : const CameraCapabilities(maxWidth: 0, maxHeight: 0, bitDepth: 0),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
+        ],
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        cameraCapabilitiesProvider('native:zwo:1'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
 
-    container
-        .read(cameraStateProvider.notifier)
-        .setConnecting('native:zwo:1', 'ZWO ASI1600MM-Cool');
-    final early = await container.read(
-      cameraCapabilitiesProvider('native:zwo:1').future,
-    );
-    expect(early?.maxWidth, 0);
+      container
+          .read(cameraStateProvider.notifier)
+          .setConnecting('native:zwo:1', 'ZWO ASI1600MM-Cool');
+      final early = await container.read(
+        cameraCapabilitiesProvider('native:zwo:1').future,
+      );
+      expect(early?.maxWidth, 0);
 
-    connected = true;
-    container.read(cameraStateProvider.notifier).setConnected();
-    final late = await container.read(
-      cameraCapabilitiesProvider('native:zwo:1').future,
-    );
-    expect(late?.maxWidth, 4656);
-    expect(late?.bitDepth, 12);
-  });
+      connected = true;
+      container.read(cameraStateProvider.notifier).setConnected();
+      final late = await container.read(
+        cameraCapabilitiesProvider('native:zwo:1').future,
+      );
+      expect(late?.maxWidth, 4656);
+      expect(late?.bitDepth, 12);
+    },
+  );
 }

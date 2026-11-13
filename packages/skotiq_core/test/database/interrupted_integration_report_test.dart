@@ -37,9 +37,8 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  SkotiqDatabase open() => RecoveredDatabase(
-    NativeDatabase(dbFile, setup: applySqliteBusyTimeout),
-  );
+  SkotiqDatabase open() =>
+      RecoveredDatabase(NativeDatabase(dbFile, setup: applySqliteBusyTimeout));
 
   Future<int> seedSession() async {
     final db = open();

@@ -9,13 +9,12 @@ DeviceConnectProgress _event(
   String label,
   DeviceConnectProgressStatus status, {
   String? error,
-}) =>
-    DeviceConnectProgress(
-      deviceType: label,
-      deviceId: 'id-$label',
-      status: status,
-      errorMessage: error,
-    );
+}) => DeviceConnectProgress(
+  deviceType: label,
+  deviceId: 'id-$label',
+  status: status,
+  errorMessage: error,
+);
 
 DeviceConnectionProgressState _sweep(List<DeviceConnectProgress> events) =>
     DeviceConnectionProgressState(
@@ -40,21 +39,23 @@ void main() {
     expect(sweep.failures, isEmpty);
   });
 
-  test("a guide camera that failed is the guider's failure, with its reason",
-      () {
-    final sweep = _sweep([
-      _event('camera', ok),
-      _event(guideCameraLabel, failed, error: 'USB cable unplugged'),
-      _event('guider', failed, error: 'no frames'),
-    ]);
+  test(
+    "a guide camera that failed is the guider's failure, with its reason",
+    () {
+      final sweep = _sweep([
+        _event('camera', ok),
+        _event(guideCameraLabel, failed, error: 'USB cable unplugged'),
+        _event('guider', failed, error: 'no frames'),
+      ]);
 
-    expect(sweep.connectedCount, 1);
-    final failure = sweep.failures.single;
-    expect(failure.deviceType, 'guider');
-    expect(failure.deviceId, 'id-guider');
-    expect(failure.errorMessage, contains('guide camera'));
-    expect(failure.errorMessage, contains('USB cable unplugged'));
-  });
+      expect(sweep.connectedCount, 1);
+      final failure = sweep.failures.single;
+      expect(failure.deviceType, 'guider');
+      expect(failure.deviceId, 'id-guider');
+      expect(failure.errorMessage, contains('guide camera'));
+      expect(failure.errorMessage, contains('USB cable unplugged'));
+    },
+  );
 
   test('a guide camera without a guider keeps its own entry', () {
     final sweep = _sweep([_event(guideCameraLabel, ok)]);

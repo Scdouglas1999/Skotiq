@@ -112,7 +112,10 @@ void main() {
         host.read(endOfNightCalibrationProvider.notifier) as _HostCalibration;
     final link = _linkedTo(host);
     await hydrateHostRuntimeState(link.client, link.backend);
-    expect(link.client.read(hostEndOfNightStatusProvider)?.phase, EonPhase.idle);
+    expect(
+      link.client.read(hostEndOfNightStatusProvider)?.phase,
+      EonPhase.idle,
+    );
 
     final deadline = DateTime.utc(2026, 11, 12, 11, 30);
     calibration.show(

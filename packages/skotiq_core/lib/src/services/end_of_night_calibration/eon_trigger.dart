@@ -13,6 +13,7 @@ import '../../providers/sequence/sequence_selection.dart';
 import '../../models/sequence/sequence_models.dart'
     show SequenceExecutionStateCapabilities;
 import '../../providers/sequence_stats_provider.dart';
+import '../../models/sequence/sequence_run_status.dart';
 import '../../models/sequence/terminal_run_result.dart';
 import '../../providers/settings_provider.dart';
 import '../logging_service.dart';
@@ -74,28 +75,25 @@ bool isNightEnding({
 const eonDawnStopOrigin = 'dawn_approaching';
 const eonObstructionStopOrigin = 'obstruction';
 
-/// Run statuses a run ended by a stop is filed under: an operator stop is
-/// `stopped` or `paused-stopped`, a stop the native side made itself (a
-/// trigger's park) is `aborted`.
-const _stoppedRunStatuses = {'stopped', 'paused-stopped', 'aborted'};
-
 /// Whether a finished imaging run ended the night, and why. Null when it did
 /// not: an operator stop, a failure, or a weather stop in the middle of the
 /// night leave the night open.
 EonEndReason? classifyRunEnd({
-  required String runStatus,
+  required SequenceRunStatus runStatus,
   required String? stopOrigin,
   required bool nightEnding,
   bool parked = false,
 }) {
-  if (runStatus == 'completed') return EonEndReason.targetsComplete;
+  if (runStatus == SequenceRunStatus.completed) {
+    return EonEndReason.targetsComplete;
+  }
   // A recovered failure cause remains the run's verdict even when dawn
   // subsequently parks it. That verdict must not suppress night-end work.
-  if (runStatus == 'failed' && parked) {
+  if (runStatus == SequenceRunStatus.failed && parked) {
     if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
     if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
   }
-  if (!_stoppedRunStatuses.contains(runStatus)) return null;
+  if (!runStatus.endedByStop) return null;
   if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
   if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
   final safetyStop =
@@ -151,7 +149,7 @@ class EndOfNightCalibrationCoordinator {
         SequenceStopAuthor.autopilot => 'autopilot',
         SequenceStopAuthor.system => evidence?.origin,
         null =>
-          next.runStatus == 'completed'
+          next.runStatus == SequenceRunStatus.completed
               ? null
               : _ref.read(sequenceExecutorProvider).lastRunEndOrigin,
       };
@@ -241,7 +239,7 @@ class EndOfNightCalibrationCoordinator {
           longitude: settings.longitude,
         );
     var parked = false;
-    if (result.runStatus == 'failed' &&
+    if (result.runStatus == SequenceRunStatus.failed &&
         (stopOrigin == eonDawnStopOrigin ||
             stopOrigin == eonObstructionStopOrigin)) {
       final mountId = _ref.read(mountStateProvider).deviceId;

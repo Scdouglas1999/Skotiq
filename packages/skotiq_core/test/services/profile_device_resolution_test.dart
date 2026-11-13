@@ -187,21 +187,18 @@ void main() {
     test('the guide camera is never given the main camera\'s device', () {
       // Discovery did not answer, so both slots keep their saved ids, and
       // the guide camera was saved at the id the main camera now has.
-      final r = resolveProfileSlots(
-        [
-          (
-            label: 'camera',
-            savedId: 'native:zwo:0',
-            savedName: 'ZWO ASI1600MM-Cool',
-          ),
-          (
-            label: 'guide camera',
-            savedId: 'native:zwo:0',
-            savedName: 'ZWO ASI178MM',
-          ),
-        ],
-        (_) => const [],
-      );
+      final r = resolveProfileSlots([
+        (
+          label: 'camera',
+          savedId: 'native:zwo:0',
+          savedName: 'ZWO ASI1600MM-Cool',
+        ),
+        (
+          label: 'guide camera',
+          savedId: 'native:zwo:0',
+          savedName: 'ZWO ASI178MM',
+        ),
+      ], (_) => const []);
       expect(r['camera']!.deviceId, 'native:zwo:0');
       expect(r['guide camera']!.deviceId, isNull);
       expect(r['guide camera']!.refusal, contains('which is the camera'));

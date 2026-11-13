@@ -5,7 +5,7 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart' as db;
-import '../database/session_orphan_sweep.dart' show kInterruptedSessionStatus;
+import '../models/sequence/sequence_run_status.dart';
 import '../database/daos/equipment_profiles_dao.dart';
 import '../database/daos/sequence_checkpoints_dao.dart';
 import '../database/daos/sequences_dao.dart';
@@ -158,7 +158,7 @@ class QuickStartService {
       lastSessionDate: session.endTime ?? session.startTime,
       equipmentSnapshot: equipmentSnapshot,
       totalIntegrationHours: totalIntegrationHours,
-      stoppedByOperator: session.status == kOperatorStoppedSessionStatus,
+      stoppedByOperator: isOperatorStoppedSessionStatus(session.status),
     );
   }
 
@@ -327,16 +327,19 @@ class QuickStartService {
   }
 }
 
-/// Session statuses of a run that can be continued: one the app died under,
-/// and one the operator stopped keeping its resume point.
-const Set<String> kContinuableSessionStatuses = {
-  kInterruptedSessionStatus,
-  kOperatorStoppedSessionStatus,
-};
+/// Whether a session with this status can be continued: one the app died
+/// under, or one the operator stopped keeping its resume point.
+bool isContinuableSessionStatus(String status) =>
+    switch (SequenceRunStatus.tryParse(status)) {
+      SequenceRunStatus.interrupted ||
+      SequenceRunStatus.stoppedResumable => true,
+      _ => false,
+    };
 
-/// The session status of a run the operator stopped with its resume point
-/// kept.
-const String kOperatorStoppedSessionStatus = 'paused-stopped';
+/// Whether a session with this status was stopped by the operator with its
+/// resume point kept.
+bool isOperatorStoppedSessionStatus(String status) =>
+    SequenceRunStatus.tryParse(status) == SequenceRunStatus.stoppedResumable;
 
 /// How long a run stays on offer after it ended.
 const Duration kContinueSessionMaxAge = Duration(days: 7);
@@ -366,7 +369,7 @@ db.ImagingSession? continueSessionCandidate(
   // A run in progress supersedes every earlier one, and is not a run to
   // continue.
   if (latest == null || latest.status == 'active') return null;
-  if (!kContinuableSessionStatuses.contains(latest.status)) return null;
+  if (!isContinuableSessionStatus(latest.status)) return null;
   final endedAt = latest.endTime ?? latest.startTime;
   if (now.difference(endedAt) > kContinueSessionMaxAge) return null;
   // A run that captured nothing has only its setup to offer, which is worth

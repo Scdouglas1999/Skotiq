@@ -228,18 +228,36 @@ void main() {
         );
       }
 
-      await expectInvalid(() => service.connect(DeviceType.camera, 'bad'), 'camera');
-      await expectInvalid(() => service.connect(DeviceType.mount, 'bad'), 'mount');
-      await expectInvalid(() => service.connect(DeviceType.focuser, 'bad'), 'focuser');
+      await expectInvalid(
+        () => service.connect(DeviceType.camera, 'bad'),
+        'camera',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.mount, 'bad'),
+        'mount',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.focuser, 'bad'),
+        'focuser',
+      );
       await expectInvalid(
         () => service.connect(DeviceType.filterWheel, 'bad'),
         'filter wheel',
       );
       // Guider has a PHD2 short-circuit; a non-PHD2 unknown id still hits
       // the standard format check.
-      await expectInvalid(() => service.connect(DeviceType.guider, 'bad'), 'guider');
-      await expectInvalid(() => service.connect(DeviceType.rotator, 'bad'), 'rotator');
-      await expectInvalid(() => service.connect(DeviceType.dome, 'bad'), 'dome');
+      await expectInvalid(
+        () => service.connect(DeviceType.guider, 'bad'),
+        'guider',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.rotator, 'bad'),
+        'rotator',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.dome, 'bad'),
+        'dome',
+      );
       await expectInvalid(
         () => service.connect(DeviceType.weather, 'bad'),
         'weather station',

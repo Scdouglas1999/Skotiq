@@ -107,14 +107,16 @@ void main() {
     expect(calls, ['checkpoint', 'pause']);
   });
 
-  test('a run restored from its checkpoint and not started is left alone',
-      () async {
-    runIs(SequenceExecutionState.idle);
-    await cameraDropsAndComesBack();
-    expect(calls, isEmpty);
-    expect(
-      container.read(runRecordProvider).lifecycle,
-      SequenceExecutionState.idle,
-    );
-  });
+  test(
+    'a run restored from its checkpoint and not started is left alone',
+    () async {
+      runIs(SequenceExecutionState.idle);
+      await cameraDropsAndComesBack();
+      expect(calls, isEmpty);
+      expect(
+        container.read(runRecordProvider).lifecycle,
+        SequenceExecutionState.idle,
+      );
+    },
+  );
 }

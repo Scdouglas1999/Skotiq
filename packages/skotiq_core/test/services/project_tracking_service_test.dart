@@ -176,7 +176,11 @@ void main() {
 
   test('two goals in one filter share that filter\'s time instead of each '
       'counting all of it', () {
-    final goals = [_goal('Ha', 300, 10), _goal('ha', 600, 10), _goal('L', 300, 4)];
+    final goals = [
+      _goal('Ha', 300, 10),
+      _goal('ha', 600, 10),
+      _goal('L', 300, 4),
+    ];
     final frames = [
       for (var i = 1; i <= 15; i++) _frame(i, filter: 'Ha', exposure: 300),
       _frame(20, filter: 'L', exposure: 300),

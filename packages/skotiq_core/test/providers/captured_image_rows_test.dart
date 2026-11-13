@@ -54,13 +54,19 @@ void main() {
   );
 
   test('the host reads a session and a night from its own database', () async {
-    final container = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
+    final container = ProviderContainer(
+      overrides: [inMemoryDatabaseOverride()],
+    );
     addTearDown(container.dispose);
     final images = container.read(imagesDaoProvider);
     final sessionId = await container
         .read(sessionsDaoProvider)
         .startSession(name: 'Night');
-    for (final (minute, session) in [(2, sessionId), (1, sessionId), (3, null)]) {
+    for (final (minute, session) in [
+      (2, sessionId),
+      (1, sessionId),
+      (3, null),
+    ]) {
       await images.createImage(
         CapturedImagesCompanion.insert(
           filePath: '/data/frame-$minute.fits',

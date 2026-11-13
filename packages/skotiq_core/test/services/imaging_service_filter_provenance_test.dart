@@ -141,7 +141,9 @@ void main() {
         headerData: any(named: 'headerData'),
         keepCameraFile: any(named: 'keepCameraFile'),
       ),
-    ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+    ).thenAnswer(
+      (invocation) async => invocation.namedArguments[#filePath] as String,
+    );
   });
 
   tearDown(() => events.close());

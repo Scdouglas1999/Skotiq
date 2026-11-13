@@ -181,8 +181,10 @@ void main() {
 
       // A driver error that arrives afterwards keeps naming it.
       notifier.setError(Exception('driver error event'));
-      expect(container.read(cameraStateProvider).retryDeviceId,
-          'test-camera-id');
+      expect(
+        container.read(cameraStateProvider).retryDeviceId,
+        'test-camera-id',
+      );
     });
 
     test('clearError removes error from state', () {

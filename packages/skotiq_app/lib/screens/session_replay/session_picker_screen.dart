@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -301,7 +302,7 @@ class _RunRow extends StatelessWidget {
                           runSpacing: SkotiqTokens.spaceXs,
                           children: [
                             SkotiqChip(
-                              label: runStatusLabel(run.status),
+                              label: runStatusTokenLabel(run.status),
                               tone: _statusTone(run.status),
                               dot: true,
                             ),
@@ -365,10 +366,11 @@ class _RunRow extends StatelessWidget {
   static String _frames(int count) => count == 1 ? '1 frame' : '$count frames';
 
   /// The tones the Sequencer History gives the same statuses.
-  static ChipTone _statusTone(String status) => switch (status) {
-        'completed' => ChipTone.success,
-        'failed' => ChipTone.error,
-        'aborted' => ChipTone.warning,
+  static ChipTone _statusTone(String status) =>
+      switch (SequenceRunStatus.tryParse(status)) {
+        SequenceRunStatus.completed => ChipTone.success,
+        SequenceRunStatus.failed => ChipTone.error,
+        SequenceRunStatus.aborted => ChipTone.warning,
         _ => ChipTone.neutral,
       };
 }

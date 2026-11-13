@@ -631,7 +631,9 @@ void main() {
             headerData: any(named: 'headerData'),
             keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
 
         late TestBackendNotifier remoteBackendNotifier;
         final remoteContainer = ProviderContainer(
@@ -747,7 +749,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -855,7 +859,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       late _RecordingScienceProcessingService science;
       final remoteContainer = ProviderContainer(
@@ -955,7 +961,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -1259,7 +1267,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       final service = container.read(imagingServiceProvider);
       await service.captureImage(settings: settings, targetName: 'M31');
@@ -1316,7 +1326,9 @@ void main() {
             headerData: any(named: 'headerData'),
             keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
 
         SkotiqEvent completionFrom(String deviceId) => SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -1394,7 +1406,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(
@@ -1578,7 +1592,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       // Verify currentImageProvider is null initially
       expect(container.read(currentImageProvider), isNull);
@@ -1773,7 +1789,9 @@ void main() {
             headerData: any(named: 'headerData'),
             keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
 
         final service = container.read(imagingServiceProvider);
 
@@ -1870,7 +1888,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(settings: settings);
@@ -2067,7 +2087,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
     }
 
     setUp(() {
@@ -2300,7 +2322,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       const settings = ExposureSettings(
         exposureTime: 5.0,
@@ -2551,7 +2575,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);
@@ -2624,7 +2650,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       final capturedImages = <CapturedImageData>[];
       final errors = <String>[];
@@ -2686,7 +2714,9 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);

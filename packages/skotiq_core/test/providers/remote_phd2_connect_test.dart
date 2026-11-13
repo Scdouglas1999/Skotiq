@@ -118,9 +118,7 @@ void main() {
         verify(
           () => backend.phd2Connect(host: 'localhost', port: 4400),
         ).called(1);
-        verify(
-          () => backend.guiderGetStatus(),
-        ).called(greaterThanOrEqualTo(1));
+        verify(() => backend.guiderGetStatus()).called(greaterThanOrEqualTo(1));
         expect(
           container.read(guiderStateProvider).connectionState,
           DeviceConnectionState.connected,
@@ -195,9 +193,7 @@ void main() {
         verify(
           () => backend.phd2Connect(host: '127.0.0.1', port: 4400),
         ).called(1);
-        verify(
-          () => backend.guiderGetStatus(),
-        ).called(greaterThanOrEqualTo(1));
+        verify(() => backend.guiderGetStatus()).called(greaterThanOrEqualTo(1));
         expect(
           container.read(guiderStateProvider).connectionState,
           DeviceConnectionState.connected,

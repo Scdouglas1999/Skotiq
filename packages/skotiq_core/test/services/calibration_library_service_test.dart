@@ -376,7 +376,12 @@ void main() {
         offset: null,
         temperature: -10,
       );
-      await insertDark(exposureTime: 0, gain: null, offset: null, frameType: 'bias');
+      await insertDark(
+        exposureTime: 0,
+        gain: null,
+        offset: null,
+        frameType: 'bias',
+      );
       await insertFlat(gain: null, offset: null);
 
       final match = await service.match(
@@ -409,7 +414,10 @@ void main() {
         const LightFrameContext(gain: null, offset: null, exposureSeconds: 300),
       );
       expect(match.dark, isNotNull);
-      expect(match.dark!.reasons.any((r) => r.contains('gain UNVERIFIED')), isTrue);
+      expect(
+        match.dark!.reasons.any((r) => r.contains('gain UNVERIFIED')),
+        isTrue,
+      );
       expect(match.dark!.score, lessThan(100));
     });
   });

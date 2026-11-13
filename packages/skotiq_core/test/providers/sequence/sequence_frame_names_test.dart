@@ -10,7 +10,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
-import 'package:skotiq_core/src/backend/skotiq_exception.dart' show ValidationException;
+import 'package:skotiq_core/src/backend/skotiq_exception.dart'
+    show ValidationException;
 
 const _pattern =
     r'$SEQUENCE/$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$GAIN_$FRAMENUM';

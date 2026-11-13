@@ -12,7 +12,8 @@ import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
 import 'eon_service_test.dart' show FakeRig;
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -25,7 +26,7 @@ void main() {
     test('a completed plan ends the night', () {
       expect(
         classifyRunEnd(
-          runStatus: 'completed',
+          runStatus: SequenceRunStatus.completed,
           stopOrigin: null,
           nightEnding: false,
         ),
@@ -36,7 +37,7 @@ void main() {
     test('the dawn trigger ends the night', () {
       expect(
         classifyRunEnd(
-          runStatus: 'stopped',
+          runStatus: SequenceRunStatus.stopped,
           stopOrigin: 'dawn_approaching',
           nightEnding: false,
         ),
@@ -49,7 +50,7 @@ void main() {
       // as `aborted`, not `stopped`.
       expect(
         classifyRunEnd(
-          runStatus: 'aborted',
+          runStatus: SequenceRunStatus.aborted,
           stopOrigin: 'dawn_approaching',
           nightEnding: true,
         ),
@@ -63,7 +64,7 @@ void main() {
         for (final origin in ['dawn_approaching', 'obstruction']) {
           expect(
             classifyRunEnd(
-              runStatus: 'failed',
+              runStatus: SequenceRunStatus.failed,
               stopOrigin: origin,
               nightEnding: true,
               parked: true,
@@ -72,7 +73,7 @@ void main() {
           );
           expect(
             classifyRunEnd(
-              runStatus: 'failed',
+              runStatus: SequenceRunStatus.failed,
               stopOrigin: origin,
               nightEnding: true,
               parked: false,
@@ -82,7 +83,7 @@ void main() {
         }
         expect(
           classifyRunEnd(
-            runStatus: 'failed',
+            runStatus: SequenceRunStatus.failed,
             stopOrigin: 'operator',
             nightEnding: true,
             parked: true,
@@ -93,7 +94,10 @@ void main() {
     );
 
     test('an obstruction park ends the night at any hour', () {
-      for (final status in ['aborted', 'stopped']) {
+      for (final status in [
+        SequenceRunStatus.aborted,
+        SequenceRunStatus.stopped,
+      ]) {
         expect(
           classifyRunEnd(
             runStatus: status,
@@ -101,7 +105,7 @@ void main() {
             nightEnding: false,
           ),
           EonEndReason.obstruction,
-          reason: status,
+          reason: status.token,
         );
       }
     });
@@ -110,7 +114,7 @@ void main() {
       for (final origin in ['weather_unsafe', 'safety', null]) {
         expect(
           classifyRunEnd(
-            runStatus: 'stopped',
+            runStatus: SequenceRunStatus.stopped,
             stopOrigin: origin,
             nightEnding: true,
           ),
@@ -119,7 +123,7 @@ void main() {
         );
         expect(
           classifyRunEnd(
-            runStatus: 'stopped',
+            runStatus: SequenceRunStatus.stopped,
             stopOrigin: origin,
             nightEnding: false,
           ),
@@ -132,7 +136,7 @@ void main() {
     test('an operator stop or a failure leaves the night open', () {
       expect(
         classifyRunEnd(
-          runStatus: 'stopped',
+          runStatus: SequenceRunStatus.stopped,
           stopOrigin: 'operator',
           nightEnding: true,
         ),
@@ -140,7 +144,7 @@ void main() {
       );
       expect(
         classifyRunEnd(
-          runStatus: 'failed',
+          runStatus: SequenceRunStatus.failed,
           stopOrigin: null,
           nightEnding: true,
         ),
@@ -246,7 +250,7 @@ void main() {
       );
     }
 
-    void finishRun(int generation, int runId, String status) {
+    void finishRun(int generation, int runId, SequenceRunStatus status) {
       container
           .read(runRecordProvider.notifier)
           .publishTerminal(
@@ -273,7 +277,7 @@ void main() {
     test('a completed imaging run starts the step when it is on', () async {
       await enable(true);
       await recordRunFrame(7, 'light');
-      finishRun(1, 7, 'completed');
+      finishRun(1, 7, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, contains('run'));
       expect(
@@ -285,7 +289,7 @@ void main() {
     test('nothing starts while the setting is off', () async {
       await enable(false);
       await recordRunFrame(7, 'light');
-      finishRun(1, 7, 'completed');
+      finishRun(1, 7, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, isEmpty);
     });
@@ -293,7 +297,7 @@ void main() {
     test('a run that took no lights does not start it', () async {
       await enable(true);
       await recordRunFrame(8, 'dark');
-      finishRun(1, 8, 'completed');
+      finishRun(1, 8, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, isEmpty);
     });
@@ -306,7 +310,7 @@ void main() {
           .setStopEvidence(
             const SequenceStopDecision(SequenceStopAuthor.operatorPress),
           );
-      finishRun(1, 9, 'stopped');
+      finishRun(1, 9, SequenceRunStatus.stopped);
       await settle();
       expect(rig.calls, isEmpty);
 
@@ -319,7 +323,7 @@ void main() {
               parked: true,
             ),
           );
-      finishRun(2, 9, 'stopped');
+      finishRun(2, 9, SequenceRunStatus.stopped);
       await settle();
       expect(rig.calls, contains('run'));
     });
@@ -341,7 +345,7 @@ void main() {
         (_) async => MountStatus.fromJson({'connected': true, 'parked': true}),
       );
       container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
-      finishRun(1, 10, 'failed');
+      finishRun(1, 10, SequenceRunStatus.failed);
       await settle();
       expect(rig.calls, contains('run'));
       rig.runGate!.complete();
@@ -374,7 +378,7 @@ void main() {
           (_) async =>
               MountStatus.fromJson({'connected': true, 'parked': false}),
         );
-        finishRun(1, 10, 'failed');
+        finishRun(1, 10, SequenceRunStatus.failed);
         await settle();
         expect(rig.calls, isEmpty);
       },
@@ -386,7 +390,7 @@ void main() {
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
-      finishRun(1, 11, 'completed');
+      finishRun(1, 11, SequenceRunStatus.completed);
       expect(await coordinator.runEnded(1), EonEndReason.targetsComplete);
       var settled = false;
       unawaited(coordinator.nightSettled(1).then((_) => settled = true));
@@ -409,7 +413,7 @@ void main() {
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
-      finishRun(1, 12, 'stopped');
+      finishRun(1, 12, SequenceRunStatus.stopped);
       expect(await coordinator.runEnded(1), isNull);
       await coordinator.nightSettled(1);
       expect(rig.calls, isEmpty);
@@ -422,7 +426,7 @@ void main() {
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
-      finishRun(1, 13, 'completed');
+      finishRun(1, 13, SequenceRunStatus.completed);
       await settle();
       rig.runGate!.complete();
       await coordinator.nightSettled(1);
@@ -438,7 +442,7 @@ void main() {
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
-      finishRun(1, 14, 'completed');
+      finishRun(1, 14, SequenceRunStatus.completed);
       await coordinator.nightSettled(1);
       expect(rig.calls, isNot(contains('run')));
       expect(rig.calls, contains('warmUp'));
@@ -461,7 +465,7 @@ void main() {
             const SequenceTerminalRunResult(
               generation: 1,
               outcome: SequenceExecutionState.idle,
-              runStatus: 'stopped',
+              runStatus: SequenceRunStatus.stopped,
               runId: 15,
               dbSessionId: 40,
             ),

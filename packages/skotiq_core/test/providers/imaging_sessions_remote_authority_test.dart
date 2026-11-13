@@ -68,11 +68,14 @@ void main() {
         ],
       );
 
-      applyHostLocalSyncEvent(container, buildHostMutationEvent(
+      applyHostLocalSyncEvent(
+        container,
+        buildHostMutationEvent(
           entityType: HostMutationEntity.session,
           action: HostMutationAction.created,
           entityId: '2',
-        ));
+        ),
+      );
 
       final sessions = await container.read(allSessionsProvider.future);
       expect(sessions, hasLength(2));
@@ -152,11 +155,14 @@ void main() {
           ],
         );
 
-        applyHostLocalSyncEvent(container, buildHostMutationEvent(
+        applyHostLocalSyncEvent(
+          container,
+          buildHostMutationEvent(
             entityType: HostMutationEntity.capturedImage,
             action: HostMutationAction.created,
             entityId: '11',
-          ));
+          ),
+        );
 
         final images = await container.read(allDbImagesProvider.future);
         expect(images, hasLength(2));

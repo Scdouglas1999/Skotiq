@@ -1,89 +1,92 @@
-/// The one place a durable `sequence_runs.status` becomes words a person reads.
-///
-/// The stored values are state-machine tokens: `paused-stopped` means "stopped
-/// with the checkpoint preserved", a fact about resumability rather than about
-/// what the operator did. Printed verbatim it claims an operator pause nobody
-/// performed.
-///
-/// Every surface that shows a run outcome goes through here, so the vocabulary
-/// stays the product's rather than the schema's.
+/// The one place a run status becomes the words, color and icon a person
+/// sees. The stored values are record tokens (`paused-stopped` is "stopped
+/// with the checkpoint kept"), never shown as they are.
 library;
 
-import 'package:skotiq_core/models.dart' show isSequenceCancelledNotice;
+import 'package:flutter/widgets.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/models.dart'
+    show SequenceRunStatus, isSequenceCancelledNotice;
+import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Human label for a durable run status.
+/// Human label for a run status.
+String runStatusLabel(SequenceRunStatus status) => switch (status) {
+      SequenceRunStatus.completed => 'Completed',
+      SequenceRunStatus.failed => 'Failed',
+      SequenceRunStatus.aborted => 'Aborted',
+      SequenceRunStatus.stopped => 'Stopped',
+      SequenceRunStatus.stoppedResumable => 'Stopped (resumable)',
+      SequenceRunStatus.interrupted => 'Interrupted',
+      SequenceRunStatus.running => 'Running',
+      SequenceRunStatus.paused => 'Paused',
+    };
+
+/// Human label for a stored run or session status.
 ///
-/// Unknown tokens (a status added to the executor before this map) degrade to
-/// a readable form rather than vanishing: hyphens become spaces and the first
-/// letter is capitalised.
-String runStatusLabel(String status) {
-  switch (status) {
-    case 'completed':
-      return 'Completed';
-    case 'failed':
-      return 'Failed';
-    case 'aborted':
-      return 'Aborted';
-    case 'stopped':
-      return 'Stopped';
-    case 'paused-stopped':
-      // Stopped by the operator, checkpoint kept, so the run can be resumed.
-      return 'Stopped (resumable)';
-    case 'interrupted':
-      return 'Interrupted';
-    case 'running':
-      return 'Running';
-    case 'paused':
-      return 'Paused';
-    case 'finalizing':
-      return 'Finishing up';
-  }
-  final words = status.replaceAll('-', ' ').replaceAll('_', ' ').trim();
+/// A token that is not a run status (a session's `active` or `error`, or one
+/// a newer build wrote) reads as itself: hyphens become spaces and the first
+/// letter is capitalized.
+String runStatusTokenLabel(String token) {
+  final status = SequenceRunStatus.tryParse(token);
+  if (status != null) return runStatusLabel(status);
+  final words = token.replaceAll('-', ' ').replaceAll('_', ' ').trim();
   if (words.isEmpty) return 'Unknown';
   return words[0].toUpperCase() + words.substring(1);
 }
 
-/// One sentence explaining what a run status MEANS, in one shared vocabulary.
+/// One sentence explaining what a run status means.
 ///
-/// History carries seven outcome chips, five of which mean "the run did not
-/// finish" — Failed, Aborted, Stopped, Stopped (resumable), Interrupted. In
-/// five unrelated words, nothing on screen says how they differ, and the
-/// distinctions are real: they call for different operator responses. So they
-/// are defined once, in parallel phrasing — every not-finished status opens
-/// with the same clause, and the difference follows the dash.
-String runStatusMeaning(String status) {
-  switch (status) {
-    case 'completed':
-      return 'Finished every planned frame.';
-    case 'running':
-      return 'Under way right now.';
-    case 'paused':
-      return 'Under way, held at the operator\'s request.';
-    case 'finalizing':
-      return 'Under way, writing its final results.';
-    case 'failed':
-      return 'Did not finish — the sequencer hit an error it could not '
-          'recover from.';
-    case 'aborted':
-      return 'Did not finish — a safety rule or a trigger ended it.';
-    case 'stopped':
-      return 'Did not finish — you stopped it, and no checkpoint was kept.';
-    case 'paused-stopped':
-      return 'Did not finish — you stopped it, and the checkpoint was kept so '
-          'it can be resumed.';
-    case 'interrupted':
-      return 'Did not finish — the app or the machine went down mid-run; this '
-          'was reconciled at the next start.';
-  }
-  return 'Run status recorded as "$status".';
-}
+/// Five outcomes mean "the run did not finish", and they call for different
+/// operator responses. Each of those opens with the same clause, and the
+/// difference follows the dash.
+String runStatusMeaning(SequenceRunStatus status) => switch (status) {
+      SequenceRunStatus.completed => 'Finished every planned frame.',
+      SequenceRunStatus.running => 'Under way right now.',
+      SequenceRunStatus.paused => 'Under way, held at the operator\'s request.',
+      SequenceRunStatus.failed =>
+        'Did not finish — the sequencer hit an error it could not recover '
+            'from.',
+      SequenceRunStatus.aborted =>
+        'Did not finish — a safety rule or a trigger ended it.',
+      SequenceRunStatus.stopped =>
+        'Did not finish — you stopped it, and no checkpoint was kept.',
+      SequenceRunStatus.stoppedResumable =>
+        'Did not finish — you stopped it, and the checkpoint was kept so it '
+            'can be resumed.',
+      SequenceRunStatus.interrupted =>
+        'Did not finish — the app or the machine went down mid-run; this was '
+            'reconciled at the next start.',
+    };
 
-/// True when [status] means the operator ended the run themselves.
-///
-/// A deliberate Stop is the one terminal state that is not a fault, and the
-/// surfaces that describe the run have to agree about that.
-bool runWasStoppedByOperator(String status) =>
-    status == 'stopped' || status == 'paused-stopped';
+/// The color a run status is shown in. A status this build does not know is
+/// muted.
+Color runStatusColor(SkotiqColors colors, SequenceRunStatus? status) =>
+    switch (status) {
+      SequenceRunStatus.completed => colors.success,
+      SequenceRunStatus.failed => colors.error,
+      SequenceRunStatus.aborted => colors.warning,
+      SequenceRunStatus.running || SequenceRunStatus.paused => colors.info,
+      SequenceRunStatus.stopped ||
+      SequenceRunStatus.stoppedResumable ||
+      SequenceRunStatus.interrupted ||
+      null =>
+        colors.textMuted,
+    };
+
+/// The icon a run status is shown with.
+IconData runStatusIcon(SequenceRunStatus? status) => switch (status) {
+      SequenceRunStatus.completed => LucideIcons.checkCircle2,
+      SequenceRunStatus.failed => LucideIcons.xCircle,
+      SequenceRunStatus.aborted => LucideIcons.alertTriangle,
+      SequenceRunStatus.running => LucideIcons.play,
+      SequenceRunStatus.paused => LucideIcons.pause,
+      SequenceRunStatus.stopped ||
+      SequenceRunStatus.stoppedResumable ||
+      SequenceRunStatus.interrupted ||
+      null =>
+        LucideIcons.circle,
+    };
 
 /// True when [message] is the run-cancelled notice rather than a fault.
 ///
@@ -115,9 +118,12 @@ bool isRunCancellationNotice(String message) {
 
 /// The messages worth showing as errors for a run that ended with [status].
 ///
-/// Identity in, identity out for every non-stop outcome.
-List<String> runErrorMessagesFor(String status, List<String> messages) {
-  if (!runWasStoppedByOperator(status)) return messages;
+/// Identity in, identity out for every outcome but an operator stop.
+List<String> runErrorMessagesFor(
+  SequenceRunStatus? status,
+  List<String> messages,
+) {
+  if (status == null || !status.stoppedByOperator) return messages;
   return messages.where((m) => !isRunCancellationNotice(m)).toList();
 }
 
@@ -136,8 +142,5 @@ String? runFailureHeadline({String? terminalCause, List<String>? errors}) {
   return null;
 }
 
-/// Removes the generated bridge wrapper while retaining the actual failure.
-String runFailureMessage(String raw) => raw.replaceAllMapped(
-      RegExp(r'SkotiqError\.\w+\(field0: (.*)\)', dotAll: true),
-      (match) => match.group(1)!,
-    );
+/// A failure as recorded on a run, in words for the operator.
+String runFailureMessage(String raw) => userFacingError(raw);

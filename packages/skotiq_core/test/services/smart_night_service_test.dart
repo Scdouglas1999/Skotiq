@@ -2,8 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show TargetVisibilityInfo;
+import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 
 class _MockLoggingService extends Mock implements LoggingService {}
 
@@ -197,38 +196,41 @@ void main() {
       expect(plan.sequence.nodes.values.whereType<ParkNode>(), isNotEmpty);
     });
 
-    test('a target with integration goals is planned to the frames they still need', () {
-      final goals = [
-        IntegrationGoalProgress(
-          goal: IntegrationGoal(
-            id: 1,
-            targetId: 7,
-            filter: 'L',
-            exposureSeconds: 105,
-            frameCount: 20,
-            createdAt: DateTime.utc(2026, 1, 1),
+    test(
+      'a target with integration goals is planned to the frames they still need',
+      () {
+        final goals = [
+          IntegrationGoalProgress(
+            goal: IntegrationGoal(
+              id: 1,
+              targetId: 7,
+              filter: 'L',
+              exposureSeconds: 105,
+              frameCount: 20,
+              createdAt: DateTime.utc(2026, 1, 1),
+            ),
+            capturedCount: 0,
           ),
-          capturedCount: 0,
-        ),
-      ];
-      final plan = service.build(
-        profile: monoProfile,
-        availableFilters: monoProfile.filterNames,
-        latitudeDeg: 41.0,
-        longitudeDeg: -73.0,
-        context: baseContext(),
-        selectedSuggestions: [fakeSuggestion(id: 7, name: 'M33')],
-        strategy: SmartNightStrategy.autoLrgb,
-        settings: const SmartNightSettings(subExposureFloorSecs: 1),
-        integrationGoals: {7: goals},
-      );
+        ];
+        final plan = service.build(
+          profile: monoProfile,
+          availableFilters: monoProfile.filterNames,
+          latitudeDeg: 41.0,
+          longitudeDeg: -73.0,
+          context: baseContext(),
+          selectedSuggestions: [fakeSuggestion(id: 7, name: 'M33')],
+          strategy: SmartNightStrategy.autoLrgb,
+          settings: const SmartNightSettings(subExposureFloorSecs: 1),
+          integrationGoals: {7: goals},
+        );
 
-      final l = plan.plannedTargets.single.filterPlans.firstWhere(
-        (p) => p.filterName == 'L',
-      );
-      expect(l.count, 20);
-      expect(l.durationSecs, 105);
-    });
+        final l = plan.plannedTargets.single.filterPlans.firstWhere(
+          (p) => p.filterName == 'L',
+        );
+        expect(l.count, 20);
+        expect(l.durationSecs, 105);
+      },
+    );
 
     test('dark time left after the last target is named in the warnings', () {
       final plan = service.build(
@@ -812,21 +814,18 @@ void main() {
       },
     );
 
-    test(
-      'calculateWindow after a remote site\'s dawn is the coming night',
-      () {
-        // 21:15 UTC: the dark at 155.66 E ended near 18:45 UTC.
-        final now = DateTime.utc(2026, 11, 11, 21, 15);
-        final w = service.calculateWindow(
-          latitudeDeg: 40.0,
-          longitudeDeg: 155.66,
-          now: now,
-        );
-        expect(w.start.isAfter(now), isTrue);
-        expect(w.start.difference(now), lessThan(const Duration(hours: 12)));
-        expect(w.end.isAfter(w.start), isTrue);
-      },
-    );
+    test('calculateWindow after a remote site\'s dawn is the coming night', () {
+      // 21:15 UTC: the dark at 155.66 E ended near 18:45 UTC.
+      final now = DateTime.utc(2026, 11, 11, 21, 15);
+      final w = service.calculateWindow(
+        latitudeDeg: 40.0,
+        longitudeDeg: 155.66,
+        now: now,
+      );
+      expect(w.start.isAfter(now), isTrue);
+      expect(w.start.difference(now), lessThan(const Duration(hours: 12)));
+      expect(w.end.isAfter(w.start), isTrue);
+    });
 
     test('calculateWindow rejects polar midnight sun as a dark window', () {
       expect(
@@ -1464,7 +1463,9 @@ void main() {
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: darkGapContext(
-            notes: const ['120 s darks at gain 100, offset 10, -10.0°C, binning 1x1'],
+            notes: const [
+              '120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
+            ],
             requirements: const [
               DarkFrameRequirement(
                 gain: 100,

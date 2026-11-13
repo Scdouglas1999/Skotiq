@@ -31,42 +31,55 @@ void main() {
   final source = Platform.environment['SKOTIQ_REAL_DB_DIR'];
   final copies = source == null
       ? const <File>[]
-      : Directory(source).listSync().whereType<File>().where(
-          (f) => f.path.endsWith('.db'),
-        ).toList();
+      : Directory(source)
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.db'))
+            .toList();
 
-  test('real databases upgrade to the current version with every row kept', () async {
-    if (copies.isEmpty) {
-      markTestSkipped('SKOTIQ_REAL_DB_DIR is not set; no real database checked');
-      return;
-    }
-    final work = await Directory.systemTemp.createTemp('skotiq_v66_real_');
-    addTearDown(() => work.delete(recursive: true));
-    for (final original in copies) {
-      final copy = await original.copy(
-        '${work.path}/${original.uri.pathSegments.last}',
-      );
-      final before = _rowCounts(copy.path);
-      final db = SkotiqDatabase.forTesting(NativeDatabase(copy));
-      await db.customSelect('SELECT 1').get();
-      final version = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.data['user_version'], db.schemaVersion, reason: copy.path);
-      final columns = await db
-          .customSelect('PRAGMA table_info(captured_images)')
-          .get();
-      expect(
-        columns.map((c) => c.read<String>('name')),
-        contains('gain_kind'),
-        reason: copy.path,
-      );
-      final integrity = await db.customSelect('PRAGMA integrity_check').get();
-      expect(integrity.single.data.values.single, 'ok', reason: copy.path);
-      await db.close();
-      final after = _rowCounts(copy.path);
-      for (final MapEntry(:key, :value) in before.entries) {
-        if (key == 'app_settings') continue;
-        expect(after[key], value, reason: '${copy.path} $key');
+  test(
+    'real databases upgrade to the current version with every row kept',
+    () async {
+      if (copies.isEmpty) {
+        markTestSkipped(
+          'SKOTIQ_REAL_DB_DIR is not set; no real database checked',
+        );
+        return;
       }
-    }
-  });
+      final work = await Directory.systemTemp.createTemp('skotiq_v66_real_');
+      addTearDown(() => work.delete(recursive: true));
+      for (final original in copies) {
+        final copy = await original.copy(
+          '${work.path}/${original.uri.pathSegments.last}',
+        );
+        final before = _rowCounts(copy.path);
+        final db = SkotiqDatabase.forTesting(NativeDatabase(copy));
+        await db.customSelect('SELECT 1').get();
+        final version = await db
+            .customSelect('PRAGMA user_version')
+            .getSingle();
+        expect(
+          version.data['user_version'],
+          db.schemaVersion,
+          reason: copy.path,
+        );
+        final columns = await db
+            .customSelect('PRAGMA table_info(captured_images)')
+            .get();
+        expect(
+          columns.map((c) => c.read<String>('name')),
+          contains('gain_kind'),
+          reason: copy.path,
+        );
+        final integrity = await db.customSelect('PRAGMA integrity_check').get();
+        expect(integrity.single.data.values.single, 'ok', reason: copy.path);
+        await db.close();
+        final after = _rowCounts(copy.path);
+        for (final MapEntry(:key, :value) in before.entries) {
+          if (key == 'app_settings') continue;
+          expect(after[key], value, reason: '${copy.path} $key');
+        }
+      }
+    },
+  );
 }
