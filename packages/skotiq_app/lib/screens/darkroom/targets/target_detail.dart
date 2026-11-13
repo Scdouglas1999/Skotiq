@@ -20,6 +20,7 @@ import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'nights_strip.dart';
 import 'tile_crop.dart';
+import 'package:skotiq_core/providers.dart';
 
 const double _heroHeight = 292;
 

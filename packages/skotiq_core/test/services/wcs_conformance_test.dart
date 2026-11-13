@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/src/providers/plate_solve_service_provider.dart';
 
 /// Dart half of the shared `.wcs` conformance fixture.
 ///

@@ -11,7 +11,7 @@ import 'package:skotiq_core/database.dart'
     show DbCapturedImage, FramePhotometricCalibrationRow;
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/providers.dart'
-    show imagingBackendProvider, isRemoteModeProvider, frameExclusionKindOf;
+    show imagingBackendProvider, isRemoteModeProvider;
 import 'package:skotiq_core/services.dart'
     show imagingRecordsRepositoryProvider, FrameQualityAssessment, FrameQualityAssessmentService, FrameQualityLevel;
 
@@ -22,6 +22,7 @@ import 'frame_detail_dialog.dart';
 import '../../../utils/image_decode_size.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
+import 'package:skotiq_core/models.dart';
 
 part 'image_thumbnail_strip_parts/_chips.dart';
 part 'image_thumbnail_strip_parts/_thumbnail.dart';

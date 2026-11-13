@@ -15,6 +15,7 @@ import 'package:skotiq_desktop/headless_api/handlers/log_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

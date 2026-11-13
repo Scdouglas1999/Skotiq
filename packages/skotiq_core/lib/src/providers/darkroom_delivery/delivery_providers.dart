@@ -10,14 +10,14 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/database_provider.dart';
-import '../../providers/notification_router_provider.dart'
+import '../database_provider.dart';
+import '../notification_router_provider.dart'
     show secretsStoreProvider;
-import '../logging_service.dart';
-import 'delivery_retry_sweeper.dart';
-import 'delivery_service.dart';
-import 'delivery_transport_factory.dart';
-import 'peer_manifest_service.dart';
+import '../../services/darkroom_delivery/delivery_retry_sweeper.dart';
+import '../../services/darkroom_delivery/delivery_service.dart';
+import '../../services/darkroom_delivery/delivery_transport_factory.dart';
+import '../../services/darkroom_delivery/peer_manifest_service.dart';
+import '../logging_service_provider.dart';
 
 /// Builds the transport for a destination row: filesystem for a watched
 /// folder, OpenSSH for SFTP, and a journal publication for a peer.

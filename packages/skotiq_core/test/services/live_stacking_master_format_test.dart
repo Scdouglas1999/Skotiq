@@ -19,6 +19,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/services/live_stacking_service.dart';
+import 'package:skotiq_core/src/providers/live_stacking_service_provider.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

@@ -1,8 +1,5 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart' as db;
-import '../../providers/backend_provider.dart';
-import '../../providers/database_provider.dart';
 import '../../backend/remote_host.dart';
 
 /// Membership of the scheduler queue.
@@ -77,11 +74,3 @@ class SchedulerQueueService {
   static int _nowSeconds() =>
       DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
 }
-
-final schedulerQueueServiceProvider = Provider<SchedulerQueueService>((ref) {
-  final backend = ref.watch(backendProvider);
-  return SchedulerQueueService(
-    ref.watch(databaseProvider),
-    remote: backend.remoteHost?.planning,
-  );
-});

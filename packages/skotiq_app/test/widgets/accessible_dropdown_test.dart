@@ -9,7 +9,6 @@ import 'package:skotiq_app/screens/sequencer/widgets/secondary_rig_card.dart';
 import 'package:skotiq_app/screens/settings/widgets/element_refresh_card.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

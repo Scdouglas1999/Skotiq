@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/equipment/equipment_models.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../services/device_service.dart';
-import '../../services/logging_service.dart';
 import '../autofocus_progress_provider.dart';
 import '../sequence/sequence_progress.dart';
 import '../settings_provider.dart';
@@ -13,6 +11,8 @@ import 'focus_compensation_rule.dart';
 import 'focuser_state_provider.dart';
 import 'focuser_temperature_poller.dart';
 import '../../settings/app_settings_state.g.dart';
+import '../device_service_providers.dart';
+import '../logging_service_provider.dart';
 
 /// Applies the operator's temperature coefficient (steps per °C, set in
 /// Equipment → Settings → Focuser) continuously while the focuser is

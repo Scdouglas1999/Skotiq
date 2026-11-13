@@ -34,9 +34,3 @@ class SmartNotificationService {
   }
 
 }
-
-final smartNotificationServiceProvider = Provider<SmartNotificationService>((
-  ref,
-) {
-  return SmartNotificationService(ref);
-});

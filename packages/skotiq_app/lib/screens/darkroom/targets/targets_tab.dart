@@ -13,6 +13,7 @@ import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'framing_check.dart';
 import 'target_detail.dart';
+import 'package:skotiq_core/providers.dart';
 
 const double _listWidth = 300;
 const double _listWidthNarrow = 248;

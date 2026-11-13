@@ -29,7 +29,7 @@ import '../../models/backend/event_types.dart';
 import '../../models/sequence/instruction_progress_detail.dart';
 import '../../models/sequence/sequence_models.dart' show NodeStatus;
 import 'run_dither_event.dart' show ditherPerformedDetailKind;
-import 'run_frame_assessment.dart'
+import '../../models/sequence/run_frame_assessment.dart'
     show frameAssessedDetailKind, horizonObstructionDetailKind;
 import 'structured_progress_json.dart';
 

@@ -16,6 +16,7 @@ import '../providers/sequence/sequence_progress.dart'
     show sequenceExecutionStateProvider;
 import 'logging_service.dart';
 import '../models/backend/backend_types.dart';
+import '../providers/logging_service_provider.dart';
 
 /// What a call to [CameraWarmupController.start] did.
 enum CameraWarmupOutcome {

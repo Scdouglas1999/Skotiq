@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart' as db;
 import 'database_provider.dart';
-import 'project_tracking_provider.dart';
 import 'scheduler_provider.dart' show integrationGoalsStreamProvider;
 import 'package:skotiq_astro/skotiq_astro.dart';
 

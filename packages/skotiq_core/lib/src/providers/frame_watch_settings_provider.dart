@@ -8,10 +8,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/site/learned_obstruction.dart';
-import '../services/logging_service.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import '../database/daos/settings_dao.dart';
+import 'logging_service_provider.dart';
 
 /// Bounds of how far the solved center may drift from the target before the
 /// run recenters, in arcseconds.

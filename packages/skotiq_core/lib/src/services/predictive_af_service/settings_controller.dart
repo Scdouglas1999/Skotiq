@@ -105,14 +105,3 @@ class PredictiveAfSettingsController {
         );
   }
 }
-
-final predictiveAfSettingsControllerProvider =
-    Provider<PredictiveAfSettingsController>((ref) {
-      final backend = ref.watch(backendProvider);
-      return PredictiveAfSettingsController(ref, backend);
-    });
-
-/// See [PredictiveAfStatus].
-final lastPredictiveAfStatusProvider = StateProvider<PredictiveAfStatus?>(
-  (ref) => null,
-);

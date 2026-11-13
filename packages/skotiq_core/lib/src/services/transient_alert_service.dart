@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/alerts/transient_alert.dart';
 import 'logging_service.dart';
@@ -774,17 +773,3 @@ class TransientAlertService {
     );
   }
 }
-
-final transientAlertServiceProvider = Provider<TransientAlertService>((ref) {
-  final logger = ref.watch(loggingServiceProvider);
-  final service = TransientAlertService(
-    httpClient: http.Client(),
-    logger: logger,
-  );
-
-  ref.onDispose(() {
-    service.dispose();
-  });
-
-  return service;
-});

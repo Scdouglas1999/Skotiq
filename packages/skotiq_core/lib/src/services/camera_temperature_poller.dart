@@ -7,13 +7,13 @@ import '../models/imaging/imaging_models.dart' show CoolingStatus;
 import '../providers/equipment_provider.dart';
 import '../providers/imaging_provider.dart'
     show coolingStatusProvider, temperatureHistoryProvider;
-import 'logging_service.dart';
 import '../models/sequence/sequence_models.dart'
     show SequenceExecutionStateCapabilities;
 import '../providers/sequence/sequence_progress.dart'
     show sequenceExecutionStateProvider;
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Maximum absolute deviation, in degrees Celsius, between the live sensor
 /// temperature and the cooling target at which the cooler is considered to

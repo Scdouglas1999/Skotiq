@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../router/darkroom_route.dart' show DarkroomRouteScope;
@@ -11,6 +10,7 @@ import 'automation_settings_panel.dart';
 import 'night_end_history.dart';
 import 'running_build_panel.dart';
 import 'waiting_panel.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Width from which the automation settings sit beside the activity.
 const double _sideBySideWidth = 1080;

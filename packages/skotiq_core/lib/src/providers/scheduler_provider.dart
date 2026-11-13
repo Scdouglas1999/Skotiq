@@ -15,7 +15,6 @@ import '../models/scheduler/scheduler_readiness.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
-import '../services/logging_service.dart' show loggingServiceProvider;
 import '../services/safe_rig_service.dart';
 import '../services/disk_space_guard.dart' show kSafetyMarginBytes;
 import '../services/scheduler/horizon_profile.dart';
@@ -23,8 +22,6 @@ import '../services/scheduler/horizon_profile_store.dart';
 import '../services/scheduler/integration_goal_service.dart';
 import '../services/scheduler/scheduler_engine.dart';
 import '../services/scheduler/scheduler_log.dart' show schedulerLogSinkFor;
-import '../services/scheduler/scheduler_queue_service.dart'
-    show schedulerQueueServiceProvider;
 import '../services/scheduler/target_constraint_service.dart';
 import '../services/smart_night_models.dart' show smartNightPlanningFilters;
 import '../backend/remote_host.dart';
@@ -53,9 +50,14 @@ import 'settings_provider.dart';
 // classes, so a plain import surfaces them here).
 import 'package:skotiq_bridge/skotiq_bridge.dart';
 import '../services/end_of_night_calibration/eon_trigger.dart'
-    show EonEndReason, endOfNightCalibrationCoordinatorProvider;
+    show EonEndReason;
 import '../settings/app_settings_state.g.dart';
 import '../settings/store_settings.dart';
+import 'end_of_night_calibration/eon_trigger_provider.dart';
+import 'logging_service_provider.dart';
+import 'scheduler/integration_goal_service_provider.dart';
+import 'scheduler/scheduler_queue_service_provider.dart';
+import 'scheduler/target_constraint_service_provider.dart';
 
 part 'scheduler/scheduler_engine_providers.dart';
 part 'scheduler/scheduler_candidate_loader.dart';

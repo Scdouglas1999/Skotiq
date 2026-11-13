@@ -13,6 +13,7 @@ import 'headless/headless_shutdown.dart';
 import 'host/host_startup.dart';
 import 'host/host_steps.dart';
 import 'startup_timeline.dart';
+import 'package:skotiq_core/providers.dart';
 
 const _headlessLogSource = 'HeadlessMain';
 

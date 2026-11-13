@@ -25,6 +25,7 @@ import '../providers/database_provider.dart';
 import '../providers/sequence_provider.dart';
 import 'logging_service.dart';
 import '../utils/skotiq_data_directory.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Snapshot of one device's contribution to the diagnostic-dump device list.
 ///

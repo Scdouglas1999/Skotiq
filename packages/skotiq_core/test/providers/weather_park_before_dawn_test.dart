@@ -10,8 +10,6 @@ import 'package:skotiq_core/src/models/weather/weather_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/weather_state_provider.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_editor.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_selection.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';

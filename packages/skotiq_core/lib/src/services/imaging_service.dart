@@ -9,7 +9,6 @@ import 'package:drift/drift.dart' as drift;
 import 'package:path/path.dart' as path;
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart';
-import '../models/imaging/frame_files.dart';
 import '../providers/clock_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/capability_provider.dart' show cameraSensitivityProvider;
@@ -37,15 +36,17 @@ import '../database/daos/images_dao.dart' show ImagesDao;
 import '../providers/thumbnail_sidecar_provider.dart';
 import '../utils/host_paths.dart';
 import '../utils/utc_timestamp.dart';
-import 'calibration_service.dart';
 import 'frame_identity.dart';
-import 'notification_service.dart';
 import 'logging_service.dart';
-import 'science/science_processing_service.dart';
 import 'frame_quality_score.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
 import '../settings/app_settings_state.g.dart';
+import '../providers/calibration_service_providers.dart';
+import '../providers/capture_preview_loader_provider.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/notification_service_provider.dart';
+import '../providers/science/science_processing_service_provider.dart';
 part 'imaging_service/file_paths.dart';
 part 'imaging_service/persistence.dart';
 part 'imaging_service/quality_processing.dart';
@@ -635,51 +636,7 @@ class ImagingService {
   }
 }
 
-final imagingServiceProvider = Provider<ImagingService>((ref) {
-  // Capture is backend-owned. Rebuild the service when the active host
-  // changes so callers can use service identity as an authority boundary.
-  ref.watch(backendProvider);
-  final service = ImagingService(ref);
-  ref.onDispose(service.retire);
-  return service;
-});
-
 final currentImageProvider = StateProvider<CapturedImageData?>((ref) => null);
-
-/// Whether the currently displayed image has been auto-calibrated.
-///
-/// Derived from `currentImageProvider.filePath`: the calibration service
-/// writes calibrated frames with a `_cal.fits` suffix, and the imaging
-/// service swaps the file path on the captured image data once the
-/// calibration step succeeds (see `ImagingService.captureImage` —
-/// auto-calibration block). When calibration fails or isn't enabled the
-/// path stays at the original `.fits`, so the badge reflects only frames that
-/// were actually calibrated.
-final currentImageIsCalibratedProvider = Provider<bool>((ref) {
-  final image = ref.watch(currentImageProvider);
-  final path = image?.filePath;
-  if (path == null || path.isEmpty) {
-    return false;
-  }
-  // The calibration service names its output after the light with `_cal`
-  // before the light's own extension.
-  final lower = path.toLowerCase();
-  return FrameFiles.isArchive(lower) &&
-      lower.substring(0, lower.lastIndexOf('.')).endsWith('_cal');
-});
-
-/// Live preview histogram: uses host raw pixels when [CapturedImageData.hasRawReady],
-/// otherwise the JPEG preview histogram bundled with the capture.
-final previewDisplayHistogramProvider = Provider<List<int>?>((ref) {
-  final image = ref.watch(currentImageProvider);
-  if (image == null) {
-    return null;
-  }
-  if (image.hasRawReady && image.rawU16 != null) {
-    return histogram256FromRawU16(image.rawU16!);
-  }
-  return image.histogram;
-});
 
 /// Build 256-bin histogram from 16-bit mono raw (high byte per pixel).
 List<int> histogram256FromRawU16(Uint16List raw) {

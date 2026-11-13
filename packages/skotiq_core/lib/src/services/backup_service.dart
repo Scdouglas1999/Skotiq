@@ -1,14 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 import '../database/database.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/daos/equipment_profiles_dao.dart';
 import '../database/daos/targets_dao.dart';
-import '../providers/database_provider.dart';
-import '../providers/app_version_provider.dart';
 import '../models/sequence/sequence_models.dart';
 import 'logging_service.dart';
 import 'sequence_file_service.dart';
@@ -650,17 +647,3 @@ class BackupService {
     await dao.setSetting(backupDirectorySettingKey, trimmed);
   }
 }
-
-final backupServiceProvider = Provider<BackupService>((ref) {
-  final database = ref.watch(databaseProvider);
-  final sequenceRepo = ref.watch(sequenceRepositoryProvider);
-  final logger = ref.watch(loggingServiceProvider);
-  final appVersion = ref.watch(appVersionProvider).version;
-
-  return BackupService(
-    database: database,
-    sequenceRepository: sequenceRepo,
-    logger: logger,
-    appVersion: appVersion,
-  );
-});

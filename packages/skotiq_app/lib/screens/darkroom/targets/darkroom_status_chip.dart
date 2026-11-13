@@ -6,6 +6,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
 import 'darkroom_targets_model.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// One line on what a target needs, and the tone it is drawn in.
 (String, Color) darkroomTargetStatus(

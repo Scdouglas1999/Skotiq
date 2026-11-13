@@ -13,23 +13,23 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../database/daos/images_dao.dart';
 import '../../database/daos/integrated_masters_dao.dart';
 import '../../database/daos/recipes_dao.dart';
-import '../../providers/database_provider.dart';
+import '../database_provider.dart';
 import '../../database/daos/settings_dao.dart';
 import '../../database/daos/targets_dao.dart';
-import '../../providers/settings_provider.dart';
-import '../color_calibration_service.dart' show StarConeSearch;
+import '../settings_provider.dart';
+import '../../services/color_calibration_service.dart' show StarConeSearch;
 import '../darkroom_delivery/delivery_providers.dart';
-import '../logging_service.dart';
-import '../notification_service.dart';
-import '../science/photometric_catalog_service.dart';
-import 'darkroom_seam.dart';
-import 'dawn_autopilot_service.dart';
-import 'dawn_draft_builder.dart';
-import 'dawn_master_resolver.dart';
-import 'dawn_morning_notifier.dart';
-import 'dawn_photometry.dart';
+import '../../services/darkroom_autopilot/darkroom_seam.dart';
+import '../../services/darkroom_autopilot/dawn_autopilot_service.dart';
+import '../../services/darkroom_autopilot/dawn_draft_builder.dart';
+import '../../services/darkroom_autopilot/dawn_master_resolver.dart';
+import '../../services/darkroom_autopilot/dawn_morning_notifier.dart';
+import '../../services/darkroom_autopilot/dawn_photometry.dart';
 import '../darkroom_pass/pass_providers.dart' show passReporterProvider;
 import '../../settings/app_settings_state.g.dart';
+import '../logging_service_provider.dart';
+import '../notification_service_provider.dart';
+import '../science/photometric_catalog_service_provider.dart';
 
 /// No directory is configured to write the night's drafts and report into.
 ///

@@ -23,6 +23,7 @@ import 'package:skotiq_core/src/services/imaging_service.dart';
 
 import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 
 /// Lets the test swap the active backend the way a host switch does.
 class _SwappableBackendNotifier extends BackendNotifier {

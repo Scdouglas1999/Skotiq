@@ -4,6 +4,7 @@ import '../backend/skotiq_backend.dart';
 import '../providers/device_heartbeat_health_provider.dart';
 import 'logging_service.dart';
 import '../models/backend/backend_types.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Routes native heartbeat events to [deviceHeartbeatHealthProvider]
 /// and owns the per-device start/stop helpers DeviceService uses from

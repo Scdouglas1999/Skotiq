@@ -8,11 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
-import '../../services/logging_service.dart';
 import '../backend_provider.dart';
 import '../provider_reader.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
+import '../logging_service_provider.dart';
 
 const _logSource = 'ClientRuntimeMirror';
 

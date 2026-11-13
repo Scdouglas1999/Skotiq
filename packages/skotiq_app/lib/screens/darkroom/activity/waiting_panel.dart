@@ -7,6 +7,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'activity_panel.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Every build waiting at the framing check, current or held.
 List<DarkroomBuildJob> waitingBuilds(

@@ -4,7 +4,6 @@ import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_app/startup/location_sync_service.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 AlwaysOnService _entry(ProviderListenable<Object?> provider) =>
     alwaysOnServices.singleWhere((s) => identical(s.provider, provider));

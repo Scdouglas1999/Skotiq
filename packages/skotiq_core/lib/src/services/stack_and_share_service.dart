@@ -16,14 +16,16 @@ import '../database/daos/sessions_dao.dart';
 import '../database/daos/stacked_results_dao.dart';
 import '../providers/database_provider.dart';
 import '../providers/async_scope.dart';
-import '../providers/backend_provider.dart';
 import 'calibration_service.dart';
 import 'dark_library_service.dart';
 import 'live_stacking_service.dart';
 import 'logging_service.dart';
 import 'stack_light_selector.dart';
-import 'stack_share_export_service.dart';
 import '../backend/remote_host.dart';
+import '../providers/calibration_service_providers.dart';
+import '../providers/live_stacking_service_provider.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/stack_light_selector_provider.dart';
 part 'stack_and_share_service/stack_results.dart';
 part 'stack_and_share_service/rejection_reasons.dart';
 part 'stack_and_share_service/stack_frame_io.dart';
@@ -571,19 +573,3 @@ class StackAndShareService {
     }
   }
 }
-
-/// Provider for the [StackAndShareService].
-///
-/// Reads the selector, calibration, dark-library, DAO, and live-stacking
-/// providers lazily inside the service so it follows the same Drift instance
-/// and backend as the rest of the app, and so test overrides flow through.
-final stackAndShareServiceProvider = Provider<StackAndShareService>((ref) {
-  ref.watch(backendProvider);
-  final exportService = ref.watch(stackShareExportServiceProvider);
-  return StackAndShareService(
-    ref,
-    persistPreview: ({required result, required rgba}) {
-      return exportService.persistViewerPreview(result: result, rgba: rgba);
-    },
-  );
-});

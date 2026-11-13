@@ -9,7 +9,6 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 // CatalogSearchResult: the Add Target sheet searches the installed sky
 // catalogs, not only the target library. catalogStateProvider: and when no
 // catalog has been downloaded there is nothing on this machine to search, so

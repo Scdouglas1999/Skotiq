@@ -19,6 +19,7 @@ import '../sensor_specs/published_figure.dart';
 import '../smart_night/hardware_specs_service.dart';
 import '../../backend/remote_host.dart';
 import '../../models/backend/backend_types.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// Keeps the `science.camera.*` settings (read noise, gain in e⁻/ADU,
 /// saturation ADU) in sync with the hardware that is actually in use, so
@@ -277,29 +278,6 @@ class ScienceCameraAutoConfig {
     );
   }
 }
-
-/// Watch this provider once at app startup (see `app.dart`) to activate the
-/// sync. Listens only to the camera fields that matter — connection state,
-/// identity, and gain — so per-exposure state churn does not re-trigger it.
-final scienceCameraAutoConfigProvider = Provider<ScienceCameraAutoConfig>((
-  ref,
-) {
-  final backend = ref.watch(backendProvider);
-  final service = ScienceCameraAutoConfig(ref, backend);
-  ref.onDispose(service.retire);
-  ref.listen<(DeviceConnectionState, String?, String?, int?)>(
-    cameraStateProvider.select(
-      (s) => (s.connectionState, s.deviceName, s.deviceId, s.gain),
-    ),
-    (_, __) => service.maybeSync(reason: 'camera state changed'),
-  );
-  ref.listen(activeEquipmentProfileProvider, (_, __) {
-    service.maybeSync(reason: 'active profile changed');
-  });
-  // Initial pass once the provider graph is up.
-  Future.microtask(() => service.maybeSync(reason: 'startup'));
-  return service;
-});
 
 /// e⁻/ADU measured from pairs of flat frames (photon transfer) for one camera
 /// at one driver gain.

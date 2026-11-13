@@ -7,12 +7,12 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../../database/daos/settings_dao.dart';
 import '../../settings/app_settings_state.g.dart' show AppSettingDefs;
-import '../../providers/backend_provider.dart';
-import '../../providers/database_provider.dart';
+import '../backend_provider.dart';
+import '../database_provider.dart';
 import '../../utils/skotiq_data_directory.dart';
-import 'pass_log.dart';
-import 'pass_recorder.dart';
-import 'pass_timeline.dart';
+import '../../services/darkroom_pass/pass_log.dart';
+import '../../services/darkroom_pass/pass_recorder.dart';
+import '../../services/darkroom_pass/pass_timeline.dart';
 
 /// The one recorder of Darkroom passes, listening for as long as the app runs.
 ///

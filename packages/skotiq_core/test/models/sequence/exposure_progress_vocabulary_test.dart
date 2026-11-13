@@ -4,7 +4,7 @@
 // cannot be added on one side alone.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/providers/sequence/exposure_progress_vocabulary.dart';
+import 'package:skotiq_core/src/models/sequence/exposure_progress_vocabulary.dart';
 
 void main() {
   test('the started wording round-trips as a frame in flight', () {

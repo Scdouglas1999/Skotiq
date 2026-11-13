@@ -16,6 +16,7 @@ import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/flat_library_service.dart';
 
 import 'post_session_integration_service_test.dart' show FakePostSessionSeam;
+import 'package:skotiq_core/src/providers/calibration_backlog_service_provider.dart';
 
 /// A FITS primary header holding [cards], padded to one 2880-byte block.
 List<int> fitsHeader(Map<String, Object> cards) {

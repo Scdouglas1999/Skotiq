@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/database.dart' as db;
 import '../database/daos/sequence_runs_dao.dart';
@@ -9,10 +8,6 @@ import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/sequences_dao.dart';
 import 'sequence_rollup.dart' show sequenceRollupSecs;
 import '../models/sequence/sequence_models.dart';
-import '../providers/backend_provider.dart';
-import '../providers/database_provider.dart';
-import '../providers/sequence_stats_provider.dart'
-    show sequenceRunsDaoProvider, sequenceVersionsDaoProvider;
 import '../utils/json_validation.dart';
 import 'sequence_file_service.dart';
 import 'sequence_summary.dart';
@@ -788,23 +783,6 @@ class SequenceRepository {
         );
   }
 }
-
-final sequenceRepositoryProvider = Provider<SequenceRepository>((ref) {
-  final backend = ref.watch(backendProvider);
-  final host = backend.remoteHost?.sequences;
-  if (host != null) {
-    return SequenceRepository.remote(
-      host,
-      ref.watch(sequenceFileServiceProvider),
-    );
-  }
-  return SequenceRepository(
-    ref.watch(sequencesDaoProvider),
-    runsDao: ref.watch(sequenceRunsDaoProvider),
-    versionsDao: ref.watch(sequenceVersionsDaoProvider),
-    fileService: ref.watch(sequenceFileServiceProvider),
-  );
-});
 
 /// The saved plan's length for the library card: the Builder's own estimate,
 /// so the card and the Builder show the same figure for the same plan.

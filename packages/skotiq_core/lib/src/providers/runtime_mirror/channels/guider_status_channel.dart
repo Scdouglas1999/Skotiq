@@ -6,13 +6,13 @@ import '../../../backend/remote_host.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/phd2_models.dart';
-import '../../../services/logging_service.dart';
 import '../../backend_provider.dart';
 import '../../equipment/guider_state_provider.dart';
 import '../../guiding_provider.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
 import '../../../models/backend/backend_types.dart';
+import '../../logging_service_provider.dart';
 
 /// Guiding events after which the guider's own status says something new.
 /// Guide steps and star statistics are not among them: a client receives

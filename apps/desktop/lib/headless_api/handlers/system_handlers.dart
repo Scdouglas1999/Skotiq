@@ -32,8 +32,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show SkotiqHostMode;
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 

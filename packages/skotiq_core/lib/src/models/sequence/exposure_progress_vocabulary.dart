@@ -18,7 +18,7 @@
 ///
 /// Producers call the formatters here, the card calls
 /// [parseExposureProgressDetail], and
-/// `test/providers/sequence/exposure_progress_vocabulary_test.dart` asserts
+/// `test/models/sequence/exposure_progress_vocabulary_test.dart` asserts
 /// that everything a formatter can emit is something the parser understands. A
 /// third wording cannot be introduced silently.
 library;

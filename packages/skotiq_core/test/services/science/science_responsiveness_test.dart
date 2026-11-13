@@ -11,6 +11,8 @@ import 'package:skotiq_core/src/models/science/science_models.dart';
 import 'package:skotiq_core/src/services/science/photometric_catalog_service.dart';
 import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
 import '../../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/providers/science/default_science_backend_provider.dart';
+import 'package:skotiq_core/src/providers/science/photometric_catalog_service_provider.dart';
 
 class _Native extends Mock implements RustLibApi {}
 

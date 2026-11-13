@@ -19,7 +19,6 @@ import '../services/adaptive_swap_service.dart';
 import '../services/safe_rig_service.dart';
 import '../services/safety_config_service.dart';
 import '../services/weather/weather_threshold_evaluator.dart';
-import '../services/logging_service.dart';
 import '../database/database.dart' as db;
 import 'session_provider.dart';
 import 'database_provider.dart';
@@ -33,9 +32,10 @@ import 'ui_notification_provider.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'sequence_provider.dart';
-import '../services/end_of_night_calibration/eon_providers.dart'
+import 'end_of_night_calibration/eon_providers.dart'
     show calibrationOnlyRunActiveProvider;
 import '../settings/app_settings_state.g.dart';
+import 'logging_service_provider.dart';
 
 part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';

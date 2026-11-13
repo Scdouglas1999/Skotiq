@@ -1,8 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/daos/settings_dao.dart';
-import '../providers/database_provider.dart';
 
 /// Choices frozen into each build, independent of later preference changes.
 class DarkroomProcessingOptions {
@@ -72,8 +70,3 @@ class DarkroomProcessingOptions {
         : DarkroomProcessingOptions.fromJson(jsonDecode(raw) as Map);
   }
 }
-
-final darkroomProcessingOptionsProvider =
-    FutureProvider<DarkroomProcessingOptions>(
-      (ref) => DarkroomProcessingOptions.load(ref.watch(settingsDaoProvider)),
-    );

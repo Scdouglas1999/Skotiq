@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 /// Injectable seam over the `api_difference_image` FFI surface (Pillar B —
@@ -80,9 +79,3 @@ class DifferenceImageSeamException implements Exception {
   @override
   String toString() => 'DifferenceImageSeamException: $message';
 }
-
-/// Production seam provider. Override in tests with a fake that records the
-/// dispatched maps and returns canned candidate envelopes.
-final differenceImageSeamProvider = Provider<DifferenceImageSeam>((ref) {
-  return const BridgeDifferenceImageSeam();
-});

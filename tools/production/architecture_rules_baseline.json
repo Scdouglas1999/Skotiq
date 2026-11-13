@@ -74,324 +74,212 @@
   "coreLayers": {
     "allowed": {
       "services/annotation_service.dart": {
-        "count": 4,
-        "reason": "Declares Riverpod providers; reads backendProvider, lastImageStatsProvider."
+        "count": 6,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentImageProvider, lastImageStatsProvider, loggingServiceProvider."
       },
       "services/auto_save_service.dart": {
-        "count": 6,
-        "reason": "Declares Riverpod providers; reads backendProvider, constellationServiceProvider, currentSequenceProvider, replayDebugRetentionDaysProvider, replayDebugServiceProvider, settingsDaoProvider, skyAtlasServiceProvider."
-      },
-      "services/backup_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads appVersionProvider, databaseProvider."
+        "count": 9,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, backupServiceProvider, constellationServiceProvider, currentSequenceProvider, replayDebugRetentionDaysProvider, replayDebugServiceProvider, sequenceRepositoryProvider, settingsDaoProvider, skyAtlasServiceProvider, syncServiceProvider."
       },
       "services/calibration_backlog_service.dart": {
-        "count": 3,
-        "reason": "Declares Riverpod providers; reads backendProvider, darkLibraryServiceProvider, databaseProvider, settingsDaoProvider."
+        "count": 5,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationLibraryProvider, calibrationMasterBuildProvider, darkLibraryServiceProvider, databaseProvider, flatLibraryServiceProvider, settingsDaoProvider."
       },
       "services/calibration_library_service.dart": {
-        "count": 3,
-        "reason": "Declares Riverpod providers; reads backendProvider, calibrationTagsDaoProvider, databaseProvider, flatLibraryDaoProvider, settingsDaoProvider; scopes host work with AsyncScope (Riverpod)."
+        "count": 1,
+        "reason": "Holds a Riverpod Ref; scopes host work with AsyncScope (Riverpod)."
       },
       "services/calibration_service.dart": {
         "count": 4,
-        "reason": "Declares Riverpod providers; reads allSettingsProvider, backendProvider, darkLibraryMatchTolerancesProvider, darkLibraryServiceProvider, settingsDaoProvider; scopes host work with AsyncScope (Riverpod)."
+        "reason": "Holds a Riverpod Ref; reads allSettingsProvider, darkLibraryMatchTolerancesProvider, darkLibraryServiceProvider, loggingServiceProvider, settingsDaoProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/camera_temperature_poller.dart": {
-        "count": 3,
-        "reason": "Holds a Riverpod Ref; reads cameraStateProvider, coolingStatusProvider, deviceReadHealthProvider, sequenceExecutionStateProvider, temperatureHistoryProvider."
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads cameraStateProvider, coolingStatusProvider, deviceReadHealthProvider, loggingServiceProvider, sequenceExecutionStateProvider, temperatureHistoryProvider."
       },
       "services/camera_warmup_controller.dart": {
-        "count": 4,
-        "reason": "Holds a Riverpod Ref; reads cameraCapabilitiesProvider, cameraStateProvider, coolingSettingsProvider, sequenceExecutionStateProvider."
+        "count": 5,
+        "reason": "Holds a Riverpod Ref; reads cameraCapabilitiesProvider, cameraStateProvider, coolingSettingsProvider, loggingServiceProvider, sequenceExecutionStateProvider."
       },
       "services/capture_preview_loader.dart": {
         "count": 2,
-        "reason": "Declares Riverpod providers; reads backendProvider, lastImageStatsProvider."
+        "reason": "Holds a Riverpod Ref; reads backendProvider, currentImageProvider, lastImageStatsProvider."
       },
       "services/centering_service.dart": {
-        "count": 4,
-        "reason": "Declares Riverpod providers; reads coImagingSessionServiceProvider, deviceBackendProvider, exposureSettingsProvider."
+        "count": 9,
+        "reason": "Holds a Riverpod Ref; reads coImagingSessionServiceProvider, deviceBackendProvider, exposureSettingsProvider."
       },
       "services/darkroom_build_jobs.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads databaseProvider."
-      },
-      "services/darkroom_build_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads darkLibraryServiceProvider, flatLibraryDaoProvider, integratedMastersDaoProvider, settingsDaoProvider."
-      },
-      "services/darkroom_processing_options.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads settingsDaoProvider."
-      },
-      "services/darkroom_state_store.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads databaseProvider."
-      },
-      "services/dawn_autopilot_providers.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads appSettingsProvider, darkroomJobsDaoProvider, databaseProvider, recipesDaoProvider; also uses AppSettingDefs re-exported there."
+        "count": 5,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads darkroomBuildServiceProvider, darkroomStateStoreProvider, databaseProvider, notificationServiceProvider, postSessionSeamProvider."
       },
       "services/default_science_backend.dart": {
-        "count": 3,
-        "reason": "Declares Riverpod providers; reads appSettingsProvider, imagesDaoProvider, imagingBackendProvider, settingsDaoProvider."
+        "count": 6,
+        "reason": "Holds a Riverpod Ref; reads appSettingsProvider, imagesDaoProvider, imagingBackendProvider, loggingServiceProvider, plateSolveServiceProvider, settingsDaoProvider."
       },
       "services/defect_map_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads backendProvider."
       },
-      "services/delivery_providers.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads deliveryJournalDaoProvider, deliveryTargetsDaoProvider, secretsStoreProvider."
-      },
       "services/device_commands.dart": {
-        "count": 3,
-        "reason": "Declares Riverpod providers; reads deviceBackendProvider, switchStateProvider; reads device slots through readDeviceSlot."
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads deviceBackendProvider, deviceServiceProvider, switchStateProvider."
       },
       "services/device_heartbeat_router.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads deviceHeartbeatHealthProvider; drives DeviceHeartbeatHealthNotifier."
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads deviceHeartbeatHealthProvider, loggingServiceProvider."
       },
       "services/device_reconnect_coordinator.dart": {
-        "count": 4,
-        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, mountStateProvider, sequenceExecutionStateProvider, uiNotificationProvider; reads device slots through readDeviceSlot."
+        "count": 6,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, loggingServiceProvider, mountStateProvider, notificationServiceProvider, sequenceExecutionStateProvider, uiNotificationProvider."
       },
       "services/device_service.dart": {
-        "count": 18,
-        "reason": "Declares Riverpod providers; reads activeEquipmentProfileProvider, appVersionProvider, backendProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, settingsDaoProvider."
+        "count": 23,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, settingsDaoProvider."
       },
       "services/diagnostic_dump_service.dart": {
-        "count": 13,
-        "reason": "Declares Riverpod providers; reads appVersionProvider, cameraStateProvider, coverCalibratorStateProvider, currentSequenceProvider, domeStateProvider, equipmentProfilesDaoProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, mountStateProvider, rotatorStateProvider, safetyMonitorStateProvider, weatherStateProvider."
+        "count": 14,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appVersionProvider, cameraStateProvider, coverCalibratorStateProvider, currentSequenceProvider, domeStateProvider, equipmentProfilesDaoProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider, safetyMonitorStateProvider, tempDirProvider, weatherStateProvider."
       },
       "services/eon_deferral.dart": {
         "count": 2,
-        "reason": "Declares Riverpod providers; reads backendProvider, settingsDaoProvider."
-      },
-      "services/eon_providers.dart": {
-        "count": 12,
-        "reason": "Declares Riverpod providers; reads backendProvider, cameraStateProvider, currentSequenceProvider, darkLibraryServiceProvider, databaseProvider, filterWheelStateProvider, guiderStateProvider, imagesDaoProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceTerminalRunResultProvider, settingsDaoProvider, uiNotificationProvider."
+        "reason": "Holds a Riverpod Ref; reads backendProvider, settingsDaoProvider."
       },
       "services/eon_trigger.dart": {
-        "count": 8,
-        "reason": "Declares Riverpod providers; reads appSettingsProvider, backendProvider, currentSequenceProvider, imagesDaoProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceStopEvidenceProvider, sequenceTerminalRunResultProvider, settingsDaoProvider."
+        "count": 11,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, backendProvider, currentSequenceProvider, endOfNightCalibrationProvider, imagesDaoProvider, loggingServiceProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceStopEvidenceProvider, sequenceTerminalRunResultProvider, settingsDaoProvider, shutdownWarmUpDeferredProvider."
       },
       "services/error_service.dart": {
         "count": 1,
-        "reason": "Declares Riverpod providers; reads uiNotificationProvider; drives UiNotificationNotifier."
+        "reason": "Holds a Riverpod Ref."
       },
       "services/first_light_orchestrator.dart": {
-        "count": 3,
-        "reason": "Declares Riverpod providers; reads cameraStateProvider, exposureSettingsProvider, lastImageStatsProvider, stretchedImageProvider."
-      },
-      "services/flat_library_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads flatLibraryDaoProvider."
+        "count": 7,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads annotationServiceProvider, cameraStateProvider, currentAnnotationProvider, currentImageProvider, exposureSettingsProvider, imagingServiceProvider, lastImageStatsProvider, loggingServiceProvider, plateSolveServiceProvider, stretchedImageProvider."
       },
       "services/flat_wizard_service.dart": {
-        "count": 3,
-        "reason": "Declares Riverpod providers; reads appSettingsProvider, backendProvider, flatWizardProvider."
+        "count": 1,
+        "reason": "Holds a Riverpod Ref."
       },
       "services/frame_auto_grader.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads imagesDaoProvider, scienceDaoProvider, scienceSettingsProvider."
+        "count": 3,
+        "reason": "Holds a Riverpod Ref; reads imagesDaoProvider, imagingRecordsRepositoryProvider, loggingServiceProvider, scienceDaoProvider, scienceSettingsProvider."
       },
       "services/frame_identity.dart": {
-        "count": 3,
-        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, mountStateProvider, rotatorStateProvider; also uses AppSettingsState re-exported there."
-      },
-      "services/guided_build_delivery.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads darkroomJobsDaoProvider."
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider."
       },
       "services/home_assistant_discovery_service.dart": {
         "count": 8,
         "reason": "Holds a Riverpod Ref; reads appSettingsProvider, cameraStateProvider, domeStateProvider, equipmentProfilesProvider, guideStatsProvider, liveSequenceStatsProvider, phd2StateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceProgressProvider, sessionImagesProvider, weatherSafetyProvider, weatherStateProvider."
       },
       "services/imaging_records_repository.dart": {
-        "count": 7,
-        "reason": "Declares Riverpod providers; reads backendProvider, coImagingSessionServiceProvider, imagesDaoProvider, narratorServiceProvider, notificationRouterProvider, sessionsDaoProvider, skyAtlasServiceProvider; also uses fetchAllRemoteSequenceRuns re-exported there."
+        "count": 8,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, coImagingSessionServiceProvider, imagesDaoProvider, loggingServiceProvider, narratorServiceProvider, notificationRouterProvider, sessionsDaoProvider, skyAtlasServiceProvider."
       },
       "services/imaging_service.dart": {
-        "count": 12,
-        "reason": "Declares Riverpod providers; reads backendProvider and cameraSensitivityProvider (what a manual frame's gain is); drives CameraStateNotifier; scopes host work with AsyncScope (Riverpod)."
+        "count": 17,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads cameraSensitivityProvider, loggingServiceProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/in_app_transport.dart": {
         "count": 1,
-        "reason": "Drives UiNotificationNotifier."
-      },
-      "services/integration_goal_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads backendProvider, databaseProvider."
-      },
-      "services/live_stack_master_library.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads integratedMastersDaoProvider."
+        "reason": "Holds a Riverpod Ref."
       },
       "services/live_stacking_broadcast_service.dart": {
         "count": 1,
-        "reason": "Declares Riverpod providers; reads sequencerDefaultsProvider."
+        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider."
       },
       "services/live_stacking_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads backendProvider."
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads backendProvider, loggingServiceProvider."
       },
       "services/master_accumulation_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads darkLibraryMatchTolerancesProvider, darkLibraryServiceProvider, integratedMastersDaoProvider."
-      },
-      "services/mosaic_project_service.dart": {
         "count": 1,
-        "reason": "Declares Riverpod providers; reads databaseProvider, imagesDaoProvider, integratedMastersDaoProvider, mosaicPanelsDaoProvider, mosaicProjectsDaoProvider, targetsDaoProvider."
+        "reason": "Holds a Riverpod Ref."
       },
       "services/narrator_service.dart": {
-        "count": 13,
-        "reason": "Holds a Riverpod Ref; reads activePhotometryTargetObjectIdProvider, autofocusOverlayProvider, backendProvider, cloudCoverPercentageProvider, focuserStateProvider, guideStatsProvider, guiderStateProvider, guidingStopReasonProvider, lastImageStatsProvider, narratorEventsDaoProvider, opticalTrainDiagnosticsProvider, periodAnalysisProvider, phd2StateProvider, scienceProcessingLatestStageProvider, scienceProcessingStatusTrackerProvider, sessionFilterIntegrationProvider, sessionFrameCalibrationsProvider, sessionFrameQualityMetricsProvider, sessionImagesStreamProvider, sessionLightCurveProvider, sessionMovingObjectTrendProvider, sessionTransparencyTrendProvider, weatherSafetyProvider, weatherStateProvider."
-      },
-      "services/night_analysis_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads imagesDaoProvider, nightReportsDaoProvider, scienceDaoProvider."
+        "count": 14,
+        "reason": "Holds a Riverpod Ref; reads activePhotometryTargetObjectIdProvider, autofocusOverlayProvider, backendProvider, cloudCoverPercentageProvider, focuserStateProvider, guideStatsProvider, guiderStateProvider, guidingStopReasonProvider, lastImageStatsProvider, loggingServiceProvider, narratorEventsDaoProvider, opticalTrainDiagnosticsProvider, periodAnalysisProvider, phd2StateProvider, scienceProcessingLatestStageProvider, scienceProcessingStatusTrackerProvider, sessionFilterIntegrationProvider, sessionFrameCalibrationsProvider, sessionFrameQualityMetricsProvider, sessionImagesStreamProvider, sessionLightCurveProvider, sessionMovingObjectTrendProvider, sessionTransparencyTrendProvider, weatherSafetyProvider, weatherStateProvider."
       },
       "services/night_end_coordinator.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads backendProvider, sequenceTerminalRunResultProvider."
+        "count": 6,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, endOfNightCalibrationCoordinatorProvider, endOfNightCalibrationProvider, loggingServiceProvider, nightEndRunnerProvider, nightIntegrationRequestProvider, sequenceTerminalRunResultProvider."
       },
       "services/night_end_runner.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads databaseProvider, imagesDaoProvider, settingsDaoProvider."
+        "count": 8,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationBacklogProvider, darkroomBuildJobsProvider, darkroomBuildServiceProvider, darkroomRecentBuildsProvider, darkroomStateStoreProvider, databaseProvider, guidedBuildDeliveryProvider, imagesDaoProvider, loggingServiceProvider, notificationServiceProvider, settingsDaoProvider."
       },
       "services/night_end_settings.dart": {
         "count": 1,
-        "reason": "Declares Riverpod providers; reads settingsDaoProvider."
-      },
-      "services/notification_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads appSettingsProvider, notificationRouterProvider; also uses AppSettingsState re-exported there."
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads settingsDaoProvider."
       },
       "services/open_plan_service.dart": {
-        "count": 3,
-        "reason": "Declares Riverpod providers; reads activePlanOwnerProvider, backendProvider, currentSequenceProvider, settingsDaoProvider."
-      },
-      "services/pass_providers.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads backendProvider, databaseProvider."
+        "count": 5,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentSequenceProvider, sequenceFileServiceProvider, sequenceRepositoryProvider, settingsDaoProvider."
       },
       "services/phd2_launcher.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads uiNotificationProvider."
       },
       "services/photometric_catalog_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads settingsDaoProvider."
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider, settingsDaoProvider."
       },
       "services/photometric_transform_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads scienceDaoProvider."
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider, scienceDaoProvider."
       },
       "services/plate_solve_service.dart": {
         "count": 4,
-        "reason": "Declares Riverpod providers; reads appSettingsProvider, backendProvider, opticalConfigProvider; scopes host work with AsyncScope (Riverpod)."
-      },
-      "services/post_session_integration_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads integratedMastersDaoProvider."
-      },
-      "services/post_session_seam.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads backendProvider."
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, loggingServiceProvider, opticalConfigProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/predictive_af_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads databaseProvider, settingsDaoProvider."
+        "count": 1,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads databaseProvider, settingsDaoProvider."
       },
       "services/profile_service.dart": {
-        "count": 6,
-        "reason": "Declares Riverpod providers; reads autoConnectSettingsProvider, backendProvider, equipmentProfilesDaoProvider, equipmentProfilesProvider, filterWheelStateProvider; drives EquipmentProfilesNotifier."
-      },
-      "services/project_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads backendProvider, databaseProvider."
+        "count": 8,
+        "reason": "Holds a Riverpod Ref; reads autoConnectSettingsProvider, backendProvider, equipmentProfilesDaoProvider, equipmentProfilesProvider, filterWheelStateProvider."
       },
       "services/quick_start_service.dart": {
         "count": 4,
-        "reason": "Declares Riverpod providers; reads sequenceCheckpointsDaoProvider."
+        "reason": "Holds a Riverpod Ref; reads sequenceCheckpointsDaoProvider."
       },
       "services/safe_rig_service.dart": {
         "count": 10,
-        "reason": "Declares Riverpod providers; reads backendProvider, cameraStateProvider, coverCalibratorStateProvider, domeStateProvider, equipmentDomeCapabilitiesProvider, mountStateProvider, secondaryRigControllerProvider, sequenceExecutionStateProvider, uiNotificationProvider; scopes host work with AsyncScope (Riverpod)."
-      },
-      "services/scheduler_queue_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads backendProvider, databaseProvider."
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, cameraStateProvider, coverCalibratorStateProvider, domeStateProvider, equipmentDomeCapabilitiesProvider, mountStateProvider, secondaryRigControllerProvider, sequenceExecutionStateProvider, uiNotificationProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/science_camera_auto_config.dart": {
-        "count": 5,
-        "reason": "Declares Riverpod providers; reads activeEquipmentProfileProvider, backendProvider, cameraCapabilitiesProvider, cameraStateProvider, settingsDaoProvider."
+        "count": 6,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, backendProvider, cameraCapabilitiesProvider, cameraStateProvider, loggingServiceProvider, settingsDaoProvider."
       },
       "services/science_processing_service.dart": {
-        "count": 6,
-        "reason": "Declares Riverpod providers; reads scienceDaoProvider, scienceProcessingStatusTrackerProvider."
-      },
-      "services/science_report_exporter.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads appVersionLabelProvider, imagesDaoProvider, scienceDaoProvider, sessionsDaoProvider, targetsDaoProvider."
-      },
-      "services/science_reprocess_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads imagesDaoProvider, scienceDaoProvider."
-      },
-      "services/sequence_file_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads appSettingsProvider, currentSequenceProvider."
-      },
-      "services/sequence_repository.dart": {
-        "count": 3,
-        "reason": "Declares Riverpod providers; reads backendProvider, sequenceRunsDaoProvider, sequenceVersionsDaoProvider, sequencesDaoProvider."
+        "count": 11,
+        "reason": "Holds a Riverpod Ref; reads imagingRecordsRepositoryProvider, loggingServiceProvider, scienceBackendProvider, scienceDaoProvider, scienceProcessingStatusTrackerProvider."
       },
       "services/smart_notification_service.dart": {
         "count": 2,
-        "reason": "Declares Riverpod providers; reads currentScreenProvider, uiNotificationProvider; drives UiNotificationNotifier."
-      },
-      "services/smart_project_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads databaseProvider."
-      },
-      "services/snippet_file_service.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads appSettingsProvider."
+        "reason": "Holds a Riverpod Ref; reads currentScreenProvider, uiNotificationProvider."
       },
       "services/stack_and_share_service.dart": {
-        "count": 6,
-        "reason": "Declares Riverpod providers; reads backendProvider, darkLibraryServiceProvider, imagesDaoProvider, sessionsDaoProvider, stackedResultsDaoProvider; scopes host work with AsyncScope (Riverpod)."
-      },
-      "services/stack_light_selector.dart": {
-        "count": 1,
-        "reason": "Declares Riverpod providers; reads imagesDaoProvider, sessionsDaoProvider, targetsDaoProvider."
+        "count": 9,
+        "reason": "Holds a Riverpod Ref; reads calibrationServiceProvider, darkLibraryServiceProvider, imagesDaoProvider, liveStackingServiceProvider, loggingServiceProvider, sessionsDaoProvider, stackLightSelectorProvider, stackedResultsDaoProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/stack_share_export_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads activeEquipmentProfileProvider, stackedResultsDaoProvider."
+        "count": 3,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, applicationSupportDirectoryProvider, loggingServiceProvider, stackedResultsDaoProvider."
       },
       "services/switch_channel_service.dart": {
-        "count": 2,
-        "reason": "Holds a Riverpod Ref; reads backendProvider, switchStateProvider; drives SwitchStateNotifier."
-      },
-      "services/sync_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads secretsStoreProvider, settingsDaoProvider."
-      },
-      "services/target_constraint_service.dart": {
-        "count": 2,
-        "reason": "Declares Riverpod providers; reads backendProvider, databaseProvider."
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads backendProvider, errorServiceProvider, loggingServiceProvider, switchStateProvider."
       },
       "services/target_library_service.dart": {
         "count": 3,
-        "reason": "Declares Riverpod providers; reads allDbTargetsProvider, backendProvider, favoriteDbTargetsProvider, targetsDaoProvider; scopes host work with AsyncScope (Riverpod)."
+        "reason": "Holds a Riverpod Ref; reads allDbTargetsProvider, favoriteDbTargetsProvider, loggingServiceProvider, targetsDaoProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/weather_radar_service.dart": {
         "count": 1,
-        "reason": "Holds a Riverpod Ref; reads databaseProvider."
+        "reason": "Holds a Riverpod Ref; reads databaseProvider, getCurrentProvider, preferredProvider, registerProvider, selectProvider."
       }
     }
   }

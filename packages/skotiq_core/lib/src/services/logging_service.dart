@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
@@ -839,10 +838,3 @@ class ClearLogsResult {
     if (errors.isNotEmpty) 'errors': errors,
   };
 }
-
-final loggingServiceProvider = Provider<LoggingService>((ref) {
-  final service = LoggingService();
-  unawaited(service.ensureInitialized());
-  ref.onDispose(() => unawaited(service.dispose()));
-  return service;
-});

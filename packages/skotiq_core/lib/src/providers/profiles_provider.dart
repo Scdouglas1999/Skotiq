@@ -20,8 +20,8 @@ import 'equipment_provider.dart';
 import 'host_mutation_event_provider.dart';
 import '../services/host_mutation_event_hub.dart' show HostMutationEventHub;
 import 'profile_activation_writethrough.dart';
-import '../services/logging_service.dart';
-import '../services/profile_service.dart';
+import 'logging_service_provider.dart';
+import 'profile_service_provider.dart';
 
 part 'profiles/equipment_profiles_notifier.dart';
 part 'profiles/profile_derived_providers.dart';

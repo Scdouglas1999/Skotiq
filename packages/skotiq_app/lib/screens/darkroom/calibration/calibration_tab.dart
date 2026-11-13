@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'calibration_library_panel.dart';
@@ -11,6 +10,7 @@ import 'calibration_settings_panel.dart';
 import 'calibration_waiting_panel.dart';
 import '../../../router/app_routes.dart';
 import '../../../utils/darkroom_navigation.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// The Darkroom's Calibration tab: one library of darks, bias and flats.
 ///

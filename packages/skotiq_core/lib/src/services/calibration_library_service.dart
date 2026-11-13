@@ -4,25 +4,19 @@ import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
 
-import '../backend/remote_host.dart';
 import '../backend/roles/host_data/calibration_library.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/calibration_tags_dao.dart';
-import '../providers/database_provider.dart';
 import '../database/daos/flat_library_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/shared_calibration_models.dart';
 import '../models/collaboration/collaboration_models.dart';
 import '../providers/async_scope.dart';
-import '../providers/backend_provider.dart';
-import 'constellation/hub_credentials.dart';
 import 'calibration/fits_header_reader.dart';
 import 'calibration/shared_calibration_library.dart';
-import '../utils/skotiq_data_directory.dart';
 part 'calibration_library_service/remote_acceptance.dart';
 part 'calibration_library_service/matchers.dart';
 part 'calibration_library_service/sharing.dart';
@@ -541,38 +535,3 @@ class CalibrationLibraryService implements CalibrationLibrary {
   static double _clampScore(double score) => score.clamp(0.0, 100.0);
 
 }
-
-/// The calibration library of whichever machine is the imaging host: this
-/// process's own ([calibrationLibraryServiceProvider]), or the linked host's.
-final calibrationLibraryProvider = Provider<CalibrationLibrary>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.calibrationLibrary ??
-      ref.watch(calibrationLibraryServiceProvider),
-);
-
-/// The calibration library in this process's database.
-final calibrationLibraryServiceProvider = Provider<CalibrationLibraryService>((
-  ref,
-) {
-  // One service per host: its work goes stale when the host changes.
-  ref.watch(backendProvider);
-  final settings = ref.watch(settingsDaoProvider);
-  final service = CalibrationLibraryService(
-    db: ref.watch(databaseProvider),
-    flatLibraryDao: ref.watch(flatLibraryDaoProvider),
-    tagsDao: ref.watch(calibrationTagsDaoProvider),
-    ref: ref,
-    // Fold ranked masters shared on the configured Constellation hub into
-    // the local ranking, and download-on-accept. Reuses the same settings-backed
-    // hub credentials Pillar C resolves; a no-hub config simply yields no remote
-    // candidates.
-    remoteLibrary: HubCalibrationLibrary(
-      credentialsResolver: () => resolveConstellationCredentials(settings),
-    ),
-    sharedMasterDirResolver: () async {
-      final dir = await resolveSkotiqDataDirectory();
-      return p.join(dir.path, 'shared_calibration');
-    },
-  );
-  return service;
-});

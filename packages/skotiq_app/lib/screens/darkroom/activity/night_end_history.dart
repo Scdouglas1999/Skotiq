@@ -9,6 +9,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/darkroom_navigation.dart'
     show DarkroomTab, darkroomPassLocation, darkroomTabLocation;
 import 'activity_panel.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// How many nights the history shows before "Show all".
 const int _nightsShown = 7;

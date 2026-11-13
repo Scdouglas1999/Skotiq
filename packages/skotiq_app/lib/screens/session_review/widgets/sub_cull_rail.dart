@@ -14,6 +14,7 @@ import '../../../utils/filter_label.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/image_decode_size.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
+import 'package:skotiq_core/models.dart';
 
 part 'sub_cull_rail_parts/_toolbar.dart';
 part 'sub_cull_rail_parts/_tiles.dart';
