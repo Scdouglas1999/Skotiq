@@ -1349,7 +1349,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     if scale != 1 && wcs_source.as_ref().is_some_and(|s| s.inherited) {
         skotiq_imaging::wcs_sip::rescale_header_wcs(
             &mut header,
-            skotiq_imaging::wcs_sip::GridScale::Finer(scale as u32),
+            skotiq_imaging::wcs_sip::GridScale::Finer(scale),
         );
     }
     let wcs_source = wcs_source.map(|s| s.description);

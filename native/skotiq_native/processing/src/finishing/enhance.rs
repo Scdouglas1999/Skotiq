@@ -314,7 +314,7 @@ fn build_psf_model(args: &PsfArgs) -> Result<PsfModel, String> {
     // Odd side, floored at 5 (mirrors estimate_psf's crop handling).
     let size = {
         let s = args.size.max(5);
-        if s % 2 == 0 {
+        if s.is_multiple_of(2) {
             s + 1
         } else {
             s

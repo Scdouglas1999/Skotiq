@@ -210,7 +210,7 @@ impl RunningPreview {
         let noise = binned_noise(&mean, bw, bh, PREVIEW_BIN);
         let due = self
             .last_write
-            .map_or(true, |t| t.elapsed() >= PREVIEW_INTERVAL);
+            .is_none_or(|t| t.elapsed() >= PREVIEW_INTERVAL);
         let mut path = None;
         if due || last {
             self.written += 1;

@@ -392,15 +392,17 @@ impl KnownFootprint {
             return Some(Err(reason.clone()));
         }
         let corners = self.corners?;
-        corners.iter().flatten().all(|v| v.is_finite()).then(|| {
-            Ok(Registered {
+        corners
+            .iter()
+            .flatten()
+            .all(|v| v.is_finite())
+            .then_some(Ok(Registered {
                 corners,
                 rotation_deg: self.rotation_deg,
                 shift_px: self.shift_px,
                 stars_matched: self.stars_matched,
                 rms_px: self.rms_px,
-            })
-        })
+            }))
     }
 }
 

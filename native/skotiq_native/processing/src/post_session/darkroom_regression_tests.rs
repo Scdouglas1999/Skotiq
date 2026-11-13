@@ -48,6 +48,7 @@ fn star_list(w: u32, h: u32, n: usize) -> Vec<(f64, f64, f64)> {
 
 /// `color_seed` != 0 gives every star its own color factor (0.25..4), so the
 /// brightness RANK of stars differs between filters, as in real L/R/G/B data.
+#[allow(clippy::too_many_arguments)]
 fn render(
     w: u32,
     h: u32,

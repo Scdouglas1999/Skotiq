@@ -83,6 +83,8 @@ impl FrameSpool {
     }
 
     /// Append consecutive bands; a frame becomes readable only when complete.
+    // `%` and `is_multiple_of` differ for a zero divisor.
+    #[allow(clippy::manual_is_multiple_of)]
     pub(crate) fn push_rows(&mut self, pixels: &[f32]) -> Result<(), String> {
         let expected = self.width * self.height * self.channels;
         if pixels.is_empty()

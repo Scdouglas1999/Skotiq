@@ -1653,6 +1653,7 @@ fn render_prefix(
 /// operation's own reason is recorded. The alternative would be a draft carrying
 /// a step that fails the first time the editor renders it. The loop terminates
 /// because every pass either returns or removes one step.
+#[allow(clippy::type_complexity)]
 fn measure_linear_prefix(
     master: &LoadedMaster,
     level: u32,
