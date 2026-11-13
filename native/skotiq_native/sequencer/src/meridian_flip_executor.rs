@@ -416,7 +416,7 @@ impl MeridianFlipExecutor {
         // If the target is below the minimum altitude, continuing with the flip
         // would slew to an object that's about to set, risking equipment damage
         // or wasted imaging time.
-        if let Some((lat, lon)) = self.run.device_ops.get_observer_location() {
+        if let (Some(lat), Some(lon)) = (self.run.rig.latitude, self.run.rig.longitude) {
             let altitude = meridian::calculate_altitude(
                 ctx.target_ra_hours,
                 ctx.target_dec_degrees,
@@ -1306,7 +1306,12 @@ impl MeridianFlipExecutor {
         pre_flip_pier_side: PierSide,
     ) -> Option<Result<PierSide, String>> {
         let freed =
-            crate::limit_backoff::back_off_limit(&*self.run.device_ops, &ctx.mount_id).await;
+            crate::limit_backoff::back_off_limit(
+                &*self.run.device_ops,
+                &ctx.mount_id,
+                self.run.rig.longitude,
+            )
+            .await;
         crate::limit_backoff::notify(&*self.run.device_ops, "flip slew", &freed).await;
         // A mount that could not be freed keeps the verification's own
         // failure; the notice says why.
@@ -2004,25 +2009,12 @@ impl MeridianFlipExecutor {
     /// Hour angle of the J2000 target `ra_hours`/`dec_degrees`, taken against
     /// its RA of date like every other hour angle in the crate.
     fn calculate_hour_angle(&self, ra_hours: f64, dec_degrees: f64) -> f64 {
-        // HA = LST - RA.6 deleted the duplicate jd/LST helpers
-        // here and routed through the meridian module so a future LST tweak
-        // (e.g. nutation correction) lands in one place.
         let now = chrono::Utc::now();
         let jd = julian_day(&now);
 
-        // Why: get_observer_location() returns None when no location
-        // has been configured in the user profile. The fallback (longitude=0, Greenwich)
-        // logs a WARN to the trace; meridian flips computed with longitude=0 will be off
-        // by up-to-12 hours of meridian time but the flip itself is a *post-meridian*
-        // pier-side recovery — the user-visible "flip needed" indicator is gated by the
-        // mount's pier-side property, not this LST calculation. The warning surfaces the
-        // missing-location config in the log so operators know to fix it.
-        let longitude_deg = self
-            .run
-            .device_ops
-            .get_observer_location()
-            .map(|(_lat, lon)| lon)
-            .unwrap_or_else(|| {
+        // Without a site the flip still keys off the mount's pier side; the
+        // hour angle is only logged, so Greenwich stands in and says so.
+        let longitude_deg = self.run.rig.longitude.unwrap_or_else(|| {
                 tracing::warn!(
                     "[MERIDIAN] Observer location unavailable, using longitude=0 for LST calculation"
                 );

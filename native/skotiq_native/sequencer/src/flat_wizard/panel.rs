@@ -284,7 +284,7 @@ pub(super) async fn position_for_flats(
             if let Some(mount_id) = &ctx.run.rig.mount_id {
                 progress.report(0.12, "Slewing to zenith".to_string());
 
-                let (lat, lon) = ctx.run.device_ops.get_observer_location().ok_or_else(|| {
+                let (lat, lon) = ctx.run.rig.latitude.zip(ctx.run.rig.longitude).ok_or_else(|| {
                     DeviceError::Failed(
                         "Observer location is required for flat-panel positioning".to_string(),
                     )
@@ -317,7 +317,7 @@ pub(super) async fn position_for_flats(
             tracing::info!("Positioning for {:?} sky flats", config.panel_location);
 
             if let Some(mount_id) = &ctx.run.rig.mount_id {
-                let (lat, lon) = ctx.run.device_ops.get_observer_location().ok_or_else(|| {
+                let (lat, lon) = ctx.run.rig.latitude.zip(ctx.run.rig.longitude).ok_or_else(|| {
                     DeviceError::Failed(
                         "Observer location is required for sky-flat positioning".to_string(),
                     )

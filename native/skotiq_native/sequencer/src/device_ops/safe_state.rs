@@ -66,7 +66,10 @@ pub async fn try_park_with_retry(
                 )
                 .await
                 {
-                    let freed = crate::limit_backoff::back_off_limit(device_ops, mount_id).await;
+                    let site_longitude = device_ops.get_observer_location().map(|(_, lon)| lon);
+                    let freed =
+                        crate::limit_backoff::back_off_limit(device_ops, mount_id, site_longitude)
+                            .await;
                     crate::limit_backoff::notify(device_ops, "park", &freed).await;
                     if freed.is_ok() {
                         if let Err(e) = device_ops.mount_park(mount_id).await {

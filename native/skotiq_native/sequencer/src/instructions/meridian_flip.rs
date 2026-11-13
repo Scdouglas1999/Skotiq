@@ -61,8 +61,8 @@ pub async fn execute_meridian_flip_with_autofocus(
     // — its altitude/cover/pier-side preflight assume the flip is required
     // and would otherwise emit confusing "Aborted" events for routine
     // pre-meridian sequence runs.
-    let (_lat, lon) = match ctx.run.device_ops.get_observer_location() {
-        Some((lat, lon)) => (lat, lon),
+    let lon = match ctx.run.rig.longitude {
+        Some(lon) => lon,
         None => {
             return InstructionResult::failure(
                 "Observer location not configured. Meridian flip requires location for calculations."

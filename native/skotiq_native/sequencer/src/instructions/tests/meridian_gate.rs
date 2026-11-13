@@ -697,3 +697,30 @@ async fn a_requested_flip_holds_a_snapshot_but_not_a_dark() {
         "a dark does not wait for the flip"
     );
 }
+
+/// A Meridian Flip step reads the site from the run's settings, as every other
+/// step does. It read the device layer's, a second store fed by another path,
+/// so with the run's site set and the device layer's not it refused to flip.
+#[tokio::test]
+async fn the_flip_step_reads_the_runs_site() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    assert!(ops.scripted_observer_location.is_none());
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("flip".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.latitude = Some(40.0);
+    ec.run.rig.longitude = Some(-75.0);
+    let mut ctx = ec.to_instruction_context("flip").await;
+    let lst = crate::meridian::local_sidereal_time(
+        crate::meridian::julian_day(&chrono::Utc::now()),
+        -75.0,
+    );
+    // Three hours east of the meridian: no flip is due yet.
+    ctx.target_ra = Some((lst + 3.0) % 24.0);
+    ctx.target_dec = Some(40.0);
+
+    let result = execute_meridian_flip(&crate::MeridianFlipConfig::default(), &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(result.message.as_deref(), Some("Meridian flip not yet required"));
+}

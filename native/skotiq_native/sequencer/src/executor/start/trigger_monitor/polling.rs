@@ -264,19 +264,6 @@ impl DevicePoller {
             Some(Ok(None)) | None => {}
         }
 
-        // Mobile rigs configure the site after the mount connects.
-        if state.settings.observer_latitude.is_none() {
-            if let Some((lat, lon)) = self.device_ops.get_observer_location() {
-                state.settings.observer_latitude = Some(lat);
-                state.settings.observer_longitude = Some(lon);
-                tracing::debug!(
-                    "Observer location set for dawn/altitude triggers: {}, {}",
-                    lat,
-                    lon
-                );
-            }
-        }
-
         // Keep an upcoming dawn cached whenever a site is known, so a
         // multi-night run keeps its dawn protection.
         if let (Some(lat), Some(lon)) = (

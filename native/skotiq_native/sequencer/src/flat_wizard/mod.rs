@@ -699,6 +699,9 @@ mod tests {
         assert!(median > 23000 && median < 27000);
     }
 
+    /// Dusk flats point away from the sunset, dawn flats away from the
+    /// sunrise: the pointing the wizard took before its azimuths were read
+    /// through the one horizontal-to-equatorial conversion.
     #[test]
     fn sky_flats_point_away_from_the_sun() {
         let now = chrono::Utc::now();
