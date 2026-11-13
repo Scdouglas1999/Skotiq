@@ -99,6 +99,7 @@ import '../models/backend/backend_types.dart';
 import '../models/backend/remote_catalog_models.dart';
 import '../models/backend/remote_science_bundle.dart';
 import '../models/backend/remote_session_status.dart';
+import '../models/imaging/session_status.dart';
 import '../models/backend/remote_stacked_result.dart';
 import '../models/backend/remote_update_models.dart';
 import '../models/backend/backend_connection_state.dart';

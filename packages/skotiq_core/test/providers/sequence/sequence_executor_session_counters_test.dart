@@ -150,7 +150,7 @@ void main() {
 
       // Finalize so the aggregate is flushed onto the row (this is the same
       // call the executor's run finalization makes).
-      await sessionNotifier.endSession(status: 'completed');
+      await sessionNotifier.endSession();
       await settle();
 
       final row = await db.sessionsDao.getSessionById(sessionId!);

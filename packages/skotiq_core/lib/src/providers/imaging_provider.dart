@@ -1,3 +1,4 @@
+import '../models/imaging/session_status.dart';
 import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -697,7 +698,7 @@ final watchedHostSessionIdProvider = hostRoleProvider<int?>(
     final sessions = ref.watch(allSessionsProvider).valueOrNull;
     if (sessions == null) return null;
     for (final session in sessions) {
-      if (session.status == 'active') return session.id;
+      if (session.sessionStatus == SessionStatus.active) return session.id;
     }
     if (sessions.isNotEmpty && ref.watch(lastEndedRunProvider) != null) {
       return sessions.first.id;

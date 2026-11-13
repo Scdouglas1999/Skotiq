@@ -352,14 +352,18 @@ class AnalyticsHandlers implements RouteSource {
     }
 
     if (payload.containsKey('status')) {
-      final status = requireString(payload, 'status');
-      if (!const {'active', 'completed', 'aborted', 'error'}.contains(status)) {
-        throw BadRequestError(
-          field: 'status',
-          expected: 'active|completed|aborted|error',
-        );
-      }
-      await database.sessionsDao.updateSessionStatus(sessionId, status);
+      await database.sessionsDao.updateSessionStatus(
+        sessionId,
+        _sessionStatus(
+          requireString(payload, 'status'),
+          allowed: const {
+            SessionStatus.active,
+            SessionStatus.completed,
+            SessionStatus.aborted,
+            SessionStatus.error,
+          },
+        ),
+      );
     }
 
     publishHostMutationFromContainer(
@@ -375,13 +379,14 @@ class AnalyticsHandlers implements RouteSource {
     _logInfo('[API] POST /api/sessions/$id/end');
     final sessionId = _parsePathId(id, 'id');
     final payload = await readJsonObject(request);
-    final status = optionalString(payload, 'status') ?? 'completed';
-    if (!const {'completed', 'aborted', 'error'}.contains(status)) {
-      throw BadRequestError(
-        field: 'status',
-        expected: 'completed|aborted|error',
-      );
-    }
+    final status = _sessionStatus(
+      optionalString(payload, 'status') ?? SessionStatus.completed.token,
+      allowed: const {
+        SessionStatus.completed,
+        SessionStatus.aborted,
+        SessionStatus.error,
+      },
+    );
     final database = container.read(databaseProvider);
 
     await database.sessionsDao.endSession(sessionId, status: status);
@@ -391,7 +396,7 @@ class AnalyticsHandlers implements RouteSource {
       entityType: HostMutationEntity.session,
       action: HostMutationAction.updated,
       entityId: sessionId.toString(),
-      extra: {'status': status},
+      extra: {'status': status.token},
     );
     return jsonOk({"status": "ended"});
   }
@@ -769,4 +774,20 @@ class AnalyticsHandlers implements RouteSource {
       'timestamp': residual.timestamp.millisecondsSinceEpoch,
     };
   }
+}
+
+/// The session status [token] names, when a client may set it; anything else
+/// is a bad request.
+SessionStatus _sessionStatus(
+  String token, {
+  required Set<SessionStatus> allowed,
+}) {
+  final status = SessionStatus.tryParse(token);
+  if (status == null || !allowed.contains(status)) {
+    throw BadRequestError(
+      field: 'status',
+      expected: allowed.map((s) => s.token).join('|'),
+    );
+  }
+  return status;
 }

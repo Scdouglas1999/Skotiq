@@ -11,6 +11,8 @@ import 'package:pdf/pdf.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../widgets/run_status/run_status_presentation.dart';
+
 part 'observation_report_service/statistics.dart';
 
 class ObservationReportService {
@@ -246,7 +248,7 @@ class ObservationReportService {
                       (session.endTime ?? DateTime.now())
                           .difference(session.startTime),
                       style: DurationStyle.coarse)),
-              _headerRow('Status', session.status.toUpperCase()),
+              _headerRow('Status', sessionStatusLabel(session.status)),
               if (locationName != null) _headerRow('Location', locationName),
               if (latitude != null && longitude != null)
                 _headerRow(

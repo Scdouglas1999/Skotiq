@@ -189,6 +189,7 @@ export 'src/models/framing_hips_projection.dart';
 export 'src/models/framing_guide_star.dart';
 export 'src/models/imaging/frame_gain.dart';
 export 'src/models/imaging/frame_type_record.dart';
+export 'src/models/imaging/session_status.dart';
 export 'src/models/imaging/gain_kind.dart';
 export 'src/models/sequence/run_frame_assessment.dart';
 export 'src/models/sequence/target_end_when_notice.dart';

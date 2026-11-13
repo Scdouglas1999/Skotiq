@@ -131,11 +131,14 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     await _put(AnalyticsApi.updateSession, path: {'id': id}, body: body);
   }
 
-  Future<void> endSession(int id, {String status = 'completed'}) async {
+  Future<void> endSession(
+    int id, {
+    SessionStatus status = SessionStatus.completed,
+  }) async {
     await _post(
       AnalyticsApi.endSession,
       path: {'id': id},
-      body: {'status': status},
+      body: {'status': status.token},
     );
   }
 

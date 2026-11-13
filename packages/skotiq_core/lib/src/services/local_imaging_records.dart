@@ -1,3 +1,4 @@
+import '../models/imaging/session_status.dart';
 import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 
@@ -81,8 +82,10 @@ final class LocalImagingRecords implements ImagingRecords {
   );
 
   @override
-  Future<void> endSession(int id, {String status = 'completed'}) =>
-      _sessionsDao.endSession(id, status: status);
+  Future<void> endSession(
+    int id, {
+    SessionStatus status = SessionStatus.completed,
+  }) => _sessionsDao.endSession(id, status: status);
 
   /// See [SessionsDao.closeOrphanedSessions] for the rule.
   @override
