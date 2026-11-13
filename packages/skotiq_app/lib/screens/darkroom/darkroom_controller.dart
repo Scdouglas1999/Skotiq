@@ -28,7 +28,6 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart' show XTypeGroup, openFile;
@@ -924,11 +923,10 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       // it unset rather than stopping an import the operator asked for — and
       // says so in the log, because a library read that did not work is a fact
       // about the database and not about this import.
-      developer.log(
+      Log.warning(
         'Darkroom: the target of master $masterId could not be read while '
         'importing a recipe, so the new row carries none: $error',
-        name: 'Darkroom',
-        level: 900,
+        source: 'Darkroom',
         stackTrace: stack,
       );
       return null;
@@ -1710,10 +1708,10 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
           ).then((_) {
             if (mounted) _draftRevision.state++;
           }).catchError((Object error) {
-            developer.log(
+            Log.debug(
               'The draft thumbnail for recipe $recipeId could not be saved: '
               '$error',
-              name: 'DarkroomController',
+              source: 'DarkroomController',
             );
           }),
         );
@@ -1893,10 +1891,9 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         _darkroom.cancel({'op': 'cancel', 'renderId': renderId}).then(
           (_) {},
           onError: (Object error, StackTrace stack) {
-            developer.log(
+            Log.warning(
               'Darkroom: the stop request for $renderId did not land: $error',
-              name: 'Darkroom',
-              level: 900,
+              source: 'Darkroom',
               stackTrace: stack,
             );
           },
@@ -1915,11 +1912,10 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         _recipes.updateSteps(recipeId, payload).then(
           (_) {},
           onError: (Object error, StackTrace stack) {
-            developer.log(
+            Log.error(
               'Darkroom: the last edit to recipe $recipeId was not stored: '
               '$error',
-              name: 'Darkroom',
-              level: 1000,
+              source: 'Darkroom',
               stackTrace: stack,
             );
           },

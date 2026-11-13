@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +15,7 @@ import 'sidebar_shared_widgets.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/planner_route.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/services.dart';
 
 class TonightTab extends ConsumerWidget {
   final SkotiqColors colors;
@@ -109,9 +108,7 @@ class TonightTab extends ConsumerWidget {
             site: site,
             locationName: location.locationName,
           ),
-
           const SizedBox(height: 16),
-
           if (twilight == null) ...[
             SkotiqCard(
               padding: const EdgeInsets.all(16),
@@ -134,7 +131,6 @@ class TonightTab extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
           ],
-
           if (twilight != null) ...[
             InfoCard(
               title: 'Evening twilight',
@@ -146,43 +142,43 @@ class TonightTab extends ConsumerWidget {
                   if (twilight.sunset != null)
                     TwilightRow(
                       label: 'Sunset',
-                      time: ClockFormat.hm(clock.fromUtc(twilight.sunset!.toUtc())),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.sunset!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.civilDusk != null)
                     TwilightRow(
                       label: 'Civil dusk',
-                      time: ClockFormat.hm(clock.fromUtc(twilight.civilDusk!.toUtc())),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.civilDusk!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.nauticalDusk != null)
                     TwilightRow(
                       label: 'Nautical dusk',
-                      time: ClockFormat.hm(clock.fromUtc(twilight.nauticalDusk!.toUtc())),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.nauticalDusk!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.astronomicalDusk != null)
                     TwilightRow(
                       label: 'Astro dusk',
-                      time: ClockFormat.hm(clock.fromUtc(twilight.astronomicalDusk!.toUtc())),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.astronomicalDusk!.toUtc())),
                       isPrimary: true,
                       colors: colors,
                     ),
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
-
             if (twilight.astronomicalDusk != null &&
                 twilight.astronomicalDawn != null)
               DarknessCard(
                 twilight: twilight,
                 colors: colors,
               ),
-
             const SizedBox(height: 16),
-
             InfoCard(
               title: 'Morning twilight',
               icon: SkotiqIcons.sunrise,
@@ -193,35 +189,37 @@ class TonightTab extends ConsumerWidget {
                   if (twilight.astronomicalDawn != null)
                     TwilightRow(
                       label: 'Astro dawn',
-                      time: ClockFormat.hm(clock.fromUtc(twilight.astronomicalDawn!.toUtc())),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.astronomicalDawn!.toUtc())),
                       isPrimary: true,
                       colors: colors,
                     ),
                   if (twilight.nauticalDawn != null)
                     TwilightRow(
                       label: 'Nautical dawn',
-                      time: ClockFormat.hm(clock.fromUtc(twilight.nauticalDawn!.toUtc())),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.nauticalDawn!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.civilDawn != null)
                     TwilightRow(
                       label: 'Civil dawn',
-                      time: ClockFormat.hm(clock.fromUtc(twilight.civilDawn!.toUtc())),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.civilDawn!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.sunrise != null)
                     TwilightRow(
                       label: 'Sunrise',
-                      time: ClockFormat.hm(clock.fromUtc(twilight.sunrise!.toUtc())),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.sunrise!.toUtc())),
                       colors: colors,
                     ),
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
           ],
-
           InfoCard(
             title: 'Moon',
             icon: SkotiqIcons.moon,
@@ -272,21 +270,21 @@ class TonightTab extends ConsumerWidget {
                 if (moonTimes?.moonrise != null)
                   TwilightRow(
                     label: 'Moonrise',
-                    time: ClockFormat.hm(clock.fromUtc(moonTimes!.moonrise!.toUtc())),
+                    time: ClockFormat.hm(
+                        clock.fromUtc(moonTimes!.moonrise!.toUtc())),
                     colors: colors,
                   ),
                 if (moonTimes?.moonset != null)
                   TwilightRow(
                     label: 'Moonset',
-                    time: ClockFormat.hm(clock.fromUtc(moonTimes!.moonset!.toUtc())),
+                    time: ClockFormat.hm(
+                        clock.fromUtc(moonTimes!.moonset!.toUtc())),
                     colors: colors,
                   ),
               ],
             ),
           ),
-
           const SizedBox(height: 16),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -314,7 +312,6 @@ class TonightTab extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-
           if (bestTargets == null)
             SkotiqCard(
               padding: const EdgeInsets.all(16),
@@ -448,9 +445,7 @@ class TonightTab extends ConsumerWidget {
                 ),
               ),
             ),
-
           const SizedBox(height: 16),
-
           _SatellitePassesSection(colors: colors),
         ],
       ),
@@ -695,7 +690,8 @@ class _SatellitePassCard extends StatelessWidget {
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Max',
-                time: ClockFormat.hm(clock.fromUtc(pass.maxElevationTime.toUtc())),
+                time: ClockFormat.hm(
+                    clock.fromUtc(pass.maxElevationTime.toUtc())),
                 az: '${pass.maxElevationAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),
@@ -834,11 +830,10 @@ class _LocationIndicator extends StatelessWidget {
                 try {
                   context.go(AppRoute.settings.path);
                 } catch (e, stack) {
-                  developer.log(
+                  Log.warning(
                     '[TonightTab] Could not open settings to fix the '
                     'default location: $e',
-                    name: 'TonightTab',
-                    level: 900,
+                    source: 'TonightTab',
                     error: e,
                     stackTrace: stack,
                   );

@@ -4,10 +4,9 @@ Future<CheckpointInfo?> _safeCheckpointInfo(SkotiqBackend backend) async {
   try {
     return await backend.getCheckpointInfo();
   } catch (error, stackTrace) {
-    developer.log(
+    Log.warning(
       'QuickStartService: checkpoint availability check failed: $error',
-      name: 'QuickStartService',
-      level: 900,
+      source: 'QuickStartService',
       error: error,
       stackTrace: stackTrace,
     );
@@ -77,10 +76,9 @@ Future<List<QuickStartContext>> _remoteQuickStartContexts(
       try {
         snapshot = EquipmentSnapshot.fromJsonString(snapshotJson);
       } catch (error, stackTrace) {
-        developer.log(
+        Log.warning(
           'QuickStartService: failed to parse host equipment snapshot: $error',
-          name: 'QuickStartService',
-          level: 900,
+          source: 'QuickStartService',
           error: error,
           stackTrace: stackTrace,
         );

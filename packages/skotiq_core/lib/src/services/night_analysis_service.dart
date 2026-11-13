@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
@@ -11,6 +10,7 @@ import '../database/database.dart';
 import '../models/imaging/night_report.dart';
 import 'frame_quality_assessment_service.dart';
 import 'optical_train_diagnostics_service.dart';
+import 'logging_service.dart';
 part 'night_analysis_service/detectors.dart';
 part 'night_analysis_service/night_data.dart';
 part 'night_analysis_service/moon_ephemeris.dart';
@@ -101,10 +101,9 @@ class NightAnalysisService {
         // leave a trace. A silently-skipped detector reads as "no finding",
         // which is indistinguishable from "checked and healthy"; the log
         // line is the only way a degraded report can be diagnosed.
-        developer.log(
+        Log.warning(
           'Night Doctor detector threw and was skipped: $e',
-          name: 'NightAnalysisService',
-          level: 900,
+          source: 'NightAnalysisService',
         );
       }
     }

@@ -889,11 +889,10 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
     await _deleteIfPresent(metadataFile);
     onProgress?.call(1);
-    developer.log(
+    Log.info(
       '[NetworkBackend] Downloaded image $imageId to ${file.path} '
       '($bytesReceived bytes${isPartial ? ', resumed' : ''})',
-      name: 'NetworkBackend',
-      level: 800,
+      source: 'NetworkBackend',
     );
   }
 

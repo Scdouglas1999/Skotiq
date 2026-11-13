@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/weather/weather_models.dart';
@@ -14,6 +13,7 @@ import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
+import '../services/logging_service.dart';
 
 export 'weather_safety_provider.dart';
 
@@ -342,11 +342,10 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
       final response = await getWithTransientRetry(client, uri);
 
       if (response.statusCode != 200) {
-        developer.log(
+        Log.warning(
           'Cloud cover fetch failed: ${response.statusCode}, '
           'trying MET Norway fallback',
-          name: 'Weather',
-          level: 900,
+          source: 'Weather',
         );
         // Open-Meteo returned a non-200 even after transient retries; fall back
         // to MET Norway's independent host before giving up. The client is kept
@@ -357,9 +356,9 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
           longitude,
         );
         if (fallback != null) {
-          developer.log(
+          Log.debug(
             'Current cloud cover: $fallback% (source: MET Norway)',
-            name: 'Weather',
+            source: 'Weather',
           );
           return fallback;
         }
@@ -375,9 +374,9 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
 
       final cloudCover = current['cloud_cover'];
       if (cloudCover is num) {
-        developer.log(
+        Log.debug(
           'Current cloud cover: ${cloudCover.toDouble()}%',
-          name: 'Weather',
+          source: 'Weather',
         );
         return cloudCover.toDouble();
       }
@@ -387,10 +386,9 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
       client.close();
     }
   } catch (e) {
-    developer.log(
+    Log.error(
       'Error fetching cloud cover: $e, trying MET Norway fallback',
-      name: 'Weather',
-      level: 1000,
+      source: 'Weather',
     );
     // Open-Meteo threw (network error, even after transient retries). The
     // original client was already closed by the inner finally, so use a fresh
@@ -403,17 +401,16 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
         longitude,
       );
       if (fallback != null) {
-        developer.log(
+        Log.debug(
           'Current cloud cover: $fallback% (source: MET Norway)',
-          name: 'Weather',
+          source: 'Weather',
         );
         return fallback;
       }
     } catch (fallbackError) {
-      developer.log(
+      Log.error(
         'MET Norway fallback also failed: $fallbackError',
-        name: 'Weather',
-        level: 1000,
+        source: 'Weather',
       );
     } finally {
       fallbackClient.close();
@@ -431,7 +428,7 @@ final weatherRadarFramesProvider = FutureProvider<List<RadarFrame>>((
 ) async {
   final observerLocation = ref.watch(appObserverLocationProvider);
   if (observerLocation == null) {
-    developer.log('No app settings yet, returning empty', name: 'WeatherRadar');
+    Log.debug('No app settings yet, returning empty', source: 'WeatherRadar');
     return [];
   }
 
@@ -440,13 +437,13 @@ final weatherRadarFramesProvider = FutureProvider<List<RadarFrame>>((
 
   // Skip fetch if location not set
   if (latitude == 0.0 && longitude == 0.0) {
-    developer.log('Location not set, returning empty', name: 'WeatherRadar');
+    Log.debug('Location not set, returning empty', source: 'WeatherRadar');
     return [];
   }
 
-  developer.log(
+  Log.debug(
     'Fetching for location ($latitude, $longitude)',
-    name: 'WeatherRadar',
+    source: 'WeatherRadar',
   );
 
   final radarService = ref.read(weatherRadarServiceProvider);
@@ -466,13 +463,12 @@ final weatherRadarFramesProvider = FutureProvider<List<RadarFrame>>((
         '${result.providerName ?? 'Weather provider'} returned no radar frames',
       );
     }
-    developer.log('Got ${result.frames.length} frames', name: 'WeatherRadar');
+    Log.debug('Got ${result.frames.length} frames', source: 'WeatherRadar');
     return result.frames;
   } else {
-    developer.log(
+    Log.warning(
       'Fetch failed - ${result.errorMessage}',
-      name: 'WeatherRadar',
-      level: 900,
+      source: 'WeatherRadar',
     );
     // Surface the failure so `framesAsync.hasError` populates the weather
     // status error and the UI shows an offline state instead of an empty radar

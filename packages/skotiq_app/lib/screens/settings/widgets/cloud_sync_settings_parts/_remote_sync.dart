@@ -72,10 +72,9 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       // The banner tells the operator the status is unavailable; the cause is
       // only in the log, and cloud backup is exactly the thing that fails
       // quietly for weeks before anyone notices.
-      developer.log(
+      Log.warning(
         'Could not load cloud sync status from the imaging host: $e',
-        name: 'CloudSyncSettings',
-        level: 900,
+        source: 'CloudSyncSettings',
       );
       if (load.isStale) return;
       setState(() {
@@ -114,10 +113,9 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
     } catch (e) {
       // The panel says the push failed; without this line the reason is lost,
       // and a backup that never lands is only discovered when it is needed.
-      developer.log(
+      Log.error(
         'Cloud backup push to the imaging host failed: $e',
-        name: 'CloudSyncSettings',
-        level: 1000,
+        source: 'CloudSyncSettings',
       );
       if (!mounted || push.isStale) return;
       setState(() {

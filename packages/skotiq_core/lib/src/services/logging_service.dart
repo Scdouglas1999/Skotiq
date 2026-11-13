@@ -7,7 +7,155 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../utils/skotiq_data_directory.dart';
 
-enum LogLevel { debug, info, warning, error, critical }
+enum LogLevel {
+  debug,
+  info,
+  warning,
+  error,
+  critical;
+
+  /// The level `dart:developer` and `package:logging` print for this one.
+  int get developerLevel => switch (this) {
+    LogLevel.debug => 300,
+    LogLevel.info => 500,
+    LogLevel.warning => 900,
+    LogLevel.error => 1000,
+    LogLevel.critical => 1200,
+  };
+
+  /// The level for a `package:logging` severity number (INFO is 800).
+  static LogLevel fromDeveloperLevel(int level) {
+    if (level >= 1200) return LogLevel.critical;
+    if (level >= 1000) return LogLevel.error;
+    if (level >= 900) return LogLevel.warning;
+    if (level >= 800) return LogLevel.info;
+    return LogLevel.debug;
+  }
+}
+
+/// The process's log, for code that holds no provider `Ref` and for code that
+/// logs while its container is shutting down.
+///
+/// Entries go to the [LoggingService] the root container built (the log file,
+/// the Log Viewer and the remote tail). Before one exists and after it is
+/// disposed they go to `dart:developer`, so a call never throws.
+abstract final class Log {
+  static LoggingService? _service;
+
+  /// Stack frames kept on an entry.
+  static const int _stackFrames = 16;
+
+  static void attach(LoggingService service) => _service = service;
+
+  static void detach(LoggingService service) {
+    if (identical(_service, service)) _service = null;
+  }
+
+  static void debug(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.debug,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  static void info(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.info,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  static void warning(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.warning,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  static void error(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.error,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  static void critical(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.critical,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  /// Record [message]. [error] is appended to it unless the message already
+  /// states it; the head of [stackTrace] rides in the entry's fields.
+  static void write(
+    LogLevel level,
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    final service = _service;
+    if (service == null) {
+      developer.log(
+        message,
+        name: source,
+        level: level.developerLevel,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return;
+    }
+    final errorText = error?.toString();
+    final text = errorText == null || message.contains(errorText)
+        ? message
+        : '$message: $errorText';
+    service.log(
+      level,
+      text,
+      source: source,
+      fields: stackTrace == null
+          ? null
+          : {
+              'stackTrace': stackTrace
+                  .toString()
+                  .split('\n')
+                  .take(_stackFrames)
+                  .join('\n'),
+            },
+    );
+  }
+}
 
 class LogEntry {
   final DateTime timestamp;
@@ -341,22 +489,11 @@ class LoggingService {
       _logEntryController.add(entry);
     }
 
-    // Forward to dart:developer with appropriate severity levels.
-    // Level mapping: debug=300, info=500, warning=900, error=1000, critical=1200
-    final int devLevel;
-    switch (level) {
-      case LogLevel.debug:
-        devLevel = 300;
-      case LogLevel.info:
-        devLevel = 500;
-      case LogLevel.warning:
-        devLevel = 900;
-      case LogLevel.error:
-        devLevel = 1000;
-      case LogLevel.critical:
-        devLevel = 1200;
-    }
-    developer.log(entry.toString(), name: source ?? 'Skotiq', level: devLevel);
+    developer.log(
+      entry.toString(),
+      name: source ?? 'Skotiq',
+      level: level.developerLevel,
+    );
   }
 
   /// Append one entry to today's Dart log file, rotating on the day stamp.

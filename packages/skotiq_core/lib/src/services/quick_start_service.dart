@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
@@ -21,6 +20,7 @@ import '../providers/session_provider.dart' show sequenceCheckpointsDaoProvider;
 import '../utils/json_validation.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
+import 'logging_service.dart';
 part 'quick_start_service/quick_start_models.dart';
 part 'quick_start_service/quick_start_providers.dart';
 
@@ -67,18 +67,16 @@ class QuickStartService {
       now: DateTime.now(),
     );
     if (session == null) {
-      developer.log(
+      Log.info(
         'QuickStartService: the newest run is not one to continue',
-        name: 'QuickStartService',
-        level: 800,
+        source: 'QuickStartService',
       );
       return null;
     }
-    developer.log(
+    Log.info(
       'QuickStartService: offering session ${session.id} '
       '(${session.status}) from ${session.startTime}',
-      name: 'QuickStartService',
-      level: 800,
+      source: 'QuickStartService',
     );
     return _buildQuickStartContext(session);
   }
@@ -126,10 +124,9 @@ class QuickStartService {
           equipmentSnapshotJson,
         );
       } catch (e) {
-        developer.log(
+        Log.warning(
           'QuickStartService: Failed to parse equipment snapshot: $e',
-          name: 'QuickStartService',
-          level: 900,
+          source: 'QuickStartService',
           error: e,
         );
       }
@@ -188,10 +185,9 @@ class QuickStartService {
       };
     } catch (e) {
       // Columns may not exist yet - this is fine, return empty
-      developer.log(
+      Log.warning(
         'QuickStartService: Extended columns not available: $e',
-        name: 'QuickStartService',
-        level: 900,
+        source: 'QuickStartService',
         error: e,
       );
       return {};
@@ -248,10 +244,9 @@ class QuickStartService {
     int sessionId,
     EquipmentSnapshot snapshot,
   ) async {
-    developer.log(
+    Log.info(
       'QuickStartService: Saving equipment snapshot for session $sessionId',
-      name: 'QuickStartService',
-      level: 800,
+      source: 'QuickStartService',
     );
 
     try {
@@ -263,10 +258,9 @@ class QuickStartService {
       final snapshotJson = snapshot.toJsonString();
       await sessionsDao.updateEquipmentSnapshot(sessionId, snapshotJson);
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         'QuickStartService: Error saving equipment snapshot: $e',
-        name: 'QuickStartService',
-        level: 1000,
+        source: 'QuickStartService',
         error: e,
         stackTrace: stackTrace,
       );
@@ -287,10 +281,9 @@ class QuickStartService {
   /// Returns up to [limit] sessions that are suitable for quick start,
   /// ordered by recency.
   Future<List<QuickStartContext>> getQuickStartContexts({int limit = 5}) async {
-    developer.log(
+    Log.info(
       'QuickStartService: Getting quick start contexts (limit: $limit)...',
-      name: 'QuickStartService',
-      level: 800,
+      source: 'QuickStartService',
     );
     final contexts = <QuickStartContext>[];
 
@@ -326,10 +319,9 @@ class QuickStartService {
       }
     }
 
-    developer.log(
+    Log.info(
       'QuickStartService: Found ${contexts.length} quick start contexts',
-      name: 'QuickStartService',
-      level: 800,
+      source: 'QuickStartService',
     );
     return contexts;
   }

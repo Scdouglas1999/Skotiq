@@ -1,6 +1,5 @@
 import '../../models/equipment/filter_names.dart';
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,6 +11,7 @@ import '../sequence_provider.dart' show sequenceExecutionStateProvider;
 import '../../models/sequence/sequence_editor_exceptions.dart';
 import 'target_catalog_coordinate_sync.dart';
 import 'sequence_undo_batch.dart';
+import '../../services/logging_service.dart';
 
 part 'sequence_editor/snippet_editing.dart';
 part 'sequence_editor/tree_editing.dart';

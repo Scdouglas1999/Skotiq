@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import '../backend/roles/host_data/calibration_library.dart';
@@ -16,6 +15,7 @@ import 'color_calibration_service.dart';
 import 'post_session_seam.dart';
 import 'wcs/gnomonic_projection.dart';
 import '../models/imaging/frame_gain.dart';
+import 'logging_service.dart';
 part 'post_session_integration_service/integration_models.dart';
 part 'post_session_integration_service/path_helpers.dart';
 part 'post_session_integration_service/integration_stages.dart';

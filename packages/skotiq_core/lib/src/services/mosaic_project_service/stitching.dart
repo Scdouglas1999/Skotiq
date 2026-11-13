@@ -61,12 +61,11 @@ extension _MosaicStitching on MosaicProjectService {
   }
 
   void _logSoftFailure(String step, Object error, StackTrace stackTrace) {
-    developer.log(
+    Log.warning(
       'mosaic project step "$step" failed (continuing)',
-      name: 'MosaicProjectService',
+      source: 'MosaicProjectService',
       error: error,
       stackTrace: stackTrace,
-      level: 900, // WARNING
     );
   }
 }

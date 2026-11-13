@@ -180,10 +180,9 @@ class _GlobalNotesDialogState extends ConsumerState<GlobalNotesDialog> {
                       motion: SkotiqMarkMotion.loading, size: 36),
                 ),
                 error: (e, stack) {
-                  developer.log(
+                  Log.error(
                     '[GlobalNotesDialog] All-notes query failed: $e',
-                    name: 'GlobalNotesDialog',
-                    level: 1000,
+                    source: 'GlobalNotesDialog',
                     error: e,
                     stackTrace: stack,
                   );

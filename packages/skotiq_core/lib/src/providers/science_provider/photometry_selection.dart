@@ -133,11 +133,10 @@ class SciencePhotometrySelectionNotifier
       }
       throw const FormatException('Target anchor must be a JSON object');
     } catch (error, stack) {
-      developer.log(
+      Log.error(
         'SciencePhotometrySelectionNotifier: failed to decode target anchor '
         'from persisted JSON "$raw": $error',
-        name: 'SciencePhotometrySelectionNotifier',
-        level: 1000,
+        source: 'SciencePhotometrySelectionNotifier',
         error: error,
         stackTrace: stack,
       );
@@ -170,11 +169,10 @@ class SciencePhotometrySelectionNotifier
       }
       return anchors;
     } catch (error, stack) {
-      developer.log(
+      Log.error(
         'SciencePhotometrySelectionNotifier: failed to decode comparison anchors '
         'from persisted JSON "$raw": $error',
-        name: 'SciencePhotometrySelectionNotifier',
-        level: 1000,
+        source: 'SciencePhotometrySelectionNotifier',
         error: error,
         stackTrace: stack,
       );

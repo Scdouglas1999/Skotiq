@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -23,6 +22,7 @@ import '../models/backend/backend_types.dart';
 import '../providers/device_service_providers.dart';
 import '../providers/logging_service_provider.dart';
 import '../providers/async_scope.dart';
+import 'logging_service.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';
@@ -381,10 +381,9 @@ class ProfileService {
     final activeProfile = await _getActiveProfileModel(authority: authority);
 
     if (activeProfile == null) {
-      developer.log(
+      Log.warning(
         'ProfileService: No active profile to sync filters to',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
@@ -392,20 +391,18 @@ class ProfileService {
     final filterWheelState = _ref.read(filterWheelStateProvider);
 
     if (filterWheelState.connectionState != DeviceConnectionState.connected) {
-      developer.log(
+      Log.warning(
         'ProfileService: Filter wheel not connected',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
 
     final hwFilterNames = filterWheelState.filterNames;
     if (hwFilterNames.isEmpty) {
-      developer.log(
+      Log.warning(
         'ProfileService: No filter names from hardware',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
@@ -428,10 +425,9 @@ class ProfileService {
       authority: authority,
     );
 
-    developer.log(
+    Log.info(
       'ProfileService: Synced ${hwFilterNames.length} filters to profile "${activeProfile.name}"',
-      name: 'ProfileService',
-      level: 800,
+      source: 'ProfileService',
     );
     return true;
   }

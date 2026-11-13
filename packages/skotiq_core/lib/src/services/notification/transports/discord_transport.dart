@@ -5,7 +5,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
@@ -13,6 +12,7 @@ import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import '../notification_presentation.dart';
 import 'notification_transport.dart';
+import '../../logging_service.dart';
 
 class DiscordTransport extends NotificationTransport {
   final http.Client _client;
@@ -82,10 +82,9 @@ class DiscordTransport extends NotificationTransport {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return NotificationResult.ok(statusCode: response.statusCode);
       }
-      developer.log(
+      Log.warning(
         '[Notifications/Discord] HTTP ${response.statusCode}: ${response.body}',
-        name: 'DiscordTransport',
-        level: 900,
+        source: 'DiscordTransport',
       );
       return NotificationResult.fail(
         'Discord responded ${response.statusCode}',
@@ -96,10 +95,9 @@ class DiscordTransport extends NotificationTransport {
         'Discord request timed out after ${_timeout.inSeconds}s',
       );
     } catch (e) {
-      developer.log(
+      Log.error(
         '[Notifications/Discord] Send failed: $e',
-        name: 'DiscordTransport',
-        level: 1000,
+        source: 'DiscordTransport',
         error: e,
       );
       return NotificationResult.fail(e.toString());

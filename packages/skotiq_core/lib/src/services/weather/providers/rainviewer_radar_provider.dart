@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import '../../../models/weather/weather_models.dart';
 import '../radar_colormaps.dart';
 import '../radar_provider.dart';
 import '../radar_tile_decoder.dart';
+import '../../logging_service.dart';
 
 /// Radar provider implementation using the RainViewer global radar service.
 ///
@@ -66,10 +66,9 @@ class RainViewerRadarProvider extends RadarProvider {
     required double longitude,
     double radiusKm = 100.0,
   }) async {
-    developer.log(
+    Log.info(
       'Fetching radar frames for ($latitude, $longitude)',
-      name: 'RainViewer',
-      level: 800,
+      source: 'RainViewer',
     );
     try {
       final response = await _httpClient.get(Uri.parse(_apiUrl));
@@ -134,11 +133,7 @@ class RainViewerRadarProvider extends RadarProvider {
       }
 
       if (descriptors.isEmpty) {
-        developer.log(
-          'No frames returned from API',
-          name: 'RainViewer',
-          level: 900,
-        );
+        Log.warning('No frames returned from API', source: 'RainViewer');
         return RadarFetchResult.error(
           'RainViewer API returned no radar frames',
         );
@@ -155,11 +150,10 @@ class RainViewerRadarProvider extends RadarProvider {
         frames.add(await _decodeFrame(d, fov, tileRange));
       }
 
-      developer.log(
+      Log.info(
         'Parsed ${frames.length} frames from host: $host '
         '(${frames.where((f) => !f.isNoData).length} with spatial data)',
-        name: 'RainViewer',
-        level: 800,
+        source: 'RainViewer',
       );
       return RadarFetchResult.success(frames);
     } on http.ClientException catch (e) {
@@ -259,30 +253,21 @@ class RainViewerRadarProvider extends RadarProvider {
         } catch (e) {
           // A single tile failing to fetch is non-fatal — other tiles may still
           // cover the FOV. Record nothing for this tile.
-          developer.log(
-            'Tile fetch failed ($url): $e',
-            name: 'RainViewer',
-            level: 900,
-          );
+          Log.warning('Tile fetch failed ($url): $e', source: 'RainViewer');
           continue;
         }
 
         if (response.statusCode != 200) {
-          developer.log(
+          Log.warning(
             'Tile fetch status ${response.statusCode} for $url',
-            name: 'RainViewer',
-            level: 900,
+            source: 'RainViewer',
           );
           continue;
         }
 
         final image = _decoder.decodePng(response.bodyBytes);
         if (image == null) {
-          developer.log(
-            'Tile decode failed for $url',
-            name: 'RainViewer',
-            level: 900,
-          );
+          Log.warning('Tile decode failed for $url', source: 'RainViewer');
           continue;
         }
 

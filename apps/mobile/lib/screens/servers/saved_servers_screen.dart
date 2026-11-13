@@ -24,7 +24,6 @@
 // so there's one canonical pairing path.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +35,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../services/saved_servers_service.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Async snapshot of the saved-server list — drives the screen state.
 final _savedServersListProvider = FutureProvider.autoDispose<List<SavedServer>>(
@@ -314,10 +314,9 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
       try {
         await EnhancedSkotiqDiscovery.saveLastServer(discovered);
       } catch (e, stackTrace) {
-        developer.log(
+        Log.error(
           'Could not cache the active server for startup reconnect: $e',
-          name: 'SavedServersScreen',
-          level: 1000,
+          source: 'SavedServersScreen',
           error: e,
           stackTrace: stackTrace,
         );
@@ -325,10 +324,9 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
       try {
         await service.touchLastConnected(server.id);
       } catch (e, stackTrace) {
-        developer.log(
+        Log.error(
           'Could not update last-connected time for ${server.id}: $e',
-          name: 'SavedServersScreen',
-          level: 1000,
+          source: 'SavedServersScreen',
           error: e,
           stackTrace: stackTrace,
         );

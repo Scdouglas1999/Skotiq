@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart'
@@ -8,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/services.dart';
 
 final gyroscopeAimingEnabledProvider = StateProvider<bool>((ref) => false);
 
@@ -122,8 +122,11 @@ class DeviceOrientationNotifier extends StateNotifier<DeviceOrientationState> {
         _scheduleUpdate();
       },
       onError: (error) {
-        developer.log('Accelerometer error: $error',
-            name: 'DeviceOrientationProvider', level: 900, error: error);
+        Log.warning(
+          'Accelerometer error: $error',
+          source: 'DeviceOrientationProvider',
+          error: error,
+        );
         state = state.copyWith(isActive: false);
       },
     );
@@ -139,8 +142,11 @@ class DeviceOrientationNotifier extends StateNotifier<DeviceOrientationState> {
         _scheduleUpdate();
       },
       onError: (error) {
-        developer.log('Magnetometer error: $error',
-            name: 'DeviceOrientationProvider', level: 900, error: error);
+        Log.warning(
+          'Magnetometer error: $error',
+          source: 'DeviceOrientationProvider',
+          error: error,
+        );
         state = state.copyWith(
           isActive: false,
           compassAccuracy: CompassAccuracy.unreliable,

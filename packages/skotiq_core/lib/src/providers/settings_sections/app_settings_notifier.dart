@@ -102,11 +102,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     try {
       await store.ensureLoaded();
     } catch (e) {
-      developer.log(
+      Log.warning(
         'Host key/value settings unavailable; keeping the typed values for '
         '${hostStoreKeys.join(', ')}: $e',
-        name: 'AppSettingsNotifier',
-        level: 900,
+        source: 'AppSettingsNotifier',
       );
       return fromHost;
     }
@@ -325,10 +324,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           _remoteFetchSucceeded = true;
           state = AsyncData(AppSettingsCodec.fromWire(remote));
         } catch (e, st) {
-          developer.log(
+          Log.warning(
             'settings.changed snapshot parse failed: $e\n$st',
-            name: 'AppSettingsNotifier',
-            level: 900,
+            source: 'AppSettingsNotifier',
           );
         }
       }
@@ -349,10 +347,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       } catch (e) {
         // Schema mismatch (e.g. forward-incompat key from a newer host).
         // Keep the previous snapshot to preserve diff integrity.
-        developer.log(
+        Log.warning(
           'settings.changed snapshot merge skipped for key=$key: $e',
-          name: 'AppSettingsNotifier',
-          level: 900,
+          source: 'AppSettingsNotifier',
         );
       }
     }
@@ -413,10 +410,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         },
         onError: (Object error) {
           if (generation != _backendGeneration) return;
-          developer.log(
+          Log.error(
             'settings.changed stream error: $error',
-            name: 'AppSettingsNotifier',
-            level: 1000,
+            source: 'AppSettingsNotifier',
             error: error,
           );
         },
@@ -438,10 +434,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         );
         return _overlayDeviceLocalDisplayPrefs(fromHost);
       } catch (e, stackTrace) {
-        developer.log(
+        Log.error(
           'Remote settings fetch failed: $e\n$stackTrace',
-          name: 'AppSettingsNotifier',
-          level: 1000,
+          source: 'AppSettingsNotifier',
           error: e,
           stackTrace: stackTrace,
         );
@@ -483,10 +478,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       await ref.read(settingsDaoProvider).setSetting('plate_solver', label);
       return stored.copyWith(plateSolver: label);
     } catch (error) {
-      developer.log(
+      Log.debug(
         'Plate-solver preference unavailable; keeping the stored '
         'plate_solver projection: $error',
-        name: 'AppSettingsNotifier',
+        source: 'AppSettingsNotifier',
       );
       return stored;
     }
@@ -568,11 +563,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       // instead of this device's, which is visible and self-correcting. It is
       // logged because the same failure means the local settings DAO is not
       // readable, and that has non-cosmetic consequences elsewhere.
-      developer.log(
+      Log.warning(
         'Could not overlay device-local display preferences on host settings; '
         'keeping the host values: $e',
-        name: 'AppSettings',
-        level: 900,
+        source: 'AppSettings',
       );
       return fromHost;
     }
@@ -667,10 +661,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           }
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          Log.error(
             'Settings write failed for $setting: $error',
-            name: 'AppSettingsNotifier',
-            level: 1000,
+            source: 'AppSettingsNotifier',
             error: error,
             stackTrace: stackTrace,
           );

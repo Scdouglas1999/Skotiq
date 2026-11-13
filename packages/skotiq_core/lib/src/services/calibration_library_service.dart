@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -18,6 +17,7 @@ import '../providers/async_scope.dart';
 import 'calibration/dark_selection.dart';
 import 'calibration/fits_header_reader.dart';
 import 'calibration/shared_calibration_library.dart';
+import 'logging_service.dart';
 part 'calibration_library_service/remote_acceptance.dart';
 part 'calibration_library_service/matchers.dart';
 part 'calibration_library_service/sharing.dart';
@@ -196,10 +196,9 @@ class CalibrationLibraryService implements CalibrationLibrary {
           // hub failure must never degrade local matching, but the operator
           // must see that shared masters were not consulted (offline != 'none
           // exist').
-          developer.log(
+          Log.warning(
             'Remote calibration candidates skipped: $e',
-            name: 'CalibrationLibraryService',
-            level: 900,
+            source: 'CalibrationLibraryService',
           );
           remoteWarning =
               'Shared calibration hub unreachable — shared masters were not '

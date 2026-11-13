@@ -1,6 +1,5 @@
 import '../errors/error_text.dart';
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
@@ -35,7 +34,7 @@ import 'sequence_provider.dart';
 import 'end_of_night_calibration/eon_providers.dart'
     show calibrationOnlyRunActiveProvider;
 import '../settings/app_settings_state.g.dart';
-import 'logging_service_provider.dart';
+import '../services/logging_service.dart';
 
 part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';
@@ -292,12 +291,11 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
         _evaluationPending = true;
         return;
       }
-      developer.log(
+      Log.warning(
         'weather: an evaluation has not finished in '
         '${WeatherSafetyNotifier._evaluationWedgeTimeout.inSeconds} s; '
         'starting a fresh one',
-        name: 'WeatherSafety',
-        level: 900,
+        source: 'WeatherSafety',
       );
     }
     _evaluationInFlight = true;
@@ -804,13 +802,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     });
   }
 
-  void _logOperatorWeatherAction(String message) {
-    try {
-      _ref.read(loggingServiceProvider).info(message, source: 'WeatherSafety');
-    } catch (_) {
-      developer.log(message, name: 'WeatherSafety');
-    }
-  }
+  void _logOperatorWeatherAction(String message) =>
+      Log.info(message, source: 'WeatherSafety');
 
   Future<void> _pushOperatorClear(int seconds, String reason) async {
     try {
@@ -821,10 +814,9 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             reason: reason,
           );
     } catch (error) {
-      developer.log(
+      Log.warning(
         'weather: could not send the clear-sky override: $error',
-        name: 'WeatherSafety',
-        level: 900,
+        source: 'WeatherSafety',
       );
     }
   }

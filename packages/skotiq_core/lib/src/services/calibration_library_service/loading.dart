@@ -128,10 +128,9 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       if (!await File(path).exists()) return record;
       headers = await headerReader.readPrimaryHeader(path);
     } catch (e) {
-      developer.log(
+      Log.warning(
         'Calibration enrichment skipped for $path: $e',
-        name: 'CalibrationLibraryService',
-        level: 900,
+        source: 'CalibrationLibraryService',
       );
       return record;
     }
@@ -155,10 +154,9 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       try {
         await _tagsDao.upsert(record.type, record.id, cameraId: camera);
       } catch (e) {
-        developer.log(
+        Log.warning(
           'Failed to cache camera id for ${record.type.name}#${record.id}: $e',
-          name: 'CalibrationLibraryService',
-          level: 900,
+          source: 'CalibrationLibraryService',
         );
       }
     }

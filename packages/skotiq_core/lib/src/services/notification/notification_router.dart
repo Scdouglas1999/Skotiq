@@ -23,7 +23,6 @@
 // per-transport [lastResult] surface for the UI.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
@@ -35,6 +34,7 @@ import 'notification_template.dart';
 import 'stop_push_arbiter.dart';
 import 'transports/notification_transport.dart';
 import 'transports/system_push_transport.dart';
+import '../logging_service.dart';
 
 /// What one routed message actually did.
 ///
@@ -192,10 +192,9 @@ class NotificationRouter {
     _subscription = events.listen(
       _onEvent,
       onError: (e) {
-        developer.log(
+        Log.error(
           '[NotificationRouter] Event stream error: $e',
-          name: 'NotificationRouter',
-          level: 1000,
+          source: 'NotificationRouter',
           error: e,
         );
       },
@@ -314,10 +313,10 @@ class NotificationRouter {
     final rule = _ruleFor(NotificationCategory.sequenceStopped);
     if (!rule.enabled) return;
     if (!rule.transports.contains(NotificationTransportKind.systemPush)) return;
-    developer.log(
+    Log.debug(
       '[$kStopClassificationLogTag] notification_router: pushing a '
       '${decision?.author.name ?? 'cause-neutral'} stop to the phone',
-      name: 'NotificationRouter',
+      source: 'NotificationRouter',
     );
     _dispatchStop(transport, rule, values, decision);
   }
@@ -701,20 +700,18 @@ class NotificationRouter {
         result = await transport.send(message);
       } catch (error, stackTrace) {
         result = NotificationResult.fail(error.toString());
-        developer.log(
+        Log.error(
           '[NotificationRouter] ${transport.name} threw while sending: $error',
-          name: 'NotificationRouter',
-          level: 1000,
+          source: 'NotificationRouter',
           error: error,
           stackTrace: stackTrace,
         );
       }
       _lastResults[transport.kind] = result;
       if (!result.success && !result.skipped) {
-        developer.log(
+        Log.warning(
           '[NotificationRouter] ${transport.name} send failed: ${result.error}',
-          name: 'NotificationRouter',
-          level: 900,
+          source: 'NotificationRouter',
         );
       }
     });

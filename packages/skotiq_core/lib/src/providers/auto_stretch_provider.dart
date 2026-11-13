@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'dart:math' as math;
 
@@ -15,6 +14,7 @@ import '../services/imaging_service.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'imaging_provider.dart';
+import '../services/logging_service.dart';
 
 /// Provider that renders the current captured image for the screen.
 ///
@@ -86,10 +86,9 @@ final stretchedImageProvider = FutureProvider.autoDispose<Uint8List?>((
     );
   } catch (e) {
     // On error, fall back to the original display data (already stretched)
-    developer.log(
+    Log.error(
       '[AutoStretch] Error applying stretch: $e',
-      name: 'AutoStretch',
-      level: 1000,
+      source: 'AutoStretch',
       error: e,
     );
     return null;
@@ -312,10 +311,9 @@ Future<Uint8List> _applyStfStretch({
     return result;
   } catch (e) {
     // Fall back to Dart implementation
-    developer.log(
+    Log.warning(
       '[AutoStretch] Rust STF failed, using Dart fallback: $e',
-      name: 'AutoStretch',
-      level: 900,
+      source: 'AutoStretch',
       error: e,
     );
     return compute(

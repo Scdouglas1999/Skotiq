@@ -22,35 +22,31 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     if (_cachedDevices != null &&
         _cacheTimestamp != null &&
         DateTime.now().difference(_cacheTimestamp!) < _cacheDuration) {
-      developer.log(
+      Log.info(
         '[NetworkBackend] Using cached device list (${_cachedDevices!.length} devices)',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       _cachedDevicesByType ??= _indexCachedDevicesByType(_cachedDevices!);
     } else if (_ongoingDiscovery != null) {
-      developer.log(
+      Log.info(
         '[NetworkBackend] Waiting for ongoing discovery...',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       _cachedDevices = await _ongoingDiscovery!;
       _cachedDevicesByType = _indexCachedDevicesByType(_cachedDevices!);
     } else {
-      developer.log(
+      Log.info(
         '[NetworkBackend] Starting new device discovery...',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       _ongoingDiscovery = _fetchDevicesFromServer();
       try {
         _cachedDevices = await _ongoingDiscovery!;
         _cachedDevicesByType = _indexCachedDevicesByType(_cachedDevices!);
         _cacheTimestamp = DateTime.now();
-        developer.log(
+        Log.info(
           '[NetworkBackend] Cached ${_cachedDevices!.length} devices',
-          name: 'NetworkBackend',
-          level: 800,
+          source: 'NetworkBackend',
         );
       } finally {
         _ongoingDiscovery = null;
@@ -61,10 +57,9 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       _cachedDevicesByType?[deviceType] ?? const <DeviceInfo>[],
     );
 
-    developer.log(
+    Log.info(
       '[NetworkBackend] Returning ${filtered.length} ${deviceType.name} devices',
-      name: 'NetworkBackend',
-      level: 800,
+      source: 'NetworkBackend',
     );
     return filtered;
   }
@@ -147,11 +142,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   /// Invalidate device cache (called when "Scan Network" is clicked)
   @override
   void invalidateDeviceCache() {
-    developer.log(
-      '[NetworkBackend] Cache invalidated',
-      name: 'NetworkBackend',
-      level: 800,
-    );
+    Log.info('[NetworkBackend] Cache invalidated', source: 'NetworkBackend');
     _cachedDevices = null;
     _cachedDevicesByType = null;
     _cacheTimestamp = null;
@@ -217,11 +208,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
           .where((t) => t.name == deviceTypeName)
           .firstOrNull;
       if (deviceType == null) {
-        developer.log(
+        Log.warning(
           'discoverAtAddress: dropping device id="$id" name="$name" '
           'with unknown deviceType="$deviceTypeName" from $endpoint',
-          name: 'NetworkBackend',
-          level: 900, // warning
+          source: 'NetworkBackend',
         );
         continue;
       }
@@ -236,11 +226,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
               .firstOrNull ??
           fallbackDriverType;
       if (driverTypeName != null && driverTypeName != driverType.name) {
-        developer.log(
+        Log.warning(
           'discoverAtAddress: device id="$id" reported unknown driverType='
           '"$driverTypeName"; using fallback ${fallbackDriverType.name}',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
       }
       results.add(
@@ -294,11 +283,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     final key = '${endpoint.route.path}|${deviceType.name}:$deviceId';
     final existing = _inFlightConnectOps[key];
     if (existing != null) {
-      developer.log(
+      Log.info(
         '[NetworkBackend] ${endpoint.route.path} already in flight for $key; '
         'reusing pending request',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       return existing;
     }
@@ -550,11 +538,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       );
     } on ServerError catch (e) {
       if (e.httpStatus == 404 || e.code == 'not_implemented') {
-        developer.log(
+        Log.warning(
           'cameraGetRecommendedSettings not implemented on remote '
           '(${e.code}, HTTP ${e.httpStatus}); returning empty recommendation',
-          name: 'NetworkBackend',
-          level: 900, // WARNING
+          source: 'NetworkBackend',
         );
         return const CameraRecommendedSettings(notes: '');
       }

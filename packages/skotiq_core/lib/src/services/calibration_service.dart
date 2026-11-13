@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -426,10 +425,9 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
           _remoteLoad = _loadRemote(showLoading: false);
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          Log.error(
             'Calibration settings event stream failed: $error',
-            name: 'CalibrationSettings',
-            level: 1000,
+            source: 'CalibrationSettings',
             error: error,
             stackTrace: stackTrace,
           );
@@ -482,10 +480,9 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     } catch (error, stackTrace) {
       if (!mounted) return;
       state = state.copyWith(isLoading: false, loadError: error);
-      developer.log(
+      Log.error(
         'Could not load calibration settings from imaging host: $error',
-        name: 'CalibrationSettings',
-        level: 1000,
+        source: 'CalibrationSettings',
         error: error,
         stackTrace: stackTrace,
       );

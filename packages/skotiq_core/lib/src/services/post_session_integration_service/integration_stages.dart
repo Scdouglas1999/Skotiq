@@ -418,12 +418,11 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
   }
 
   void _logSoftFailure(String step, Object error, StackTrace stackTrace) {
-    developer.log(
+    Log.warning(
       'post-session optional step "$step" failed (continuing)',
-      name: 'PostSessionIntegrationService',
+      source: 'PostSessionIntegrationService',
       error: error,
       stackTrace: stackTrace,
-      level: 900, // WARNING
     );
   }
 }

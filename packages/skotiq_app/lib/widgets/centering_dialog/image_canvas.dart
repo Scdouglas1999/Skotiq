@@ -61,8 +61,12 @@ class _CenteringImageWidgetState extends State<_CenteringImageWidget> {
       // continues regardless. Logged so we can diagnose chronic decode
       // failures (codec issues, malformed buffer) that would otherwise
       // be invisible — the user just sees the spinner forever.
-      developer.log('[CenteringDialog] preview decode failed: $e',
-          name: 'CenteringDialog', level: 900, error: e, stackTrace: st);
+      Log.warning(
+        '[CenteringDialog] preview decode failed: $e',
+        source: 'CenteringDialog',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 

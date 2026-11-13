@@ -2,7 +2,6 @@ import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +20,7 @@ import 'profiles_provider.dart';
 import 'settings_provider.dart';
 import '../models/backend/backend_types.dart';
 import '../database/daos/settings_dao.dart';
+import '../services/logging_service.dart';
 
 part 'polar_alignment/polar_wire_decoding.dart';
 part 'polar_alignment/polar_config_notifier.dart';
@@ -205,10 +205,9 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
   void _handlePolarAlignmentEvent(String eventType, Map<String, dynamic> data) {
     if (!mounted) return;
 
-    developer.log(
+    Log.debug(
       '[PolarAlignmentStateNotifier] Received event: $eventType',
-      name: 'PolarAlignmentStateNotifier',
-      level: 500,
+      source: 'PolarAlignmentStateNotifier',
     );
 
     switch (eventType) {
@@ -262,11 +261,10 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
           // solver for a run the user stopped is the failure the operator did
           // not have. The reason goes to the log; `_doStop` publishes the
           // stopped outcome once the host confirms.
-          developer.log(
+          Log.debug(
             '[PolarAlignmentStateNotifier] Run ended during a requested stop: '
             '$statusStr',
-            name: 'PolarAlignmentStateNotifier',
-            level: 700,
+            source: 'PolarAlignmentStateNotifier',
           );
           return;
         }
@@ -337,10 +335,9 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       // the slot again so a later event can retry.
       unawaited(
         _saveHistoryOnce(autoCompleted: true).catchError((Object e) {
-          developer.log(
+          Log.error(
             '[PolarAlignmentStateNotifier] auto-complete save failed: $e',
-            name: 'PolarAlignmentStateNotifier',
-            level: 1000,
+            source: 'PolarAlignmentStateNotifier',
             error: e,
           );
         }),
@@ -367,10 +364,9 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     try {
       bytes = _decodeImageBytes(data['image_data']);
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[PolarAlignmentStateNotifier] Ignoring malformed polar image payload: $e',
-        name: 'PolarAlignmentStateNotifier',
-        level: 900,
+        source: 'PolarAlignmentStateNotifier',
       );
       return; // keep prior image/state; subscription stays alive
     }
@@ -606,10 +602,9 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       if (cameraId == null || cameraId.isEmpty) return null;
       return await ref.read(cameraCapabilitiesProvider(cameraId).future);
     } catch (e) {
-      developer.log(
+      Log.debug(
         '[PolarAlignmentStateNotifier] Could not resolve camera capabilities: $e',
-        name: 'PolarAlignmentStateNotifier',
-        level: 700,
+        source: 'PolarAlignmentStateNotifier',
       );
       return null;
     }
@@ -704,10 +699,9 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       try {
         await _saveHistoryOnce();
       } catch (e) {
-        developer.log(
+        Log.warning(
           '[PolarAlignmentStateNotifier] Failed to save result on stop: $e',
-          name: 'PolarAlignmentStateNotifier',
-          level: 900,
+          source: 'PolarAlignmentStateNotifier',
           error: e,
         );
       }
@@ -858,10 +852,9 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       final db = ref.read(databaseProvider);
       await db.polarAlignmentHistoryDao.insertResult(result);
     }
-    developer.log(
+    Log.info(
       '[PolarAlignmentStateNotifier] Saved alignment result',
-      name: 'PolarAlignmentStateNotifier',
-      level: 800,
+      source: 'PolarAlignmentStateNotifier',
     );
   }
 

@@ -97,11 +97,10 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
         ),
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         'FlatWizard: could not restore persisted global settings (using '
         'defaults): $e',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
         error: e,
       );
     }
@@ -129,10 +128,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
           .read(settingsDaoProvider)
           .write(StoreSettings.flatWizard, payload)
           .catchError((Object e) {
-            developer.log(
+            Log.warning(
               'FlatWizard: failed to persist global settings: $e',
-              name: 'FlatWizardNotifier',
-              level: 900,
+              source: 'FlatWizardNotifier',
               error: e,
             );
           }),
@@ -208,10 +206,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
           }
         }
       } catch (error) {
-        developer.log(
+        Log.warning(
           'Could not restore flat filter settings: $error',
-          name: 'FlatWizardNotifier',
-          level: 900,
+          source: 'FlatWizardNotifier',
         );
       }
     }
@@ -298,10 +295,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       // read on the local path). But unlike an empty history, a fault is a
       // diagnosable condition — record it instead of silently conflating the
       // two so a misconfigured/offline host is visible in the logs.
-      developer.log(
+      Log.warning(
         'FlatWizard: remote flat-history fetch failed for $filterName: $e',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
         error: e,
       );
       debugRemoteFaultSink?.call(e);
@@ -369,10 +365,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     _filterSettingsWrite = _filterSettingsWrite
         .then((_) => dao.write(row, payload))
         .catchError((Object error) {
-          developer.log(
+          Log.warning(
             'Could not save flat filter settings: $error',
-            name: 'FlatWizardNotifier',
-            level: 900,
+            source: 'FlatWizardNotifier',
           );
         });
   }

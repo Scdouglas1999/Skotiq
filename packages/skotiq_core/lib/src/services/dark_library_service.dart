@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,6 +10,7 @@ import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import 'calibration/dark_selection.dart';
 import 'calibration_master_builder.dart';
+import 'logging_service.dart';
 
 /// Service for managing dark frame library operations.
 ///
@@ -600,19 +600,18 @@ class DarkLibraryService {
       -64 => 'BITPIX=-64 (IEEE float64)',
       _ => 'BITPIX=$bitpix',
     };
-    developer.log(
+    Log.debug(
       'DarkLibraryService: parsed FITS $pathLabel ${width}x$height '
       '(BZERO=${bzeroFromHeader ?? "default"}, '
       'BSCALE=${bscaleFromHeader ?? "default"})',
-      name: 'DarkLibraryService',
+      source: 'DarkLibraryService',
     );
     if (saturatedLow > 0 || saturatedHigh > 0) {
-      developer.log(
+      Log.warning(
         'DarkLibraryService: WARNING — clamped float pixels to u16 range. '
         'Below 0: $saturatedLow, above 65535: $saturatedHigh. '
         'If this was unexpected, check BZERO/BSCALE in your master dark.',
-        name: 'DarkLibraryService',
-        level: 900, // ~warning
+        source: 'DarkLibraryService',
       );
     }
 

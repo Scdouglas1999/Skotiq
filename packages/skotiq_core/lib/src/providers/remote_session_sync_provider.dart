@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -115,13 +114,6 @@ Future<void> _hydrate(
       'Remote session hydration failed: $e',
       source: _logSource,
       fields: {'stackTrace': '$stackTrace'},
-    );
-    developer.log(
-      'Remote session hydration failed: $e',
-      name: _logSource,
-      level: 1000,
-      error: e,
-      stackTrace: stackTrace,
     );
   }
 }

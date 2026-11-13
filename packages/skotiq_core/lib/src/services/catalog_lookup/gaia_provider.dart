@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../../models/annotation_data.dart';
+import '../logging_service.dart';
 
 class GaiaProvider {
   static const String _baseUrl = 'https://gea.esac.esa.int/tap-server/tap/sync';
@@ -52,12 +52,7 @@ class GaiaProvider {
         }
       }
     } catch (e) {
-      developer.log(
-        '[GAIA] Error: $e',
-        name: 'GaiaProvider',
-        level: 900,
-        error: e,
-      );
+      Log.warning('[GAIA] Error: $e', source: 'GaiaProvider', error: e);
     }
 
     return null;

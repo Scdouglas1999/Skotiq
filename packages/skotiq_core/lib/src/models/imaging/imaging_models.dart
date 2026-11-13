@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:equatable/equatable.dart';
 import 'dart:typed_data';
 
 import 'frame_files.dart';
+import '../../services/logging_service.dart';
 
 part 'imaging_models/frame_analysis_models.dart';
 part 'imaging_models/capture_settings.dart';

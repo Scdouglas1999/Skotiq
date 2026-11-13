@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart'
-    show PhotometryMeasurementRow,
+    show
+        PhotometryMeasurementRow,
         FramePhotometricCalibrationRow,
         TransparencySampleRow,
         PsfFieldTileRow,
@@ -31,6 +31,7 @@ import '../settings/app_settings_state.g.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import 'science/science_camera_auto_config_provider.dart';
+import '../services/logging_service.dart';
 
 part 'science_provider/settings.dart';
 part 'science_provider/photometry_selection.dart';

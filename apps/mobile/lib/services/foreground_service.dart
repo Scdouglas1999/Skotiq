@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:isolate';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'notification_service.dart';
+import 'package:skotiq_core/services.dart';
 
 class ImagingForegroundService {
   static final ImagingForegroundService _instance =
@@ -67,10 +67,9 @@ class ImagingForegroundService {
       // Don't silently swallow — surface and treat as denied. The
       // foreground service still runs without the whitelist; it's
       // just more likely to be killed on aggressive OEMs.
-      developer.log(
+      Log.error(
         'requestIgnoreBatteryOptimization failed: $e',
-        name: 'ImagingForegroundService',
-        level: 1000,
+        source: 'ImagingForegroundService',
         error: e,
         stackTrace: st,
       );
@@ -90,10 +89,9 @@ class ImagingForegroundService {
           await FlutterForegroundTask.requestNotificationPermission();
       return result == NotificationPermission.granted;
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'FlutterForegroundTask.requestNotificationPermission failed: $e',
-        name: 'ImagingForegroundService',
-        level: 1000,
+        source: 'ImagingForegroundService',
         error: e,
         stackTrace: st,
       );

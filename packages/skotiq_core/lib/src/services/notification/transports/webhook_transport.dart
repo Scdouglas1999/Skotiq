@@ -12,13 +12,13 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
+import '../../logging_service.dart';
 
 class WebhookTransport extends NotificationTransport {
   final http.Client _client;
@@ -69,10 +69,9 @@ class WebhookTransport extends NotificationTransport {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return NotificationResult.ok(statusCode: response.statusCode);
       }
-      developer.log(
+      Log.warning(
         '[Notifications/Webhook] HTTP ${response.statusCode}: ${response.body}',
-        name: 'WebhookTransport',
-        level: 900,
+        source: 'WebhookTransport',
       );
       return NotificationResult.fail(
         'Webhook responded ${response.statusCode}',
@@ -83,10 +82,9 @@ class WebhookTransport extends NotificationTransport {
         'Webhook request timed out after ${_timeout.inSeconds}s',
       );
     } catch (e) {
-      developer.log(
+      Log.error(
         '[Notifications/Webhook] Send failed: $e',
-        name: 'WebhookTransport',
-        level: 1000,
+        source: 'WebhookTransport',
         error: e,
       );
       return NotificationResult.fail(e.toString());

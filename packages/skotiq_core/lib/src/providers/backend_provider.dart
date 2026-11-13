@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // skotiq_backend.dart re-exports every role interface
@@ -21,6 +20,7 @@ import '../services/remote_sequence_editor_sync_lifecycle.dart';
 import 'thumbnail_sidecar_provider.dart';
 import '../models/backend/backend_types.dart';
 import '../models/backend/backend_connection_state.dart';
+import '../services/logging_service.dart';
 
 /// Factory seam for remote backends. Production uses [NetworkBackend.new];
 /// tests can provide controllable candidates without opening sockets.
@@ -157,23 +157,21 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     _lastConnectTokenRejected = !connected && backend.isAuthTokenRejected;
 
     if (connected) {
-      developer.log(
+      Log.info(
         '[BackendNotifier] NetworkBackend connected to $scheme://$host:$port '
         '(auth=${authToken != null && authToken.isNotEmpty}, '
         'remote=${backend.isRemoteHost}, '
         'pinned=${pinnedFingerprint != null && pinnedFingerprint.isNotEmpty})',
-        name: 'BackendNotifier',
-        level: 800,
+        source: 'BackendNotifier',
       );
       return;
     }
 
-    developer.log(
+    Log.error(
       '[BackendNotifier] NetworkBackend connect to $scheme://$host:$port did '
       'not reach a live connection (state=${connectionState.name}); rolling '
       'back to disconnected',
-      name: 'BackendNotifier',
-      level: 1000,
+      source: 'BackendNotifier',
       error: failure,
       stackTrace: failureStack,
     );
@@ -224,11 +222,10 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
       disconnected.dispose();
       return;
     } on Object catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[BackendNotifier] Rollback swap failed; forcing disconnected state: '
         '$e',
-        name: 'BackendNotifier',
-        level: 1000,
+        source: 'BackendNotifier',
         error: e,
         stackTrace: stackTrace,
       );
@@ -345,10 +342,9 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     try {
       await DeviceServiceLifecycle.prepareForBackendSwap();
     } on Object catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[BackendNotifier] DeviceService quiesce failed during backend swap: $e',
-        name: 'BackendNotifier',
-        level: 1000,
+        source: 'BackendNotifier',
         error: e,
         stackTrace: stackTrace,
       );

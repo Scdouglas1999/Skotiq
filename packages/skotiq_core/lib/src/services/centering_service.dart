@@ -17,6 +17,7 @@ import '../models/equipment/equipment_models.dart';
 import '../providers/device_service_providers.dart';
 import '../providers/imaging_service_providers.dart';
 import '../providers/logging_service_provider.dart';
+import 'logging_service.dart';
 import '../providers/plate_solve_service_provider.dart';
 import '../providers/smart_notification_service_provider.dart';
 part 'centering_service/centering_models.dart';

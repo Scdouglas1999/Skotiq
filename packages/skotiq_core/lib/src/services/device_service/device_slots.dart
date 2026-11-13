@@ -30,23 +30,23 @@ extension _DeviceServiceSlots on DeviceService {
         currentId == incomingDeviceId) {
       return;
     }
-    _safeLog(
+    logSafely(
+      _ref,
       (l) => l.info(
         'Connecting ${type.name} $incomingDeviceId displaces $currentId; '
         'disconnecting the incumbent first so its driver handle is released',
         source: 'DeviceService',
       ),
-      'device-slot-handover',
     );
     try {
       await _disconnect(type);
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Displaced ${type.name} $currentId did not disconnect cleanly: $e',
           source: 'DeviceService',
         ),
-        'device-slot-handover-failed',
       );
     }
   }

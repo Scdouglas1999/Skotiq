@@ -19,14 +19,13 @@
 ///     decides whether a cloud channel exists at all.
 library;
 
-import 'dart:developer' as developer;
-
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The pairing database the host's headless server stores push tokens in.
 ///
@@ -54,11 +53,10 @@ final hostCloudPushConfiguredProvider = FutureProvider<bool>((ref) async {
     // unreadable/corrupt push_config.json presents identically to a genuinely
     // unconfigured host, so the operator would be told push is not set up when
     // it is. The log is the only place that distinction survives.
-    developer.log(
+    Log.warning(
       'Could not read the host push configuration; reporting no cloud channel: '
       '$e',
-      name: 'PushDeliveryTargets',
-      level: 900,
+      source: 'PushDeliveryTargets',
     );
     return false;
   }
@@ -84,11 +82,10 @@ final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
       // An unreachable/older host cannot be shown as "delivery works".
       // Logged because "host unreachable" and "host has no push targets"
       // render identically in settings, and only the first is actionable.
-      developer.log(
+      Log.warning(
         'Could not query push delivery targets from the host; reporting no '
         'delivery targets: $e',
-        name: 'PushDeliveryTargets',
-        level: 900,
+        source: 'PushDeliveryTargets',
       );
       return PushDeliveryTargets.none;
     }
@@ -121,11 +118,10 @@ final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
     // Same reasoning as the remote branch: a failed pairing-database read must
     // not be presented as "no phones registered", which is what the settings
     // row would otherwise say about a rig that does have devices paired.
-    developer.log(
+    Log.warning(
       'Could not read locally registered push tokens; reporting no delivery '
       'targets: $e',
-      name: 'PushDeliveryTargets',
-      level: 900,
+      source: 'PushDeliveryTargets',
     );
     return PushDeliveryTargets.none;
   }

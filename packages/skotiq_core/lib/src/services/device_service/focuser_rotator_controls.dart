@@ -56,13 +56,13 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
       // decides whether the hardware is still travelling. If that read also
       // fails we cannot know, so we report "not moving" and clear the spinner —
       // but the operator must see that the state is assumed, not measured.
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Could not read focuser $deviceId status after a failed move; '
           'assuming it is stopped (moving state may be stale): $e',
           source: 'DeviceService',
         ),
-        'focuser-recover-moving-state',
       );
       return false;
     }
@@ -110,13 +110,13 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
         generation: verifyGeneration,
       );
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.error(
           'Focuser $deviceId absolute move to $position failed '
           '(command sent: $commandWasSent): $e',
           source: 'DeviceService',
         ),
-        'focuser-move-to',
       );
       if (commandWasSent) {
         hardwareStillMoving = await _recoverFocuserMovingState(deviceId);
@@ -196,13 +196,13 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
         // Capability lookup is advisory. The status and command endpoints
         // remain authoritative for drivers that do not expose capabilities.
         // Logged because losing it also loses the maxIncrement clamp below.
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.info(
             'Focuser $deviceId capability lookup failed; proceeding without '
             'the driver maxIncrement clamp: $e',
             source: 'DeviceService',
           ),
-          'focuser-capabilities',
         );
       }
       if (!_isStillConnectedToFocuser(deviceId)) {
@@ -229,13 +229,13 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
         generation: verifyGeneration,
       );
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.error(
           'Focuser $deviceId relative move of $delta steps failed '
           '(command sent: $commandWasSent): $e',
           source: 'DeviceService',
         ),
-        'focuser-move-relative',
       );
       if (commandWasSent) {
         hardwareStillMoving = await _recoverFocuserMovingState(deviceId);
@@ -291,13 +291,13 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
       // canReverse/canMoveAbsolute/canSync guard and lets the driver reject
       // the command instead. Log it so an unexpected permissive path is
       // traceable rather than looking like the driver advertised support.
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.info(
           'Rotator $deviceId capability lookup failed; capability guards will '
           'be skipped and the driver becomes the authority: $e',
           source: 'DeviceService',
         ),
-        'rotator-capabilities',
       );
       return null;
     }
@@ -332,13 +332,13 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
       // Same shape as the focuser recovery read: the move already failed and
       // this status read is what decides whether the rotator is still turning.
       // Failing it means we clear the spinner on an assumption, not a reading.
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Could not read rotator $deviceId status after a failed move; '
           'assuming it is stopped (moving state may be stale): $e',
           source: 'DeviceService',
         ),
-        'rotator-recover-moving-state',
       );
       return false;
     }
@@ -438,13 +438,13 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
         generation: verifyGeneration,
       );
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.error(
           'Rotator $deviceId absolute move to ${angle.toStringAsFixed(1)}° '
           'failed (command sent: $commandWasSent): $e',
           source: 'DeviceService',
         ),
-        'rotator-move-to',
       );
       if (commandWasSent) {
         hardwareStillMoving = await _recoverRotatorMovingState(deviceId);
@@ -511,13 +511,13 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
         generation: verifyGeneration,
       );
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.error(
           'Rotator $deviceId relative move of ${delta.toStringAsFixed(1)}° '
           'failed (command sent: $commandWasSent): $e',
           source: 'DeviceService',
         ),
-        'rotator-move-relative',
       );
       if (commandWasSent) {
         hardwareStillMoving = await _recoverRotatorMovingState(deviceId);

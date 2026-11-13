@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +10,7 @@ import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import '../database/daos/settings_dao.dart';
+import '../services/logging_service.dart';
 
 /// Replay Debug — Riverpod surface for the structured decision
 /// log feeding the retrospective Replay screen.
@@ -64,11 +64,10 @@ int parseReplayRetentionSetting(String? stored) {
 /// setting reports a value the operator never confirmed, with nothing in the
 /// log tying it to the update reported as not applied.
 void _logFailedReplayRollback(String what, Object error) {
-  developer.log(
+  Log.warning(
     'Failed to roll back $what after an aborted update; the persisted value '
     'may no longer match the result reported to the caller: $error',
-    name: 'ReplayDebug',
-    level: 900,
+    source: 'ReplayDebug',
   );
 }
 
@@ -335,10 +334,9 @@ class ReplayDebugSettingsController {
       }
       return count;
     } catch (error) {
-      developer.log(
+      Log.warning(
         'Could not count replay history: $error',
-        name: 'ReplayDebug',
-        level: 900,
+        source: 'ReplayDebug',
       );
       return null;
     }

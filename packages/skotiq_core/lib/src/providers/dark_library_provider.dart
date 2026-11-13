@@ -1,6 +1,5 @@
 import '../errors/error_text.dart';
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +18,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'calibration_master_builder_provider.dart';
 import 'calibration_service_providers.dart';
+import '../services/logging_service.dart';
 
 final darkLibraryDaoProvider = Provider<DarkLibraryDao>((ref) {
   return DarkLibraryDao(ref.watch(databaseProvider));
@@ -75,10 +75,9 @@ Stream<List<DarkLibraryEntry>> _pollRemoteDarkEntries(
   unchanged: listEquals,
   interval: interval,
   onRetainedError: (error, stackTrace) {
-    developer.log(
+    Log.warning(
       'Remote dark-library poll failed; retaining last value',
-      name: 'DarkLibraryProvider',
-      level: 900,
+      source: 'DarkLibraryProvider',
       error: error,
       stackTrace: stackTrace,
     );

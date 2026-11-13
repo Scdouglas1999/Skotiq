@@ -1,7 +1,6 @@
 // ignore_for_file: unused_local_variable
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -14,6 +13,7 @@ import 'package:skotiq_updater/skotiq_updater.dart';
 
 import '../../services/app_update.dart';
 import 'update_dialogs.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Widget that manages the update UI flow.
 ///
@@ -69,10 +69,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     _lanPushFailures =
         ref.read(updateProvider.notifier).lanPushFailures.listen((error) {
       if (!mounted) return;
-      developer.log(
+      Log.error(
         'LAN push error: $error',
-        name: 'UpdateManager',
-        level: 1000,
+        source: 'UpdateManager',
       );
       _showErrorBanner('LAN push error: $error');
     });
@@ -81,7 +80,10 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   Future<void> _checkForStagedUpdate() async {
     if (!mounted) return;
 
-    developer.log('Checking for staged updates...', name: 'UpdateManager');
+    Log.debug(
+      'Checking for staged updates...',
+      source: 'UpdateManager',
+    );
     final updateNotifier = ref.read(updateProvider.notifier);
     await updateNotifier.checkStagedUpdate();
 
@@ -92,14 +94,16 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
 
     final state = ref.read(updateProvider);
     if (state.status == UpdateStatus.staged) {
-      developer.log(
+      Log.info(
         'Found staged update: ${state.availableUpdate?.version}',
-        name: 'UpdateManager',
-        level: 800,
+        source: 'UpdateManager',
       );
       _showReadyBanner(state.availableUpdate?.version ?? 'Unknown');
     } else {
-      developer.log('No staged update found', name: 'UpdateManager');
+      Log.debug(
+        'No staged update found',
+        source: 'UpdateManager',
+      );
     }
   }
 
@@ -107,9 +111,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     if (!mounted) return;
     final generation = ++_bannerGeneration;
 
-    developer.log(
+    Log.debug(
       'Showing banner for version: $version',
-      name: 'UpdateManager',
+      source: 'UpdateManager',
     );
     setState(() {
       _showingBanner = true;
@@ -155,7 +159,10 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   Future<void> _checkForUpdates() async {
     if (!mounted) return;
     if (!_isUpdateConfigured()) {
-      developer.log(_disabledUpdatesLog, name: 'UpdateManager');
+      Log.debug(
+        _disabledUpdatesLog,
+        source: 'UpdateManager',
+      );
       return;
     }
 
@@ -182,10 +189,10 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     // reminder window? Found updates stay in state either way, so Settings
     // still shows it; this only decides whether to interrupt.
     if (!notifier.shouldPrompt()) {
-      developer.log(
+      Log.debug(
         'Update ${state.availableUpdate?.version} is available but was '
         'already skipped or deferred; not prompting.',
-        name: 'UpdateManager',
+        source: 'UpdateManager',
       );
       return;
     }
@@ -196,19 +203,18 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     // check once the rig is idle.
     final heldBack = updatePromptHeldBackReason(ref.read);
     if (heldBack != null) {
-      developer.log(
+      Log.debug(
         'Holding back the update prompt: $heldBack.',
-        name: 'UpdateManager',
+        source: 'UpdateManager',
       );
       return;
     }
 
     final dialogContext = _dialogContext();
     if (dialogContext == null) {
-      developer.log(
+      Log.warning(
         'No Navigator to show the update offer on; it stays in Settings.',
-        name: 'UpdateManager',
-        level: 900,
+        source: 'UpdateManager',
       );
       return;
     }
@@ -382,9 +388,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
             }
             // The banner already offers it.
             if (_showingBanner) {
-              developer.log(
+              Log.debug(
                 'Banner already showing, skipping dialog',
-                name: 'UpdateManager',
+                source: 'UpdateManager',
               );
               break;
             }
@@ -407,10 +413,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
             // download or install the operator started is worth a toast.
             if (previous?.status == UpdateStatus.checking) break;
             if (next.errorMessage != null) {
-              developer.log(
+              Log.error(
                 'Error: ${next.errorMessage}',
-                name: 'UpdateManager',
-                level: 1000,
+                source: 'UpdateManager',
               );
               // Show error in banner instead of snackbar (more reliable in builder context)
               _showErrorBanner(next.errorMessage!);

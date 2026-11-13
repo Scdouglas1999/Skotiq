@@ -348,37 +348,38 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 ),
               ),
               if (sensitivity.hasOffset) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label:
-                      _isOffsetProfileDefault() ? 'Offset (profile)' : 'Offset',
-                  child: NodeNumberInput(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: NodePropertyField(
                     colors: colors,
-                    value: _effectiveOffset(profile).toDouble(),
-                    min: 0,
-                    max: 1000,
-                    isProfileDefault: _isOffsetProfileDefault(),
-                    hintText: _isOffsetProfileDefault() &&
-                            profile?.defaultOffset != null
-                        ? 'Profile: ${profile!.defaultOffset}'
-                        : null,
-                    onChanged: (value) {
-                      final offset = value.toInt();
-                      setState(() => _userOverrides.add('offset'));
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(offset: offset),
-                          );
-                      ref
-                          .read(sequencerDefaultsProvider.notifier)
-                          .updateExposureDefaults(
-                            offset: offset,
-                          );
-                    },
+                    label: _isOffsetProfileDefault()
+                        ? 'Offset (profile)'
+                        : 'Offset',
+                    child: NodeNumberInput(
+                      colors: colors,
+                      value: _effectiveOffset(profile).toDouble(),
+                      min: 0,
+                      max: 1000,
+                      isProfileDefault: _isOffsetProfileDefault(),
+                      hintText: _isOffsetProfileDefault() &&
+                              profile?.defaultOffset != null
+                          ? 'Profile: ${profile!.defaultOffset}'
+                          : null,
+                      onChanged: (value) {
+                        final offset = value.toInt();
+                        setState(() => _userOverrides.add('offset'));
+                        ref.read(currentSequenceProvider.notifier).updateNode(
+                              node.copyWith(offset: offset),
+                            );
+                        ref
+                            .read(sequencerDefaultsProvider.notifier)
+                            .updateExposureDefaults(
+                              offset: offset,
+                            );
+                      },
+                    ),
                   ),
                 ),
-              ),
               ],
             ],
           ),
@@ -476,10 +477,10 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     ];
 
     if (kDebugMode) {
-      developer.log(
-          '_buildFilterDropdown: node.filter="${node.filter}" node.filterIndex=${node.filterIndex} filterNames=$filterNames',
-          name: 'InstructionNodeProperties',
-          level: 500);
+      Log.debug(
+        '_buildFilterDropdown: node.filter="${node.filter}" node.filterIndex=${node.filterIndex} filterNames=$filterNames',
+        source: 'InstructionNodeProperties',
+      );
     }
     final matched = filterOptions.firstWhereOrNull(
       (f) =>
@@ -501,13 +502,13 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
           : 'Filter #${node.filterIndex} (not available)';
       filterOptions.add((index: _kMissingFilterSentinel, name: label));
     }
-    final currentFilter = matched ??
-        (missingFromList ? filterOptions.last : filterOptions.first);
+    final currentFilter =
+        matched ?? (missingFromList ? filterOptions.last : filterOptions.first);
     if (kDebugMode) {
-      developer.log(
-          '_buildFilterDropdown: currentFilter=(index:${currentFilter.index}, name:"${currentFilter.name}")',
-          name: 'InstructionNodeProperties',
-          level: 500);
+      Log.debug(
+        '_buildFilterDropdown: currentFilter=(index:${currentFilter.index}, name:"${currentFilter.name}")',
+        source: 'InstructionNodeProperties',
+      );
     }
 
     return Column(
@@ -646,7 +647,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
       ],
     );
   }
-
 }
 
 class _ExposureRecommendationCard extends StatelessWidget {
@@ -743,7 +743,6 @@ class _ExposureRecommendationCard extends StatelessWidget {
       ),
     );
   }
-
 }
 
 /// Non-blocking amber notice shown under a duration/delay field whose value is

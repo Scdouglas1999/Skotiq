@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:skotiq_astro/skotiq_astro.dart'
@@ -19,6 +18,7 @@ import '../../models/sequence/sequence_models.dart';
 import 'horizon_profile.dart';
 import 'rejection_labels.dart';
 import 'scheduler_log.dart';
+import '../logging_service.dart';
 
 part 'scheduler_engine/contracts.dart';
 part 'scheduler_engine/evaluation.dart';
@@ -321,25 +321,23 @@ class SchedulerEngine {
   /// "autopilot" for both and suppresses the armed-autopilot warning.
   String? get dispatchedRunId => _dispatchedRunId;
 
-  /// Write one diagnostic to BOTH destinations.
-  ///
-  /// `dart:developer` keeps the line visible under a debugger; [_logSink] is
-  /// what makes it survive into the in-app Logs viewer, `/api/logs`, and the
-  /// exported diagnostic dump in a shipping build. Every scheduler diagnostic
-  /// goes through here — a bare `developer.log` in this engine is a line nobody
-  /// can read after the fact.
+  /// Write one diagnostic to [_logSink], or to the process log without one.
   void _log(SchedulerLogLevel level, String message, {Object? error}) {
-    developer.log(
-      message,
-      name: kSchedulerLogSource,
-      level: switch (level) {
-        SchedulerLogLevel.trace => 500,
-        SchedulerLogLevel.info => 800,
-        SchedulerLogLevel.warning => 900,
+    final sink = _logSink;
+    if (sink != null) {
+      sink(level, error == null ? message : '$message: $error');
+      return;
+    }
+    Log.write(
+      switch (level) {
+        SchedulerLogLevel.trace => LogLevel.debug,
+        SchedulerLogLevel.info => LogLevel.info,
+        SchedulerLogLevel.warning => LogLevel.warning,
       },
+      message,
+      source: kSchedulerLogSource,
       error: error,
     );
-    _logSink?.call(level, error == null ? message : '$message: $error');
   }
 
   /// Reconcile the engine's belief with the executor before an evaluation acts

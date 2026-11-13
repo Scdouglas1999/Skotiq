@@ -12,13 +12,12 @@
 /// The preference is [StoreSettings.glanceMode], kept on each computer.
 library;
 
-import 'dart:developer' as developer;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import '../database/daos/settings_dao.dart';
+import '../services/logging_service.dart';
 
 /// Whether glance mode (large secondary-status type) is currently active.
 ///
@@ -61,11 +60,7 @@ class GlanceModeNotifier extends StateNotifier<bool> {
         state = enabled;
       }
     } catch (e) {
-      developer.log(
-        'Failed to load glance-mode setting: $e',
-        name: 'GlanceMode',
-        level: 1000,
-      );
+      Log.error('Failed to load glance-mode setting: $e', source: 'GlanceMode');
     }
   }
 
@@ -103,11 +98,7 @@ class GlanceModeNotifier extends StateNotifier<bool> {
           .read(settingsDaoProvider)
           .write(StoreSettings.glanceMode, enabled);
     } catch (e) {
-      developer.log(
-        'Failed to save glance-mode setting: $e',
-        name: 'GlanceMode',
-        level: 1000,
-      );
+      Log.error('Failed to save glance-mode setting: $e', source: 'GlanceMode');
       rethrow;
     }
   }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +13,7 @@ import '../host_mutation_event_provider.dart';
 import '../sequence_provider.dart';
 import '../../models/backend/backend_types.dart';
 import '../sequence_repository_provider.dart';
+import '../../services/logging_service.dart';
 
 const sequenceUpdatedEventType = 'SequenceUpdated';
 const _logSource = 'SequenceCatalogSync';
@@ -281,10 +281,9 @@ Future<void> reloadOpenSequenceIfIdle(
     }
   } catch (e, stackTrace) {
     // Library invalidation still ran; editor reload is best-effort.
-    developer.log(
+    Log.warning(
       'reloadOpenSequenceIfIdle failed for sequenceId=$sequenceId: $e',
-      name: _logSource,
-      level: 900,
+      source: _logSource,
       error: e,
       stackTrace: stackTrace,
     );

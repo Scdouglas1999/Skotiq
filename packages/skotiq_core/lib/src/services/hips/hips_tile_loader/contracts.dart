@@ -217,11 +217,10 @@ class _DevLogErrorSink implements HipsTileLoaderErrorSink {
 
   @override
   void onTileError(HipsTileFailure failure) {
-    developer.log(
+    Log.warning(
       'HiPS tile fetch failed: ${failure.error.message} '
       '(url=${failure.error.requestUrl})',
-      name: 'HipsTileLoader',
-      level: 900, // WARNING
+      source: 'HipsTileLoader',
       error: failure.error,
     );
   }
