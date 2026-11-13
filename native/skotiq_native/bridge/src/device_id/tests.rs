@@ -3,6 +3,29 @@ use crate::device_id::cache::parse_device_id_cached;
 
 /// Readers of a parse that only these tests need; the app reads `connection_info`.
 impl ParsedDeviceId {
+    /// Get Alpaca connection info if this is an Alpaca device
+    fn alpaca_info(&self) -> Option<(&str, &str, u16, &str, u32)> {
+        match &self.connection_info {
+            ConnectionInfo::Alpaca {
+                protocol,
+                host,
+                port,
+                device_type,
+                device_num,
+                ..
+            } => Some((protocol, host, *port, device_type, *device_num)),
+            _ => None,
+        }
+    }
+
+    /// Get the Alpaca base URL if this is an Alpaca device
+    fn alpaca_base_url(&self) -> Option<&str> {
+        match &self.connection_info {
+            ConnectionInfo::Alpaca { base_url, .. } => Some(base_url),
+            _ => None,
+        }
+    }
+
     /// Get the raw device ID string
     fn raw(&self) -> &str {
         &self.raw_id

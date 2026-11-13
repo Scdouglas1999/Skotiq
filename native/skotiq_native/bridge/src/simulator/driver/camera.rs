@@ -299,6 +299,9 @@ impl Camera for SimCamera {
     }
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+        if !get_sim_camera_for(device_id).read().await.status.connected {
+            return Err(crate::simulator::gate::not_connected_camera().into());
+        }
         let parsed = crate::device_id::cache::parse_device_id_cached(device_id)?;
         crate::simulator::capabilities::get_simulator_capabilities(&parsed).await
     }

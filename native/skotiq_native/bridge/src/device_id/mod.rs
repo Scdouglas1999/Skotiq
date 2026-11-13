@@ -505,31 +505,6 @@ impl ParsedDeviceId {
             "Unable to infer device type - use a prefix (ascom:, alpaca:, indi:, native:)",
         ))
     }
-
-    // Accessor methods
-
-    /// Get Alpaca connection info if this is an Alpaca device
-    pub fn alpaca_info(&self) -> Option<(&str, &str, u16, &str, u32)> {
-        match &self.connection_info {
-            ConnectionInfo::Alpaca {
-                protocol,
-                host,
-                port,
-                device_type,
-                device_num,
-                ..
-            } => Some((protocol, host, *port, device_type, *device_num)),
-            _ => None,
-        }
-    }
-
-    /// Get the Alpaca base URL if this is an Alpaca device
-    pub fn alpaca_base_url(&self) -> Option<&str> {
-        match &self.connection_info {
-            ConnectionInfo::Alpaca { base_url, .. } => Some(base_url),
-            _ => None,
-        }
-    }
 }
 
 /// The tokens that may follow `native:`: the vendor catalog's, plus the two

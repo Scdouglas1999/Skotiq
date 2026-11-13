@@ -331,6 +331,9 @@ impl Mount for SimMount {
     }
 
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+        if !get_sim_mount().read().await.status.connected {
+            return Err(crate::simulator::gate::not_connected("mount").into());
+        }
         let parsed = crate::device_id::cache::parse_device_id_cached(device_id)?;
         crate::simulator::capabilities::get_simulator_capabilities(&parsed).await
     }

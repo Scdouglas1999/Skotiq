@@ -113,14 +113,21 @@ async fn a_registered_accessory_that_is_not_connected_answers_not_connected() {
     );
 }
 
-/// The camera and mount keep their per-protocol capability source until they
-/// have a handle: a simulated one answers whether or not it is connected.
+/// A camera or mount id nobody registered names no device to ask, the same
+/// answer an accessory's gets.
 #[tokio::test]
-async fn a_simulated_camera_and_mount_answer_without_a_handle() {
-    let camera = get_device_capabilities("sim_camera_43").await;
-    let mount = get_device_capabilities("sim_mount_43").await;
-    assert!(matches!(camera, Ok(DeviceCapabilities::Camera(_))), "got {camera:?}");
-    assert!(matches!(mount, Ok(DeviceCapabilities::Mount(_))), "got {mount:?}");
+async fn an_unregistered_camera_or_mount_is_not_found() {
+    for id in [
+        "sim_camera_43",
+        "sim_mount_43",
+        "alpaca:http://127.0.0.1:9:camera:0",
+    ] {
+        let answer = get_device_capabilities(id).await;
+        assert!(
+            matches!(answer, Err(SkotiqError::DeviceNotFound(_))),
+            "{id}: got {answer:?}"
+        );
+    }
 }
 
 /// Every simulated accessory with a handle answers once connected, with the
