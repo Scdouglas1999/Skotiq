@@ -5,6 +5,7 @@ library;
 
 export 'api/connection.dart';
 export 'api/darkroom/entrypoints.dart';
+export 'api/defect_map.dart';
 export 'api/depthlock.dart';
 export 'api/devices/camera.dart';
 export 'api/devices/cover_calibrator.dart';

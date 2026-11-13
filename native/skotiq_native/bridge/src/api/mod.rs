@@ -5,6 +5,7 @@
 
 pub mod connection;
 pub mod darkroom;
+pub mod defect_map;
 pub mod depthlock;
 pub mod devices;
 pub mod diagnostics;

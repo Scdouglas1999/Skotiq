@@ -180,6 +180,12 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
           kernel: kernel,
           saveOriginal: saveOriginal,
         );
+    publishHostMutationFromContainer(
+      container,
+      entityType: HostMutationEntity.settings,
+      action: HostMutationAction.updated,
+      extra: const {'namespace': 'defect-map'},
+    );
     return jsonOk({'status': 'applied'});
   }
 
@@ -410,36 +416,6 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
         'applyDuringCapture': status.applyDuringCapture,
         'storedOnDisk': status.storedOnDisk,
       },
-    });
-  }
-
-  /// POST /api/calibration/defect-maps/apply
-  ///
-  /// Toggles whether the stored defect map for `cameraId` is applied to
-  /// lights at capture time. The map itself already lives host-side; this is
-  /// a pure preference flip with no file transfer.
-  Future<Response> handleApplyDefectMap(Request request) async {
-    _logInfo('[API] POST /api/calibration/defect-maps/apply');
-    final payload = await readJsonObject(request);
-
-    final cameraId = requireString(payload, 'cameraId');
-    final applyDuringCapture = requireBool(payload, 'applyDuringCapture');
-
-    final service = container.read(defectMapServiceProvider);
-    await service.apply(
-      cameraId: cameraId,
-      applyDuringCapture: applyDuringCapture,
-    );
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.settings,
-      action: HostMutationAction.updated,
-      extra: const {'namespace': 'defect-map'},
-    );
-
-    return jsonOk({
-      'cameraId': cameraId,
-      'applyDuringCapture': applyDuringCapture,
     });
   }
 

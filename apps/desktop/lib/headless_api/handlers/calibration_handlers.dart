@@ -91,7 +91,6 @@ class CalibrationHandlers implements RouteSource {
     CalibrationApi.listDefectMaps: handleListDefectMaps,
     CalibrationApi.registerDefectMap: handleRegisterDefectMap,
     CalibrationApi.buildDefectMap: handleBuildDefectMap,
-    CalibrationApi.applyDefectMap: handleApplyDefectMap,
     CalibrationApi.getDefectMapStatus: handleGetDefectMapStatus,
     CalibrationApi.getDefectMapSettings: handleGetDefectMapSettings,
     CalibrationApi.updateDefectMapSettings: handleUpdateDefectMapSettings,
