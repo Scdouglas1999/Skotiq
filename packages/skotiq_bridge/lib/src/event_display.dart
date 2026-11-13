@@ -234,11 +234,12 @@ String _equipmentDetail(EquipmentEvent v) {
           : '${t.toStringAsFixed(1)}°C · ${p.toStringAsFixed(0)}%',
     EquipmentEvent_CameraSettingsChanged(
       gain: final g,
+      gainIsIso: final iso,
       offset: final o,
       binX: final x,
       binY: final y,
     ) =>
-      'Gain $g · offset $o · $x×$y',
+      iso ? 'ISO $g · $x×$y' : 'Gain $g · offset $o · $x×$y',
     EquipmentEvent_HeartbeatStarted(deviceType: final t, deviceId: final id) =>
       '$t · $id',
     EquipmentEvent_HeartbeatStopped(deviceType: final t, deviceId: final id) =>

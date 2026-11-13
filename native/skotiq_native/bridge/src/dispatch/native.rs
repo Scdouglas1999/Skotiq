@@ -13,7 +13,7 @@ use crate::device_manager::rig::focuser::VendorFocuser;
 use crate::device_manager::rig::mount::VendorMount;
 use crate::device_manager::DeviceManager;
 #[allow(unused_imports)] // Trait methods on `dyn Native*` handles require these in scope.
-use skotiq_device::{CameraDriver, DeviceDriver, MountDriver};
+use skotiq_device::{CameraDriver, DeviceDriver, LongExposureNoiseReduction, MountDriver};
 use skotiq_native::catalog::{self, NativeHandle, OpenRequest};
 use std::sync::Arc;
 
@@ -75,6 +75,10 @@ impl DeviceManager {
         match (handle, info.device_type) {
             (NativeHandle::Camera(mut camera), DeviceType::Camera) => {
                 camera.connect().await.map_err(|e| e.to_string())?;
+                self.tell_long_exposure_noise_reduction(
+                    &info.name,
+                    camera.long_exposure_noise_reduction(),
+                );
                 self.handles.insert(
                     &info.id,
                     DeviceHandle::Camera(Arc::new(VendorCamera::new(&info.id, camera))),
@@ -163,5 +167,78 @@ impl DeviceManager {
             )
         })?;
         Ok(device.is_connected())
+    }
+}
+
+/// What the user is told at connect about a camera's long exposure noise
+/// reduction, or `None` when there is nothing to do.
+pub(crate) fn long_exposure_noise_reduction_notice(
+    camera_name: &str,
+    state: LongExposureNoiseReduction,
+) -> Option<String> {
+    const WHY: &str = "With it on, the camera takes a dark frame after every exposure, \
+                       so each frame takes twice as long and is calibrated by the camera.";
+    match state {
+        LongExposureNoiseReduction::NotApplicable | LongExposureNoiseReduction::Off => None,
+        LongExposureNoiseReduction::StaysOn => Some(format!(
+            "{camera_name} has long exposure noise reduction on, and the camera did not let \
+             Skotiq turn it off. {WHY} Turn it off in the camera's menu."
+        )),
+        LongExposureNoiseReduction::Unreachable => Some(format!(
+            "Skotiq cannot reach the long exposure noise reduction setting of {camera_name}. \
+             If it is on, turn it off in the camera's menu. {WHY}"
+        )),
+    }
+}
+
+impl DeviceManager {
+    /// Tell the user once, as the camera connects, when its long exposure
+    /// noise reduction may still be on.
+    fn tell_long_exposure_noise_reduction(
+        &self,
+        camera_name: &str,
+        state: LongExposureNoiseReduction,
+    ) {
+        let Some(message) = long_exposure_noise_reduction_notice(camera_name, state) else {
+            return;
+        };
+        tracing::warn!("{}", message);
+        self.app_state.publish_event(crate::event::create_event_auto_id(
+            crate::event::EventSeverity::Warning,
+            crate::event::EventCategory::Equipment,
+            crate::event::EventPayload::System(crate::event::SystemEvent::Notification {
+                title: "Camera noise reduction".to_string(),
+                message,
+                level: "warning".to_string(),
+                explicit_transports: None,
+            }),
+        ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn noise_reduction_is_told_only_when_it_may_still_be_on() {
+        for quiet in [
+            LongExposureNoiseReduction::NotApplicable,
+            LongExposureNoiseReduction::Off,
+        ] {
+            assert_eq!(long_exposure_noise_reduction_notice("X-T5", quiet), None);
+        }
+        let stays_on =
+            long_exposure_noise_reduction_notice("X-T5", LongExposureNoiseReduction::StaysOn)
+                .expect("told");
+        assert!(stays_on.starts_with("X-T5 has long exposure noise reduction on"));
+        assert!(stays_on.contains("Turn it off in the camera's menu."));
+        let unreachable = long_exposure_noise_reduction_notice(
+            "Canon EOS 6D",
+            LongExposureNoiseReduction::Unreachable,
+        )
+        .expect("told");
+        assert!(unreachable.contains("cannot reach the long exposure noise reduction setting"));
+        assert!(unreachable.contains("Canon EOS 6D"));
     }
 }

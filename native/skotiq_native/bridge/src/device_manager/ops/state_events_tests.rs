@@ -357,6 +357,7 @@ async fn camera_settings_publish_once_per_change() {
                 offset,
                 bin_x,
                 bin_y,
+                ..
             } if device_id == CAMERA => Some((gain, offset, bin_x, bin_y)),
             _ => None,
         })

@@ -58,9 +58,9 @@ pub(crate) fn is_device_id(device_id: &str) -> bool {
 /// answer in time.
 pub(crate) const PHD2_NOT_RESPONDING: &str = "NotResponding";
 
-static CLIENT: OnceLock<Arc<RwLock<Option<skotiq_imaging::Phd2Client>>>> = OnceLock::new();
+static CLIENT: OnceLock<Arc<RwLock<Option<skotiq_phd2::Phd2Client>>>> = OnceLock::new();
 
-fn client_slot() -> &'static Arc<RwLock<Option<skotiq_imaging::Phd2Client>>> {
+fn client_slot() -> &'static Arc<RwLock<Option<skotiq_phd2::Phd2Client>>> {
     CLIENT.get_or_init(|| Arc::new(RwLock::new(None)))
 }
 
@@ -68,7 +68,7 @@ fn client_slot() -> &'static Arc<RwLock<Option<skotiq_imaging::Phd2Client>>> {
 /// The guard holds the lock while it lives; drop it before a long wait so
 /// status reads and a stop are not stalled (see [`dither`]).
 async fn phd2_client(
-) -> Result<tokio::sync::RwLockMappedWriteGuard<'static, skotiq_imaging::Phd2Client>, SkotiqError> {
+) -> Result<tokio::sync::RwLockMappedWriteGuard<'static, skotiq_phd2::Phd2Client>, SkotiqError> {
     let storage = client_slot().write().await;
     tokio::sync::RwLockWriteGuard::try_map(storage, |slot| slot.as_mut())
         .map_err(|_| SkotiqError::NotConnected("PHD2".to_string()))
@@ -80,8 +80,8 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
     // documented PHD2 defaults from the PHD2 EventMonitoring wiki and the
     // Skotiq PHD2-settings UI placeholder values.
     let host =
-        skotiq_imaging::normalize_phd2_tcp_host(&host.unwrap_or_else(|| "127.0.0.1".to_string()));
-    let port = port.unwrap_or(skotiq_imaging::PHD2_DEFAULT_PORT);
+        skotiq_phd2::normalize_phd2_tcp_host(&host.unwrap_or_else(|| "127.0.0.1".to_string()));
+    let port = port.unwrap_or(skotiq_phd2::PHD2_DEFAULT_PORT);
 
     tracing::info!("Connecting to PHD2 at {}:{}", host, port);
 
@@ -92,7 +92,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
         }
     }
 
-    let mut client = skotiq_imaging::Phd2Client::new(&host, port);
+    let mut client = skotiq_phd2::Phd2Client::new(&host, port);
 
     // Set up event callback to forward PHD2 events to the main event stream.
     // This callback runs on the PHD2 reader std::thread, NOT on the tokio runtime.
@@ -108,7 +108,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
         );
 
         let guiding_event = match event {
-            skotiq_imaging::Phd2Event::GuideStep(ref frame) => {
+            skotiq_phd2::Phd2Event::GuideStep(ref frame) => {
                 tracing::debug!(
                     "PHD2 GuideStep: RA={:.3}, Dec={:.3}, SNR={:.1}",
                     frame.ra_distance,
@@ -137,20 +137,20 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                 tracing::debug!("PHD2: Published GuideStats event (id={})", stats_id);
                 return;
             }
-            skotiq_imaging::Phd2Event::StateChanged(state) => {
+            skotiq_phd2::Phd2Event::StateChanged(state) => {
                 // PHD2 re-emits its state on every looping frame, so this would
                 // log "Looping" once a second. The meaningful transitions are
                 // surfaced to the UI as GuidingEvents; keep the raw log at debug.
                 tracing::debug!("PHD2 state changed: {:?}", state);
                 match state {
-                    skotiq_imaging::Phd2State::Guiding => GuidingEvent::GuidingStarted,
-                    skotiq_imaging::Phd2State::Connected => GuidingEvent::GuidingStopped,
-                    skotiq_imaging::Phd2State::Disconnected => GuidingEvent::Disconnected,
-                    skotiq_imaging::Phd2State::Paused => GuidingEvent::Paused,
-                    skotiq_imaging::Phd2State::LostLock => GuidingEvent::LostStar,
-                    skotiq_imaging::Phd2State::Looping => GuidingEvent::Looping,
-                    skotiq_imaging::Phd2State::Calibrating => GuidingEvent::Calibrating,
-                    skotiq_imaging::Phd2State::Settling => GuidingEvent::Settling,
+                    skotiq_phd2::Phd2State::Guiding => GuidingEvent::GuidingStarted,
+                    skotiq_phd2::Phd2State::Connected => GuidingEvent::GuidingStopped,
+                    skotiq_phd2::Phd2State::Disconnected => GuidingEvent::Disconnected,
+                    skotiq_phd2::Phd2State::Paused => GuidingEvent::Paused,
+                    skotiq_phd2::Phd2State::LostLock => GuidingEvent::LostStar,
+                    skotiq_phd2::Phd2State::Looping => GuidingEvent::Looping,
+                    skotiq_phd2::Phd2State::Calibrating => GuidingEvent::Calibrating,
+                    skotiq_phd2::Phd2State::Settling => GuidingEvent::Settling,
                     // Why: PHD2 occasionally introduces new app-states; we
                     // forward the raw name as a generic `Disconnected` event
                     // (the safest superset for sequencer logic) but the
@@ -158,7 +158,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                     // `parse_phd2_app_state`. Surfacing the literal string in
                     // the GuidingEvent stream would require extending the
                     // FFI enum, which is out of scope here.
-                    skotiq_imaging::Phd2State::Unknown(raw) => {
+                    skotiq_phd2::Phd2State::Unknown(raw) => {
                         tracing::warn!(
                             "PHD2: unrecognised state {:?} bubbled into bridge — \
                              treating as Disconnected for guiding-event mapping",
@@ -168,10 +168,10 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                     }
                 }
             }
-            skotiq_imaging::Phd2Event::StarLost => GuidingEvent::LostStar,
-            skotiq_imaging::Phd2Event::StarSelected { x, y } => GuidingEvent::StarSelected { x, y },
-            skotiq_imaging::Phd2Event::SettleBegin => GuidingEvent::Settling,
-            skotiq_imaging::Phd2Event::SettleDone {
+            skotiq_phd2::Phd2Event::StarLost => GuidingEvent::LostStar,
+            skotiq_phd2::Phd2Event::StarSelected { x, y } => GuidingEvent::StarSelected { x, y },
+            skotiq_phd2::Phd2Event::SettleBegin => GuidingEvent::Settling,
+            skotiq_phd2::Phd2Event::SettleDone {
                 status,
                 ref error,
                 total_frames: _,
@@ -188,19 +188,19 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                 }
                 settle_done_event(status, error)
             }
-            skotiq_imaging::Phd2Event::CalibrationComplete => {
+            skotiq_phd2::Phd2Event::CalibrationComplete => {
                 tracing::info!("PHD2: Calibration complete");
                 GuidingEvent::CalibrationComplete
             }
-            skotiq_imaging::Phd2Event::Disconnected => GuidingEvent::Disconnected,
-            skotiq_imaging::Phd2Event::Alert {
+            skotiq_phd2::Phd2Event::Disconnected => GuidingEvent::Disconnected,
+            skotiq_phd2::Phd2Event::Alert {
                 message,
                 alert_type,
             } => {
                 tracing::warn!("PHD2 Alert [{}]: {}", alert_type, message);
                 return; // Alerts are not forwarded as GuidingEvent
             }
-            skotiq_imaging::Phd2Event::Error(msg) => {
+            skotiq_phd2::Phd2Event::Error(msg) => {
                 tracing::error!("PHD2 Error: {}", msg);
                 return; // Errors are not forwarded as GuidingEvent
             }
@@ -369,7 +369,7 @@ async fn stop_capture_completely(exposure: Duration) -> Result<(), SkotiqError> 
 /// PHD2 reports the settle. Time PHD2 spends calibrating does not count
 /// against `settle_wait`, up to [`CALIBRATION_ALLOWANCE`].
 async fn await_settle(
-    waiter: skotiq_imaging::SettleWaiter,
+    waiter: skotiq_phd2::SettleWaiter,
     settle_wait: Duration,
     stop_generation: u64,
 ) -> Result<(), String> {
@@ -427,7 +427,7 @@ pub(crate) async fn start_guiding(
         .await?
         .guide_arm(settle_pixels, settle_time, settle_timeout)
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start guiding: {}", e)))?;
-    let settle_wait = skotiq_imaging::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
+    let settle_wait = skotiq_phd2::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
     if let Err(error) = await_settle(waiter, settle_wait, stop_generation).await {
         if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
             return Err(SkotiqError::OperationFailed(format!(
@@ -514,7 +514,7 @@ pub(crate) async fn dither(
     // Fail closed: a non-zero PHD2 settle status, a settle timeout, a stop or
     // a disconnect all surface as an error so the sequencer never resumes
     // exposing mid-settle (which trailed every dithered sub).
-    let wait = skotiq_imaging::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
+    let wait = skotiq_phd2::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
     await_settle(waiter, wait, stop_generation)
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Dither did not settle: {}", e)))?;
@@ -536,7 +536,7 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
         Ok(state) => state,
         Err(e) if client.is_connected() => {
             tracing::warn!("PHD2 did not answer get_app_state: {}", e);
-            skotiq_imaging::Phd2State::Unknown(PHD2_NOT_RESPONDING.to_string())
+            skotiq_phd2::Phd2State::Unknown(PHD2_NOT_RESPONDING.to_string())
         }
         Err(e) => {
             return Err(SkotiqError::OperationFailed(format!(
@@ -553,15 +553,15 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
     // everything is fine. Known variants stay as &'static str literals;
     // Unknown owns its String, so we convert to String at the join point.
     let state_str: String = match state {
-        skotiq_imaging::Phd2State::Disconnected => "Disconnected".to_string(),
-        skotiq_imaging::Phd2State::Connected => "Connected".to_string(),
-        skotiq_imaging::Phd2State::Calibrating => "Calibrating".to_string(),
-        skotiq_imaging::Phd2State::Guiding => "Guiding".to_string(),
-        skotiq_imaging::Phd2State::Looping => "Looping".to_string(),
-        skotiq_imaging::Phd2State::Paused => "Paused".to_string(),
-        skotiq_imaging::Phd2State::Settling => "Settling".to_string(),
-        skotiq_imaging::Phd2State::LostLock => "LostLock".to_string(),
-        skotiq_imaging::Phd2State::Unknown(raw) => raw,
+        skotiq_phd2::Phd2State::Disconnected => "Disconnected".to_string(),
+        skotiq_phd2::Phd2State::Connected => "Connected".to_string(),
+        skotiq_phd2::Phd2State::Calibrating => "Calibrating".to_string(),
+        skotiq_phd2::Phd2State::Guiding => "Guiding".to_string(),
+        skotiq_phd2::Phd2State::Looping => "Looping".to_string(),
+        skotiq_phd2::Phd2State::Paused => "Paused".to_string(),
+        skotiq_phd2::Phd2State::Settling => "Settling".to_string(),
+        skotiq_phd2::Phd2State::LostLock => "LostLock".to_string(),
+        skotiq_phd2::Phd2State::Unknown(raw) => raw,
     };
 
     // Report the real rolling guide statistics accumulated from the PHD2

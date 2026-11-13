@@ -21,6 +21,7 @@ import 'darkroom_build_service.dart'
     show darkroomTemperatureGapC, observingNight, flatSetupKey;
 import 'flat_library_service.dart';
 import '../backend/remote_host.dart';
+import '../models/imaging/frame_gain.dart';
 
 /// The kinds of raw calibration frame the backlog builds masters from.
 enum CalibrationFrameKind {
@@ -111,7 +112,7 @@ class CalibrationBacklogGroup {
 
   /// The capture settings the master is matched on.
   String get settings => [
-    if (gain != null) 'gain $gain',
+    if (gain != null) frames.first.recordedGainKind.describe(gain!),
     if (offset != null) 'offset $offset',
     'bin ${binX}x$binY',
     if (temperature != null) '${temperature!.round()} °C',

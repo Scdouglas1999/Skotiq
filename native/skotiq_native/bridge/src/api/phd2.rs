@@ -16,7 +16,7 @@ pub async fn api_phd2_disconnect() -> Result<(), SkotiqError> {
 
 /// Start the PHD2 program installed on this machine.
 pub fn api_launch_phd2() -> Result<(), SkotiqError> {
-    skotiq_imaging::launch_phd2()
+    skotiq_phd2::launch_phd2()
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to launch PHD2: {}", e)))
 }
 

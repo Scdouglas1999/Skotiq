@@ -153,7 +153,7 @@ impl CameraDriver for GPhoto2Camera {
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities {
             can_cool: false,        // DSLRs don't have coolers
-            can_set_gain: true,     // ISO mapped to gain
+            can_set_gain: !self.iso_speeds.is_empty(), // ISO, as the gain number
             can_set_offset: false,  // DSLRs don't have offset control
             can_set_binning: false, // DSLRs don't support binning
             can_subframe: false,    // DSLRs capture full frame only
@@ -209,7 +209,7 @@ impl CameraDriver for GPhoto2Camera {
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
-            gain: self.current_gain,
+            gain: self.current_iso,
             offset: self.current_offset,
             bin_x: 1,
             bin_y: 1,
@@ -224,21 +224,8 @@ impl CameraDriver for GPhoto2Camera {
 
         let sdk = GPhoto2Sdk::lock().await?;
 
-        // Set ISO (gain) if provided
-        if let Some(gain) = params.gain {
-            if gain >= 0 && (gain as usize) < self.iso_values.len() {
-                let iso_str = &self.iso_values[gain as usize].clone();
-                self.set_config_value_str(&sdk, "iso", iso_str)?;
-                self.current_gain = gain;
-                self.current_iso_index = gain;
-                tracing::info!("gPhoto2: Set ISO to {} (gain index {})", iso_str, gain);
-            } else {
-                return Err(DriverError::InvalidParameter(format!(
-                    "gPhoto2: Invalid gain/ISO index {}. Valid range: 0-{}",
-                    gain,
-                    self.iso_values.len().saturating_sub(1)
-                )));
-            }
+        if let Some(iso) = params.gain {
+            self.apply_iso(&sdk, iso)?;
         }
 
         // Force RAW capture format. We always LibRaw-decode the downloaded
@@ -481,29 +468,15 @@ impl CameraDriver for GPhoto2Camera {
             return Err(DriverError::NotConnected);
         }
 
-        if gain < 0 || (gain as usize) >= self.iso_values.len() {
-            return Err(DriverError::InvalidParameter(format!(
-                "gPhoto2: Invalid gain/ISO index {}. Valid range: 0-{}",
-                gain,
-                self.iso_values.len().saturating_sub(1)
-            )));
-        }
-
         let sdk = GPhoto2Sdk::lock().await?;
-        let iso_str = self.iso_values[gain as usize].clone();
-        self.set_config_value_str(&sdk, "iso", &iso_str)?;
-        self.current_gain = gain;
-        self.current_iso_index = gain;
-
-        tracing::info!("gPhoto2: Set ISO to {} (gain index {})", iso_str, gain);
-        Ok(())
+        self.apply_iso(&sdk, gain)
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
         if !self.connected {
             return Err(DriverError::NotConnected);
         }
-        Ok(self.current_gain)
+        Ok(self.current_iso)
     }
 
     async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
@@ -551,8 +524,8 @@ impl CameraDriver for GPhoto2Camera {
             name: "Standard".to_string(),
             description: "Standard DSLR readout".to_string(),
             index: 0,
-            gain_min: Some(0),
-            gain_max: Some(self.iso_values.len().saturating_sub(1) as i32),
+            gain_min: self.iso_speeds.first().map(|s| s.speed),
+            gain_max: self.iso_speeds.last().map(|s| s.speed),
             offset_min: None,
             offset_max: None,
         }])
@@ -572,12 +545,7 @@ impl CameraDriver for GPhoto2Camera {
             serde_json::Value::String(self.model_name.clone()),
         );
 
-        if let Some(iso_str) = self.iso_values.get(self.current_gain as usize) {
-            custom.insert(
-                "iso".to_string(),
-                serde_json::Value::String(iso_str.clone()),
-            );
-        }
+        custom.insert("iso".to_string(), serde_json::json!(self.current_iso));
 
         custom.insert(
             "can_bulb".to_string(),
@@ -588,27 +556,23 @@ impl CameraDriver for GPhoto2Camera {
             serde_json::Value::Bool(self.can_preview),
         );
 
-        if !self.iso_values.is_empty() {
-            custom.insert(
-                "available_isos".to_string(),
-                serde_json::Value::Array(
-                    self.iso_values
-                        .iter()
-                        .map(|s| serde_json::Value::String(s.clone()))
-                        .collect(),
-                ),
-            );
-        }
-
         features.custom_data = custom;
         Ok(features)
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
-        if self.iso_values.is_empty() {
-            return Err(DriverError::NotSupported);
+        match (self.iso_speeds.first(), self.iso_speeds.last()) {
+            (Some(low), Some(high)) => Ok((low.speed, high.speed)),
+            _ => Err(DriverError::NotSupported),
         }
-        Ok((0, self.iso_values.len().saturating_sub(1) as i32))
+    }
+
+    async fn get_iso_speeds(&self) -> Result<Vec<i32>, DriverError> {
+        Ok(self.iso_speeds.iter().map(|s| s.speed).collect())
+    }
+
+    fn long_exposure_noise_reduction(&self) -> LongExposureNoiseReduction {
+        self.long_exposure_nr
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {

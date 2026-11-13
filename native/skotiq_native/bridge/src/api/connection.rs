@@ -193,9 +193,9 @@ async fn connect_device_expecting(
 
     // Special handling for PHD2 auto-launch
     if crate::guider::phd2::is_device_id(&device_id) {
-        if !skotiq_imaging::is_phd2_running() {
+        if !skotiq_phd2::is_phd2_running() {
             tracing::info!("PHD2 not running, attempting to launch...");
-            if let Err(e) = skotiq_imaging::launch_phd2() {
+            if let Err(e) = skotiq_phd2::launch_phd2() {
                 tracing::error!("Failed to launch PHD2: {}", e);
                 return Err(SkotiqError::connection_failed(
                     &device_id,
@@ -209,7 +209,7 @@ async fn connect_device_expecting(
             for _ in 0..20 {
                 // Wait up to 10 seconds
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                if skotiq_imaging::is_phd2_running() {
+                if skotiq_phd2::is_phd2_running() {
                     started = true;
                     break;
                 }

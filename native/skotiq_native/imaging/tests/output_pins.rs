@@ -275,10 +275,6 @@ fn pin_fixture_measurements(pins: &mut Pins) {
         pins.add_debug(&p("stf"), &auto_stretch_stf(&image));
         pins.add(&p("display_u8"), fnv(&image.to_display_u8()));
         pins.add(
-            &p("rgba"),
-            fnv(&image.to_rgba().expect("mono frame displays")),
-        );
-        pins.add(
             &p("registrable_star_count"),
             registrable_star_count(&image, &RegistrationConfig::default()) as u64,
         );
@@ -298,10 +294,6 @@ fn pin_display(pins: &mut Pins) {
     let mono = crop(&load(RIG, "focused_L_0005.fits"), 512);
     let rgb = as_rgb(&mono, [0.8, 1.0, 0.65]);
     pins.add("display/rgb.display_u8", fnv(&rgb.to_display_u8()));
-    pins.add(
-        "display/rgb.rgba",
-        fnv(&rgb.to_rgba().expect("rgb displays")),
-    );
     let rgb16 = rgb.as_u16().expect("u16");
     for (name, mode) in [
         ("linked", RgbStretchMode::Linked),

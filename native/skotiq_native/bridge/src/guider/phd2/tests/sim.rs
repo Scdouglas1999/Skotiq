@@ -490,7 +490,7 @@ async fn a_settle_timeout_leaves_a_guiding_phd2_guiding() {
 #[tokio::test]
 async fn a_start_waits_for_calibration_before_its_settle() {
     let _slot = PHD2_TEST_SLOT.lock().await;
-    let settle_wait = skotiq_imaging::Phd2Client::settle_wait_duration(0.1, 1.0);
+    let settle_wait = skotiq_phd2::Phd2Client::settle_wait_duration(0.1, 1.0);
     let (_sim, done) = connect(SimConfig {
         calibration: settle_wait + Duration::from_secs(1),
         ..SimConfig::default()

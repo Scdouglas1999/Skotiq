@@ -703,6 +703,7 @@ mod frame_event_capture_tests {
     fn populated_capture() -> FrameCaptureMetadata {
         FrameCaptureMetadata {
             gain: Some(139),
+            gain_is_iso: true,
             offset: Some(21),
             sensor_temp_c: Some(-9.5),
             cooler_power_percent: Some(63.5),

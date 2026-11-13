@@ -1321,7 +1321,8 @@ function devicesFetch(answer) {
     ['api', 'state', 'requireWireList', 'SkotiqApiError',
       'reportRefreshFailure', 'renderDevicesPanel', 'markPanelFresh',
       'refreshPanelEnablement',
-      'maybeLoadCameraReadoutModes', 'maybeLoadFilterWheelPositions'],
+      'maybeLoadCameraReadoutModes', 'maybeLoadCameraSensitivity',
+      'maybeLoadFilterWheelPositions'],
     [fn('fetchDevices')],
     'fetchDevices',
   )(
@@ -1335,7 +1336,7 @@ function devicesFetch(answer) {
     reporter.report,
     () => { rendered += 1; },
     (k) => marks.push('fresh:' + k),
-    () => {}, () => {}, () => {},
+    () => {}, () => {}, () => {}, () => {},
   );
   return { run, state, log, marks, debug, rendered: () => rendered };
 }

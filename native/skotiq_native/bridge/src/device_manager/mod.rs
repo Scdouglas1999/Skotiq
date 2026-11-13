@@ -117,7 +117,7 @@ pub struct ManagedDevice {
 /// The Device Manager handles all device connections
 pub struct DeviceManager {
     /// Application state for publishing events
-    app_state: SharedAppState,
+    pub(crate) app_state: SharedAppState,
 
     /// Managed devices by their ID
     pub(crate) devices: RwLock<HashMap<String, ManagedDevice>>,

@@ -7,6 +7,8 @@ members = [
     "indi",
     "alpaca",
     "imaging",
+    "phd2",
+    "platesolve",
     "native",
     "updater",
 ]

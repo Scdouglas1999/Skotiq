@@ -395,6 +395,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         {
           'device_id': equipmentEvent.deviceId,
           'gain': equipmentEvent.gain,
+          'gain_is_iso': equipmentEvent.gainIsIso,
           'offset': equipmentEvent.offset,
           'bin_x': equipmentEvent.binX,
           'bin_y': equipmentEvent.binY,

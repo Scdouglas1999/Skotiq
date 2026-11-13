@@ -13,6 +13,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 const _capture = bridge.FrameCaptureMetadata(
   gain: 139,
+  gainIsIso: false,
   offset: 21,
   sensorTempC: -9.5,
   exposureSecs: 120.0,

@@ -1,5 +1,9 @@
 part of '../sequence_models.dart';
 
+/// The diff label of an exposure's gain; a sequence diff shows it as the
+/// connected camera's sensitivity label ("ISO" for a DSLR).
+const exposureGainDiffLabel = 'Gain';
+
 /// Every node type, in palette order. [NodeKind.all] reads this list.
 final List<NodeKind> nodeKinds = [
   NodeKinds.targetHeader,
@@ -1419,7 +1423,7 @@ abstract final class NodeKinds {
         'Filter index',
         (v) => v?.toString() ?? '(auto)',
       ),
-      NodeDiffLine.of(_exposureGain, 'Gain', _orDefault),
+      NodeDiffLine.of(_exposureGain, exposureGainDiffLabel, _orDefault),
       NodeDiffLine.of(_exposureOffset, 'Offset', _orDefault),
       NodeDiffLine.of(_exposureBinning, 'Binning', (v) => v.name),
       NodeDiffLine.of(

@@ -19,8 +19,10 @@ pub const SIM_GUIDE_FOCAL_LENGTH_MM: f64 = 240.0;
 /// `SKOTIQ_SIM_CAMERA_TRAITS` gives the simulated imaging camera limits of real
 /// cameras the default simulator does not have, as a comma-separated list:
 /// `no-gain` (no gain or offset control, as FLI and Atik CCDs), `no-cooler`,
-/// and `cooler-unreported` (a cooler that cannot say whether it is on until
-/// Skotiq sets it, as FLI and Moravian).
+/// `cooler-unreported` (a cooler that cannot say whether it is on until
+/// Skotiq sets it, as FLI and Moravian), and `dslr` (a DSLR: its sensitivity
+/// is the ISO speeds below, with no cooler and no offset, so every DSLR screen
+/// can be driven without a body on the desk).
 pub(crate) const SIM_CAMERA_TRAITS_ENV: &str = "SKOTIQ_SIM_CAMERA_TRAITS";
 
 /// The limits `SKOTIQ_SIM_CAMERA_TRAITS` names.
@@ -30,6 +32,7 @@ pub(crate) struct SimCameraTraits {
     pub(crate) no_gain: bool,
     pub(crate) no_cooler: bool,
     pub(crate) cooler_unreported: bool,
+    pub(crate) dslr: bool,
 }
 
 impl SimCameraTraits {
@@ -40,6 +43,7 @@ impl SimCameraTraits {
                 "no-gain" => traits.no_gain = true,
                 "no-cooler" => traits.no_cooler = true,
                 "cooler-unreported" => traits.cooler_unreported = true,
+                "dslr" => traits.dslr = true,
                 other => tracing::warn!("{SIM_CAMERA_TRAITS_ENV}: unknown trait '{other}' ignored"),
             }
         }
@@ -53,6 +57,57 @@ pub(crate) fn sim_imaging_camera_traits() -> SimCameraTraits {
     *TRAITS.get_or_init(|| {
         SimCameraTraits::parse(&std::env::var(SIM_CAMERA_TRAITS_ENV).unwrap_or_default())
     })
+}
+
+/// The simulated DSLR's ISO speeds: a Canon EOS list, extended speeds
+/// included.
+pub const SIM_DSLR_ISO_SPEEDS: &[i32] = &[
+    100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000,
+    5000, 6400, 8000, 10000, 12800, 25600, 51200,
+];
+
+/// Display name of the simulated imaging camera in DSLR mode.
+pub const SIM_DSLR_NAME: &str = "Simulated DSLR";
+
+/// Whether the simulated imaging camera is a DSLR.
+pub(crate) fn sim_imaging_camera_is_dslr() -> bool {
+    sim_imaging_camera_traits().dslr
+}
+
+/// The ISO speeds the simulated camera at `device_id` offers; empty for a
+/// gain camera.
+pub(crate) fn sim_camera_iso_speeds(device_id: &str) -> &'static [i32] {
+    if sim_imaging_camera_is_dslr() && !is_sim_guide_camera(device_id) {
+        SIM_DSLR_ISO_SPEEDS
+    } else {
+        &[]
+    }
+}
+
+/// The gain the simulated camera at `device_id` takes for `requested`: an
+/// ISO camera goes to its nearest speed, as a body does.
+pub(crate) fn sim_camera_accepted_gain(device_id: &str, requested: i32) -> i32 {
+    let speeds = sim_camera_iso_speeds(device_id);
+    let wanted = f64::from(requested.max(1));
+    speeds
+        .iter()
+        .copied()
+        .min_by(|a, b| {
+            let da = (f64::from(*a) / wanted).ln().abs();
+            let db = (f64::from(*b) / wanted).ln().abs();
+            da.total_cmp(&db)
+        })
+        .unwrap_or(requested)
+}
+
+/// The gain the frame renderer models for the simulated camera: ISO 800 is
+/// rendered as the gain camera's 100.
+pub(crate) fn sim_render_gain(device_id: &str, gain: i32) -> i32 {
+    if sim_camera_iso_speeds(device_id).is_empty() {
+        gain
+    } else {
+        gain / 8
+    }
 }
 
 /// Whether the two simulated cameras have traded ids, as two USB cameras do
@@ -178,7 +233,8 @@ impl Default for SimulatedCamera {
 }
 
 impl SimulatedCamera {
-    /// The simulated imaging camera with `traits` applied.
+    /// The simulated imaging camera with `traits` applied (a DSLR shoots at
+    /// ISO 800).
     pub(crate) fn imaging_camera(traits: SimCameraTraits) -> Self {
         let mut camera = Self::default();
         if traits.no_gain {
@@ -194,6 +250,14 @@ impl SimulatedCamera {
         } else if traits.cooler_unreported {
             camera.status.cooler_on = None;
             camera.status.target_temp = None;
+        }
+        if traits.dslr {
+            camera.status.can_cool = false;
+            camera.status.target_temp = None;
+            camera.status.cooler_power = None;
+            camera.status.can_set_offset = false;
+            camera.status.offset = 0;
+            camera.status.gain = 800;
         }
         camera
     }

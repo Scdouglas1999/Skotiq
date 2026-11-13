@@ -98,6 +98,7 @@ final List<RefAwareSequenceValidator> defaultRefAwareSequenceValidators =
       // Pre-flight equipment-health checks (synchronous —
       // they only read providers, no network / disk I/O).
       UsbStabilityRule(),
+      IsoSpeedRule(),
       FocuserRangeRule(),
       PolarAlignmentFreshnessRule(),
       CoolerDeltaRule(),

@@ -203,10 +203,12 @@ class EditableFragment extends SummaryFragment {
 /// 'Star HFR'). An [AutofocusNode] in defaults mode runs THAT method — the
 /// executor drops the node's own `method` field — so the caller passes it in
 /// and the row reports what will actually run. This function stays pure: the
-/// widget layer reads the setting and hands it over.
+/// widget layer reads the setting and hands it over. [sensitivity] words the
+/// gain the way the connected camera takes it ("gain 100", "ISO 800").
 List<SummaryFragment> nodeSummary(
   SequenceNode node, {
   String? globalAutofocusMethod,
+  ExposureSensitivity sensitivity = const GainSensitivity(),
 }) {
   return switch (node) {
     // Imaging — the lead row in most sequences. Count × duration + filter
@@ -239,7 +241,7 @@ List<SummaryFragment> nodeSummary(
         if (gain != null)
           EditableFragment(
             InlineEditKind.gain,
-            'gain $gain',
+            sensitivity.describe(gain),
             icon: LucideIcons.gauge,
           ),
         EditableFragment(InlineEditKind.binning, binning.label),
