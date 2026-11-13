@@ -3,7 +3,7 @@
 //! The simulated switch models a powerbox: switched outputs, PWM dew channels
 //! and read-only voltage/current sensors. The read-only channels are why it is
 //! not a bag of writable booleans — with everything writable,
-//! `switch_can_write` could only ever answer `true` and the UI's read-only
+//! `can_write` could only ever answer `true` and the UI's read-only
 //! rendering would ship unexercised.
 
 use crate::device::DeviceType;
@@ -103,18 +103,6 @@ impl DeviceManager {
             .map_err(|e| device_error(device_id, e))
     }
 
-    pub async fn switch_get_description(
-        &self,
-        device_id: &str,
-        switch_id: i32,
-    ) -> Result<String, DeviceOpError> {
-        self.switch(device_id)
-            .await?
-            .switch_description(switch_id)
-            .await
-            .map_err(|e| device_error(device_id, e))
-    }
-
     pub async fn switch_get_value(
         &self,
         device_id: &str,
@@ -150,42 +138,6 @@ impl DeviceManager {
             .await
             .map_err(|e| device_error(device_id, e))?;
         Ok(value)
-    }
-
-    pub async fn switch_get_min_value(
-        &self,
-        device_id: &str,
-        switch_id: i32,
-    ) -> Result<f64, DeviceOpError> {
-        self.switch(device_id)
-            .await?
-            .min_value(switch_id)
-            .await
-            .map_err(|e| device_error(device_id, e))
-    }
-
-    pub async fn switch_get_max_value(
-        &self,
-        device_id: &str,
-        switch_id: i32,
-    ) -> Result<f64, DeviceOpError> {
-        self.switch(device_id)
-            .await?
-            .max_value(switch_id)
-            .await
-            .map_err(|e| device_error(device_id, e))
-    }
-
-    pub async fn switch_can_write(
-        &self,
-        device_id: &str,
-        switch_id: i32,
-    ) -> Result<bool, DeviceOpError> {
-        self.switch(device_id)
-            .await?
-            .can_write(switch_id)
-            .await
-            .map_err(|e| device_error(device_id, e))
     }
 }
 
@@ -249,23 +201,24 @@ mod simulator_tests {
     }
 
     /// A powerbox exposes read-only sensor channels. If every channel were
-    /// writable, `switch_can_write` could only ever answer `true` and both the
+    /// writable, `can_write` could only ever answer `true` and both the
     /// read-only UI rendering and the driver's refusal would ship unexercised.
     #[tokio::test]
     async fn read_only_sensor_channels_refuse_writes() {
         let _serialized = sim_singleton_test_lock().lock().await;
         let (device_id, manager) = connect_simulated_switch().await;
 
+        let switch = manager.switch(&device_id).await.expect("switch handle");
         assert!(
-            manager
-                .switch_can_write(&device_id, QUAD_OUTPUT)
+            switch
+                .can_write(QUAD_OUTPUT)
                 .await
                 .expect("can_write for the switched bank"),
             "the switched 12V bank must be writable"
         );
         assert!(
-            !manager
-                .switch_can_write(&device_id, INPUT_VOLTAGE)
+            !switch
+                .can_write(INPUT_VOLTAGE)
                 .await
                 .expect("can_write for the voltage sensor"),
             "a voltage sensor advertised itself as writable"
@@ -464,7 +417,10 @@ mod simulator_tests {
         }
 
         let max = manager
-            .switch_get_max_value(&device_id, DEW_HEATER_A)
+            .switch(&device_id)
+            .await
+            .expect("switch handle")
+            .max_value(DEW_HEATER_A)
             .await
             .expect("dew heater ceiling");
         manager

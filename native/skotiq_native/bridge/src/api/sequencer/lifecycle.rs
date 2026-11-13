@@ -100,26 +100,7 @@ pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
 /// Resume the sequence executor
 pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence execution");
-
-    // A run held for a mount fault resumes only once the mount is recovered:
-    // its first act would be a slew, and the mount is not where it says.
-    if let Some(reason) = crate::device_manager::motion_guard::any_block_reason() {
-        return Err(SkotiqError::OperationFailed(reason));
-    }
-
-    let executor = get_sequence_executor().read().await;
-    executor
-        .resume()
-        .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to resume sequence: {}", e)))?;
-
-    get_state().publish_event(create_event_auto_id(
-        EventSeverity::Info,
-        EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Resumed),
-    ));
-
-    Ok(())
+    crate::sequence_run::resume().await
 }
 
 /// Stop the sequence executor. `origin` names the CALLER — `None` /

@@ -4,27 +4,8 @@
 //! Capabilities describe what operations a device supports, allowing the UI
 //! and sequencer to adapt to device limitations.
 //!
-//! A connected device of a type with a handle (filter wheel, focuser and the
-//! accessories) answers through that handle (`read_capabilities`). Cameras and
-//! mounts are still read per protocol in the submodules here.
-//!
-//! # Connect/Disconnect-probe guard
-//!
-//! A capability probe for an Alpaca or ASCOM camera or mount probes `is_connected()`
-//! before it touches the connection, because a blind
-//! `connect → read properties → disconnect` cycle drops a session the user
-//! already has open in the UI.
-//!
-//! * `Ok(true)` — the device is already up: read the properties and issue no
-//!   connect/disconnect.
-//! * `Ok(false)` — run the full connect/probe/disconnect cycle.
-//! * `Err` (the driver does not implement `Connected`, or the call failed
-//!   mid-transition) — treat the device as already connected.
-//!
-//! `Err` resolves that way because the two mistakes are not symmetric:
-//! skipping a disconnect leaves a short-lived connection the device manager
-//! cleans up on its normal lifecycle, while issuing one against a driver
-//! mid-operation can corrupt a live exposure or slew.
+//! A connected device answers through its handle (`read_capabilities`); the
+//! submodules here turn each protocol's answer into these structs.
 //!
 //! # `as`-cast policy
 //!
@@ -46,27 +27,20 @@
 //! }
 //! ```
 
-use crate::device_capabilities::alpaca::get_alpaca_capabilities;
-use crate::device_capabilities::ascom::get_ascom_capabilities;
 use crate::device_capabilities::cache::{
     capability_cache, CapabilityCacheEntry, CAPABILITY_CACHE_TTL,
 };
-use crate::device_capabilities::indi::get_indi_capabilities;
-use crate::device_capabilities::native::get_native_capabilities;
 use crate::device_capabilities::types::{DeviceCapabilities, ShutterStatus};
-use crate::device_id::cache::parse_device_id_cached;
 use crate::error::SkotiqError;
 use std::time::Instant;
 // Re-use enums from device module to avoid FRB conflicts
 
 // Import native traits for connect/disconnect and live filter-wheel queries.
 
-pub(crate) mod alpaca;
+#[cfg(windows)]
 pub(crate) mod ascom;
 pub(crate) mod cache;
 pub(crate) mod driver;
-pub(crate) mod indi;
-pub(crate) mod native;
 #[cfg(test)]
 mod tests;
 pub mod types;
@@ -215,9 +189,6 @@ async fn refresh_volatile_state(device_id: &str, capabilities: &mut DeviceCapabi
 }
 
 pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-    // Use cached parsing for better performance
-    let parsed = parse_device_id_cached(device_id)?;
-
     {
         let cached = {
             let mut cache = capability_cache().lock().await;
@@ -242,7 +213,7 @@ pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabiliti
         }
     }
 
-    let capabilities = read_capabilities(device_id, &parsed).await?;
+    let capabilities = read_capabilities(device_id).await?;
 
     let mut cache = capability_cache().lock().await;
     cache.insert(
@@ -256,42 +227,16 @@ pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabiliti
     Ok(capabilities)
 }
 
-/// What the device supports, from its handle.
+/// What the device supports, read through its handle.
 ///
-/// A camera or mount that is registered but not connected, a guider, and an
-/// id nobody registered have no handle: those are read by the protocol's own
-/// probe (`alpaca`, `ascom`, `indi`, `native`, `simulator`).
-async fn read_capabilities(
-    device_id: &str,
-    parsed: &crate::device_id::ParsedDeviceId,
-) -> Result<DeviceCapabilities, SkotiqError> {
-    use crate::device::{DeviceType, DriverType};
-    let mgr = crate::device_manager::get_device_manager();
-    let registered_type = mgr.get_device(device_id).await.map(|d| d.info.device_type);
-    match registered_type {
-        Some(
-            DeviceType::FilterWheel
-            | DeviceType::Focuser
-            | DeviceType::Rotator
-            | DeviceType::Dome
-            | DeviceType::Switch
-            | DeviceType::Weather
-            | DeviceType::SafetyMonitor
-            | DeviceType::CoverCalibrator,
-        ) => mgr.handle(device_id).await?.capabilities(device_id).await,
-        Some(DeviceType::Camera | DeviceType::Mount | DeviceType::Guider) | None => {
-            if let Some(handle) = mgr.handles.get(device_id) {
-                return handle.capabilities(device_id).await;
-            }
-            match parsed.driver_type {
-                DriverType::Alpaca => get_alpaca_capabilities(device_id).await,
-                DriverType::Ascom => get_ascom_capabilities(device_id).await,
-                DriverType::Indi => get_indi_capabilities(device_id).await,
-                DriverType::Native => get_native_capabilities(device_id).await,
-                DriverType::Simulator => {
-                    crate::simulator::capabilities::get_simulator_capabilities(parsed).await
-                }
-            }
-        }
-    }
+/// Only a connected device has a handle to ask. Any other id, whatever its
+/// type and protocol, answers that it is not connected (or not registered):
+/// opening a device just to read what it supports would claim it behind the
+/// app's back, and a driver that is not open has nothing real to report.
+async fn read_capabilities(device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+    crate::device_manager::get_device_manager()
+        .handle(device_id)
+        .await?
+        .capabilities(device_id)
+        .await
 }

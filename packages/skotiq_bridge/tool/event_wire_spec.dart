@@ -56,6 +56,26 @@ const Set<String> customCodecEnums = {'SequencerErrorKind'};
 /// Enum values whose wire name is not the snake_case name.
 const Map<String, Map<String, String>> enumWireNames = {
   'FrameType': {'darkFlat': 'darkFlat'},
+  // The executor's names for the actions, as the run-watch page and older
+  // clients read them.
+  'SequencerTriggerAction': {
+    'continue_': 'Continue',
+    'pause': 'Pause',
+    'autofocus': 'Autofocus',
+    'nextTarget': 'NextTarget',
+    'retry': 'Retry',
+    'parkAndAbort': 'ParkAndAbort',
+    'customBranch': 'CustomBranch',
+    'meridianFlip': 'MeridianFlip',
+    'dither': 'Dither',
+    'recenter': 'Recenter',
+    'pauseAndWaitForClear': 'PauseAndWaitForClear',
+    'slewToGapAndContinue': 'SlewToGapAndContinue',
+    'switchTargetOrFilter': 'SwitchTargetOrFilter',
+    'notify': 'Notify',
+    'abort': 'Abort',
+    'skipTarget': 'SkipTarget',
+  },
 };
 
 const Map<String, VariantSpec> variantSpecs = {
@@ -124,6 +144,12 @@ const Map<String, VariantSpec> variantSpecs = {
   ),
   'ImagingEvent_IntegrationTelemetry': VariantSpec(
     customTypes: ['IntegrationTelemetry'],
+  ),
+  // An older host sent some actions in their Rust debug form
+  // ("MeridianFlip(MeridianFlipConfig { ... })"); such an action is read as a
+  // notice, which is how those clients treated any action they did not know.
+  'SequencerEvent_TriggerFired': VariantSpec(
+    defaults: {'action': 'SequencerTriggerAction.notify'},
   ),
   'SequencerEvent_Paused': VariantSpec(aliases: ['SequencePaused']),
   'SequencerEvent_Resumed': VariantSpec(aliases: ['SequenceResumed']),

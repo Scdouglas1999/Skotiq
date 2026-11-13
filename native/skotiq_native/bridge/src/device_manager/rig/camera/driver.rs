@@ -324,14 +324,6 @@ impl Camera for DriverCamera {
         camera.set_offset(offset).await.map_err(DeviceOpError::from)
     }
 
-    async fn set_binning(&self, bin_x: i32, bin_y: i32) -> Result<(), DeviceOpError> {
-        let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
-        camera
-            .set_binning(bin_x, bin_y)
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
     async fn set_readout_mode(&self, mode_index: i32) -> Result<(), DeviceOpError> {
         let mut camera = self.driver.write().await.ok_or_else(|| self.gone())?;
         let mode = skotiq_device::ReadoutMode {

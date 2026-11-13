@@ -165,10 +165,4 @@ impl DeviceManager {
 
         mount.can_set_park().await
     }
-
-    pub async fn mount_can_park(&self, device_id: &str) -> Result<bool, DeviceOpError> {
-        let mount = self.mount(device_id).await?;
-
-        mount.can_park().await
-    }
 }

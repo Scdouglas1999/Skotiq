@@ -224,10 +224,6 @@ impl Mount for DriverMount {
         mount.abort_slew().await.map_err(DeviceOpError::from)
     }
 
-    async fn stop(&self) -> Result<(), DeviceOpError> {
-        self.abort().await
-    }
-
     async fn move_axis(&self, axis: i32, rate: f64) -> Result<(), DeviceOpError> {
         let mut mount = self.driver.write().await.ok_or_else(|| self.gone())?;
         mount.move_axis(axis, rate).await.map_err(|e| {
@@ -278,19 +274,6 @@ impl Mount for DriverMount {
     async fn can_set_park(&self) -> Result<bool, DeviceOpError> {
         let mount = self.driver.read().await.ok_or_else(|| self.gone())?;
         mount.can_set_park().await.map_err(DeviceOpError::from)
-    }
-
-    async fn can_park(&self) -> Result<bool, DeviceOpError> {
-        let mount = self.driver.read().await.ok_or_else(|| self.gone())?;
-        mount.can_park().await.map_err(|e| {
-            DeviceOpError::hardware(
-                Some(self.device_id.clone()),
-                format!(
-                    "Failed to determine {} mount park capability for {}: {}",
-                    self.protocol.in_sentence, self.device_id, e
-                ),
-            )
-        })
     }
 
     async fn sync(&self, ra: f64, dec: f64) -> Result<(), DeviceOpError> {
@@ -428,16 +411,6 @@ impl Mount for DriverMount {
             .set_tracking_rate(tracking_rate)
             .await
             .map_err(DeviceOpError::from)
-    }
-
-    async fn tracking_rate(&self) -> Result<i32, DeviceOpError> {
-        let mount = self.driver.read().await.ok_or_else(|| self.gone())?;
-        let rate = mount
-            .get_tracking_rate()
-            .await
-            .map_err(DeviceOpError::from)?;
-        // The discriminants are the ASCOM `DriveRates` numbers.
-        Ok(rate as i32)
     }
 
     async fn site(&self) -> Result<MountSite, DeviceOpError> {

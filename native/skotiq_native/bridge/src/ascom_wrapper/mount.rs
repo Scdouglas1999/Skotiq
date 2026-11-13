@@ -51,7 +51,6 @@ enum AscomMountCommand {
     IsParked(oneshot::Sender<Result<bool, DriverError>>),
     CanPark(oneshot::Sender<Result<bool, DriverError>>),
     GetCapabilities(oneshot::Sender<Result<AscomMountCapabilities, DriverError>>),
-    Stop(oneshot::Sender<Result<(), DriverError>>),
     AbortSlew(oneshot::Sender<Result<(), DriverError>>),
     SetTracking(bool, oneshot::Sender<Result<(), DriverError>>),
     GetTracking(oneshot::Sender<Result<bool, DriverError>>),
@@ -470,14 +469,6 @@ impl AscomMountWrapper {
                                 .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
-                    AscomMountCommand::Stop(reply) => {
-                        if let Some(m) = &mut mount {
-                            let _ = reply.send(m.abort_slew().map_err(super::ascom_error));
-                        } else {
-                            let _ = reply
-                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
-                        }
-                    }
                     AscomMountCommand::SlewToAltAz(alt, az, reply) => {
                         if let Some(m) = &mut mount {
                             let _ = reply
@@ -736,12 +727,6 @@ impl AscomMountWrapper {
         self.enqueue(AscomMountCommand::AtHome(tx)).await?;
         super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "at_home").await
     }
-
-    pub async fn stop(&self) -> Result<(), DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::Stop(tx)).await?;
-        super::recv_with_timeout("Mount", rx, Timeouts::connection(), "stop").await
-    }
 }
 
 #[async_trait::async_trait]
@@ -949,13 +934,6 @@ impl AscomMountWrapper {
         super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_tracking_rate").await
     }
 
-    /// Get the current tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-    pub async fn get_tracking_rate_raw(&self) -> Result<i32, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetTrackingRate(tx)).await?;
-        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_tracking_rate").await
-    }
-
     /// Move an axis at the specified rate (degrees/second)
     /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)
     /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop
@@ -1027,9 +1005,6 @@ pub(crate) mod test_support {
                     }
                     AscomMountCommand::CanPark(reply) => {
                         let _ = reply.send(Ok(responses.can_park));
-                    }
-                    AscomMountCommand::Stop(reply) => {
-                        let _ = reply.send(Ok(()));
                     }
                     _ => {}
                 }
@@ -1119,10 +1094,6 @@ pub(crate) mod test_support {
                             can_move_axis_secondary: true,
                             is_equatorial: true,
                         }));
-                    }
-                    Stop(reply) => {
-                        saw("Stop".into());
-                        let _ = reply.send(Ok(()));
                     }
                     AbortSlew(reply) => {
                         saw("AbortSlew".into());
@@ -1409,7 +1380,7 @@ mod tests {
                 let _ = reply.send(Ok(()));
                 true
             }
-            AscomMountCommand::Stop(reply) | AscomMountCommand::AbortSlew(reply) => {
+            AscomMountCommand::AbortSlew(reply) => {
                 sent_log.lock().expect("lock sent").push("abort");
                 let _ = reply.send(Ok(()));
                 false

@@ -312,9 +312,7 @@ sealed class SequencerEvent with _$SequencerEvent {
 
     /// Human-readable trigger name
     required String triggerName,
-
-    /// Action taken (e.g., "Autofocus", "Dither", "PauseSequence")
-    required String action,
+    required SequencerTriggerAction action,
   }) = SequencerEvent_TriggerFired;
 
   /// Progress update for long-running instructions (cooling, autofocus, slewing)
@@ -821,4 +819,32 @@ sealed class SequencerStop with _$SequencerStop {
     required String triggerId,
     required String triggerName,
   }) = SequencerStop_Trigger;
+}
+
+/// What a fired trigger did. Mirrors `skotiq_sequencer::TriggerFiredAction`.
+enum SequencerTriggerAction {
+  continue_,
+  pause,
+  autofocus,
+  nextTarget,
+  retry,
+
+  /// Parked the mount and ended the run.
+  parkAndAbort,
+  customBranch,
+  meridianFlip,
+  dither,
+  recenter,
+  pauseAndWaitForClear,
+  slewToGapAndContinue,
+  switchTargetOrFilter,
+
+  /// Told the operator and kept imaging.
+  notify,
+
+  /// Ended the run without parking.
+  abort,
+
+  /// Skipped a target whose end condition was already met.
+  skipTarget,
 }
