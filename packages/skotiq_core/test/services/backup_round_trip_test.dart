@@ -139,7 +139,7 @@ Future<void> _roundTrip(SkotiqDatabase source, Directory dir) async {
   final file = '${dir.path}/round-trip.skbackup';
   final made = await BackupService(
     database: source,
-    sequenceRepository: SequenceRepository(source.sequencesDao),
+    sequenceRepository: LocalSequenceRepository(source.sequencesDao),
     logger: _logger(dir),
   ).createBackup(customPath: file);
   expect(made.success, isTrue, reason: made.errorMessage);
@@ -147,7 +147,7 @@ Future<void> _roundTrip(SkotiqDatabase source, Directory dir) async {
   final target = SkotiqDatabase.forTesting(NativeDatabase.memory());
   final restored = await BackupService(
     database: target,
-    sequenceRepository: SequenceRepository(target.sequencesDao),
+    sequenceRepository: LocalSequenceRepository(target.sequencesDao),
     logger: _logger(dir),
   ).restoreBackup(filePath: file);
   expect(restored.success, isTrue, reason: restored.errorMessage);
@@ -244,7 +244,7 @@ void main() {
     final file = '${dir.path}/merge.skbackup';
     await BackupService(
       database: source,
-      sequenceRepository: SequenceRepository(source.sequencesDao),
+      sequenceRepository: LocalSequenceRepository(source.sequencesDao),
       logger: _logger(dir),
     ).createBackup(customPath: file);
 
@@ -255,7 +255,7 @@ void main() {
     );
     final restored = await BackupService(
       database: target,
-      sequenceRepository: SequenceRepository(target.sequencesDao),
+      sequenceRepository: LocalSequenceRepository(target.sequencesDao),
       logger: _logger(dir),
     ).restoreBackup(filePath: file);
     expect(restored.success, isTrue, reason: restored.errorMessage);
@@ -280,7 +280,7 @@ void main() {
     final seeded = await _seedEveryTable(db);
     final service = BackupService(
       database: db,
-      sequenceRepository: SequenceRepository(db.sequencesDao),
+      sequenceRepository: LocalSequenceRepository(db.sequencesDao),
       logger: _logger(dir),
     );
     final file = '${dir.path}/replace.skbackup';
