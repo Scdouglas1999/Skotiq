@@ -50,15 +50,17 @@ async fn a_simulated_switch_box_lists_the_channels_it_switches() {
 
     let caps = get_device_capabilities(id).await;
     let count = manager.switch_get_max(id).await.expect("switch count");
+    let switch = manager.switch(id).await.expect("switch handle");
     let mut channels = Vec::new();
     for index in 0..count {
         channels.push((
             manager.switch_get_name(id, index).await.expect("name"),
-            manager.switch_can_write(id, index).await.expect("can write"),
-            manager.switch_get_min_value(id, index).await.expect("min"),
-            manager.switch_get_max_value(id, index).await.expect("max"),
+            switch.can_write(index).await.expect("can write"),
+            switch.min_value(index).await.expect("min"),
+            switch.max_value(index).await.expect("max"),
         ));
     }
+    drop(switch);
     release(manager, id).await;
 
     let DeviceCapabilities::Switch(caps) = caps.expect("switch capabilities") else {

@@ -186,82 +186,6 @@ pub enum FrameType {
     DarkFlat,
 }
 
-impl FrameType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FrameType::Light => "Light",
-            FrameType::Dark => "Dark",
-            FrameType::Flat => "Flat",
-            FrameType::Bias => "Bias",
-            FrameType::DarkFlat => "Dark Flat",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum ImageFileFormat {
-    #[default]
-    Fits,
-    Xisf,
-    Tiff,
-    Png,
-    Jpeg,
-}
-
-impl ImageFileFormat {
-    /// Get the file extension for this format
-    pub fn extension(&self) -> &'static str {
-        match self {
-            ImageFileFormat::Fits => "fits",
-            ImageFileFormat::Xisf => "xisf",
-            ImageFileFormat::Tiff => "tiff",
-            ImageFileFormat::Png => "png",
-            ImageFileFormat::Jpeg => "jpg",
-        }
-    }
-
-    /// Parse from string (case-insensitive)
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "fits" => Some(ImageFileFormat::Fits),
-            "xisf" => Some(ImageFileFormat::Xisf),
-            "tiff" | "tif" => Some(ImageFileFormat::Tiff),
-            "png" => Some(ImageFileFormat::Png),
-            "jpeg" | "jpg" => Some(ImageFileFormat::Jpeg),
-            _ => None,
-        }
-    }
-}
-
-/// Parameters for a camera exposure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExposureParams {
-    pub duration_secs: f64,
-    pub frame_type: FrameType,
-    pub bin_x: i32,
-    pub bin_y: i32,
-    pub gain: Option<i32>,
-    pub offset: Option<i32>,
-    pub subframe: Option<SubFrame>,
-    // Added for imaging session support
-    pub naming_pattern: Option<String>,
-    pub target_name: Option<String>,
-    pub filter: Option<String>,
-    pub save_path: Option<String>,
-    /// File format for saving (defaults to FITS)
-    #[serde(default)]
-    pub file_format: ImageFileFormat,
-}
-
-/// Subframe region for partial readout
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubFrame {
-    pub start_x: u32,
-    pub start_y: u32,
-    pub width: u32,
-    pub height: u32,
-}
-
 /// Per-field availability for `MountStatus` so the UI can distinguish
 /// "mount reports X" from "we couldn't read X" from "mount doesn't support X".
 ///
@@ -377,13 +301,6 @@ pub enum TrackingRate {
     Custom,
 }
 
-/// Coordinates for slewing
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Coordinates {
-    pub ra: f64,  // Right Ascension in hours (0-24)
-    pub dec: f64, // Declination in degrees (-90 to +90)
-}
-
 /// Current status of a focuser
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FocuserStatus {
@@ -407,13 +324,6 @@ pub struct FilterWheelStatus {
     pub filter_names: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FilterInfo {
-    pub position: i32,
-    pub name: String,
-    pub focus_offset: Option<i32>,
-}
-
 /// Current status of a rotator
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RotatorStatus {
@@ -423,23 +333,6 @@ pub struct RotatorStatus {
     pub mechanical_position: f64,
     pub is_moving: bool,
     pub can_reverse: bool,
-}
-
-/// Weather data from a weather station
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WeatherData {
-    pub connected: bool,
-    pub temperature: Option<f64>,    // Celsius
-    pub humidity: Option<f64>,       // Percent
-    pub pressure: Option<f64>,       // hPa
-    pub dew_point: Option<f64>,      // Celsius
-    pub wind_speed: Option<f64>,     // m/s
-    pub wind_direction: Option<f64>, // Degrees
-    pub cloud_cover: Option<f64>,    // Percent
-    pub sky_brightness: Option<f64>, // Lux
-    pub sky_quality: Option<f64>,    // mag/arcsec²
-    pub rain_rate: Option<f64>,      // mm/hr
-    pub is_safe: bool,
 }
 
 /// Weather conditions from observing conditions device (raw sensor readings)

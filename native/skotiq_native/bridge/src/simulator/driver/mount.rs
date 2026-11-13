@@ -99,15 +99,6 @@ impl Mount for SimMount {
         Ok(())
     }
 
-    async fn stop(&self) -> Result<(), DeviceOpError> {
-        crate::simulator::gate::require_mount_connected().await?;
-        crate::simulator::mount::cancel_sim_slew().await;
-        let mut m = crate::simulator::mount::get_sim_mount().write().await;
-        m.status.slewing = false;
-        m.status.tracking = false;
-        Ok(())
-    }
-
     async fn move_axis(&self, _axis: i32, rate: f64) -> Result<(), DeviceOpError> {
         // See `mount_unpark`: the shared gate, not an inline
         // `connected` read, is what advances the motion and runs the
@@ -197,11 +188,6 @@ impl Mount for SimMount {
     async fn can_set_park(&self) -> Result<bool, DeviceOpError> {
         crate::simulator::gate::read_mount_status().await?;
         Ok(true)
-    }
-
-    async fn can_park(&self) -> Result<bool, DeviceOpError> {
-        let sim = crate::simulator::gate::read_mount_status().await?;
-        Ok(sim.can_park)
     }
 
     async fn sync(&self, ra: f64, dec: f64) -> Result<(), DeviceOpError> {
@@ -302,21 +288,6 @@ impl Mount for SimMount {
         let m = crate::simulator::mount::get_sim_mount();
         m.write().await.status.tracking_rate = Some(rate);
         Ok(())
-    }
-
-    async fn tracking_rate(&self) -> Result<i32, DeviceOpError> {
-        let sim = crate::simulator::gate::read_mount_status().await?;
-        // Project the singleton's `tracking_rate` Option onto the
-        // i32 wire form. None → 0 (Sidereal) is the project-wide
-        // default for "rate not declared".
-        Ok(match sim.tracking_rate {
-            Some(TrackingRate::Sidereal) => 0,
-            Some(TrackingRate::Lunar) => 1,
-            Some(TrackingRate::Solar) => 2,
-            Some(TrackingRate::King) => 3,
-            Some(TrackingRate::Custom) => 4,
-            None => 0,
-        })
     }
 
     async fn site(&self) -> Result<MountSite, DeviceOpError> {

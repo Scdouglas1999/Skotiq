@@ -508,19 +508,6 @@ impl ParsedDeviceId {
 
     // Accessor methods
 
-    /// Get the raw device ID string
-    pub fn raw(&self) -> &str {
-        &self.raw_id
-    }
-
-    /// Get the ASCOM ProgID if this is an ASCOM device
-    pub fn ascom_prog_id(&self) -> Option<&str> {
-        match &self.connection_info {
-            ConnectionInfo::Ascom { prog_id } => Some(prog_id),
-            _ => None,
-        }
-    }
-
     /// Get Alpaca connection info if this is an Alpaca device
     pub fn alpaca_info(&self) -> Option<(&str, &str, u16, &str, u32)> {
         match &self.connection_info {
@@ -540,113 +527,6 @@ impl ParsedDeviceId {
     pub fn alpaca_base_url(&self) -> Option<&str> {
         match &self.connection_info {
             ConnectionInfo::Alpaca { base_url, .. } => Some(base_url),
-            _ => None,
-        }
-    }
-
-    /// Get INDI connection info if this is an INDI device
-    pub fn indi_info(&self) -> Option<(&str, u16, &str)> {
-        match &self.connection_info {
-            ConnectionInfo::Indi {
-                host,
-                port,
-                device_name,
-            } => Some((host, *port, device_name)),
-            _ => None,
-        }
-    }
-
-    /// Get native vendor and device ID if this is a native device.
-    ///
-    /// Returns `(vendor, device_id, device_index)`. For 4-part subtype
-    /// or Touptek-brand IDs, prefer the dedicated accessors below — the
-    /// `device_id` returned here is the trailing payload only (the
-    /// brand / subtype segment is already stripped).
-    pub fn native_info(&self) -> Option<(&str, &str, Option<i32>)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                device_index,
-                ..
-            } => Some((vendor, device_id, *device_index)),
-            _ => None,
-        }
-    }
-
-    /// Get the native vendor token, lower-cased and validated against
-    /// the vendor catalog. `None` for non-native IDs.
-    pub fn native_vendor(&self) -> Option<&str> {
-        match &self.connection_info {
-            ConnectionInfo::Native { vendor, .. } => Some(vendor.as_str()),
-            _ => None,
-        }
-    }
-
-    /// Get the Touptek brand and discovery index for IDs of the form
-    /// `native:touptek:{brand}:{idx}`. Returns `None` for non-Touptek
-    /// IDs and for malformed Touptek IDs whose index is non-numeric
-    /// (the parser already rejects the latter, but the accessor is
-    /// defensive against future encoding changes).
-    pub fn touptek_info(&self) -> Option<(&str, usize)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                vendor_brand: Some(brand),
-                ..
-            } if vendor == "touptek" => device_id
-                .parse::<usize>()
-                .ok()
-                .map(|idx| (brand.as_str(), idx)),
-            _ => None,
-        }
-    }
-
-    /// Get the ZWO accessory subtype (`eaf` or `efw`) and trailing
-    /// payload for 4-part ZWO IDs of the form `native:zwo:eaf:{n}`.
-    /// Returns `None` for the composite form `native:zwo_eaf:{n}` —
-    /// callers must check `native_vendor()` separately for that
-    /// encoding.
-    pub fn zwo_subtype(&self) -> Option<(&str, &str)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                device_subtype: Some(sub),
-                ..
-            } if vendor == "zwo" => Some((sub.as_str(), device_id.as_str())),
-            _ => None,
-        }
-    }
-
-    /// Get the QHY CFW subtype payload for 4-part QHY IDs
-    /// (`native:qhy:cfw:{camera_id}`). Returns `None` for the composite
-    /// form `native:qhy_cfw:{camera_id}`.
-    pub fn qhy_subtype(&self) -> Option<(&str, &str)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                device_subtype: Some(sub),
-                ..
-            } if vendor == "qhy" => Some((sub.as_str(), device_id.as_str())),
-            _ => None,
-        }
-    }
-
-    /// Get the FLI accessory subtype (`focuser` or `fw`) and trailing
-    /// payload for 4-part FLI IDs (`native:fli:focuser:{path}`).
-    /// Returns `None` for the composite form
-    /// (`native:fli_focuser:{path}`).
-    pub fn fli_subtype(&self) -> Option<(&str, &str)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                device_subtype: Some(sub),
-                ..
-            } if vendor == "fli" => Some((sub.as_str(), device_id.as_str())),
             _ => None,
         }
     }

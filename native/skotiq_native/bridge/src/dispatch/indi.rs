@@ -132,22 +132,6 @@ impl DeviceManager {
         Ok(())
     }
 
-    pub async fn get_indi_client(
-        &self,
-        device_id: &str,
-    ) -> Option<Arc<RwLock<skotiq_indi::IndiClient>>> {
-        // Parse INDI device ID: indi:host:port:device_name
-        if !device_id.starts_with("indi:") {
-            return None;
-        }
-
-        let (host, port, _device_name) = Self::parse_indi_device_id(device_id).ok()?;
-        let server_key = format!("{host}:{port}");
-
-        let clients = self.indi_clients.read().await;
-        clients.get(&server_key).cloned()
-    }
-
     /// The shared connection to the INDI server at `host:port`, opened on
     /// first use and again when it was lost. Every device on one server goes
     /// through one connection.

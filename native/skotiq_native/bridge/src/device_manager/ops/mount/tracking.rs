@@ -80,10 +80,4 @@ impl DeviceManager {
 
         mount.set_tracking_rate(rate).await
     }
-
-    pub async fn mount_get_tracking_rate(&self, device_id: &str) -> Result<i32, DeviceOpError> {
-        let mount = self.mount(device_id).await?;
-
-        mount.tracking_rate().await
-    }
 }
