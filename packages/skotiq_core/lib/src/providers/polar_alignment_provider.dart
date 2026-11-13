@@ -1,3 +1,4 @@
+import 'async_scope.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:collection';
@@ -587,7 +588,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     int admittedGeneration,
   ) {
     if (admittedGeneration == _backendGeneration &&
-        identical(ref.read(backendProvider), admittedBackend)) {
+        ref.backendScopeOver(admittedBackend).isCurrent) {
       return;
     }
     throw PolarAlignmentBackendChangedException(

@@ -92,14 +92,14 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
       final image = await backend.guiderGetStarImage(size: size);
       if (mounted &&
           generation == _pollGeneration &&
-          identical(backend, ref.read(backendProvider)) &&
+          ref.backendScopeOver(backend).isCurrent &&
           ref.read(guiderStateProvider).deviceId == guiderId) {
         state = AsyncValue.data(image);
       }
     } catch (e) {
       if (mounted &&
           generation == _pollGeneration &&
-          identical(backend, ref.read(backendProvider)) &&
+          ref.backendScopeOver(backend).isCurrent &&
           ref.read(guiderStateProvider).deviceId == guiderId) {
         state = AsyncValue.error(e, StackTrace.current);
       }

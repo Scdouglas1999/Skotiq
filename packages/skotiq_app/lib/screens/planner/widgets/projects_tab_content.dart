@@ -138,7 +138,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
   }
 
   bool _backendIs(Object backend) =>
-      identical(ref.read(backendProvider), backend);
+      ref.scopeOver<Object>(backendProvider, backend).isCurrent;
 
   int? _effectiveActiveProjectId() {
     final projects = ref.read(projectListProvider).valueOrNull;

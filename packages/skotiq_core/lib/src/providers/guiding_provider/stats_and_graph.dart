@@ -317,7 +317,7 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
       final status = await backend.guiderGetStatus();
       if (!mounted ||
           generation != _pollGeneration ||
-          !identical(backend, ref.read(backendProvider)) ||
+          ref.backendScopeOver(backend).isStale ||
           ref.read(guiderStateProvider).deviceId != guiderId ||
           !_isBuiltin) {
         return;
@@ -331,7 +331,7 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
     } catch (e) {
       if (mounted &&
           generation == _pollGeneration &&
-          identical(backend, ref.read(backendProvider)) &&
+          ref.backendScopeOver(backend).isCurrent &&
           ref.read(guiderStateProvider).deviceId == guiderId &&
           _isBuiltin) {
         _consecutiveFailures++;

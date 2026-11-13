@@ -390,7 +390,7 @@ class _JoinMosaicButtonState extends ConsumerState<_JoinMosaicButton> {
       final projectId = await ref
           .read(collaborativeMosaicServiceProvider)
           .joinMosaicAsParticipant(widget.mosaic);
-      if (!mounted || !identical(ref.read(backendProvider), authority)) return;
+      if (!mounted || ref.backendScopeOver(authority).isStale) return;
       // Joining takes a participant slot on the hub, so every cached listing of
       // this mosaic is now stale.
       invalidateCollaborativeMosaicStateFor(ref);

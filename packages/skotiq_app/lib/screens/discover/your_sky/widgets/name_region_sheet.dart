@@ -445,7 +445,7 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
                 _source == _RegionSource.target ? _selectedTarget?.id : null,
           );
       if (!mounted) return;
-      if (!identical(ref.read(backendProvider), authority)) {
+      if (ref.backendScopeOver(authority).isStale) {
         setState(() {
           _saving = false;
           _error = 'The imaging host changed while the region was being '

@@ -302,10 +302,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           final location = await backend.getLocation();
 
                           if (!mounted ||
-                              !identical(
-                                ref.read(backendProvider),
-                                actionAuthority,
-                              )) {
+                              ref.backendScopeOver(actionAuthority).isStale) {
                             if (mounted) {
                               this.context.showWarningSnackBar(
                                     'The imaging host changed while syncing. '
@@ -928,7 +925,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   ) {
     return mounted &&
         generation == _horizonImportGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 
   Future<void> _updateHorizonProfile() async {

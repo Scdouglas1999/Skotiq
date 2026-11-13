@@ -29,6 +29,7 @@
 // (say, the user pasted invalid JSON into a webhook header field) only
 // disables that one transport rather than the whole routing system.
 
+import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
@@ -92,7 +93,7 @@ mixin _SerializedAsyncWrites<T> on AsyncNotifier<T> {
     SecretsStore? secrets,
     required String transport,
   }) {
-    final daoChanged = !identical(ref.read(settingsDaoProvider), dao);
+    final daoChanged = ref.scopeOver(settingsDaoProvider, dao).isStale;
     final secretsChanged =
         secrets != null && !identical(ref.read(secretsStoreProvider), secrets);
     if (daoChanged || secretsChanged) {
@@ -799,7 +800,7 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
       StoreSettings.notificationRouting,
       jsonEncode(matrix.toJson()),
     );
-    if (!identical(ref.read(settingsDaoProvider), dao)) {
+    if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
       throw StateError(
         'The settings database changed while saving notification routing.',
       );

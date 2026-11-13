@@ -111,7 +111,7 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
   ) {
     return generation == _operationGeneration &&
         widget.sessionId == sessionId &&
-        identical(ref.read(backendProvider), backend);
+        ref.backendScopeOver(backend).isCurrent;
   }
 
   void _handleBackendChanged(

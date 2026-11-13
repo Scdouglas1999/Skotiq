@@ -64,7 +64,7 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
     String action,
   ) {
     if (generation == _backendGeneration &&
-        identical(backend, ref.read(backendProvider))) {
+        ref.backendScopeOver(backend).isCurrent) {
       return;
     }
     throw StateError('The imaging host changed while $action.');
@@ -150,7 +150,7 @@ class BuiltinGuiderConfigNotifier
       mounted &&
       backendGeneration == _backendGeneration &&
       fetchGeneration == _fetchGeneration &&
-      identical(backend, ref.read(backendProvider));
+      ref.backendScopeOver(backend).isCurrent;
 
   /// Update the full config and push to the backend.
   Future<void> updateConfig(BuiltinGuiderConfig newConfig) async {
@@ -164,7 +164,7 @@ class BuiltinGuiderConfigNotifier
     try {
       await backend.builtinGuiderSetConfig(newConfig);
       if (generation != _backendGeneration ||
-          !identical(backend, ref.read(backendProvider))) {
+          ref.backendScopeOver(backend).isStale) {
         throw StateError(
           'The imaging host changed while updating built-in guider settings.',
         );
@@ -177,7 +177,7 @@ class BuiltinGuiderConfigNotifier
       // Revert on failure
       if (mounted &&
           generation == _backendGeneration &&
-          identical(backend, ref.read(backendProvider))) {
+          ref.backendScopeOver(backend).isCurrent) {
         state = previousState;
       }
       rethrow;

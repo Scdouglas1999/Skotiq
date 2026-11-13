@@ -103,7 +103,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
   bool _isCurrentBrowse(int generation, SkotiqBackend authority) {
     return mounted &&
         generation == _browseGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 
   void _confirm() {

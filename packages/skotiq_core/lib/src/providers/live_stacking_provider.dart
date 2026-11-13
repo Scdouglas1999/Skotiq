@@ -1,3 +1,4 @@
+import 'async_scope.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -208,7 +209,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     return mounted &&
         generation == _sessionGeneration &&
         identical(authority, _sessionAuthority) &&
-        identical(authority, _ref.read(backendProvider));
+        _ref.scopeOver<Object>(backendProvider, authority).isCurrent;
   }
 
   void _invalidateSession() {
@@ -370,7 +371,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         authority == null ||
         state.status != LiveStackingStatus.running ||
         !identical(remote, authority.remoteHost?.liveStack) ||
-        !identical(authority, _ref.read(backendProvider))) {
+        _ref.backendScopeOver(authority).isStale) {
       return;
     }
     _consecutivePollFailures = 0;

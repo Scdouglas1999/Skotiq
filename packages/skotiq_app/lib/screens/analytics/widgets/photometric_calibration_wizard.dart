@@ -84,7 +84,7 @@ class _PhotometricCalibrationWizardState
   ) {
     return mounted &&
         generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 
   void _retireAsyncWork() {

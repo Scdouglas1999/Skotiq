@@ -1,3 +1,4 @@
+import 'async_scope.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -453,7 +454,7 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
   bool _isCurrent(int authorityGeneration, Object authority) {
     return mounted &&
         authorityGeneration == _authorityGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.scopeOver<Object>(backendProvider, authority).isCurrent;
   }
 
   void _invalidateOperations() {

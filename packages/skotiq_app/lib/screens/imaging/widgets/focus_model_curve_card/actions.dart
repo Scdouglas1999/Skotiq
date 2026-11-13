@@ -220,7 +220,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
   bool _isCurrent(SkotiqBackend backend, int generation) {
     return mounted &&
         generation == _operationGeneration &&
-        identical(ref.read(backendProvider), backend);
+        ref.backendScopeOver(backend).isCurrent;
   }
 
   void _showMessage(String message) {

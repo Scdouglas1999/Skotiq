@@ -566,7 +566,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     return mounted &&
         generation == _operationGeneration &&
         widget.region.id == regionId &&
-        identical(ref.read(backendProvider), backend);
+        ref.backendScopeOver(backend).isCurrent;
   }
 
   void _finish(int generation) {

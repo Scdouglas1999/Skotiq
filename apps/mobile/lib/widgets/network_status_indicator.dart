@@ -512,7 +512,7 @@ class _ConnectionDetailsSheetState
     try {
       await linkedHost.link.reconnectNow();
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
+      if (mounted && ref.backendScopeOver(backend).isCurrent) {
         context.showErrorSnackBar('Reconnect failed: $e');
       }
     } finally {

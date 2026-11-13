@@ -610,6 +610,6 @@ class _OnboardingCaptureDirStepState
   bool _isCurrent(int generation, SkotiqBackend authority) {
     return mounted &&
         generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 }
