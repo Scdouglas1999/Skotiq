@@ -2,7 +2,7 @@
 
 use crate::instructions::execute_slew;
 use crate::node::context::ExecutionContext;
-use crate::node::progress::{ProgressDetail, ProgressUpdate};
+use crate::node::progress::text_progress;
 use crate::node::registry::InstructionNode;
 use crate::{NodeStatus, NodeType};
 use async_trait::async_trait;
@@ -23,27 +23,8 @@ impl InstructionNode for SlewInstruction {
         };
 
         let ctx = context.to_instruction_context(node_id).await;
-        let progress_cb = context.progress_callback.as_ref();
-        let target_ra = context.target_ra;
-        let target_dec = context.target_dec;
 
-        let progress_fn = |progress: f64, _detail_str: String| {
-            if let Some(cb) = progress_cb {
-                // Slew instruction reports phases like "Slewing to coords"
-                // or "Waiting for mount to settle"; the structured payload
-                // carries the actual target RA/Dec instead of the parsed
-                // string so the UI can render coords without parsing.
-                cb(ProgressUpdate::instruction_progress(
-                    node_id.to_string(),
-                    "Slew",
-                    progress,
-                    ProgressDetail::Slew {
-                        target_ra_hours: target_ra,
-                        target_dec_degrees: target_dec,
-                    },
-                ));
-            }
-        };
+        let progress_fn = text_progress(context.progress_callback.as_ref(), node_id, "Slew");
 
         execute_slew(config, &ctx, Some(&progress_fn))
             .await

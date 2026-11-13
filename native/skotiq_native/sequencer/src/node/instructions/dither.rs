@@ -2,7 +2,7 @@
 
 use crate::instructions::execute_dither;
 use crate::node::context::ExecutionContext;
-use crate::node::progress::{ProgressDetail, ProgressUpdate};
+use crate::node::progress::text_progress;
 use crate::node::registry::InstructionNode;
 use crate::{NodeStatus, NodeType};
 use async_trait::async_trait;
@@ -23,25 +23,8 @@ impl InstructionNode for DitherInstruction {
         };
 
         let ctx = context.to_instruction_context(node_id).await;
-        let progress_cb = context.progress_callback.as_ref();
-        let dither_pixels = config.pixels;
-        let dither_settle = config.settle_pixels;
-        let ra_only = config.ra_only;
 
-        let progress_fn = |progress: f64, _detail: String| {
-            if let Some(cb) = progress_cb {
-                cb(ProgressUpdate::instruction_progress(
-                    node_id.to_string(),
-                    "Dither",
-                    progress,
-                    ProgressDetail::Dither {
-                        pixels: dither_pixels,
-                        settle_pixels: dither_settle,
-                        ra_only,
-                    },
-                ));
-            }
-        };
+        let progress_fn = text_progress(context.progress_callback.as_ref(), node_id, "Dither");
 
         let result = execute_dither(config, &ctx, Some(&progress_fn)).await;
         result.settle("Dither", &ctx).await

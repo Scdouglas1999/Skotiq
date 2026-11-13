@@ -400,13 +400,12 @@ class RunEventHandler {
     final nodeId =
         event.nodeId ?? _ref.read(sequenceProgressProvider).currentNodeId;
     if (nodeId != null) {
+      // The run's line is the step's own text, which the plain progress event
+      // carrying the same update sets.
       progressNotifier.updateNodeStructuredProgress(
         nodeId,
         event.progressPercent ?? 0.0,
         event.detail,
-      );
-      progressNotifier.updateProgress(
-        message: '${event.instruction ?? ''}: ${event.detailKind}',
       );
     }
   }
