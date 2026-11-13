@@ -195,7 +195,19 @@ extension _BackupSchemaTables on BackupService {
           }
         }
         if (orphanOfKept) {
-          keptOut.update(name, (n) => n + 1, ifAbsent: () => 1);
+          // The same row already here was not kept out.
+          final alreadyHere = switch (shape.primaryKey) {
+            final key? when row[key] != null => await _liveRowEquals(
+              name,
+              key,
+              row,
+              whenAbsent: false,
+            ),
+            _ => false,
+          };
+          if (!alreadyHere) {
+            keptOut.update(name, (n) => n + 1, ifAbsent: () => 1);
+          }
           continue;
         }
         if (await _writeRow(name, row, replace: replace) > 0) {
@@ -256,18 +268,21 @@ extension _BackupSchemaTables on BackupService {
     );
   }
 
+  /// Whether the live row under [row]'s [key] holds the same values;
+  /// [whenAbsent] when there is no live row.
   Future<bool> _liveRowEquals(
     String table,
     String key,
-    Map<String, Object?> row,
-  ) async {
+    Map<String, Object?> row, {
+    bool whenAbsent = true,
+  }) async {
     final live = await database
         .customSelect(
           'SELECT * FROM "$table" WHERE "$key" = ?',
           variables: [_variable(row[key])],
         )
         .getSingleOrNull();
-    if (live == null) return true;
+    if (live == null) return whenAbsent;
     for (final MapEntry(key: column, :value) in row.entries) {
       final here = live.data[column];
       if (value is Uint8List && here is Uint8List) {

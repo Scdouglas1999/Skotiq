@@ -285,6 +285,31 @@ void main() {
     );
   });
 
+  test('a merge into the same database after an edit reports only the edited '
+      'record as kept out', () async {
+    final dir = await Directory.systemTemp.createTemp('skotiq_round_trip_');
+    addTearDown(() => dir.delete(recursive: true));
+    final source = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(source.close);
+    await _seedEveryTable(source);
+    final service = BackupService(
+      database: source,
+      sequenceRepository: LocalSequenceRepository(source.sequencesDao),
+      logger: _logger(dir),
+    );
+    final file = '${dir.path}/same.skbackup';
+    await service.createBackup(customPath: file);
+    await source.customStatement(
+      "UPDATE targets SET name = 'Renamed' WHERE id = 7",
+    );
+
+    final restored = await service.restoreBackup(filePath: file);
+    expect(restored.success, isTrue, reason: restored.errorMessage);
+
+    // Its children are here already, unchanged: nothing of theirs is missing.
+    expect(restored.notRestored, {'targets': 1});
+  });
+
   test('replacing a database with its own backup changes nothing', () async {
     final dir = await Directory.systemTemp.createTemp('skotiq_round_trip_');
     addTearDown(() => dir.delete(recursive: true));
