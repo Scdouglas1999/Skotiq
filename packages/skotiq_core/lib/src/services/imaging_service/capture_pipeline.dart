@@ -678,9 +678,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             );
             final notificationService = _ref.read(notificationServiceProvider);
             await notificationService.notifyError(
-              errorTitle: 'Auto-Calibration Failed',
+              errorTitle: 'Frame kept uncalibrated',
               errorMessage:
-                  'Failed to calibrate $savedFilePath: ${e.toString()}',
+                  '${path.basename(savedFilePath)} was saved without '
+                  'calibration. ${userFacingError(e)}',
               source: 'Calibration',
             );
             if (!_hasBackendAuthority(backend)) return null;
