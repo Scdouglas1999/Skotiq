@@ -64,24 +64,9 @@ final tonightSuggestionsProvider =
 
       final remote = ref.watch(linkedHostPlanningProvider);
       if (remote != null) {
-        try {
-          final suggestions = await remote.fetchRankedTonightSuggestions(
-            config,
-          );
-          ref.keepAlive();
-          return suggestions;
-        } on ServerError catch (error) {
-          // An older host without the ranking endpoint: rank here, as
-          // clients did before it existed.
-          if (error.httpStatus != 404) rethrow;
-          ref
-              .read(loggingServiceProvider)
-              .warning(
-                'The imaging host cannot rank tonight\'s targets; ranking '
-                'them on this computer instead',
-                source: 'TargetSuggestionProvider',
-              );
-        }
+        final suggestions = await remote.fetchRankedTonightSuggestions(config);
+        ref.keepAlive();
+        return suggestions;
       }
 
       final suggestions = await ref.watch(
