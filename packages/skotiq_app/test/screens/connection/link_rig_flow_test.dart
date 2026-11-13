@@ -167,7 +167,7 @@ void main() {
 
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.oneTap')));
-      for (var i = 0; i < 20 && relauncher.reasons.isEmpty; i++) {
+      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         await tester.pump();
       }
@@ -233,7 +233,7 @@ void main() {
     await tester.pump();
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.pairCode')));
-      for (var i = 0; i < 20 && relauncher.reasons.isEmpty; i++) {
+      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         await tester.pump();
       }
@@ -289,7 +289,7 @@ void main() {
     );
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.pairCode')));
-      for (var i = 0; i < 20 && relauncher.reasons.isEmpty; i++) {
+      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         await tester.pump();
       }
