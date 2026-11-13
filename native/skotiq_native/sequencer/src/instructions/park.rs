@@ -80,7 +80,12 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
     )
     .await
     {
-        let freed = crate::limit_backoff::back_off_limit(&*ctx.run.device_ops, &mount_id).await;
+        let freed = crate::limit_backoff::back_off_limit(
+            &*ctx.run.device_ops,
+            &mount_id,
+            ctx.run.rig.longitude,
+        )
+        .await;
         crate::limit_backoff::notify(&*ctx.run.device_ops, "park", &freed).await;
         if freed.is_ok() {
             if let Err(e) = ctx.run.device_ops.mount_park(&mount_id).await {
@@ -247,7 +252,12 @@ pub(crate) async fn execute_home_mount_with(
             .as_deref()
             .is_some_and(|m| m.contains(HOME_DID_NOT_MOVE))
     {
-        let freed = crate::limit_backoff::back_off_limit(&*ctx.run.device_ops, &mount_id).await;
+        let freed = crate::limit_backoff::back_off_limit(
+            &*ctx.run.device_ops,
+            &mount_id,
+            ctx.run.rig.longitude,
+        )
+        .await;
         crate::limit_backoff::notify(&*ctx.run.device_ops, "home command", &freed).await;
         if freed.is_ok() {
             result = home_mount(ctx, &mount_id, timing).await;

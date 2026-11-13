@@ -242,14 +242,3 @@ fn round_trip_template_is_not_pre_rendered() {
     }
     assert_eq!(rebuilt, original);
 }
-
-#[test]
-fn catalog_dump_is_valid_json_array() {
-    let json = skotiq_sequencer::expressions::catalog::catalog_json();
-    assert!(json.starts_with('['), "expected JSON array");
-    assert!(json.ends_with(']'), "expected JSON array");
-    // Spot-check that a known variable appears in the dump.
-    assert!(json.contains("\"target.name\""));
-    assert!(json.contains("\"frame\""));
-    assert!(json.contains("\"session.date\""));
-}

@@ -121,7 +121,12 @@ pub async fn execute_slew(
             m.contains(&crate::slew_arrival::SlewWaitError::DidNotMove.to_string())
         })
     {
-        let freed = crate::limit_backoff::back_off_limit(&*ctx.run.device_ops, mount_id).await;
+        let freed = crate::limit_backoff::back_off_limit(
+            &*ctx.run.device_ops,
+            mount_id,
+            ctx.run.rig.longitude,
+        )
+        .await;
         crate::limit_backoff::notify(&*ctx.run.device_ops, "slew", &freed).await;
         if freed.is_ok() {
             result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
@@ -385,7 +390,10 @@ async fn slew_mount(
                                 }
                             }
                         }
-                        Err(e) => InstructionResult::failure(e),
+                        Err(crate::slew_arrival::SlewWaitError::Cancelled) => {
+                            InstructionResult::cancelled("Slew cancelled")
+                        }
+                        Err(e) => InstructionResult::failure(e.to_string()),
                     }
                 }
                 Err(e) => InstructionResult::failure(format!("Slew failed: {}", e)).caused_by(&e),

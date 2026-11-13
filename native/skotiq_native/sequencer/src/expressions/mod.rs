@@ -28,7 +28,7 @@ pub mod errors;
 pub mod parser;
 pub mod resolver;
 
-pub use catalog::{catalog_json, variable_catalog, VariableEntry, VariableGroup};
+pub use catalog::{variable_catalog, VariableEntry, VariableGroup};
 pub use errors::InterpolationError;
 pub use parser::{parse_template, TemplatePart};
 pub use resolver::{

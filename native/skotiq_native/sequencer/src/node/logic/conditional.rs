@@ -103,7 +103,7 @@ pub async fn execute_conditional(
             };
             current_alt > *min_alt
         }
-        ConditionalCheck::TimeAfter(after) => chrono::Utc::now().timestamp() > *after,
+        ConditionalCheck::TimeAfter(after) => context.clock.now_timestamp() > *after,
         ConditionalCheck::GuidingRmsBelow(threshold) => {
             match context.run.device_ops.guider_get_status().await {
                 Ok(status) => status.rms_total < *threshold,

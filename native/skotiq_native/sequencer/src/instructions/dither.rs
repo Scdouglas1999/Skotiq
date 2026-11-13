@@ -49,7 +49,10 @@ pub(crate) enum DitherOutcome {
     Skipped(DitherSkip),
     /// The guider refused or did not settle (by the caller's rule).
     /// `streak` is the failures in a row, this one included.
-    Failed { error: DeviceError, streak: u32 },
+    Failed {
+        error: DeviceError,
+        streak: u32,
+    },
 }
 
 /// Dither the mount once and settle at `config`'s settle values.
@@ -87,7 +90,7 @@ pub(crate) async fn dither_once(
     let result = match result {
         Err(error)
             if counts == DitherCounts::OnceStarHeld
-                && is_settle_timeout(&error.to_string())
+                && is_settle_timeout(&error)
                 && star_held_after_settle_ran_out(ctx, settle).await =>
         {
             Ok(())
@@ -130,7 +133,9 @@ async fn dither_pixels(ctx: &InstructionContext, config: &crate::DitherConfig) -
     // The grid's next cell must be sticky across calls, so the walk needs
     // the run's trigger state; without it every call would take the same cell.
     let Some(trigger_state) = ctx.run.trigger_state.as_ref() else {
-        tracing::warn!("Grid dither requested but no trigger state available, falling back to random");
+        tracing::warn!(
+            "Grid dither requested but no trigger state available, falling back to random"
+        );
         return Some(config.pixels);
     };
     let (ra_offset, dec_offset) = {

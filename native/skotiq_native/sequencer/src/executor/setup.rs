@@ -146,7 +146,7 @@ impl SequenceExecutor {
     /// definition itself is retained so the same tree can be re-run
     /// without re-loading.
     pub async fn reset(&mut self) {
-        self.command_tx = None;
+        self.commands.set(None);
         self.is_cancelled.store(false, Ordering::Relaxed);
         self.run_state.reset();
 

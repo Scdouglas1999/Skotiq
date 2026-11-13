@@ -257,7 +257,7 @@ async fn frame_altitude_is_derived_at_the_exposure_midpoint() {
     let config = ExposureConfig {
         duration_secs: 7200.0,
         count: 1,
-        frame_type: "Light".to_string(),
+        frame_type: crate::FrameType::Light,
         ..ExposureConfig::default()
     };
     let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;

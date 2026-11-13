@@ -272,9 +272,9 @@ impl FrameWatchStage {
                 ),
                 _ => continue,
             };
-            let is_light = capture.frame_type.eq_ignore_ascii_case("light")
-                || capture.frame_type.eq_ignore_ascii_case("snapshot");
-            if path.is_empty() || !is_light {
+            let is_sky_frame = crate::FrameType::from_name(&capture.frame_type)
+                .is_some_and(crate::FrameType::is_sky_frame);
+            if path.is_empty() || !is_sky_frame {
                 continue;
             }
             let state = dispatcher.rig.trigger_state.read().await;
@@ -634,7 +634,13 @@ impl FrameWatchStage {
             return Err("no observer location is set".to_string());
         };
         let altitude = (onset.altitude_deg + PROBE_ALTITUDE_GAIN_DEG).min(PROBE_MAX_ALTITUDE_DEG);
-        let (ra_hours, dec_deg) = alt_az_to_ra_dec(altitude, onset.azimuth_deg, lat, lon);
+        let (ra_hours, dec_deg) = crate::meridian::alt_az_to_ra_dec(
+            altitude,
+            onset.azimuth_deg,
+            lat,
+            lon,
+            chrono::Utc::now(),
+        );
         let message = format!(
             "Checking the sky higher up (alt {altitude:.1}°, az {:.1}°) to tell an obstruction \
              from cloud.",

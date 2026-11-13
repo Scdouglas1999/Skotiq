@@ -64,7 +64,7 @@ impl SequenceExecutor {
 
         self.is_cancelled.store(false, Ordering::Relaxed);
         let (command_tx, commands) = mpsc::channel::<ExecutorCommand>(32);
-        self.command_tx = Some(command_tx);
+        self.commands.set(Some(command_tx));
         let (run_completion_tx, run_completion_rx) = watch::channel(false);
         self.run_completion_rx = Some(run_completion_rx);
 

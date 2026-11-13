@@ -63,7 +63,10 @@ pub async fn save_frame<T: FrameStoreOps + ?Sized>(
 /// neither exists yet.
 fn free_names(frame_path: &str, file: &skotiq_device::CameraFile) -> (String, String) {
     let path = std::path::Path::new(frame_path);
-    let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let extension = path.extension().map(|e| e.to_string_lossy().into_owned());
     let mut candidate = frame_path.to_string();
     for suffix in 1u32.. {
@@ -194,7 +197,11 @@ mod save_frame_tests {
         dir
     }
 
-    async fn save(dir: &std::path::Path, image: &ImageData, saving: CameraFileSaving) -> DeviceResult<String> {
+    async fn save(
+        dir: &std::path::Path,
+        image: &ImageData,
+        saving: CameraFileSaving,
+    ) -> DeviceResult<String> {
         save_as(dir, image, saving, true).await
     }
 
@@ -251,7 +258,9 @@ mod save_frame_tests {
     async fn a_scratch_frame_never_writes_the_camera_file() {
         let dir = scratch("scratch");
         for saving in [CameraFileSaving::CameraFile, CameraFileSaving::Both] {
-            let recorded = save_as(&dir, &frame(Some(camera_file())), saving, false).await.unwrap();
+            let recorded = save_as(&dir, &frame(Some(camera_file())), saving, false)
+                .await
+                .unwrap();
             assert!(recorded.ends_with("M31_Light_0001.fits"), "{recorded}");
         }
         assert!(!dir.join("M31_Light_0001.CR3").exists());
@@ -261,13 +270,21 @@ mod save_frame_tests {
     #[tokio::test]
     async fn the_camera_file_is_written_as_delivered_under_the_frame_name() {
         let dir = scratch("both");
-        let recorded = save(&dir, &frame(Some(camera_file())), CameraFileSaving::Both).await.unwrap();
+        let recorded = save(&dir, &frame(Some(camera_file())), CameraFileSaving::Both)
+            .await
+            .unwrap();
         assert!(recorded.ends_with("M31_Light_0001.fits"), "{recorded}");
         let raw = dir.join("M31_Light_0001.CR3");
         assert_eq!(std::fs::read(&raw).unwrap(), b"the camera's bytes");
 
         let dir = scratch("camera");
-        let recorded = save(&dir, &frame(Some(camera_file())), CameraFileSaving::CameraFile).await.unwrap();
+        let recorded = save(
+            &dir,
+            &frame(Some(camera_file())),
+            CameraFileSaving::CameraFile,
+        )
+        .await
+        .unwrap();
         assert!(recorded.ends_with("M31_Light_0001.CR3"), "{recorded}");
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -275,12 +292,20 @@ mod save_frame_tests {
     #[tokio::test]
     async fn converted_only_and_cameras_without_a_file_record_the_fits_file() {
         let dir = scratch("converted");
-        let recorded = save(&dir, &frame(Some(camera_file())), CameraFileSaving::Converted).await.unwrap();
+        let recorded = save(
+            &dir,
+            &frame(Some(camera_file())),
+            CameraFileSaving::Converted,
+        )
+        .await
+        .unwrap();
         assert!(recorded.ends_with(".fits"));
         assert!(!dir.join("M31_Light_0001.CR3").exists());
 
         // An astronomy camera delivers no file: it gets the FITS file whatever the setting.
-        let recorded = save(&dir, &frame(None), CameraFileSaving::CameraFile).await.unwrap();
+        let recorded = save(&dir, &frame(None), CameraFileSaving::CameraFile)
+            .await
+            .unwrap();
         assert!(recorded.ends_with(".fits"));
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -289,9 +314,14 @@ mod save_frame_tests {
     async fn an_existing_file_is_never_overwritten() {
         let dir = scratch("existing");
         std::fs::write(dir.join("M31_Light_0001.CR3"), b"an earlier frame").unwrap();
-        let recorded = save(&dir, &frame(Some(camera_file())), CameraFileSaving::Both).await.unwrap();
+        let recorded = save(&dir, &frame(Some(camera_file())), CameraFileSaving::Both)
+            .await
+            .unwrap();
         assert!(recorded.ends_with("M31_Light_0001_001.fits"), "{recorded}");
-        assert_eq!(std::fs::read(dir.join("M31_Light_0001.CR3")).unwrap(), b"an earlier frame");
+        assert_eq!(
+            std::fs::read(dir.join("M31_Light_0001.CR3")).unwrap(),
+            b"an earlier frame"
+        );
         assert_eq!(
             std::fs::read(dir.join("M31_Light_0001_001.CR3")).unwrap(),
             b"the camera's bytes"

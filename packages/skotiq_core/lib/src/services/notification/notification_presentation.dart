@@ -75,19 +75,19 @@ class NotificationPresentation {
   ) => switch (category) {
     NotificationCategory.sequenceStarted => const NotificationPresentation(
       title: 'Sequence started',
-      body: 'Sequence started at \${time.clock}.',
+      body: 'Sequence started at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
     ),
     NotificationCategory.sequenceCompleted => const NotificationPresentation(
       title: 'Sequence complete',
-      body: 'Sequence completed successfully at \${time.clock}.',
+      body: 'Sequence completed successfully at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
       tone: NotificationTone.good,
       push: PhonePush(_normal, PushToggle.sequenceCompleted),
     ),
     NotificationCategory.sequenceFailed => const NotificationPresentation(
       title: 'Sequence failed',
-      body: 'Sequence aborted at \${time.clock}. \${failure.reason}',
+      body: 'Sequence aborted at \${time.local_clock}. \${failure.reason}',
       eventCategory: EventCategory.sequencer,
       tone: NotificationTone.alert,
       push: PhonePush(_critical, PushToggle.sequenceFailed),
@@ -103,29 +103,29 @@ class NotificationPresentation {
     // the router's StopPushArbiter withholds it.
     NotificationCategory.sequenceStopped => const NotificationPresentation(
       title: 'Sequence stopped',
-      body: '\${stop.cause} at \${time.clock}.',
+      body: '\${stop.cause} at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
       push: PhonePush(_normal),
     ),
     NotificationCategory.sequencePaused => const NotificationPresentation(
       title: 'Sequence paused',
-      body: 'Sequence paused at \${time.clock}.',
+      body: 'Sequence paused at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
       tone: NotificationTone.caution,
     ),
     NotificationCategory.sequenceResumed => const NotificationPresentation(
       title: 'Sequence resumed',
-      body: 'Sequence resumed at \${time.clock}.',
+      body: 'Sequence resumed at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
     ),
     NotificationCategory.targetStarted => const NotificationPresentation(
       title: 'Target started: \${target.name}',
-      body: 'Starting target \${target.name} at \${time.clock}.',
+      body: 'Starting target \${target.name} at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
     ),
     NotificationCategory.targetCompleted => const NotificationPresentation(
       title: 'Target complete: \${target.name}',
-      body: 'Finished imaging \${target.name} at \${time.clock}.',
+      body: 'Finished imaging \${target.name} at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
       tone: NotificationTone.good,
       push: PhonePush(
@@ -194,13 +194,13 @@ class NotificationPresentation {
     ),
     NotificationCategory.recoveryStarted => const NotificationPresentation(
       title: 'Recovery started',
-      body: 'Executor entered recovery at \${time.clock}.',
+      body: 'Executor entered recovery at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
       tone: NotificationTone.caution,
     ),
     NotificationCategory.recoveryRecovered => const NotificationPresentation(
       title: 'Recovery succeeded',
-      body: 'Executor recovered at \${time.clock}.',
+      body: 'Executor recovered at \${time.local_clock}.',
       eventCategory: EventCategory.sequencer,
       tone: NotificationTone.good,
     ),

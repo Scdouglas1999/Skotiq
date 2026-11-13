@@ -73,5 +73,21 @@ void main() {
       // Must not have been left as the literal placeholder.
       expect(out, isNot(contains('time.now?}')));
     });
+
+    test('a time variable means what it means in a frame name', () {
+      final at = DateTime.utc(2026, 1, 15, 22, 47, 12, 345);
+      final local = at.toLocal();
+      String two(int n) => n.toString().padLeft(2, '0');
+      final out = renderNotificationTemplate(
+        r'${time.now} ${time.date} ${time.clock} ${time.local_clock}',
+        const NotificationContext({}),
+        clock: () => at,
+      );
+      expect(
+        out,
+        '2026-01-15T22:47:12Z 2026-01-15 22-47-12 '
+        '${two(local.hour)}:${two(local.minute)}',
+      );
+    });
   });
 }

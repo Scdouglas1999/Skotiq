@@ -6,7 +6,7 @@
 //! that the name exists. Adding a new variable means:
 //! 1. Add the [`VariableEntry`] to `catalog::variable_catalog()`.
 //! 2. Add a match arm in [`resolve_variable`].
-//! 3. The Dart picker auto-picks it up from the catalog JSON.
+//! 3. Copy the entry into the app's catalog (`interpolation_catalog.dart`).
 
 use super::catalog::variable_catalog;
 use super::errors::InterpolationError;
@@ -233,7 +233,7 @@ pub fn resolve_variable(
         ),
         "target.az" => float_or_unresolvable(
             name,
-            calculate_azimuth(ctx),
+            ctx.target_alt_az().map(|(_, azimuth)| azimuth),
             "azimuth requires target RA/Dec and observer location",
         ),
         // Filter
@@ -317,6 +317,14 @@ pub fn resolve_variable(
                 .format("%H-%M-%S")
                 .to_string(),
         )),
+        "time.local_clock" => Ok(VariableValue::Str(
+            frame
+                .now_override
+                .map(|u| u.with_timezone(&chrono::Local))
+                .unwrap_or_else(chrono::Local::now)
+                .format("%H:%M")
+                .to_string(),
+        )),
         // As the app's `$TEMP` reads a manual capture: the sensor, else what
         // the cooler holds, else 0.
         "camera.temp_c" => Ok(VariableValue::Float(
@@ -324,9 +332,10 @@ pub fn resolve_variable(
         )),
         "moon.phase" => float_or_unresolvable(
             name,
-            frame
-                .moon_phase
-                .or_else(|| Some(moon_illumination_fraction(now_utc()))),
+            frame.moon_phase.or_else(|| {
+                let now = frame.now_override.unwrap_or_else(|| ctx.clock.now_utc());
+                Some(crate::scheduling::ephemeris::moon_illumination_percent(&now) / 100.0)
+            }),
             "moon phase requires a system clock",
         ),
         "moon.separation" => float_or_unresolvable(
@@ -643,49 +652,6 @@ fn fixed_point(
             reason: "fixed-point spec applied to string value".to_string(),
         }),
     }
-}
-
-/// Compute the moon illumination fraction (0.0 = new, 1.0 = full) using a
-/// low-precision phase angle formula. Accuracy is ~ 1% — adequate for
-/// template substitution, where the user wants a rough sense of phase, not
-/// an ephemeris.
-fn moon_illumination_fraction(now: DateTime<Utc>) -> f64 {
-    let jd = crate::meridian::julian_day(&now);
-    // Mean phase angle period: 29.530588853 days (synodic month). The
-    // reference new-moon epoch is JD 2451550.1 (2000-01-06 UTC). Wrapping
-    // the cosine of half the phase angle yields the illuminated fraction.
-    let days = jd - 2_451_550.1;
-    let phase = (days / 29.530_588_853).rem_euclid(1.0); // 0..1 fraction of synodic month
-    let angle = phase * std::f64::consts::TAU; // 0..2π radians
-                                               // illumination = (1 - cos(angle)) / 2 produces 0 at new, 1 at full,
-                                               // 0 again at the next new moon.
-    ((1.0 - angle.cos()) / 2.0).clamp(0.0, 1.0)
-}
-
-/// Calculate current azimuth (degrees, 0 = North, increasing eastward) of
-/// the active target. Mirrors `ExecutionContext::calculate_altitude` so the
-/// catalog can offer both fields without depending on the planetarium code.
-fn calculate_azimuth(ctx: &ExecutionContext) -> Option<f64> {
-    let ra_hours = ctx.target_ra?;
-    let dec_degrees = ctx.target_dec?;
-    let lat = ctx.run.rig.latitude?;
-    let lon = ctx.run.rig.longitude?;
-
-    let now = chrono::Utc::now();
-    let jd = crate::meridian::julian_day(&now);
-    let lst = crate::meridian::local_sidereal_time(jd, lon);
-
-    let ha = lst - ra_hours;
-    let ha_rad = (ha * 15.0).to_radians();
-    let dec_rad = dec_degrees.to_radians();
-    let lat_rad = lat.to_radians();
-
-    // Standard horizontal-coords formula: tan(Az) = -cos(dec) sin(HA) /
-    // (sin(dec) cos(lat) - cos(dec) sin(lat) cos(HA))
-    let sin_az = -dec_rad.cos() * ha_rad.sin();
-    let cos_az = dec_rad.sin() * lat_rad.cos() - dec_rad.cos() * lat_rad.sin() * ha_rad.cos();
-    let az = sin_az.atan2(cos_az).to_degrees();
-    Some(az.rem_euclid(360.0))
 }
 
 #[cfg(test)]

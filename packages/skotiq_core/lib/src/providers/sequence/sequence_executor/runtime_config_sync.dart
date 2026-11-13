@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/sequence/sequence_models.dart';
-import '../../../models/settings/app_settings.dart' show ObserverLocation;
 import '../../../services/logging_service.dart';
 import '../../../services/session_handoff_service.dart'
     show SessionCarryOver, SessionHandoffDecision;
@@ -53,8 +52,9 @@ class RuntimeConfigSync {
   /// The last sky brightness pushed, so a steady sky is not re-sent.
   double? _lastPushedSkyMag;
 
-  /// Push the launch-authoritative wiring: the site, simulation mode, save
-  /// path, device ids and the defect-map runtime.
+  /// Push the launch-authoritative wiring: simulation mode, save path, device
+  /// ids and the defect-map runtime. The site reaches the run through the run
+  /// settings (`RunConfigSync`) and the device layer through the location sync.
   ///
   /// One ordered push for a start and a checkpoint resume. On a resume
   /// ([isResume]) the checkpoint knows better than an empty setting: an empty
@@ -67,28 +67,9 @@ class RuntimeConfigSync {
   }) async {
     final backend = _backend;
     _logger().debug(
-      'Pushing launch config (resume=$isResume): lat=${settings.latitude}, '
-      'lon=${settings.longitude}, elev=${settings.elevation}',
+      'Pushing launch config (resume=$isResume)',
       source: 'SequenceExecutor',
     );
-
-    // (0, 0) means "not configured"; forwarding it would arm the altitude
-    // trigger against Null Island instead of leaving it disarmed.
-    if (settings.latitude != 0.0 || settings.longitude != 0.0) {
-      await backend.setLocation(
-        ObserverLocation(
-          latitude: settings.latitude,
-          longitude: settings.longitude,
-          elevation: settings.elevation,
-        ),
-      );
-      _logger().debug('Location sync complete', source: 'SequenceExecutor');
-    } else {
-      _logger().debug(
-        'Skipping location sync: location is 0,0',
-        source: 'SequenceExecutor',
-      );
-    }
 
     // Never read from a setting: the bundled native library is a release
     // build and refuses simulation mode.
