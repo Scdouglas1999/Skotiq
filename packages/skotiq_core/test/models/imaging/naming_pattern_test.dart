@@ -67,6 +67,22 @@ void main() {
     }, placeholders);
   });
 
+  test('every run placeholder names a variable of the app catalog', () {
+    final byName = {for (final v in interpolationCatalog) v.name: v};
+    final variable = RegExp(r'\$\{([a-z_.]+)(:[^}]*)?\}');
+    for (final token in NamingToken.values) {
+      final placeholder = token.runPlaceholder;
+      if (placeholder == null) continue;
+      for (final m in variable.allMatches(placeholder)) {
+        final entry = byName[m.group(1)];
+        expect(entry, isNotNull, reason: '${token.text}: ${m.group(1)}');
+        if (m.group(2) != null) {
+          expect(entry!.supportsFormat, isTrue, reason: token.text);
+        }
+      }
+    }
+  });
+
   test('a token has a run placeholder exactly when the step cannot fix it', () {
     for (final token in NamingToken.values) {
       for (final frameType in FrameType.values) {
