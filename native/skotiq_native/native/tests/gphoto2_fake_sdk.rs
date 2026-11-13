@@ -283,6 +283,28 @@ async fn another_body_of_the_model_reports_its_own_serial_number() {
 
 #[tokio::test]
 #[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
+async fn canon_step_labels_are_timed_speeds_of_their_nominal_seconds() {
+    let fake = Fake::new();
+    fake.attach(CANON, CANON_PORT);
+    let mut canon = connected(0, CANON, CANON_PORT).await;
+
+    // In third stops libgphoto2 words the 10 s speed "10.3".
+    take(&mut canon, exposure(10.0, Some(800))).await;
+    assert_eq!(fake.value(CANON_PORT, "shutterspeed"), "10.3");
+
+    fake.set(CANON_PORT, "half_steps", "1");
+    take(&mut canon, exposure(20.0, Some(800))).await;
+    assert_eq!(fake.value(CANON_PORT, "shutterspeed"), "20.3");
+
+    let made = fake.made(CANON_PORT);
+    assert!(
+        made.len() == 2 && made.iter().all(|m| m.starts_with("timed")),
+        "both frames are timed, not bulb: {made:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "needs the fake libgphoto2 on LD_LIBRARY_PATH"]
 async fn an_unplugged_body_is_noticed_while_idle() {
     let fake = Fake::new();
     fake.attach(NIKON, NIKON_PORT);

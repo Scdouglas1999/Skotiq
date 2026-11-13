@@ -94,8 +94,13 @@ const MODELS: &[(&str, Maker)] = &[
 ];
 
 const CANON_SPEEDS: &[&str] = &[
-    "bulb", "30", "25", "20", "15", "13", "10", "8", "6", "5", "4", "3.2", "2.5", "2", "1.6", "1.3", "1",
+    "bulb", "30", "25", "20", "15", "13", "10.3", "8", "6.3", "5", "4", "3.2", "2.5", "2", "1.6", "1.3", "1",
     "0.8", "0.6", "0.5", "0.4", "0.3", "1/4", "1/8", "1/15", "1/30", "1/60", "1/125", "1/250", "1/4000",
+];
+/// A Canon stepping in half stops, as libgphoto2 2.5.34 words it (config.c canon_shutterspeed).
+const CANON_HALF_STOP_SPEEDS: &[&str] = &[
+    "bulb", "30", "20.3", "15", "10", "8", "6", "4", "3", "2", "1.5", "1", "0.7", "0.5", "0.3", "1/4", "1/6",
+    "1/8", "1/15", "1/30", "1/60", "1/125", "1/250", "1/4000",
 ];
 const NIKON_SPEEDS: &[&str] = &[
     "0.0002s", "0.0040s", "0.0080s", "0.5000s", "1.0000s", "2.0000s", "15.0000s", "30.0000s", "Bulb", "Time",
@@ -221,9 +226,12 @@ impl Body {
         self.values.get(name).cloned().unwrap_or_default()
     }
     fn speeds(&self, widget: &str) -> Vec<&'static str> {
-        let spec = specs(self.maker).into_iter().find(|s| s.name == widget).map(|s| s.choices).unwrap_or_default();
+        let mut spec = specs(self.maker).into_iter().find(|s| s.name == widget).map(|s| s.choices).unwrap_or_default();
         // A Canon body lists bulb only in M or B.
         if self.maker == Maker::Canon && widget == "shutterspeed" {
+            if self.value("half_steps") == "1" {
+                spec = CANON_HALF_STOP_SPEEDS.to_vec();
+            }
             let mode = self.value("autoexposuremode");
             if mode != "Manual" && mode != "Bulb" {
                 return spec.into_iter().filter(|c| *c != "bulb").collect();
@@ -361,7 +369,8 @@ pub unsafe extern "C" fn fake_gp_replug(port: *const c_char, new_port: *const c_
 
 /// Body settings for a test: `busy` = n, `realtime` = 1, `jpeg_first` = 1,
 /// `lock` = widget name, `stray` = 1 (a file and its event from an earlier
-/// capture), or any widget name = value.
+/// capture), `half_steps` = 1 (a Canon stepping in half stops), or any widget
+/// name = value.
 #[no_mangle]
 pub unsafe extern "C" fn fake_gp_set(port: *const c_char, key: *const c_char, value: *const c_char) {
     let (port, key, value) = (text(port), text(key), text(value));

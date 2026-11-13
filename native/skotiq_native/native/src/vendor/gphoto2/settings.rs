@@ -186,6 +186,12 @@ impl BodyFacts {
         digits.parse().ok().filter(|p| *p <= 100)
     }
 
+    pub(crate) fn is_canon(&self) -> bool {
+        self.manufacturer
+            .as_deref()
+            .is_some_and(|m| m.to_ascii_lowercase().contains("canon"))
+    }
+
     /// Sony ILCE bodies (A7 II, A7 III) take only one capture per PTP
     /// session; the INDI driver closes the session after each one, except on
     /// the A7R IV, where the reset stops further captures
@@ -203,7 +209,11 @@ impl BodyFacts {
 /// The body's shutter speeds as its first shutter widget lists them now.
 pub(crate) fn shutter_speeds(root: &ConfigWidget) -> Option<ShutterSpeeds> {
     let widget = widget_named(root, &SHUTTER_WIDGETS)?;
-    Some(ShutterSpeeds::from_choices(&widget.name, &widget.choices))
+    Some(ShutterSpeeds::from_choices(
+        &widget.name,
+        &widget.choices,
+        body_facts(root).is_canon(),
+    ))
 }
 
 /// How this body opens and closes the shutter for bulb.
