@@ -75,11 +75,9 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
                 value: cfg.enabled,
                 onChanged: (v) {
                   if (v && !brokerConfigured) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Set an MQTT broker host above before enabling '
-                              'Home Assistant discovery')),
+                    context.showInfoSnackBar(
+                      'Set an MQTT broker host above before enabling '
+                      'Home Assistant discovery',
                     );
                     setState(() => _refusedFlips++);
                     return;
@@ -119,10 +117,7 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
                   await _save(
                       (c) => c.copyWith(deviceName: _deviceName.text.trim()));
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Home Assistant config saved')),
-                  );
+                  context.showInfoSnackBar('Home Assistant config saved');
                 },
               ),
               isLast: true,
@@ -353,10 +348,8 @@ class _RemoteHomeAssistantFormState
         _saving = false;
       });
       ref.invalidate(remoteHomeAssistantHostSettingsProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Home Assistant configuration saved on imaging host'),
-        ),
+      context.showInfoSnackBar(
+        'Home Assistant configuration saved on imaging host',
       );
     } catch (_) {
       if (!mounted) return;

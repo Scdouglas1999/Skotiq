@@ -422,9 +422,7 @@ class _DevicePickerState extends State<_DevicePicker> {
           } else if (value == _scanValue) {
             // The parent watches the discovery results, so the list fills in
             // when the scan lands.
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Scanning for devices…')),
-            );
+            context.showInfoSnackBar('Scanning for devices…');
             widget.onScan();
           } else {
             final choice =

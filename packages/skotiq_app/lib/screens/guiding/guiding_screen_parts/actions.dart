@@ -240,10 +240,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   /// unhandled Future (calibration ops issue real PHD2 RPCs that can fail).
   void _showActionError(String message) {
     if (!mounted) return;
-    final colors = SkotiqColors.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: colors.error),
-    );
+    context.showErrorSnackBar(message);
   }
 
   Future<void> _clearCalibration() async {

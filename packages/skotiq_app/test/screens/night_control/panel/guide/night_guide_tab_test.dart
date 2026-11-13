@@ -51,11 +51,7 @@ class _MockGuider extends Mock implements Phd2Controller {}
 _MockGuider _guiderThatStarts() {
   final guider = _MockGuider();
   when(
-    () => guider.startGuiding(
-      settlePixels: any(named: 'settlePixels'),
-      settleTime: any(named: 'settleTime'),
-      settleTimeout: any(named: 'settleTimeout'),
-    ),
+    () => guider.startGuiding(),
   ).thenAnswer((_) async {});
   return guider;
 }
@@ -270,11 +266,9 @@ void main() {
     expect(api.calls, ['dither']);
   });
 
-  testWidgets('Guide starts guiding outside a run with the settle settings', (
-    tester,
-  ) async {
+  testWidgets('Guide starts guiding outside a run', (tester) async {
     final guider = _guiderThatStarts();
-    final handle = await pumpPanelTab(
+    await pumpPanelTab(
       tester,
       const NightGuideTab(),
       overrides: [
@@ -283,27 +277,13 @@ void main() {
         phd2ControllerProvider.overrideWithValue(guider),
       ],
     );
-    final settings = handle.container.read(appSettingsProvider.notifier);
-    await tester.runAsync(() async {
-      await handle.container.read(appSettingsProvider.future);
-      await settings.setSettleThreshold(2.0);
-      await settings.setSettleTime(15);
-      await settings.setSettleTimeout(90);
-    });
-    await tester.pump();
 
     const guide = ValueKey<String>('nightGuide.guide');
     expect(find.text('Guide'), findsOneWidget);
     expect(isEnabled(tester, guide), isTrue);
     await tester.tap(find.byKey(guide));
     await tester.pump();
-    verify(
-      () => guider.startGuiding(
-        settlePixels: 2.0,
-        settleTime: 15,
-        settleTimeout: 90,
-      ),
-    ).called(1);
+    verify(() => guider.startGuiding()).called(1);
   });
 
   testWidgets('Guide waits while a run owns the guider or it already guides', (

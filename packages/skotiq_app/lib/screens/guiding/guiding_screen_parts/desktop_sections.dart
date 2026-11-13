@@ -359,11 +359,7 @@ mixin _GuidingDesktopSections
       key: TourTarget.guidingControls.key,
       state: _mapPhd2State(phd2State),
       isConnected: isConnected,
-      onStartGuiding: () => controller.startGuiding(
-        settlePixels: _settlePixels,
-        settleTime: _settleTime,
-        settleTimeout: _settleTimeout,
-      ),
+      onStartGuiding: controller.startGuiding,
       onStopGuiding: () => ref.read(phd2ControllerProvider).stopGuiding(),
       onPauseGuiding: () => ref.read(phd2ControllerProvider).pauseGuiding(),
       onResumeGuiding: () => ref.read(phd2ControllerProvider).resumeGuiding(),
@@ -376,13 +372,7 @@ mixin _GuidingDesktopSections
           canPersistGuidingSettings ? _setDitherAmount : null,
       onDitherRaOnlyChanged:
           canPersistGuidingSettings ? _setDitherRaOnly : null,
-      onDither: () => ref.read(phd2ControllerProvider).dither(
-            amount: _ditherAmount,
-            raOnly: _ditherRaOnly,
-            settlePixels: _settlePixels,
-            settleTime: _settleTime,
-            settleTimeout: _settleTimeout,
-          ),
+      onDither: () => ref.read(phd2ControllerProvider).dither(),
       settlePixels: _settlePixels,
       settleTime: _settleTime,
       settleTimeout: _settleTimeout,

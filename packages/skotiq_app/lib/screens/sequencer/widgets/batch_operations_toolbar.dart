@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Toolbar shown when multi-select mode is active.
 /// Provides batch operations: Copy, Paste, Delete, Enable, Disable.
@@ -64,13 +65,9 @@ class BatchOperationsToolbar extends ConsumerWidget {
                       ref
                           .read(multiSelectedNodeIdsProvider.notifier)
                           .copySelected();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              '$count node${count == 1 ? '' : 's'} copied'),
-                          duration: const Duration(seconds: 2),
-                          backgroundColor: colors.info,
-                        ),
+                      context.showInfoSnackBar(
+                        '$count node${count == 1 ? '' : 's'} copied',
+                        duration: const Duration(seconds: 2),
                       );
                     },
                   ),
@@ -187,13 +184,7 @@ class BatchOperationsToolbar extends ConsumerWidget {
     String message,
   ) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-        backgroundColor: colors.info,
-      ),
-    );
+    context.showInfoSnackBar(message, duration: const Duration(seconds: 2));
   }
 
   void _confirmDelete(
@@ -256,12 +247,9 @@ class BatchOperationsToolbar extends ConsumerWidget {
                     .deleteSelected();
               } catch (error) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to delete nodes: ${userFacingError(error)}'),
-                      backgroundColor: colors.error,
-                      duration: const Duration(seconds: 4),
-                    ),
+                  context.showErrorSnackBar(
+                    'Failed to delete nodes: ${userFacingError(error)}',
+                    duration: const Duration(seconds: 4),
                   );
                 }
               }

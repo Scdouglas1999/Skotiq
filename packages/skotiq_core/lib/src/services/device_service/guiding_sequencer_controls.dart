@@ -10,37 +10,6 @@ extension _DeviceServiceGuidingSequencerControls on DeviceService {
     }
   }
 
-  Future<void> _startGuiding({
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) async {
-    _requireConnectedGuider();
-
-    final operationsNotifier = _ref.read(activeOperationsProvider.notifier);
-    final operationId = operationsNotifier.startOperation(
-      type: OperationType.guideSettle,
-      description: 'Starting guiding and settling',
-      currentStep: 'Calibrating...',
-    );
-
-    try {
-      await _backend.guiderStartGuiding(
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-      );
-
-      final guiderNotifier = _ref.read(guiderStateProvider.notifier);
-      guiderNotifier.setGuiding(true);
-    } finally {
-      operationsNotifier.completeOperation(
-        OperationType.guideSettle,
-        operationId: operationId,
-      );
-    }
-  }
-
   Future<void> _stopGuiding() async {
     _requireConnectedGuider();
 
@@ -48,39 +17,6 @@ extension _DeviceServiceGuidingSequencerControls on DeviceService {
 
     final guiderNotifier = _ref.read(guiderStateProvider.notifier);
     guiderNotifier.setGuiding(false);
-  }
-
-  /// Dither
-  Future<void> _dither({
-    double amount = 5.0,
-    bool raOnly = false,
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) async {
-    _requireConnectedGuider();
-
-    final operationsNotifier = _ref.read(activeOperationsProvider.notifier);
-    final operationId = operationsNotifier.startOperation(
-      type: OperationType.dither,
-      description: 'Dithering ${amount.toStringAsFixed(1)} px',
-      currentStep: 'Moving...',
-    );
-
-    try {
-      await _backend.guiderDither(
-        amount: amount,
-        raOnly: raOnly,
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-      );
-    } finally {
-      operationsNotifier.completeOperation(
-        OperationType.dither,
-        operationId: operationId,
-      );
-    }
   }
 
   Future<void> _startSequence() async {

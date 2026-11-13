@@ -12,6 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/your_sky_opt_in.dart';
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 String? _validatePositiveScienceId(String value) {
   if (value.isEmpty) return null;
@@ -573,7 +574,7 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
       if (mounted) {
         setState(() => _rowError = message);
         ScaffoldMessenger.maybeOf(context)
-            ?.showSnackBar(SnackBar(content: Text(message)));
+            ?.showInfoSnackBar(message);
       }
       // Hands the failure back to SettingsTextInput, which restores the stored
       // value. Swallowing it here would leave unsaved text on screen looking
@@ -659,7 +660,7 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
             'Could not store the TNS bot key: ${userFacingError(error)}';
         setState(() => _writeError = message);
         ScaffoldMessenger.maybeOf(context)
-            ?.showSnackBar(SnackBar(content: Text(message)));
+            ?.showInfoSnackBar(message);
       }
       return;
     }
@@ -742,12 +743,8 @@ class _ScienceOnlineCatalogRowState
           .setOnlineCatalogEnabled(value);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not save catalog setting: ${userFacingError(error)}',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not save catalog setting: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -802,12 +799,8 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
           .setCameraAutoManaged(value);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not save camera setting: ${userFacingError(error)}',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not save camera setting: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -907,12 +900,8 @@ class _ScienceCameraValueRowState
       ref.invalidate(scienceRawSettingsProvider);
       if (mounted) {
         setState(() => _rowError = 'Could not save this value');
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not save camera value: ${userFacingError(error)}',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not save camera value: ${userFacingError(error)}',
         );
       }
       rethrow;

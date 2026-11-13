@@ -18,6 +18,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'settings_widgets/settings_field_binding.dart';
 part 'settings_widgets/settings_field_notice.dart';

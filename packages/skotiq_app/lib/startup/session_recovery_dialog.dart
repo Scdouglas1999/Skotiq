@@ -5,6 +5,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../utils/snackbar_helper.dart';
 
 class SessionRecoveryDialog extends ConsumerStatefulWidget {
   final List<SessionRecoveryInfo> incompleteSessions;
@@ -217,15 +218,9 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
         ..addAll(failures);
       _discardingAll = false;
     });
-    final colors = SkotiqColors.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Failed to discard ${failures.length} of $count '
-          '$sessionWord. The remaining sessions are still available to retry.',
-        ),
-        backgroundColor: colors.error,
-      ),
+    context.showErrorSnackBar(
+      'Failed to discard ${failures.length} of $count '
+      '$sessionWord. The remaining sessions are still available to retry.',
     );
   }
 
@@ -235,26 +230,15 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
       await sessionNotifier.recoverSession(session);
 
       if (mounted) {
-        final colors = SkotiqColors.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Session recovered: ${session.sessionName ?? "Session ${session.sessionId}"}',
-            ),
-            backgroundColor: colors.success,
-          ),
+        context.showSuccessSnackBar(
+          'Session recovered: ${session.sessionName ?? "Session ${session.sessionId}"}',
         );
       }
       return true;
     } catch (e) {
       if (mounted) {
-        final colors = SkotiqColors.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                const Text('Could not recover the session. Please try again.'),
-            backgroundColor: colors.error,
-          ),
+        context.showErrorSnackBar(
+          'Could not recover the session. Please try again.',
         );
       }
       return false;
@@ -268,13 +252,8 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
       return true;
     } catch (e) {
       if (mounted) {
-        final colors = SkotiqColors.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                const Text('Could not discard the session. Please try again.'),
-            backgroundColor: colors.error,
-          ),
+        context.showErrorSnackBar(
+          'Could not discard the session. Please try again.',
         );
       }
       return false;

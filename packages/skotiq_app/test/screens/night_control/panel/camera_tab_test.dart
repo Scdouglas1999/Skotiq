@@ -34,6 +34,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a camera without a cooler or gain shows neither', (tester) async {
+    final ops = FakePanelOps();
+    await pumpPanel(
+      tester,
+      child: const NightCameraTab(),
+      overrides: [
+        ...panelOverrides(
+          board: NightFixtures.ready(),
+          camera: PanelFixtures.cameraIdle,
+          ops: ops,
+        ),
+        cameraHasCoolerProvider.overrideWithValue(false),
+        cameraSensitivityProvider.overrideWithValue(
+          const GainSensitivity(hasGain: false, hasOffset: false),
+        ),
+      ],
+    );
+
+    expect(find.textContaining('Cooler'), findsNothing);
+    expect(find.text('Gain'), findsNothing);
+    expect(find.text('Offset'), findsNothing);
+
+    // The exposure still saves, and carries no gain or offset change.
+    await tester.enterText(find.widgetWithText(TextField, '5'), '10');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(ops.lastExposure?.exposureTime, 10);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('idle: the capture fields edit the manual settings',
       (tester) async {
     final ops = FakePanelOps();

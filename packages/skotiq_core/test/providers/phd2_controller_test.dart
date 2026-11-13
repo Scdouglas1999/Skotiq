@@ -34,12 +34,18 @@ class _FixedBackendNotifier extends BackendNotifier {
 /// (`Phd2Launcher.ensureRunning`, which would try to spawn a process / probe a
 /// socket) is skipped in tests — only the TCP connect is exercised.
 class _SettingsNotifier extends AppSettingsNotifier {
-  @override
-  Future<AppSettingsState> build() async => const AppSettingsState(
+  _SettingsNotifier([this._settings = _remotePhd2]);
+
+  static const _remotePhd2 = AppSettingsState(
     phd2Host: '10.0.0.9',
     phd2Port: 4400,
     phd2Path: '',
   );
+
+  final AppSettingsState _settings;
+
+  @override
+  Future<AppSettingsState> build() async => _settings;
 }
 
 const _connectedStatus = Phd2Status(
@@ -66,13 +72,18 @@ SkotiqEvent _guidingEvent(String eventType, [Map<String, dynamic>? data]) =>
 ProviderContainer _container(
   SkotiqBackend backend, {
   DateTime Function()? now,
+  AppSettingsState? settings,
 }) {
   return ProviderContainer(
     overrides: [
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
-      appSettingsProvider.overrideWith(_SettingsNotifier.new),
+      appSettingsProvider.overrideWith(
+        () => settings == null
+            ? _SettingsNotifier()
+            : _SettingsNotifier(settings),
+      ),
       loggingServiceProvider.overrideWithValue(LoggingService()),
       if (now != null)
         phd2ControllerProvider.overrideWith(
@@ -404,6 +415,65 @@ void main() {
   });
 
   group('settle semantics', () {
+    test('start and dither send the guiding settings, whoever calls them', () async {
+      final events = StreamController<SkotiqEvent>.broadcast();
+      addTearDown(events.close);
+      final backend = _MockBackend();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      when(
+        () => backend.guiderStartGuiding(
+          settlePixels: any(named: 'settlePixels'),
+          settleTime: any(named: 'settleTime'),
+          settleTimeout: any(named: 'settleTimeout'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        () => backend.guiderDither(
+          amount: any(named: 'amount'),
+          raOnly: any(named: 'raOnly'),
+          settlePixels: any(named: 'settlePixels'),
+          settleTime: any(named: 'settleTime'),
+          settleTimeout: any(named: 'settleTimeout'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final container = _container(
+        backend,
+        settings: const AppSettingsState(
+          settleThreshold: 2.5,
+          settleTime: 20,
+          settleTimeout: 90,
+          ditherScale: 'Large',
+          ditherRaOnly: true,
+        ),
+      );
+      addTearDown(container.dispose);
+      _markConnected(container);
+      await container.read(appSettingsProvider.future);
+      final controller = container.read(phd2ControllerProvider);
+
+      await controller.startGuiding();
+      verify(
+        () => backend.guiderStartGuiding(
+          settlePixels: 2.5,
+          settleTime: 20,
+          settleTimeout: 90,
+        ),
+      ).called(1);
+
+      container.read(guiderStateProvider.notifier).setGuiding(true);
+      await controller.dither();
+      verify(
+        () => backend.guiderDither(
+          amount: 10,
+          raOnly: true,
+          settlePixels: 2.5,
+          settleTime: 20,
+          settleTimeout: 90,
+        ),
+      ).called(1);
+    });
+
     test('start normalizes an impossible settleTimeout < settleTime', () async {
       final events = StreamController<SkotiqEvent>.broadcast();
       addTearDown(events.close);
@@ -422,13 +492,17 @@ void main() {
         sentTimeout = invocation.namedArguments[#settleTimeout] as double;
       });
 
-      final container = _container(backend);
+      // settleTime (45) > settleTimeout (30): the settle could never complete.
+      final container = _container(
+        backend,
+        settings: const AppSettingsState(settleTime: 45, settleTimeout: 30),
+      );
       addTearDown(container.dispose);
       _markConnected(container);
       final controller = container.read(phd2ControllerProvider);
+      await container.read(appSettingsProvider.future);
 
-      // settleTime (45) > settleTimeout (30): the settle could never complete.
-      await controller.startGuiding(settleTime: 45, settleTimeout: 30);
+      await controller.startGuiding();
 
       // Timeout is lifted to at least the required stable duration.
       expect(sentTime, 45);

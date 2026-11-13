@@ -87,14 +87,9 @@ class _AnnotationExportMenuState extends ConsumerState<_AnnotationExportMenu> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not save the ${format.subject}: ${userFacingError(error)}',
-          ),
-          backgroundColor: SkotiqColors.of(context).error,
-          duration: const Duration(seconds: 4),
-        ),
+      context.showErrorSnackBar(
+        'Could not save the ${format.subject}: ${userFacingError(error)}',
+        duration: const Duration(seconds: 4),
       );
     } finally {
       if (mounted) setState(() => _exporting = false);

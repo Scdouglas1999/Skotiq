@@ -14,6 +14,7 @@ import 'widgets/transient_card.dart';
 import '../../router/app_routes.dart';
 import '../../router/analytics_route.dart';
 import '../../router/planner_route.dart';
+import '../../utils/snackbar_helper.dart';
 
 enum TransientFilter {
   all('All'),
@@ -295,9 +296,7 @@ class TransientsView extends ConsumerWidget {
       await ref.read(transientAlertStatesProvider.notifier).dismiss(alert.id);
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not dismiss this alert.')),
-        );
+        context.showErrorSnackBar('Could not dismiss this alert.');
       }
     }
   }
@@ -570,11 +569,7 @@ class _TransientSettingsDialogState
       await action();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not save the alert settings.'),
-          ),
-        );
+        context.showErrorSnackBar('Could not save the alert settings.');
       }
     }
   }

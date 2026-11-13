@@ -208,11 +208,7 @@ void main() {
       appSettingsProvider.overrideWith(_StaticAppSettings.new),
     ]);
     addTearDown(container.dispose);
-    when(() => phd2.startGuiding(
-          settlePixels: any(named: 'settlePixels'),
-          settleTime: any(named: 'settleTime'),
-          settleTimeout: any(named: 'settleTimeout'),
-        )).thenAnswer((_) async {});
+    when(() => phd2.startGuiding()).thenAnswer((_) async {});
 
     var settled = false;
     final done = container
@@ -242,11 +238,7 @@ void main() {
       appSettingsProvider.overrideWith(_StaticAppSettings.new),
     ]);
     addTearDown(container.dispose);
-    when(() => phd2.startGuiding(
-          settlePixels: any(named: 'settlePixels'),
-          settleTime: any(named: 'settleTime'),
-          settleTimeout: any(named: 'settleTimeout'),
-        )).thenAnswer((_) async {});
+    when(() => phd2.startGuiding()).thenAnswer((_) async {});
 
     final done = container.read(nightRigOpsProvider).startGuidingAndSettle();
     final expectation = expectLater(done, throwsStateError);

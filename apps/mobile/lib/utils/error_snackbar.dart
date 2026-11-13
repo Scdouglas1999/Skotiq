@@ -21,70 +21,39 @@
 // helper has no way to recover from a tear-down race.
 
 import 'package:flutter/material.dart';
+import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Show a SnackBar describing an API error.
 ///
 /// When [error] is a [ServerError] the SnackBar renders
-/// `"<message> (<code>)"` with an amber background for 4xx and a red for
-/// 5xx (or unknown status). Any other exception type falls back to
-/// `error.toString()` with the generic red tint.
+/// `"<message> (<code>)"` as a warning for 4xx and an error for 5xx (or
+/// unknown status). Any other exception type falls back to
+/// `error.toString()` as an error.
 ///
 /// Duration scales with severity: 5xx/unknown stays visible for 6
 /// seconds so the operator has time to read a critical failure; 4xx
 /// fades after 4 seconds because those are often expected (rate limit,
 /// pairing required) and the operator just needs the cue.
 void showApiError(BuildContext context, Object error) {
-  final colors = context.skotiqColors;
-  final theme = Theme.of(context);
-
-  final String text;
-  final Color background;
-  final Color foreground;
-  final Duration duration;
-
-  if (error is ServerError) {
-    text = '${error.message} (${error.code})';
-    if (error.isClientError) {
-      background = colors.warning;
-      foreground = colors.background;
-      duration = const Duration(seconds: 4);
-    } else {
-      background = colors.error;
-      foreground = theme.colorScheme.onError;
-      duration = const Duration(seconds: 6);
-    }
-  } else {
-    // Why: the fallback path covers cases where the request never
-    // reached the structured-error code path — socket errors, timeouts,
-    // local exceptions thrown by Dart code before the backend even
-    // received the request. We still want the operator to see what
-    // happened, so fall back to the exception's own stringification.
-    text = error.toString();
-    background = colors.error;
-    foreground = theme.colorScheme.onError;
-    duration = const Duration(seconds: 6);
-  }
-
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  if (messenger == null) {
-    // No ScaffoldMessenger ancestor — caller is rendering inside a
-    // dialog or outside the Material tree. Surfacing a SnackBar isn't
-    // possible from here; the catch block must use a different
-    // affordance (status text in the dialog body, for instance). Bail
-    // silently rather than throwing.
-    return;
-  }
   // Replace any in-flight error so a rapid burst of failures doesn't
   // stack up an unreadable queue.
-  messenger.hideCurrentSnackBar();
-  messenger.showSnackBar(
-    SnackBar(
-      backgroundColor: background,
-      content: Text(text, style: TextStyle(color: foreground)),
-      duration: duration,
-    ),
+  ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+  if (error is ServerError) {
+    final text = '${error.message} (${error.code})';
+    if (error.isClientError) {
+      context.showWarningSnackBar(text, duration: const Duration(seconds: 4));
+    } else {
+      context.showErrorSnackBar(text, duration: const Duration(seconds: 6));
+    }
+    return;
+  }
+  // The request never reached the structured-error path (a socket error,
+  // a timeout, a local exception before the backend received it); the
+  // operator still sees what happened.
+  context.showErrorSnackBar(
+    error.toString(),
+    duration: const Duration(seconds: 6),
   );
 }
 
@@ -106,21 +75,9 @@ void showApiErrorWithPrefix(BuildContext context, String prefix, Object error) {
     );
     return;
   }
-  // Wrap a generic exception so the prefix lands in the text path of
-  // showApiError too. We don't mutate `error` — Exception is opaque, so
-  // we just stringify here.
-  final colors = context.skotiqColors;
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  if (messenger == null) return;
-  messenger.hideCurrentSnackBar();
-  messenger.showSnackBar(
-    SnackBar(
-      backgroundColor: colors.error,
-      content: Text(
-        '$prefix: $error',
-        style: TextStyle(color: Theme.of(context).colorScheme.onError),
-      ),
-      duration: const Duration(seconds: 6),
-    ),
+  ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+  context.showErrorSnackBar(
+    '$prefix: $error',
+    duration: const Duration(seconds: 6),
   );
 }

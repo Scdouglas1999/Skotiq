@@ -6,6 +6,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/authority_bound_dialog.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class ObservingListsSettings extends ConsumerWidget {
   const ObservingListsSettings({super.key});
@@ -205,13 +206,11 @@ class _ObservingListManagementCard extends ConsumerWidget {
                               .duplicateList(list.id);
                           if (!context.mounted || host.isStale) return;
                           final state = ref.read(observingListNotifierProvider);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(id == null
-                                  ? (state.errorMessage ??
-                                      'Could not duplicate list')
-                                  : 'Duplicated "${list.name}"'),
-                            ),
+                          context.showInfoSnackBar(
+                            id == null
+                  ? (state.errorMessage ??
+                      'Could not duplicate list')
+                  : 'Duplicated "${list.name}"',
                           );
                         },
                 ),
@@ -313,17 +312,11 @@ class _ObservingListEditorDialogState
     if (!success) {
       setState(() => _saving = false);
       final state = ref.read(observingListNotifierProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.errorMessage ?? 'Could not save the list'),
-        ),
-      );
+      context.showInfoSnackBar(state.errorMessage ?? 'Could not save the list');
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_isEditing ? 'List updated' : 'List created')),
-    );
+    context.showInfoSnackBar(_isEditing ? 'List updated' : 'List created');
     Navigator.of(context).pop();
   }
 
@@ -413,17 +406,13 @@ class _DeleteObservingListDialogState
     if (!success) {
       setState(() => _deleting = false);
       final state = ref.read(observingListNotifierProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.errorMessage ?? 'Could not delete the list'),
-        ),
+      context.showInfoSnackBar(
+        state.errorMessage ?? 'Could not delete the list',
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Deleted "${widget.list.name}"')),
-    );
+    context.showInfoSnackBar('Deleted "${widget.list.name}"');
     Navigator.of(context).pop();
   }
 

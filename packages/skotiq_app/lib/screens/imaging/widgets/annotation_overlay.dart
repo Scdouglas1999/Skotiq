@@ -13,6 +13,7 @@ import '../imaging_science_state.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../../../utils/preview_transform.dart';
 import '../../../widgets/annotation_type_colors.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'annotation_overlay/marker_pulse_overlay.dart';
 part 'annotation_overlay/enhanced_annotation_painter.dart';

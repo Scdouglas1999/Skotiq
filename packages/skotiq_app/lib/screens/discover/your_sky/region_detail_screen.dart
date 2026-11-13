@@ -21,6 +21,7 @@ import 'sky_atlas_format.dart';
 import 'widgets/atlas_growth_curve.dart';
 import 'widgets/atlas_region_cutout.dart';
 import 'widgets/atlas_timescrub.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Injectable seam for producing a host-local region cutout.
 typedef YourSkyRegionExporter = Future<RegionCutoutExport?> Function(
@@ -490,10 +491,10 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
         final export = await ref.read(yourSkyRegionExporterProvider)(regionId);
         if (!_isCurrent(generation, backend, regionId)) return;
         if (export == null || export.pngPath == null) {
-          messenger.showSnackBar(const SnackBar(
-            content: Text('No co-add to export yet.'),
+          messenger.showInfoSnackBar(
+            'No co-add to export yet.',
             duration: Duration(seconds: 3),
-          ));
+          );
           return;
         }
         sharePath = export.pngPath!;
@@ -507,10 +508,10 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
       );
     } on Object catch (e) {
       if (!_isCurrent(generation, backend, regionId)) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text('Could not export: ${userFacingError(e)}'),
+      messenger.showErrorSnackBar(
+        'Could not export: ${userFacingError(e)}',
         duration: const Duration(seconds: 4),
-      ));
+      );
     } finally {
       _finish(generation);
     }
@@ -532,26 +533,24 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
       final export = await ref.read(yourSkyRegionExporterProvider)(regionId);
       if (!_isCurrent(generation, backend, regionId)) return;
       if (export == null) {
-        messenger.showSnackBar(const SnackBar(
-          content: Text('No co-add to use as a reference yet.'),
+        messenger.showInfoSnackBar(
+          'No co-add to use as a reference yet.',
           duration: Duration(seconds: 3),
-        ));
+        );
         return;
       }
       await ref.read(yourSkyReferenceStarterProvider)(export.fitsPath);
       if (!_isCurrent(generation, backend, regionId)) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          'Armed live stacking on $regionName as the reference frame.',
-        ),
+      messenger.showInfoSnackBar(
+        'Armed live stacking on $regionName as the reference frame.',
         duration: const Duration(seconds: 4),
-      ));
+      );
     } on Object catch (e) {
       if (!_isCurrent(generation, backend, regionId)) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text('Could not set reference frame: ${userFacingError(e)}'),
+      messenger.showErrorSnackBar(
+        'Could not set reference frame: ${userFacingError(e)}',
         duration: const Duration(seconds: 4),
-      ));
+      );
     } finally {
       _finish(generation);
     }

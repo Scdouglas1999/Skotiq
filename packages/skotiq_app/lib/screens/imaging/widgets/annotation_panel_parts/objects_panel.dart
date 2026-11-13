@@ -160,12 +160,9 @@ class _AnnotationObjectsPanelState
       await action();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$failureMessage: ${userFacingError(error)}'),
-          backgroundColor: SkotiqColors.of(context).error,
-          duration: const Duration(seconds: 4),
-        ),
+      context.showErrorSnackBar(
+        '$failureMessage: ${userFacingError(error)}',
+        duration: const Duration(seconds: 4),
       );
     }
   }
@@ -179,11 +176,8 @@ class _AnnotationObjectsPanelState
       await annotationService.reAnnotate();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Re-annotation failed: ${userFacingError(error)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-          ),
+        context.showErrorSnackBar(
+          'Re-annotation failed: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -241,12 +235,9 @@ class _AnnotationObjectsPanelState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save annotated image: ${userFacingError(e)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to save annotated image: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     } finally {

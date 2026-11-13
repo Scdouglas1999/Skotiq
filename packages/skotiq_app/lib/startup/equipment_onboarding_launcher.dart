@@ -9,6 +9,7 @@ import '../router/app_router.dart';
 import '../router/app_routes.dart';
 import '../utils/startup_surface_queue.dart';
 import 'startup_ui_context.dart';
+import '../utils/snackbar_helper.dart';
 
 /// Wraps the app shell and routes a brand-new user (no profiles, no
 /// onboarding completion record) into `/onboarding` on first launch.
@@ -111,21 +112,17 @@ class _EquipmentOnboardingLauncherState
       if (uiContext == null || !uiContext.mounted) return;
       final messenger = ScaffoldMessenger.maybeOf(uiContext);
       messenger?.clearSnackBars();
-      messenger?.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Skotiq could not check whether equipment setup is needed.',
-          ),
-          duration: const Duration(days: 1),
-          action: SnackBarAction(
-            label: 'Retry',
-            onPressed: () {
-              if (!mounted) return;
-              _hasChecked = false;
-              ref.invalidate(shouldRunEquipmentOnboardingProvider);
-              unawaited(_maybeLaunch());
-            },
-          ),
+      messenger?.showInfoSnackBar(
+        'Skotiq could not check whether equipment setup is needed.',
+        duration: const Duration(days: 1),
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: () {
+            if (!mounted) return;
+            _hasChecked = false;
+            ref.invalidate(shouldRunEquipmentOnboardingProvider);
+            unawaited(_maybeLaunch());
+          },
         ),
       );
     }

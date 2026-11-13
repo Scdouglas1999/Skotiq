@@ -25,6 +25,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
 import 'sequence_status_visuals.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Persistent banner that renders the in-flight recovery context. Returns
 /// an empty widget when [currentRecoveryProvider] is `null`.
@@ -305,9 +306,7 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    context.showInfoSnackBar(message);
   }
 
   Future<void> _tryNow() async {

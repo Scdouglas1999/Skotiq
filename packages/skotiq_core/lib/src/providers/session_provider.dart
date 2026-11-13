@@ -44,9 +44,7 @@ class SessionState extends Equatable {
 
   /// Current state flags
   final String? currentFilter;
-  final bool isGuiding;
   final bool isCapturing;
-  final bool isDithering;
   final bool isAutofocusing;
 
   /// Session quality metrics (running averages)
@@ -69,9 +67,7 @@ class SessionState extends Equatable {
     this.rejectedExposures = 0,
     this.totalIntegrationSecs = 0.0,
     this.currentFilter,
-    this.isGuiding = false,
     this.isCapturing = false,
-    this.isDithering = false,
     this.isAutofocusing = false,
     this.avgHfr,
     this.avgGuidingRmsRa,
@@ -91,9 +87,7 @@ class SessionState extends Equatable {
     int? rejectedExposures,
     double? totalIntegrationSecs,
     String? currentFilter,
-    bool? isGuiding,
     bool? isCapturing,
-    bool? isDithering,
     bool? isAutofocusing,
     double? avgHfr,
     double? avgGuidingRmsRa,
@@ -112,9 +106,7 @@ class SessionState extends Equatable {
       rejectedExposures: rejectedExposures ?? this.rejectedExposures,
       totalIntegrationSecs: totalIntegrationSecs ?? this.totalIntegrationSecs,
       currentFilter: currentFilter ?? this.currentFilter,
-      isGuiding: isGuiding ?? this.isGuiding,
       isCapturing: isCapturing ?? this.isCapturing,
-      isDithering: isDithering ?? this.isDithering,
       isAutofocusing: isAutofocusing ?? this.isAutofocusing,
       avgHfr: avgHfr ?? this.avgHfr,
       avgGuidingRmsRa: avgGuidingRmsRa ?? this.avgGuidingRmsRa,
@@ -156,9 +148,7 @@ class SessionState extends Equatable {
     rejectedExposures,
     totalIntegrationSecs,
     currentFilter,
-    isGuiding,
     isCapturing,
-    isDithering,
     isAutofocusing,
     avgHfr,
     avgGuidingRmsRa,
@@ -429,18 +419,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   void setCapturing(bool isCapturing) {
     state = state.copyWith(isCapturing: isCapturing);
-  }
-
-  void setGuiding(bool isGuiding, {double? rmsRa, double? rmsDec}) {
-    state = state.copyWith(
-      isGuiding: isGuiding,
-      avgGuidingRmsRa: rmsRa ?? state.avgGuidingRmsRa,
-      avgGuidingRmsDec: rmsDec ?? state.avgGuidingRmsDec,
-    );
-  }
-
-  void setDithering(bool isDithering) {
-    state = state.copyWith(isDithering: isDithering);
   }
 
   void setAutofocusing(bool isAutofocusing) {

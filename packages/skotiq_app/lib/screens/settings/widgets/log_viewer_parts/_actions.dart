@@ -38,12 +38,9 @@ extension _LogViewerActions on _LogViewerState {
     final text = _filteredLogs.map((e) => e.toString()).join('\n');
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('${_filteredLogs.length} log entries copied to clipboard'),
-          duration: const Duration(seconds: 2),
-        ),
+      context.showInfoSnackBar(
+        '${_filteredLogs.length} log entries copied to clipboard',
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -232,12 +229,7 @@ extension _LogViewerActions on _LogViewerState {
       );
     } catch (e) {
       if (mounted && _isCurrentAction(token, host)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: ${userFacingError(e)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-          ),
-        );
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     } finally {
       if (mounted && identical(_actionToken, token)) {
@@ -265,20 +257,15 @@ extension _LogViewerActions on _LogViewerState {
         files = await linkedHost.logs.listServerLogFiles();
       } catch (e) {
         if (mounted && _isCurrentAction(token, host)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not list the host’s log files: ${userFacingError(e)}'),
-              backgroundColor: SkotiqColors.of(context).error,
-            ),
+          context.showErrorSnackBar(
+            'Could not list the host’s log files: ${userFacingError(e)}',
           );
         }
         return;
       }
       if (!mounted || !_isCurrentAction(token, host)) return;
       if (files.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('The host has no log files.')),
-        );
+        context.showInfoSnackBar('The host has no log files.');
         return;
       }
       final selected = await _pickLogFile(files);
@@ -297,22 +284,13 @@ extension _LogViewerActions on _LogViewerState {
       if (!mounted || !_isCurrentAction(token, host)) return;
       switch (outcome.status) {
         case FileDownloadStatus.saved:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Saved to ${outcome.savedPath}')),
-          );
+          context.showInfoSnackBar('Saved to ${outcome.savedPath}');
         case FileDownloadStatus.shared:
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Log file ready to share')),
-          );
+          context.showInfoSnackBar('Log file ready to share');
         case FileDownloadStatus.cancelled:
           break;
         case FileDownloadStatus.failed:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(outcome.error ?? 'Download failed'),
-              backgroundColor: SkotiqColors.of(context).error,
-            ),
-          );
+          context.showErrorSnackBar(outcome.error ?? 'Download failed');
       }
     } finally {
       if (mounted && identical(_actionToken, token)) {
@@ -458,10 +436,8 @@ extension _LogViewerActions on _LogViewerState {
       );
       if (confirmed != true || !mounted) return;
       if (!_isCurrentAction(token, host)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Clear canceled because the imaging host changed.'),
-          ),
+        context.showInfoSnackBar(
+          'Clear canceled because the imaging host changed.',
         );
         return;
       }
@@ -490,28 +466,19 @@ extension _LogViewerActions on _LogViewerState {
       if (!mounted || !_isCurrentAction(token, host)) return;
       _refreshLogs();
       if (host.value.remoteHost != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Server log files cleared'),
-            duration: Duration(seconds: 2),
-          ),
+        context.showInfoSnackBar(
+          'Server log files cleared',
+          duration: Duration(seconds: 2),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Old log files cleared'),
-            duration: Duration(seconds: 2),
-          ),
+        context.showInfoSnackBar(
+          'Old log files cleared',
+          duration: Duration(seconds: 2),
         );
       }
     } catch (e) {
       if (!mounted || !_isCurrentAction(token, host)) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Clear failed: ${userFacingError(e)}'),
-          backgroundColor: SkotiqColors.of(context).error,
-        ),
-      );
+      context.showErrorSnackBar('Clear failed: ${userFacingError(e)}');
     }
   }
 }

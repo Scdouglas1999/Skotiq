@@ -8,6 +8,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../equipment/dialogs/profile_editor_dialog.dart';
+import '../../../utils/snackbar_helper.dart';
 
 const _kDefaultManualFilter = 'Unfiltered';
 
@@ -404,9 +405,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
   void _generateFlatSequence() {
     final snapshot = _snapshot;
     if (snapshot == null || !_allCalibrated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Run calibration successfully first.')),
-      );
+      context.showInfoSnackBar('Run calibration successfully first.');
       return;
     }
     if (!_snapshotContextIsCurrent(snapshot)) {
@@ -433,9 +432,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
         );
 
     if (nodes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No flat nodes were generated.')),
-      );
+      context.showInfoSnackBar('No flat nodes were generated.');
       return;
     }
 
@@ -447,20 +444,16 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
         }
       });
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add flat nodes: ${userFacingError(error)}')),
+      context.showErrorSnackBar(
+        'Could not add flat nodes: ${userFacingError(error)}',
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Added ${nodes.length} calibrated flat capture '
-          'node${nodes.length == 1 ? '' : 's'}. '
-          'Save the sequence to persist them.',
-        ),
-      ),
+    context.showInfoSnackBar(
+      'Added ${nodes.length} calibrated flat capture '
+      'node${nodes.length == 1 ? '' : 's'}. '
+      'Save the sequence to persist them.',
     );
     Navigator.of(context).pop();
   }
@@ -486,10 +479,8 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
               ? null
               : () {
                   if (_currentStep == 1 && !_allCalibrated) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Run calibration successfully first.'),
-                      ),
+                    context.showInfoSnackBar(
+                      'Run calibration successfully first.',
                     );
                     return;
                   }

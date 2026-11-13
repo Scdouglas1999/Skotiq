@@ -228,7 +228,12 @@ class CameraCapabilities {
   /// What the camera's exposure-sensitivity control takes.
   ExposureSensitivity get sensitivity => isoSpeeds.isNotEmpty
       ? IsoSensitivity(isoSpeeds)
-      : GainSensitivity(min: gainMin, max: gainMax);
+      : GainSensitivity(
+          min: gainMin,
+          max: gainMax,
+          hasGain: canSetGain,
+          hasOffset: canSetOffset,
+        );
 }
 
 /// What a camera's exposure-sensitivity control takes: a gain number
@@ -252,9 +257,20 @@ sealed class ExposureSensitivity {
   /// [value] as a compact token, as in "g100 o50" or "ISO 800".
   String abbreviate(int value);
 
+  /// Whether the camera has a gain (or ISO) control. Some CCDs (FLI, Atik)
+  /// have none.
+  bool get hasGain;
+
   /// Whether the camera also has an offset control. DSLR and mirrorless
   /// bodies have none.
   bool get hasOffset;
+
+  /// The gain and offset an exposure command to this camera sets: null for a
+  /// control the camera does not have.
+  ({int? gain, int? offset}) commanded({
+    required int gain,
+    required int offset,
+  }) => (gain: hasGain ? gain : null, offset: hasOffset ? offset : null);
 
   /// The value the camera takes for [requested].
   int accept(int requested);
@@ -264,10 +280,22 @@ sealed class ExposureSensitivity {
 }
 
 class GainSensitivity extends ExposureSensitivity {
-  const GainSensitivity({this.min, this.max});
+  /// A camera not yet known has both controls until it says otherwise.
+  const GainSensitivity({
+    this.min,
+    this.max,
+    this.hasGain = true,
+    this.hasOffset = true,
+  });
 
   final int? min;
   final int? max;
+
+  @override
+  final bool hasGain;
+
+  @override
+  final bool hasOffset;
 
   @override
   String get label => 'Gain';
@@ -277,9 +305,6 @@ class GainSensitivity extends ExposureSensitivity {
 
   @override
   String abbreviate(int value) => 'g$value';
-
-  @override
-  bool get hasOffset => true;
 
   @override
   GainKind get gainKind => GainKind.gain;
@@ -294,10 +319,14 @@ class GainSensitivity extends ExposureSensitivity {
 
   @override
   bool operator ==(Object other) =>
-      other is GainSensitivity && other.min == min && other.max == max;
+      other is GainSensitivity &&
+      other.min == min &&
+      other.max == max &&
+      other.hasGain == hasGain &&
+      other.hasOffset == hasOffset;
 
   @override
-  int get hashCode => Object.hash(min, max);
+  int get hashCode => Object.hash(min, max, hasGain, hasOffset);
 }
 
 class IsoSensitivity extends ExposureSensitivity {
@@ -314,6 +343,9 @@ class IsoSensitivity extends ExposureSensitivity {
 
   @override
   String abbreviate(int value) => 'ISO $value';
+
+  @override
+  bool get hasGain => true;
 
   @override
   bool get hasOffset => false;

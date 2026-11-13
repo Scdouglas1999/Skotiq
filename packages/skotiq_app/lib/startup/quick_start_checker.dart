@@ -7,13 +7,13 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../utils/authority_bound_dialog.dart';
 import '../utils/startup_surface_queue.dart';
 import 'startup_ui_context.dart';
 import 'quick_start_dialog.dart';
 import 'session_recovery_dialog.dart';
+import '../utils/snackbar_helper.dart';
 
 /// Widget that checks for quick start opportunities on app startup.
 ///
@@ -223,21 +223,17 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           ? ScaffoldMessenger.maybeOf(uiContext)
           : null;
       messenger?.clearSnackBars();
-      messenger?.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Skotiq could not check for an interrupted imaging session. '
-            'Recovery status is unknown.',
-          ),
-          duration: const Duration(days: 1),
-          action: SnackBarAction(
-            label: 'Retry',
-            onPressed: () {
-              _hasChecked = false;
-              ref.invalidate(incompleteSessionsProvider);
-              unawaited(_checkForStartupOptions());
-            },
-          ),
+      messenger?.showWarningSnackBar(
+        'Skotiq could not check for an interrupted imaging session. '
+        'Recovery status is unknown.',
+        duration: const Duration(days: 1),
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: () {
+            _hasChecked = false;
+            ref.invalidate(incompleteSessionsProvider);
+            unawaited(_checkForStartupOptions());
+          },
         ),
       );
     }
@@ -312,12 +308,8 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     if (!mounted) return;
     final uiContext = _uiContext;
     if (uiContext == null) return;
-    ScaffoldMessenger.of(uiContext).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'The imaging host changed. Quick Start was canceled.',
-        ),
-      ),
+    uiContext.showInfoSnackBar(
+      'The imaging host changed. Quick Start was canceled.',
     );
   }
 
@@ -397,14 +389,13 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
       final uiContext = _uiContext;
       if (mounted && uiContext != null && uiContext.mounted) {
-        final colors = SkotiqColors.of(uiContext);
         final target = context.targetName ?? 'previous target';
         final String message;
-        final Color background;
+        final bool loadedAll;
         if (restored.isEmpty && failures.isEmpty) {
           message = 'Nothing to load: that session recorded no equipment '
               'profile, no sequence and no camera settings.';
-          background = colors.warning;
+          loadedAll = false;
         } else {
           final base = restored.isEmpty
               ? 'Could not load the previous setup for $target'
@@ -412,16 +403,13 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           message = failures.isEmpty
               ? base
               : '$base, but could not restore: ${failures.join(', ')}';
-          background = failures.isEmpty && restored.isNotEmpty
-              ? colors.success
-              : colors.warning;
+          loadedAll = failures.isEmpty && restored.isNotEmpty;
         }
-        ScaffoldMessenger.of(uiContext).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: background,
-          ),
-        );
+        if (loadedAll) {
+          uiContext.showSuccessSnackBar(message);
+        } else {
+          uiContext.showWarningSnackBar(message);
+        }
       }
     } catch (e, st) {
       if (host.isStale) return;
@@ -434,13 +422,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       );
       final uiContext = _uiContext;
       if (mounted && uiContext != null && uiContext.mounted) {
-        final colors = SkotiqColors.of(uiContext);
-        ScaffoldMessenger.of(uiContext).showSnackBar(
-          SnackBar(
-            content: Text('Failed to start fresh: ${userFacingError(e)}'),
-            backgroundColor: colors.error,
-          ),
-        );
+        uiContext.showErrorSnackBar('Failed to start fresh: ${userFacingError(e)}');
       }
     }
   }
@@ -481,16 +463,10 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
       final uiContext = _uiContext;
       if (mounted && uiContext != null && uiContext.mounted) {
-        final colors = SkotiqColors.of(uiContext);
         final message =
             'Restored ${context.targetName ?? "the previous run"} at frame '
             '${context.completedFrames}. Nothing moves until you press Start.';
-        ScaffoldMessenger.of(uiContext).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: colors.success,
-          ),
-        );
+        uiContext.showSuccessSnackBar(message);
       }
     } catch (e, st) {
       if (host.isStale) return;
@@ -503,13 +479,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       );
       final uiContext = _uiContext;
       if (mounted && uiContext != null && uiContext.mounted) {
-        final colors = SkotiqColors.of(uiContext);
-        ScaffoldMessenger.of(uiContext).showSnackBar(
-          SnackBar(
-            content: Text('Failed to resume progress: ${userFacingError(e)}'),
-            backgroundColor: colors.error,
-          ),
-        );
+        uiContext.showErrorSnackBar('Failed to resume progress: ${userFacingError(e)}');
       }
     }
   }

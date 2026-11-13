@@ -13,6 +13,7 @@ import 'package:file_selector/file_selector.dart';
 import '../../../widgets/remote_host_path_dialog.dart';
 import 'admin_only.dart';
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class Phd2GuidingSettings extends ConsumerStatefulWidget {
   const Phd2GuidingSettings({super.key});
@@ -168,12 +169,8 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
       await write();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not save the PHD2 $what: ${userFacingError(e)}',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not save the PHD2 $what: ${userFacingError(e)}',
         );
       }
       rethrow;
@@ -218,13 +215,9 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
       return;
     }
     if (startedOn.isStale) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'The imaging host changed while choosing the PHD2 path. '
-            'Choose it again for the current host.',
-          ),
-        ),
+      context.showInfoSnackBar(
+        'The imaging host changed while choosing the PHD2 path. '
+        'Choose it again for the current host.',
       );
       return;
     }
@@ -234,12 +227,8 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
         await ref.read(appSettingsProvider.notifier).setPhd2Path(result);
       } catch (e) {
         if (mounted && startedOn.isCurrent) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Could not save the PHD2 path: ${userFacingError(e)}',
-              ),
-            ),
+          context.showErrorSnackBar(
+            'Could not save the PHD2 path: ${userFacingError(e)}',
           );
         }
       }

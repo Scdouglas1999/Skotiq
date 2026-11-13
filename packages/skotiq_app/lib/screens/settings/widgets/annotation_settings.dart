@@ -7,6 +7,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class AnnotationSettingsPage extends ConsumerWidget {
   const AnnotationSettingsPage({super.key});
@@ -69,17 +70,12 @@ class AnnotationSettingsPage extends ConsumerWidget {
     try {
       await reset();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label reset to defaults')),
-        );
+        context.showInfoSnackBar('$label reset to defaults');
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not reset $label: ${userFacingError(error)}'),
-            backgroundColor: SkotiqColors.of(context).error,
-          ),
+        context.showErrorSnackBar(
+          'Could not reset $label: ${userFacingError(error)}',
         );
       }
     }

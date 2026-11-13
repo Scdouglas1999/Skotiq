@@ -261,11 +261,7 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
           label: const NightText('nightSessionSetpoint'),
           value: nightCelsius(last.targetTemp!),
         ),
-      if (!cooling)
-        const MetricVm(
-          label: NightText('nightSessionCooler'),
-          value: 'off',
-        ),
+      if (!cooling) const MetricVm(label: NightText('nightSessionCoolerOff')),
       if (last.coolerPower != null)
         MetricVm(
           label: const NightText('nightSessionCoolerPower'),

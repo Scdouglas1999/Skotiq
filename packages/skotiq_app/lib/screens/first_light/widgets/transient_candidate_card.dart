@@ -313,18 +313,14 @@ class _ActionsRow extends StatelessWidget {
       } else {
         await triage.review(detection.id);
       }
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            dismiss
-                ? 'Dismissed as an artifact — it will not resurface.'
-                : 'Marked as confirmed.',
-          ),
-        ),
+      messenger?.showInfoSnackBar(
+        dismiss
+            ? 'Dismissed as an artifact — it will not resurface.'
+            : 'Marked as confirmed.',
       );
     } catch (e) {
-      messenger?.showSnackBar(
-        SnackBar(content: Text('Could not update detection: ${userFacingError(e)}')),
+      messenger?.showErrorSnackBar(
+        'Could not update detection: ${userFacingError(e)}',
       );
     }
   }
@@ -427,14 +423,10 @@ class _ActionsRow extends StatelessWidget {
             onPressed: canSubmit
                 ? () => TransientSubmitDialog.show(context, detection)
                 : () {
-                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          kindBlocker ??
-                              'Not yet confirmed — mark this detection as '
-                                  'confirmed before submitting.',
-                        ),
-                      ),
+                    context.showInfoSnackBar(
+                      kindBlocker ??
+                          'Not yet confirmed — mark this detection as '
+                              'confirmed before submitting.',
                     );
                   },
           ),

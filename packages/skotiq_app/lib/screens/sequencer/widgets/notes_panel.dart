@@ -10,6 +10,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../../utils/snackbar_helper.dart';
 
 
 part 'notes_panel/target_notes_dialog.dart';
@@ -237,12 +238,7 @@ class TargetNotesSection extends ConsumerWidget {
       ),
     );
     if (created != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Note saved'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      context.showInfoSnackBar('Note saved', duration: Duration(seconds: 2));
     }
   }
 

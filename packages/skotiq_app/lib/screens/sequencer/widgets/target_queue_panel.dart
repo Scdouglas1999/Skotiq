@@ -47,6 +47,7 @@ import '../../../widgets/accessible_dropdown.dart';
 import 'sequence_tree.dart' show revealSequenceRow, treeNodeKeyRegistryProvider;
 import 'target_coordinates.dart';
 import 'target_header_card.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Drag payload type carried by `Draggable<TargetQueueDragPayload>` from
 /// the queue panel to the sequence tree. Carries the source queued
@@ -957,9 +958,7 @@ class _QueueRow extends ConsumerWidget {
       targetNode: node,
     );
     if (added && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${target.displayName} to sequence')),
-      );
+      context.showInfoSnackBar('Added ${target.displayName} to sequence');
     }
   }
 }

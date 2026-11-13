@@ -36,11 +36,8 @@ class _CorrectionSettings extends ConsumerWidget {
       await change();
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not update defect-map settings: ${userFacingError(error)}'),
-          backgroundColor: colors.error,
-        ),
+      context.showErrorSnackBar(
+        'Could not update defect-map settings: ${userFacingError(error)}',
       );
     }
   }

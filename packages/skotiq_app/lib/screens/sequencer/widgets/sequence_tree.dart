@@ -37,6 +37,7 @@ import 'target_queue_panel.dart';
 import 'tree_insert.dart';
 import 'visual_timeline.dart';
 import 'node_appearance.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'sequence_tree/auto_collapse.dart';
 part 'sequence_tree/gutter_map.dart';

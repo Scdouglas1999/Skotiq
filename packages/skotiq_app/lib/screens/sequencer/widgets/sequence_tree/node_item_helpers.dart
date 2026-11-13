@@ -173,12 +173,7 @@ void showSaveAsSnippetDialog(
             onPressed: () async {
               final name = nameController.text.trim();
               if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Please enter a template name'),
-                    backgroundColor: colors.error,
-                  ),
-                );
+                context.showErrorSnackBar('Please enter a template name');
                 return;
               }
 
@@ -209,11 +204,8 @@ void showSaveAsSnippetDialog(
                 }
 
                 if (context.mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Template "$name" created successfully'),
-                      backgroundColor: colors.success,
-                    ),
+                  messenger.showSuccessSnackBar(
+                    'Template "$name" created successfully',
                   );
                 }
               } catch (e) {
@@ -221,11 +213,8 @@ void showSaveAsSnippetDialog(
                   Navigator.of(dialogContext).pop();
                 }
                 if (context.mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to create template: ${userFacingError(e)}'),
-                      backgroundColor: colors.error,
-                    ),
+                  messenger.showErrorSnackBar(
+                    'Failed to create template: ${userFacingError(e)}',
                   );
                 }
               }

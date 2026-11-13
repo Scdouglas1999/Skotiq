@@ -15,6 +15,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/adaptive_chart_container.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'photometric_calibration_wizard/header_and_steps.dart';
 part 'photometric_calibration_wizard/frame_selection.dart';

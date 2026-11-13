@@ -16,6 +16,7 @@ import 'widgets/host_settings_notice.dart';
 import 'widgets/settings_scope_notice.dart';
 import 'widgets/settings_widgets.dart';
 import '../../router/app_routes.dart';
+import '../../utils/snackbar_helper.dart';
 
 export '../../router/settings_sections.dart';
 
@@ -212,13 +213,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
         ScaffoldMessenger.maybeOf(context)
           ?..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(next.message),
-              action: SnackBarAction(
-                label: 'Retry',
-                onPressed: () => ref.invalidate(appSettingsProvider),
-              ),
+          ..showInfoSnackBar(
+            next.message,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => ref.invalidate(appSettingsProvider),
             ),
           );
       });

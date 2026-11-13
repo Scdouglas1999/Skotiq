@@ -19,6 +19,7 @@ import 'widgets/coimaging_session_card.dart';
 import 'widgets/collab_mosaic_card.dart';
 import 'widgets/shared_library_card.dart';
 import '../../../utils/darkroom_navigation.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Collaborative Sky (6.0 pillar) — the unified surface that turns the
 /// Constellation swarm into real distributed imaging: live co-imaging sessions
@@ -346,17 +347,13 @@ class _CoImagingSectionState extends ConsumerState<_CoImagingSection> {
       // the outcome.
       final sharing = await ensureCoImagingSharingConsent(context, ref);
       if (sharing == null) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            sharing
-                ? 'Started ${session.targetName} — your subs co-add into the '
-                    'combined stack.'
-                : 'Started ${session.targetName}. Sharing is off, so your subs '
-                    'will not be added to the combined stack until you enable '
-                    'unattended contribution.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        sharing
+            ? 'Started ${session.targetName} — your subs co-add into the '
+                'combined stack.'
+            : 'Started ${session.targetName}. Sharing is off, so your subs '
+                'will not be added to the combined stack until you enable '
+                'unattended contribution.',
       );
     } finally {
       if (mounted) setState(() => _starting = false);
@@ -473,25 +470,19 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
       // shares this exact gate (see [ensureCoImagingSharingConsent]).
       final sharing = await ensureCoImagingSharingConsent(context, ref);
       if (sharing == null) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            sharing
-                ? 'Joined ${widget.session.targetName} at framing slot '
-                    '${participant.framingOffsetIndex} — your subs co-add into '
-                    'the combined stack.'
-                : 'Joined ${widget.session.targetName} at framing slot '
-                    '${participant.framingOffsetIndex}. Sharing is off, so your '
-                    'subs will not be added to the combined stack until you '
-                    'enable unattended contribution.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        sharing
+            ? 'Joined ${widget.session.targetName} at framing slot '
+                '${participant.framingOffsetIndex} — your subs co-add into '
+                'the combined stack.'
+            : 'Joined ${widget.session.targetName} at framing slot '
+                '${participant.framingOffsetIndex}. Sharing is off, so your '
+                'subs will not be added to the combined stack until you '
+                'enable unattended contribution.',
       );
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _joining = false);
     }
@@ -537,14 +528,10 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
       if (!mounted) return;
       ref.invalidate(coImagingMembershipsProvider);
       ref.invalidate(coImagingSessionsProvider);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Left ${widget.session.targetName}.')),
-      );
+      messenger.showInfoSnackBar('Left ${widget.session.targetName}.');
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _leaving = false);
     }
@@ -588,19 +575,13 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
       if (!mounted) return;
       ref.invalidate(coImagingSessionsProvider);
       ref.invalidate(coImagingMembershipsProvider);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Ended ${widget.session.targetName}. The combined stack stays on '
-            'the hub.',
-          ),
-        ),
+      messenger.showInfoSnackBar(
+        'Ended ${widget.session.targetName}. The combined stack stays on '
+        'the hub.',
       );
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _ending = false);
     }

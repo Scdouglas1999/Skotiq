@@ -25,7 +25,8 @@ pub const SIM_GUIDE_FOCAL_LENGTH_MM: f64 = 240.0;
 /// `cooler-unreported` (a cooler that cannot say whether it is on until
 /// Skotiq sets it, as FLI and Moravian), and `dslr` (a DSLR: its sensitivity
 /// is the ISO speeds below, with no cooler and no offset, so every DSLR screen
-/// can be driven without a body on the desk).
+/// can be driven without a body on the desk; like a real body it reports no
+/// sensor temperature).
 pub(crate) const SIM_CAMERA_TRAITS_ENV: &str = "SKOTIQ_SIM_CAMERA_TRAITS";
 
 /// The limits `SKOTIQ_SIM_CAMERA_TRAITS` names.
@@ -256,6 +257,7 @@ impl SimulatedCamera {
         }
         if traits.dslr {
             camera.status.can_cool = false;
+            camera.status.sensor_temp = None;
             camera.status.target_temp = None;
             camera.status.cooler_power = None;
             camera.status.can_set_offset = false;
@@ -516,6 +518,11 @@ pub(crate) async fn advance_sim_cooler(device_id: &str) {
     };
 
     let mut guard = get_sim_camera_for(device_id).write().await;
+    // A camera that reads no sensor temperature and has no cooler (a DSLR)
+    // never starts reporting one.
+    if guard.status.sensor_temp.is_none() && !guard.status.can_cool {
+        return;
+    }
     let current = guard.status.sensor_temp.unwrap_or(SIM_AMBIENT_TEMP_C);
     let (target, rate) = if guard.status.cooler_on == Some(true) {
         (
@@ -546,4 +553,22 @@ pub(crate) async fn advance_sim_cooler(device_id: &str) {
         // Holding at the setpoint.
         35.0
     });
+}
+
+#[cfg(test)]
+mod trait_tests {
+    use super::*;
+
+    #[test]
+    fn a_simulated_dslr_reports_no_cooler_and_no_sensor_temperature() {
+        let dslr = SimulatedCamera::imaging_camera(SimCameraTraits::parse("dslr"));
+        assert!(!dslr.status.can_cool);
+        assert_eq!(dslr.status.sensor_temp, None);
+        assert_eq!(dslr.status.target_temp, None);
+        assert_eq!(dslr.status.cooler_power, None);
+        assert!(!dslr.status.can_set_offset);
+
+        let cooled = SimulatedCamera::imaging_camera(SimCameraTraits::default());
+        assert_eq!(cooled.status.sensor_temp, Some(SIM_AMBIENT_TEMP_C));
+    }
 }

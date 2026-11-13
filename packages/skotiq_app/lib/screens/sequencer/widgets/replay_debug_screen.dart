@@ -13,6 +13,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'run_dashboard/frame_detail_dialog.dart';
 import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// The window the time-range slider scrubs, as the UNION of the run's
 /// wall-clock span and the decisions actually on record.
@@ -428,11 +429,9 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
       sequenceRunId: widget.sequenceRunId,
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Note added for this decision'),
-        duration: Duration(seconds: 2),
-      ),
+    context.showInfoSnackBar(
+      'Note added for this decision',
+      duration: Duration(seconds: 2),
     );
   }
 
@@ -444,11 +443,9 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
         _readImageId(d.details['image_id']);
     if (!mounted) return;
     if (imageId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No captured image id is linked to this row'),
-          duration: Duration(seconds: 3),
-        ),
+      context.showInfoSnackBar(
+        'No captured image id is linked to this row',
+        duration: Duration(seconds: 3),
       );
       return;
     }

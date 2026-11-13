@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Opens the Remote Access sheet: the local and LAN URLs, the pairing state
 /// and the attached-viewer count.
@@ -227,13 +228,9 @@ class _UrlCard extends StatelessWidget {
               InkWell(
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: url));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Link copied to clipboard'),
-                      duration: const Duration(seconds: 2),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: colors.surfaceAlt,
-                    ),
+                  context.showInfoSnackBar(
+                    'Link copied to clipboard',
+                    duration: const Duration(seconds: 2),
                   );
                 },
                 borderRadius: SkotiqTokens.borderRadiusMd,

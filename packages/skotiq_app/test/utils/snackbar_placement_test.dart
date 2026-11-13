@@ -116,4 +116,60 @@ void main() {
     expect(bar.left, closeTo(15, 0.5));
     expect(bar.right, closeTo(405, 0.5));
   });
+
+  testWidgets('a messenger kept across an await places its snackbar the same',
+      (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final context = await _pumpHost(tester);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showWarningSnackBar('Undo expired — the host changed.');
+    await tester.pumpAndSettle();
+
+    final bar = _barRect(tester);
+    expect(bar.width, lessThan(600));
+    expect(
+      bar.bottom,
+      lessThanOrEqualTo(900 - ShellChromeMetrics.statusBarHeight),
+    );
+  });
+
+  testWidgets('an offer with an action times out and can be closed',
+      (tester) async {
+    final context = await _pumpHost(tester);
+    context.showInfoSnackBar(
+      'Deleted "Light"',
+      duration: const Duration(seconds: 6),
+      action: SnackBarAction(label: 'Undo', onPressed: () {}),
+    );
+    await tester.pump();
+
+    final bar = tester.widget<SnackBar>(find.byType(SnackBar));
+    expect(bar.persist, isFalse);
+    expect(bar.showCloseIcon, isTrue);
+    expect(bar.duration, const Duration(seconds: 6));
+  });
+
+  testWidgets('a snackbar stays up long enough to read its message',
+      (tester) async {
+    final context = await _pumpHost(tester);
+    context.showInfoSnackBar('Saved');
+    await tester.pump();
+    expect(
+      tester.widget<SnackBar>(find.byType(SnackBar)).duration,
+      const Duration(seconds: 2),
+    );
+
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    context.showInfoSnackBar(
+      'Drag within the same group only. Cross-group moves are not supported '
+      'on phone yet; tap to edit instead.',
+    );
+    await tester.pump();
+    final long = tester.widget<SnackBar>(find.byType(SnackBar)).duration;
+    expect(long, greaterThan(const Duration(seconds: 6)));
+    expect(long, lessThanOrEqualTo(const Duration(seconds: 10)));
+  });
 }

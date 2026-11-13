@@ -10,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/osc_stacking_controls.dart';
 import '../../router/app_routes.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// A run failure split into what the operator reads and what a developer needs.
 class StackShareFailure {
@@ -399,8 +400,8 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
       ref.read(stackAndShareProvider.notifier).reset();
     } catch (e) {
       if (!mounted) return;
-      messenger?.showSnackBar(
-        SnackBar(content: Text('Could not stop live stacking: ${userFacingError(e)}')),
+      messenger?.showErrorSnackBar(
+        'Could not stop live stacking: ${userFacingError(e)}',
       );
     }
   }
