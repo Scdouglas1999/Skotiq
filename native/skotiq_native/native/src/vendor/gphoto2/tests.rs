@@ -413,7 +413,41 @@ const NIKON_SPEEDS2: &[&str] = &[
 ];
 
 fn speeds(widget: &str, choices: &[&str]) -> ShutterSpeeds {
-    ShutterSpeeds::from_choices(widget, &strings(choices))
+    ShutterSpeeds::from_choices(widget, &strings(choices), false)
+}
+
+/// The long end of a Canon EOS `shutterspeed` list as libgphoto2 2.5.34
+/// words it (camlibs/ptp2/config.c `canon_shutterspeed`), with the body
+/// stepping in thirds of a stop and in halves.
+const CANON_THIRD_STOPS: &[&str] = &[
+    "bulb", "30", "25", "20", "15", "13", "10.3", "8", "6.3", "5", "4", "3.2", "2.5", "2",
+];
+const CANON_HALF_STOPS: &[&str] = &["bulb", "30", "20.3", "15", "10", "8", "6", "4", "3", "2"];
+
+#[test]
+fn canon_step_labels_are_read_as_the_seconds_the_body_exposes() {
+    let timed = |list: &[&str], seconds: f64| {
+        let canon = ShutterSpeeds::from_choices("shutterspeed", &strings(list), true);
+        match plan_exposure("Canon EOS 6D", &canon, true, seconds).unwrap() {
+            ExposurePlan::Timed(speed) => Some((speed.choice, speed.seconds)),
+            ExposurePlan::Bulb => None,
+        }
+    };
+    assert_eq!(timed(CANON_THIRD_STOPS, 10.0), Some(("10.3".into(), 10.0)));
+    assert_eq!(timed(CANON_THIRD_STOPS, 6.0), Some(("6.3".into(), 6.0)));
+    assert_eq!(timed(CANON_THIRD_STOPS, 20.0), Some(("20".into(), 20.0)));
+    assert_eq!(timed(CANON_HALF_STOPS, 20.0), Some(("20.3".into(), 20.0)));
+    assert_eq!(timed(CANON_HALF_STOPS, 10.0), Some(("10".into(), 10.0)));
+    // The label is not a duration of its own.
+    assert_eq!(timed(CANON_THIRD_STOPS, 10.3), None);
+    assert_eq!(timed(CANON_HALF_STOPS, 20.3), None);
+
+    // Only Canon words speeds this way: another maker's 6.3 is 6.3 s.
+    let other = speeds("shutterspeed", &["30", "6.3", "1"]);
+    assert_eq!(
+        other.timed.iter().map(|s| s.seconds).collect::<Vec<_>>(),
+        vec![1.0, 6.3, 30.0]
+    );
 }
 
 #[test]
@@ -895,7 +929,7 @@ fn a_device_address_names_the_body_by_its_model_key_and_port() {
     assert_eq!(camera.model_key, "nikon_z6_2");
     assert_eq!(camera.port_path, "usb:001,007");
     assert_eq!(camera.camera_index, 1);
-    assert_eq!(camera.device_id, id);
+    assert_eq!(camera.core.device_id, id);
     let attached = [
         detected(0, "Canon EOS 6d Mark II", "usb:001,004"),
         detected(1, "Nikon Z6_2", "usb:001,007"),

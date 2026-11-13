@@ -82,9 +82,7 @@ impl AtikCamera {
             unsafe { (sdk.start_exposure)(self.handle(), params.duration_secs as c_float) };
         check_artemis_error(result, "start the exposure")?;
 
-        self.core.exposure_duration = params.duration_secs;
-        self.core.exposure_started_at = Some(std::time::Instant::now());
-        self.core.state = CameraState::Exposing;
+        self.core.begin_exposure(params.duration_secs);
         Ok(())
     }
 
@@ -113,8 +111,14 @@ impl AtikCamera {
                 value
             );
         }
-        self.core.gain = gain;
-        self.core.offset = offset;
+        // The other value is read back: switching to the custom setting can move it.
+        if is_offset {
+            self.core.gain = gain;
+            self.core.command_offset(offset);
+        } else {
+            self.core.command_gain(gain);
+            self.core.offset = offset;
+        }
         Ok(())
     }
 

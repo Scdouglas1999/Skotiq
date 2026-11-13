@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'mirror_link.dart';
 
@@ -248,6 +249,47 @@ void main() {
     expect(shown.temperature, -10);
     expect(shown.isExposing, isTrue);
     expect(shown.exposureProgress, 0.4);
+  });
+
+  test('a client that links during a run reads the camera idle once the '
+      'last frame ends', () async {
+    final host = mirrorHost();
+    final camera = host.container.read(cameraStateProvider.notifier);
+    _connect(camera, 'cam-1', 'Main camera');
+    // A host's own flag reads exposing just after each of its run's frames.
+    camera.setExposing(true);
+    await settle(_slotInterval);
+    final client = mirrorClient(host.container);
+    await hydrateHostRuntimeState(client.container, client.backend);
+
+    void cameraEvent(String type, [Map<String, dynamic> data = const {}]) =>
+        applyHostEventOnClient(
+          client.container,
+          client.backend,
+          SkotiqEvent(
+            timestamp: 0,
+            severity: EventSeverity.info,
+            category: EventCategory.imaging,
+            eventType: type,
+            data: data,
+          ),
+        );
+
+    // The run's last frame, then the host's flag after it.
+    camera.setExposing(false);
+    cameraEvent('ExposureStarted', {'duration_secs': 3.0});
+    cameraEvent('ExposureProgress', {'progress': 0.5, 'remainingSecs': 1.5});
+    expect(client.container.read(cameraStateProvider).isExposing, isTrue);
+    cameraEvent('ExposureComplete', {'success': true});
+    camera.setExposing(true);
+    await settle(_slotInterval);
+    await hydrateHostRuntimeState(client.container, client.backend);
+    camera.setExposing(false);
+    await settle(_slotInterval);
+    await hydrateHostRuntimeState(client.container, client.backend);
+
+    expect(client.container.read(cameraStateProvider).isExposing, isFalse);
+    expect(client.container.read(exposureProgressProvider), ExposureProgress.idle());
   });
 
   test('each re-read says the host still holds the camera, so it does not '

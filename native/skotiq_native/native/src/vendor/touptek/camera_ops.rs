@@ -615,9 +615,7 @@ impl CameraDriver for TouptekCamera {
         };
 
         let exposure_remaining = if self.core.state == CameraState::Exposing {
-            self.core.exposure_started_at.map(|started_at| {
-                (self.core.exposure_duration - started_at.elapsed().as_secs_f64()).max(0.0)
-            })
+            self.core.exposure_remaining()
         } else {
             None
         };
@@ -1112,7 +1110,7 @@ impl CameraDriver for TouptekCamera {
             Ok(())
         })?;
 
-        self.core.gain = gain;
+        self.core.command_gain(gain);
         Ok(())
     }
 
@@ -1143,7 +1141,7 @@ impl CameraDriver for TouptekCamera {
             Ok(())
         })?;
 
-        self.core.offset = offset;
+        self.core.command_offset(offset);
         Ok(())
     }
 

@@ -2,6 +2,7 @@
 
 use super::exposure::{recorded_exposure, MadeExposure, ShutterSpeeds};
 use super::*;
+use crate::camera_core::{CameraCore, Frame};
 
 /// An exposure in progress, or made and not yet read.
 #[derive(Debug, Default)]
@@ -45,41 +46,32 @@ const PROBE_INTERVAL: Duration = Duration::from_secs(5);
 pub struct GPhoto2Camera {
     /// Camera index from autodetect
     pub(crate) camera_index: usize,
-    /// The model as libgphoto2 names it once connected; before that, the
-    /// name the device was registered under.
-    pub(crate) model_name: String,
+    /// Identity, connection, the sensor description and the ISO (the core's
+    /// gain). The name is the model as libgphoto2 names it once connected;
+    /// before that, the name the device was registered under. The sensor
+    /// description comes from the model table until the first frame is
+    /// decoded, then from the frames: size, color filter, ADC precision
+    /// (`skotiq_imaging::RawFrame::bits_per_pixel`, an estimate of 14 before)
+    /// and the saturation level when the camera records one below its white
+    /// level (it varies with the ISO). The pixel pitch is 0 for a body the
+    /// table does not list.
+    pub(crate) core: CameraCore,
     /// The model as a device address carries it (`sanitize_id`), which is
     /// what identifies the body among the attached cameras.
     pub(crate) model_key: String,
     /// USB port path
     pub(crate) port_path: String,
-    pub(crate) device_id: String,
-    pub(crate) connected: bool,
 
     /// gPhoto2 camera handle (owned, must be freed on disconnect)
     pub(crate) gp_camera: *mut GPCamera,
     /// gPhoto2 context handle (owned, must be freed on disconnect)
     pub(crate) gp_context: *mut GPContext,
 
-    /// From the model table until the first frame, then the decoded frame's.
-    pub(crate) sensor_width: u32,
-    pub(crate) sensor_height: u32,
-    /// From the model table; 0 for a body it does not list.
-    pub(crate) pixel_size: f64,
-    /// Sensor ADC precision: an estimate of 14 until a frame has been decoded,
-    /// then the decoder's ground truth (`skotiq_imaging::RawFrame::bits_per_pixel`).
-    /// See `adopt_decoded_depth`.
-    pub(crate) bit_depth: u32,
     /// Container full scale measured from the most recently decoded frame:
     /// LibRaw `color.maximum` surfaced as `skotiq_imaging::RawFrame::white_level`.
     /// `None` until the first frame is decoded, when `resolve_max_adu` falls
     /// back to the bit depth.
     pub(crate) measured_white_level: Option<u32>,
-    /// The most recently decoded frame's saturation level when the camera
-    /// recorded one below its white level (it varies with the ISO).
-    pub(crate) measured_saturation_level: Option<u32>,
-    /// The color filter of the decoded frames; unknown until the first one.
-    pub(crate) color_filter: Option<BayerPattern>,
 
     pub(crate) can_preview: bool,
     pub(crate) facts: BodyFacts,
@@ -87,8 +79,6 @@ pub struct GPhoto2Camera {
     /// The ISO widget's name and the speeds it offers, lowest first.
     pub(crate) iso_widget: String,
     pub(crate) iso_speeds: Vec<IsoChoice>,
-    /// The ISO the body is set to, as the frame records it in GAIN.
-    pub(crate) current_iso: i32,
     pub(crate) long_exposure_nr: LongExposureNoiseReduction,
 
     /// The shutter speeds the body lists, refreshed before every exposure
@@ -107,12 +97,8 @@ impl std::fmt::Debug for GPhoto2Camera {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GPhoto2Camera")
             .field("camera_index", &self.camera_index)
-            .field("model_name", &self.model_name)
+            .field("core", &self.core)
             .field("port_path", &self.port_path)
-            .field("device_id", &self.device_id)
-            .field("connected", &self.connected)
-            .field("sensor_width", &self.sensor_width)
-            .field("sensor_height", &self.sensor_height)
             .field("exposure", &self.exposure)
             .finish()
     }
@@ -300,33 +286,44 @@ impl GPhoto2Camera {
         if let Some(key) = segments.next().filter(|k| !k.is_empty()) {
             camera.model_key = key.to_string();
         }
-        camera.device_id = format!("native:gphoto2:{address}");
+        camera.core.device_id = format!("native:gphoto2:{address}");
         Ok(camera)
     }
 
     /// Create a new gPhoto2 camera instance from a detected camera.
     pub fn new(index: usize, model: &str, port: &str) -> Self {
+        let mut core = CameraCore::new(build_device_id(index, model, port), model.to_string());
+        core.capabilities = CameraCapabilities {
+            can_cool: false,
+            // ISO, as the gain number, once the body has listed its speeds.
+            can_set_gain: false,
+            can_set_offset: false,
+            can_set_binning: false,
+            can_subframe: false,
+            has_shutter: true,
+            has_guider_port: false,
+            max_bin_x: 1,
+            max_bin_y: 1,
+            supports_readout_modes: false,
+        };
+        core.sensor_info = SensorInfo {
+            bit_depth: 14,
+            max_adu: resolve_max_adu(None, 14),
+            color: true,
+            ..SensorInfo::default()
+        };
         Self {
             camera_index: index,
-            model_name: model.to_string(),
+            core,
             model_key: sanitize_id(model),
             port_path: port.to_string(),
-            device_id: build_device_id(index, model, port),
-            connected: false,
             gp_camera: std::ptr::null_mut(),
             gp_context: std::ptr::null_mut(),
-            sensor_width: 0,
-            sensor_height: 0,
-            pixel_size: 0.0,
-            bit_depth: 14,
             measured_white_level: None,
-            measured_saturation_level: None,
-            color_filter: None,
             can_preview: false,
             facts: BodyFacts::default(),
             iso_widget: String::new(),
             iso_speeds: Vec::new(),
-            current_iso: 0,
             long_exposure_nr: LongExposureNoiseReduction::NotApplicable,
             shutter: ShutterSpeeds::default(),
             bulb_widget: None,
@@ -453,9 +450,9 @@ impl GPhoto2Camera {
         let found = select_camera(&detected, &self.model_key, &self.port_path)?;
         self.camera_index = found.index;
         self.port_path = found.port.clone();
-        self.model_name = found.model.clone();
+        self.core.name = found.model.clone();
 
-        let (camera, context) = open_camera(sdk, &self.model_name, &self.port_path)?;
+        let (camera, context) = open_camera(sdk, &self.core.name, &self.port_path)?;
         self.gp_camera = camera;
         self.gp_context = context;
         if let Err(e) = self.populate_camera_info(sdk) {
@@ -495,7 +492,7 @@ impl GPhoto2Camera {
             return Err(DriverError::SdkError(format!(
                 "gPhoto2: libgphoto2 can read files from {} but cannot take pictures with it. \
                  Set the camera's USB mode to PC (PTP) or remote control.",
-                self.model_name
+                self.core.name
             )));
         }
         self.can_preview = operations & GP_OPERATION_CAPTURE_PREVIEW != 0;
@@ -504,7 +501,7 @@ impl GPhoto2Camera {
         self.facts = body_facts(&tree);
         tracing::info!(
             "gPhoto2: {} on {}: {:?}; capture, preview {}, configuration {}, trigger {}",
-            self.model_name,
+            self.core.name,
             self.port_path,
             self.facts,
             self.can_preview,
@@ -514,7 +511,7 @@ impl GPhoto2Camera {
         if let Some(percent) = self.facts.battery_percent().filter(|p| *p < 20) {
             tracing::warn!(
                 "gPhoto2: {} battery at {}%; a night needs a full battery or a mains adapter",
-                self.model_name,
+                self.core.name,
                 percent
             );
         }
@@ -567,17 +564,20 @@ impl GPhoto2Camera {
     /// Sensor size, pitch and bit depth from the model table, until a frame
     /// says better.
     pub(crate) fn adopt_model_table(&mut self) {
-        match models::sensor_spec(&self.model_name) {
+        match models::sensor_spec(&self.core.name) {
             Some(spec) => {
-                self.sensor_width = spec.width;
-                self.sensor_height = spec.height;
-                self.pixel_size = spec.pixel_um;
-                self.bit_depth = spec.bits;
+                let info = &mut self.core.sensor_info;
+                info.width = spec.width;
+                info.height = spec.height;
+                info.pixel_size_x = spec.pixel_um;
+                info.pixel_size_y = spec.pixel_um;
+                info.bit_depth = spec.bits;
+                info.max_adu = resolve_max_adu(self.measured_white_level, spec.bits);
             }
             None => tracing::warn!(
                 "gPhoto2: Skotiq does not know the pixel size of {}; frames carry no XPIXSZ \
                  and the frame size is read from the first frame",
-                self.model_name
+                self.core.name
             ),
         }
     }
@@ -589,10 +589,12 @@ impl GPhoto2Camera {
                 "gPhoto2: the camera shows no ISO setting; ISO cannot be set from Skotiq"
             );
             self.iso_speeds.clear();
+            self.core.capabilities.can_set_gain = false;
             return;
         };
         self.iso_widget = widget.name.clone();
         self.iso_speeds = iso_choices(&widget.choices);
+        self.core.capabilities.can_set_gain = !self.iso_speeds.is_empty();
         let skipped: Vec<&String> = widget
             .choices
             .iter()
@@ -608,11 +610,11 @@ impl GPhoto2Camera {
             .as_deref()
             .and_then(|v| v.trim().parse::<i32>().ok())
         {
-            Some(iso) => self.current_iso = iso,
+            Some(iso) => self.core.gain = iso,
             None => {
                 // Auto ISO or a step name: a frame records the ISO its raw
                 // file names; this stands in only where a file names none.
-                self.current_iso = self.iso_speeds.first().map_or(0, |s| s.speed);
+                self.core.gain = self.iso_speeds.first().map_or(0, |s| s.speed);
                 tracing::info!(
                     "gPhoto2: camera ISO reads {:?}, which is not a speed",
                     widget.value
@@ -639,7 +641,7 @@ impl GPhoto2Camera {
             );
         }
         self.set_config_value_str(sdk, &self.iso_widget, &chosen.choice)?;
-        self.current_iso = chosen.speed;
+        self.core.command_gain(chosen.speed);
         Ok(())
     }
 
@@ -654,7 +656,7 @@ impl GPhoto2Camera {
         let Some(widget) = long_exposure_nr_widget(tree) else {
             tracing::info!(
                 "gPhoto2: {} shows no long exposure noise reduction setting",
-                self.model_name
+                self.core.name
             );
             return LongExposureNoiseReduction::Unreachable;
         };
@@ -726,7 +728,7 @@ impl GPhoto2Camera {
             .map_err(|e| {
                 DriverError::SdkError(format!(
                     "gPhoto2: {} did not take shutter speed {} ({e}). Check that its mode dial is on M.",
-                    self.model_name, speed.choice
+                    self.core.name, speed.choice
                 ))
             })?;
         let handles = self.handles();
@@ -755,7 +757,7 @@ impl GPhoto2Camera {
                 .map_err(|e| {
                     DriverError::SdkError(format!(
                         "gPhoto2: {} did not switch its shutter to {choice}: {e}",
-                        self.model_name
+                        self.core.name
                     ))
                 })?,
             // With timed speeds listed and no Bulb among them, the body is in a
@@ -765,7 +767,7 @@ impl GPhoto2Camera {
                 return Err(DriverError::SdkError(format!(
                     "gPhoto2: {} lists no Bulb shutter speed in its current mode, so it cannot \
                      expose {requested} s. Turn its mode dial to M (or B).",
-                    self.model_name
+                    self.core.name
                 )))
             }
             None => {}
@@ -779,7 +781,7 @@ impl GPhoto2Camera {
         .map_err(|e| {
             DriverError::SdkError(format!(
                 "gPhoto2: {} did not open its shutter for bulb ({control:?}): {e}",
-                self.model_name
+                self.core.name
             ))
         })?;
         self.exposure = ExposureState::Bulb {
@@ -804,7 +806,7 @@ impl GPhoto2Camera {
         result.map_err(|e| {
             DriverError::SdkError(format!(
                 "gPhoto2: {} did not close its shutter after bulb: {e}",
-                self.model_name
+                self.core.name
             ))
         })?;
         // The idle choice matters only to the next press, which writes the
@@ -904,7 +906,7 @@ impl GPhoto2Camera {
         if files.is_empty() {
             return Err(DriverError::Timeout(format!(
                 "gPhoto2: {} wrote no file within {} s of the end of the bulb exposure",
-                self.model_name,
+                self.core.name,
                 BULB_DOWNLOAD_TIMEOUT.as_secs()
             )));
         }
@@ -1063,15 +1065,16 @@ impl GPhoto2Camera {
     /// `color.maximum` at 0 for a handful of bodies, and a 0 white level would
     /// otherwise publish an unreachable `max_adu`.
     pub(crate) fn adopt_decoded_depth(&mut self, bits: u32, white_level: u32) {
-        let previous_max_adu = resolve_max_adu(self.measured_white_level, self.bit_depth);
+        let info = &mut self.core.sensor_info;
+        let previous_max_adu = info.max_adu;
 
-        if (8..=16).contains(&bits) && bits != self.bit_depth {
+        if (8..=16).contains(&bits) && bits != info.bit_depth {
             tracing::info!(
                 "gPhoto2: adopting measured sensor bit depth {} (estimate was {})",
                 bits,
-                self.bit_depth
+                info.bit_depth
             );
-            self.bit_depth = bits;
+            info.bit_depth = bits;
         }
 
         if white_level > 0 && self.measured_white_level != Some(white_level) {
@@ -1082,6 +1085,7 @@ impl GPhoto2Camera {
             );
             self.measured_white_level = Some(white_level);
         }
+        info.max_adu = resolve_max_adu(self.measured_white_level, info.bit_depth);
     }
 
     /// Decode a raw camera file (CR2, NEF, ARW, etc.) into the single-channel
@@ -1115,19 +1119,20 @@ impl GPhoto2Camera {
         })?;
 
         self.adopt_decoded_depth(frame.bits_per_pixel, frame.white_level);
-        self.measured_saturation_level =
-            (frame.saturation_level < frame.white_level).then_some(frame.saturation_level);
-        self.sensor_width = frame.width;
-        self.sensor_height = frame.height;
         let bayer_pattern = crate::camera_core::mosaic_bayer_pattern(&frame.cfa);
-        self.color_filter = Some(bayer_pattern);
+        let info = &mut self.core.sensor_info;
+        info.saturation_adu =
+            (frame.saturation_level < frame.white_level).then_some(frame.saturation_level);
+        info.width = frame.width;
+        info.height = frame.height;
+        info.bayer_pattern = Some(bayer_pattern);
 
         let exposure_time = recorded_exposure(&made, frame.metadata.exposure_seconds);
         if let MadeExposure::Timed(speed) = made {
             if ((exposure_time - speed) / speed).abs() > 0.05 {
                 tracing::warn!(
                     "gPhoto2: {} exposed {} s where Skotiq set {} s: check that its mode dial is on M",
-                    self.model_name,
+                    self.core.name,
                     exposure_time,
                     speed
                 );
@@ -1140,17 +1145,17 @@ impl GPhoto2Camera {
             .map(|iso| iso.round() as i32);
         let gain = match recorded_iso {
             Some(iso) => {
-                if iso != self.current_iso {
+                if iso != self.core.gain {
                     tracing::warn!(
                         "gPhoto2: the frame was taken at ISO {} (Skotiq set ISO {}); it records ISO {}",
                         iso,
-                        self.current_iso,
+                        self.core.gain,
                         iso
                     );
                 }
                 iso
             }
-            None => self.current_iso,
+            None => self.core.gain,
         };
 
         tracing::info!(
@@ -1175,45 +1180,36 @@ impl GPhoto2Camera {
             ..
         } = frame;
 
-        Ok(ImageData {
-            width,
-            height,
-            data,
-            bits_per_pixel,
-            bayer_pattern: Some(bayer_pattern),
-            metadata: ImageMetadata {
-                exposure_time,
-                gain,
-                offset: 0,
-                bin_x: 1,
-                bin_y: 1,
-                temperature: metadata.temperature.map(|t| t.celsius as f64),
-                timestamp: chrono::Utc::now(),
-                subframe: None,
-                readout_mode: None,
-                vendor_data: VendorFeatures {
-                    custom_data: {
-                        let mut map = std::collections::HashMap::new();
-                        map.insert(
-                            "camera_model".to_string(),
-                            serde_json::Value::String(self.model_name.clone()),
-                        );
-                        map
-                    },
-                    ..Default::default()
+        Ok(Frame {
+            exposure_time,
+            gain,
+            temperature: metadata.temperature.map(|t| t.celsius as f64),
+            vendor_data: VendorFeatures {
+                custom_data: {
+                    let mut map = std::collections::HashMap::new();
+                    map.insert(
+                        "camera_model".to_string(),
+                        serde_json::Value::String(self.core.name.clone()),
+                    );
+                    map
                 },
-                camera_file: Some(skotiq_device::CameraFile {
-                    // A body that names no file still gets the extension its
-                    // bytes are in.
-                    file_name: if camera_file.extension().is_some() {
-                        camera_file.file_name.clone()
-                    } else {
-                        format!("frame.{extension}")
-                    },
-                    bytes: camera_file.bytes.clone(),
-                }),
+                ..Default::default()
             },
-        })
+            camera_file: Some(skotiq_device::CameraFile {
+                // A body that names no file still gets the extension its
+                // bytes are in.
+                file_name: if camera_file.extension().is_some() {
+                    camera_file.file_name.clone()
+                } else {
+                    format!("frame.{extension}")
+                },
+                bytes: camera_file.bytes.clone(),
+            }),
+            ..self
+                .core
+                .frame(width, height, data, bits_per_pixel, Some(bayer_pattern))
+        }
+        .into_image())
     }
 }
 
