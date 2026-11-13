@@ -1932,9 +1932,7 @@ pub struct ExposureConfig {
     /// loadable without an adaptive section.
     #[serde(default)]
     pub adaptive_exposure: Option<crate::scheduling::AdaptiveExposureConfig>,
-    /// What every frame this node captures is. Sequence JSON from before the
-    /// key existed captured lights.
-    #[serde(default)]
+    /// What every frame this node captures is.
     pub frame_type: FrameType,
 }
 
@@ -1977,12 +1975,11 @@ impl FrameType {
         }
     }
 
-    /// The frame type a recorded `IMAGETYP` spelling names, in any letter case.
+    /// The frame type its `IMAGETYP` spelling names.
     pub fn from_name(name: &str) -> Option<Self> {
-        let name = name.trim();
         Self::ALL
             .into_iter()
-            .find(|frame_type| frame_type.as_str().eq_ignore_ascii_case(name))
+            .find(|frame_type| frame_type.as_str() == name)
     }
 
     /// A frame of the sky through the open telescope: its stars are measured
@@ -3349,12 +3346,11 @@ mod recovery_action_serde_tests {
         }
     }
 
-    /// Sequence JSON authored before `frame_type` existed (every frame was
-    /// implicitly a light) must keep loading — and must default to "Light".
-    /// A serializer that DOES send the field must round-trip it verbatim.
+    /// A Take Exposures step names its frame type in the IMAGETYP spelling;
+    /// a step without one, or with another spelling, is refused.
     #[test]
-    fn exposure_frame_type_defaults_to_light_and_round_trips() {
-        let legacy = r#"{
+    fn exposure_frame_type_is_required_and_round_trips() {
+        let without = r#"{
             "type": "TakeExposure",
             "duration_secs": 60.0,
             "count": 5,
@@ -3365,12 +3361,11 @@ mod recovery_action_serde_tests {
             "dither_every": null,
             "save_to": null
         }"#;
-        let node: NodeType = serde_json::from_str(legacy)
-            .expect("legacy TakeExposure without frame_type must deserialize");
-        match node {
-            NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, crate::FrameType::Light),
-            other => panic!("expected NodeType::TakeExposure, got {other:?}"),
-        }
+        assert!(serde_json::from_str::<NodeType>(without).is_err());
+        assert!(serde_json::from_str::<NodeType>(
+            &without.replace("\"save_to\": null", "\"save_to\": null, \"frame_type\": \"dark\"")
+        )
+        .is_err());
 
         let dark = r#"{
             "type": "TakeExposure",

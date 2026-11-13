@@ -1265,14 +1265,14 @@ mod tests {
             })
         };
         let dark = ExposeInstruction
-            .execute("expose-dark", &burst("dark", 3), &mut ctx)
+            .execute("expose-dark", &burst("Dark", 3), &mut ctx)
             .await;
         let bias = ExposeInstruction
-            .execute("expose-bias", &burst("bias", 2), &mut ctx)
+            .execute("expose-bias", &burst("Bias", 2), &mut ctx)
             .await;
         let after_calibration = trigger_state.read().await.latches.completed_exposures;
         let light = ExposeInstruction
-            .execute("expose-light", &burst("light", 2), &mut ctx)
+            .execute("expose-light", &burst("Light", 2), &mut ctx)
             .await;
         let after_light = trigger_state.read().await.latches.completed_exposures;
         let _ = std::fs::remove_dir_all(&dir);
