@@ -737,7 +737,7 @@ fn require_three_channels(image: &OpImage) -> Result<(), OpError> {
             op_id: OP_ID,
             op_version: OP_VERSION,
             channels,
-            expected: "a colour master with 3 channels; combine a per-filter mono master first",
+            expected: "a color master with 3 channels; combine a per-filter mono master first",
         });
     }
     Ok(())

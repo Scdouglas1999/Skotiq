@@ -108,7 +108,7 @@ impl DarkroomOp for SaturationV1 {
                 op_id: OP_ID,
                 op_version: OP_VERSION,
                 channels,
-                expected: "a colour master with 3 channels",
+                expected: "a color master with 3 channels",
             });
         }
         ctx.check_cancel()?;
