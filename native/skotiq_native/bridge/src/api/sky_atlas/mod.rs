@@ -24,31 +24,27 @@
 //! failure mode (bad action, unreadable frame, degenerate WCS, no coverage, write
 //! failure) surfaces as `Err(String)` — never a silent partial fold.
 
-use serde::{Deserialize, Serialize};
+use crate::api::sky_atlas::fold::{
+    default_order, finalize_impl, fold_impl, FinalizeArgs, FoldArgs,
+};
+use crate::api::sky_atlas::tiles::{
+    coverage_impl, export_delta_impl, info_impl, tile_png_impl, CoverageArgs, ExportDeltaArgs,
+    InfoArgs, TilePngArgs,
+};
+use serde::Deserialize;
+use skotiq_imaging::master_accumulation::{AccumulationMode, OnlineClip};
 use skotiq_imaging::registration::Interpolator;
-use skotiq_imaging::sky_atlas::{
-    merge_tiles, merge_tiles_subtract, tile_center, AtlasError, PreparedFrame, SkyAtlas,
-    SkyTileAccumulator, TileId, TileProvenance, ATLAS_HEALPIX_ORDER,
-};
+use skotiq_imaging::sky_atlas::{AtlasError, SkyAtlas, TileId};
 use skotiq_imaging::wcs_sip::SipWcs;
-use skotiq_imaging::{
-    add_wcs_headers, master_accumulation::AccumulationMode, master_accumulation::OnlineClip,
-    read_image, write_fits, FitsHeader, ImageData, WcsInfo,
-};
+use skotiq_imaging::{read_image, ImageData, WcsInfo};
 use std::path::Path;
 
-use crate::api::post_session::write_preview_png;
-
 mod fold;
-pub(crate) use fold::*;
 pub mod frames;
-pub use frames::*;
 pub mod regions;
-pub use regions::*;
 #[cfg(test)]
 mod tests;
 mod tiles;
-pub(crate) use tiles::*;
 
 /// Default resident-tile memory budget for a fold (512 MiB). A 1024² mono
 /// accumulator is ~50 MB; the atlas processes tiles one at a time, so the budget

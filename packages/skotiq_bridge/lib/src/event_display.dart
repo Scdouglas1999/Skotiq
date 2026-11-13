@@ -157,7 +157,6 @@ String _equipmentTitle(EquipmentEvent v, EventSeverity severity) {
     EquipmentEvent_MountUnparked() => 'Mount unparked',
     EquipmentEvent_FocuserMoveStarted() => 'Focuser move started',
     EquipmentEvent_FocuserMoveCompleted() => 'Focuser move complete',
-    EquipmentEvent_FocuserTemperatureChanged() => 'Focuser temperature',
     EquipmentEvent_FilterChanging() => 'Filter changing',
     EquipmentEvent_FilterChanged() => 'Filter changed',
     EquipmentEvent_RotatorMoveStarted() => 'Rotator move started',
@@ -210,8 +209,6 @@ String _equipmentDetail(EquipmentEvent v) {
     EquipmentEvent_MountUnparked() => '',
     EquipmentEvent_FocuserMoveStarted(targetPosition: final p) => 'Target $p',
     EquipmentEvent_FocuserMoveCompleted(position: final p) => 'At $p',
-    EquipmentEvent_FocuserTemperatureChanged(temperature: final t) =>
-      '${t.toStringAsFixed(1)}°C',
     // Positions are the wheel's 0-based slots. The Log read "0 → 1" and
     // "Position 1" while Equipment read "R (2 of 8)", so a slot is shown by its
     // name and, without one, counted from 1 as Equipment counts it.

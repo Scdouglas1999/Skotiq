@@ -1,4 +1,4 @@
-use super::compute_quality_maps_from_linear_data;
+use crate::api::imaging::quality_math::compute_quality_maps_from_linear_data;
 
 fn approx_eq(actual: f64, expected: f64, tolerance: f64) {
     assert!(

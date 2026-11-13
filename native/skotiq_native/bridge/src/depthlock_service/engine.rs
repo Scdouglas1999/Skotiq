@@ -9,15 +9,16 @@
 //! Everything that touches a goal goes through the store's revision checks,
 //! so a job that outlives a goal edit commits nothing.
 
-use super::store::{Admission, GoalRecord, GoalStore};
-use crate::event::{
-    create_event_auto_id, DepthLockEvent, EventCategory, EventPayload, EventSeverity, SkotiqEvent,
-};
+use crate::depthlock_service::store::{Admission, GoalRecord, GoalStore};
+use crate::event::bus::{EventPayload, SkotiqEvent};
+use crate::event::correlation::create_event_auto_id;
+use crate::event::depthlock_events::DepthLockEvent;
+use crate::event::equipment::{EventCategory, EventSeverity};
 use skotiq_imaging::depthlock::input::{
-    self, fnv1a64, AcquisitionSettings, MasterKind, ReferenceGeometry,
+    fnv1a64, AcquisitionSettings, MasterKind, ReferenceGeometry,
 };
 use skotiq_imaging::depthlock::{
-    evaluate, sample_apertures, ApertureFrame, DepthReport, DepthState, ESTIMATOR_VERSION,
+    evaluate, input, sample_apertures, ApertureFrame, DepthReport, DepthState, ESTIMATOR_VERSION,
 };
 use skotiq_imaging::registration::{solve_registration, RegistrationConfig, TransformKind};
 use skotiq_imaging::{read_frame, ImageData, PixelType};

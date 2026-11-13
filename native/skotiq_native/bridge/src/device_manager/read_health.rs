@@ -18,7 +18,7 @@
 //! reads succeed again.
 
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};

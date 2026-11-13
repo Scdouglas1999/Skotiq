@@ -5,16 +5,17 @@
 //! in `crate::device_manager`. No behavior or signature has changed relative to the
 //! previous monolithic `devices.rs`.
 
-use crate::device::*;
+use crate::device::{DeviceInfo, DeviceType};
 use crate::device_manager::handle::DeviceHandle;
-use crate::device_manager::rig::camera::DriverCamera;
+use crate::device_manager::rig::camera::driver::DriverCamera;
 use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
 use crate::device_manager::rig::focuser::DriverFocuser;
-use crate::device_manager::rig::mount::DriverMount;
+use crate::device_manager::rig::mount::driver::DriverMount;
 use crate::device_manager::DeviceManager;
 #[allow(unused_imports)] // Trait methods on `dyn Native*` handles require these in scope.
 use skotiq_device::{CameraDriver, DeviceDriver, LongExposureNoiseReduction, MountDriver};
-use skotiq_native::catalog::{self, NativeHandle, OpenRequest};
+use skotiq_native::catalog;
+use skotiq_native::catalog::{NativeHandle, OpenRequest};
 use std::sync::Arc;
 
 impl DeviceManager {
@@ -28,7 +29,7 @@ impl DeviceManager {
         let vendor = parts[1];
 
         if info.device_type == DeviceType::Guider && vendor == "builtin_guider" {
-            crate::builtin_guider::connect().await.map_err(|e| {
+            crate::builtin_guider::control::connect().await.map_err(|e| {
                 let message = format!("Failed to connect built-in guider: {}", e);
                 tracing::warn!("{}", message);
                 message
@@ -53,7 +54,7 @@ impl DeviceManager {
             .nth(2)
             .ok_or("Invalid native device ID format")?;
         let site: skotiq_device::SiteSource = Arc::new(|| {
-            let location = crate::api::get_state()
+            let location = crate::state::get_state()
                 .get_observer_location()
                 .ok()
                 .flatten()?;
@@ -154,8 +155,8 @@ impl DeviceManager {
         device_id: &str,
         device_type: &DeviceType,
     ) -> Result<bool, String> {
-        if device_id == crate::builtin_guider::device_id() {
-            let connected = crate::builtin_guider::is_connected().await;
+        if device_id == crate::builtin_guider::control::device_id() {
+            let connected = crate::builtin_guider::control::is_connected().await;
             return Ok(connected);
         }
 
@@ -203,10 +204,10 @@ impl DeviceManager {
             return;
         };
         tracing::warn!("{}", message);
-        self.app_state.publish_event(crate::event::create_event_auto_id(
-            crate::event::EventSeverity::Warning,
-            crate::event::EventCategory::Equipment,
-            crate::event::EventPayload::System(crate::event::SystemEvent::Notification {
+        self.app_state.publish_event(crate::event::correlation::create_event_auto_id(
+            crate::event::equipment::EventSeverity::Warning,
+            crate::event::equipment::EventCategory::Equipment,
+            crate::event::bus::EventPayload::System(crate::event::system::SystemEvent::Notification {
                 title: "Camera noise reduction".to_string(),
                 message,
                 level: "warning".to_string(),

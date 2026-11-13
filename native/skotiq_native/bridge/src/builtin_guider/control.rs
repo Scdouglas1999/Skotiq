@@ -1,4 +1,26 @@
-use super::*;
+use crate::builtin_guider::config::{
+    guiding_failure_reason, GuiderConfig, Vec2, BUILTIN_GUIDER_ID, GUIDE_MAX_MATCH_DISTANCE_PX,
+};
+use crate::builtin_guider::loop_runner::{
+    capture_and_store_loop_frame, capture_guide_frame, ensure_connected, ensure_frame_available,
+    resolve_devices, resolve_unbinned_guide_pixel_scale, run_guiding_loop,
+};
+use crate::builtin_guider::metrics::{
+    choose_lock_star, nearest_star, select_reference_stars, update_snapshot_from_frame, PulseDebt,
+};
+use crate::builtin_guider::state::{
+    binned_guide_pixel_scale, build_tracked_stars, op_lock, state, BuiltinGuideStatus,
+    BuiltinGuiderState, GuideCalibration,
+};
+use crate::error::SkotiqError;
+use crate::event::equipment::EventSeverity;
+use crate::event::guiding::GuidingEvent;
+use crate::event::system::SystemEvent;
+use crate::guider::{GuideStarImage, GuiderCalibration, GuiderStatus};
+use crate::state::get_state;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
 
 /// Set the guider configuration. Must be called before `connect()` or will apply
 /// to subsequent operations. Calling while guiding is active will update the config

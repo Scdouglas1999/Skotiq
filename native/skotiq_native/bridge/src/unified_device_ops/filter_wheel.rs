@@ -1,4 +1,8 @@
-use super::*;
+use super::{device_error, UnifiedDeviceOps};
+use crate::device_manager::get_device_manager;
+use crate::filter_matching::find_filter_match;
+use async_trait::async_trait;
+use skotiq_sequencer::{DeviceResult, FilterWheelOps};
 
 #[async_trait]
 impl FilterWheelOps for UnifiedDeviceOps {

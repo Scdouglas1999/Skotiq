@@ -26,7 +26,7 @@ use std::time::Duration;
 use crate::device::{ConnectionState, DeviceType};
 use crate::device_manager::policy::policy;
 use crate::device_manager::DeviceManager;
-use crate::event::EquipmentEvent;
+use crate::event::equipment::EquipmentEvent;
 
 /// How often the backstop reads the devices. Slow on purpose: it repairs a
 /// change nobody announced, it does not track motion.
@@ -170,7 +170,7 @@ impl DeviceManager {
         runtime.handle().spawn(async move {
             // The task outlives the call, so it reads through the
             // process-wide manager, as the heartbeat tasks do.
-            let manager = crate::api::get_device_manager().clone();
+            let manager = crate::device_manager::get_device_manager().clone();
             loop {
                 tokio::time::sleep(BACKSTOP_INTERVAL).await;
                 manager.backstop_round().await;

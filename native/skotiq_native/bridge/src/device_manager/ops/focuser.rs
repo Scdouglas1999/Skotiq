@@ -3,8 +3,8 @@
 //! [`crate::device_manager::rig::focuser`]).
 
 use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
-use crate::event::EquipmentEvent;
+use crate::dispatch::error::DeviceOpError;
+use crate::event::equipment::EquipmentEvent;
 
 impl DeviceManager {
     /// Move to an absolute position, publishing `FocuserMoveStarted` before

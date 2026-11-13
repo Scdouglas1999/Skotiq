@@ -1,6 +1,8 @@
-use super::{
-    altitude_degrees, build_rich_header, context_altitude_pointing, MountPointing, UnifiedDeviceOps,
+use super::UnifiedDeviceOps;
+use crate::unified_device_ops::pointing::{
+    altitude_degrees, context_altitude_pointing, MountPointing,
 };
+use crate::unified_device_ops::rich_header::build_rich_header;
 use skotiq_imaging::read_frame;
 use skotiq_sequencer::scheduling::FrameContext;
 use skotiq_sequencer::ImageData;

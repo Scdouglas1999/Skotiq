@@ -1,4 +1,8 @@
-use super::*;
+use super::UnifiedDeviceOps;
+use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
+use async_trait::async_trait;
+use skotiq_sequencer::{DeviceResult, ImageData, PlateSolveOps, PlateSolveResult};
 
 #[async_trait]
 impl PlateSolveOps for UnifiedDeviceOps {
@@ -11,7 +15,8 @@ impl PlateSolveOps for UnifiedDeviceOps {
     ) -> DeviceResult<PlateSolveResult> {
         tracing::info!("Plate solving image");
 
-        let temp_file = create_unique_temp_fits_path("skotiq_platesolve_temp");
+        let temp_file =
+            crate::util::temp_fits::create_unique_temp_fits_path("skotiq_platesolve_temp");
         let temp_path = temp_file.to_string_lossy().to_string();
 
         // The optics, so the solver is told the field scale instead of hunting

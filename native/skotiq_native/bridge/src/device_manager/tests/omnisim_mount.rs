@@ -8,6 +8,7 @@
 //! with the simulator topocentric (its default) and once set to J2000.
 
 use super::*;
+use crate::device::{DriverType, MountTimeInfo};
 use crate::device_manager::epoch::MountFrame;
 use std::time::{Duration, Instant};
 
@@ -123,10 +124,10 @@ async fn the_mount_workflow_against_omnisim() {
     assert!((clock.utc_unix_seconds - now).abs() < 5, "{clock:?}");
 
     println!("capabilities");
-    let capabilities = crate::device_capabilities::get_alpaca_capabilities(&device_id)
+    let capabilities = crate::device_capabilities::alpaca::get_alpaca_capabilities(&device_id)
         .await
         .expect("capabilities");
-    let crate::device_capabilities::DeviceCapabilities::Mount(mount_caps) = capabilities else {
+    let crate::device_capabilities::types::DeviceCapabilities::Mount(mount_caps) = capabilities else {
         panic!("not mount capabilities");
     };
     let alignment = raw.alignment_mode().await.expect("AlignmentMode");

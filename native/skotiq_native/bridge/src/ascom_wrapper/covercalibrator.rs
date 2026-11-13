@@ -2,8 +2,8 @@
 //! read means is decided by `skotiq_device::ascom::cover_calibrator`, the
 //! same as for an Alpaca one.
 
-use super::sta_device::{driver_error, sta_accessory, StaDevice};
-use crate::dispatch::DeviceOpError;
+use crate::ascom_wrapper::sta_device::{driver_error, sta_accessory, StaDevice};
+use crate::dispatch::error::DeviceOpError;
 use crate::timeout_ops::Timeouts;
 use async_trait::async_trait;
 use skotiq_ascom::{AscomCoverCalibrator, AscomResult};

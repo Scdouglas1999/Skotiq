@@ -1,7 +1,8 @@
 use super::*;
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::focuser::DriverFocuser;
-use crate::event::{EquipmentEvent, EventPayload};
+use crate::event::bus::EventPayload;
+use crate::event::equipment::EquipmentEvent;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 
@@ -56,7 +57,7 @@ fn focuser_info(id: &str) -> DeviceInfo {
 }
 
 async fn published_disconnected(
-    rx: &mut tokio::sync::broadcast::Receiver<crate::event::SkotiqEvent>,
+    rx: &mut tokio::sync::broadcast::Receiver<crate::event::bus::SkotiqEvent>,
     id: &str,
 ) -> bool {
     while let Ok(event) = rx.try_recv() {
@@ -194,7 +195,8 @@ async fn connected_ccd_simulator() -> skotiq_indi::IndiClient {
 /// abort.
 #[tokio::test]
 async fn an_indi_camera_at_rest_with_a_duration_left_in_ccd_exposure_is_idle() {
-    use crate::device_manager::rig::camera::{Camera, DriverCamera};
+    use crate::device_manager::rig::camera::driver::DriverCamera;
+    use crate::device_manager::rig::camera::Camera;
 
     let client = std::sync::Arc::new(tokio::sync::RwLock::new(connected_ccd_simulator().await));
     let duration = client
@@ -232,7 +234,13 @@ async fn exposing_ccd_simulator_on_a_busy_connection() -> skotiq_indi::IndiClien
                 let update = "<setNumberVector device=\"CCD Simulator\" name=\"CCD_TEMPERATURE\" \
                               state=\"Ok\"><oneNumber name=\"CCD_TEMPERATURE_VALUE\">0</oneNumber>\
                               </setNumberVector>\n";
-                if chatter.lock().await.write_all(update.as_bytes()).await.is_err() {
+                if chatter
+                    .lock()
+                    .await
+                    .write_all(update.as_bytes())
+                    .await
+                    .is_err()
+                {
                     return;
                 }
             }
@@ -274,7 +282,8 @@ async fn exposing_ccd_simulator_on_a_busy_connection() -> skotiq_indi::IndiClien
 /// capture failed after 30 s with "Timeout waiting for INDI image BLOB".
 #[tokio::test]
 async fn an_indi_frame_is_read_while_other_devices_keep_the_connection_busy() {
-    use crate::device_manager::rig::camera::{Camera, DriverCamera};
+    use crate::device_manager::rig::camera::driver::DriverCamera;
+    use crate::device_manager::rig::camera::Camera;
 
     let client = std::sync::Arc::new(tokio::sync::RwLock::new(
         exposing_ccd_simulator_on_a_busy_connection().await,
@@ -371,7 +380,8 @@ async fn recording_ccd_simulator() -> (
 /// camera with a shutter took its darks and biases with the shutter open.
 #[tokio::test]
 async fn an_indi_camera_is_told_the_frame_type_before_it_exposes() {
-    use crate::device_manager::rig::camera::{Camera, DriverCamera};
+    use crate::device_manager::rig::camera::driver::DriverCamera;
+    use crate::device_manager::rig::camera::Camera;
 
     let (client, written) = recording_ccd_simulator().await;
     let client = std::sync::Arc::new(tokio::sync::RwLock::new(client));

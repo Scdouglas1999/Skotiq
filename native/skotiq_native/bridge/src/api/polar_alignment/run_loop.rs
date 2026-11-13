@@ -1,4 +1,25 @@
-use super::*;
+use crate::api::connection::api_get_connected_devices;
+use crate::api::plate_solve::{gather_solve_hints_for_camera, SolveHints};
+use crate::api::polar_alignment::events::{
+    emit_polar_error, emit_polar_image, emit_polar_status, plate_solve_ra_degrees,
+};
+use crate::api::polar_alignment::pole_slew::{
+    rotate_for_next_point, slew_to_pole_region, SlewOutcome,
+};
+use crate::api::polar_alignment::run_control::{
+    polar_control_lock, polar_generation, polar_loop_control, release_polar_run_if_current,
+    store_polar_task, try_admit_polar_run, PolarLoopControl,
+};
+use crate::api::polar_alignment::solve::{
+    polar_solve_downsample, read_polar_solve_hint, solve_polar_frame, PolarSolveHint,
+    DEFAULT_POLAR_SOLVE_TIMEOUT_SECS, POLAR_SOLVE_SEARCH_RADIUS_DEG,
+};
+use crate::device::{DeviceType, DriverType};
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
+use crate::state::get_state;
+use crate::unified_device_ops::create_unified_device_ops;
+use std::sync::atomic::Ordering as PolarOrdering;
 
 /// Start three-point polar alignment
 ///
@@ -312,7 +333,10 @@ pub(crate) async fn run_polar_alignment(
         // is already binned.
         let solve_downsample = polar_solve_downsample(raw.width, raw.height, binning);
 
-        let temp_path = create_unique_temp_fits_path(&format!("polar_align_point_{}", point));
+        let temp_path = crate::util::temp_fits::create_unique_temp_fits_path(&format!(
+            "polar_align_point_{}",
+            point
+        ));
         let temp_path_str = temp_path.to_string_lossy().to_string();
 
         if let Err(e) = write_polar_solve_frame(raw, &temp_path_str, &solve_scale.hints).await {
@@ -618,7 +642,7 @@ pub(crate) async fn run_polar_alignment(
         // Emit polar alignment image (adjustment phase, no coordinates yet)
         emit_polar_image(&image, 0, "adjusting", None, None);
 
-        let temp_path = create_unique_temp_fits_path("polar_align_adjust");
+        let temp_path = crate::util::temp_fits::create_unique_temp_fits_path("polar_align_adjust");
         let temp_path_str = temp_path.to_string_lossy().to_string();
         let adjust_downsample = polar_solve_downsample(raw.width, raw.height, adjust_binning);
 

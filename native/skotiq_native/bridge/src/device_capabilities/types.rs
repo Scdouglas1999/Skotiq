@@ -1,4 +1,5 @@
-use super::*;
+use crate::device::{CalibratorState, CoverState, TrackingRate};
+use serde::{Deserialize, Serialize};
 
 /// Capabilities of a mount/telescope device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

@@ -28,18 +28,15 @@
 
 #[cfg(windows)]
 mod com;
-mod driver;
-mod sim;
+pub(crate) mod driver;
 
 #[cfg(windows)]
 pub(crate) use com::ComCamera;
-pub(crate) use driver::DriverCamera;
-pub(crate) use sim::SimCamera;
 
 use super::RigDriver;
 use crate::device::DriverType;
-use crate::device_capabilities::DeviceCapabilities;
-use crate::dispatch::DeviceOpError;
+use crate::device_capabilities::types::DeviceCapabilities;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{ImageData, SubFrame};

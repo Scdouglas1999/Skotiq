@@ -1,4 +1,6 @@
-use super::*;
+use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
+use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
 
 /// Telescope pointing sampled from the mount at save time, for the FITS
 /// `RA`/`DEC`/`OBJCTRA`/`OBJCTDEC` (and, via the altitude, `AIRMASS`) cards.
@@ -82,7 +84,8 @@ pub(crate) fn context_altitude_pointing(
 /// a replug, so stamping it into an archival keyword would label frames with
 /// something that means a different camera tomorrow.
 pub(crate) async fn connected_camera_label(camera_id: &str) -> Option<String> {
-    api_get_connected_devices()
+    get_device_manager()
+        .get_connected_device_infos()
         .await
         .into_iter()
         .find(|d| d.id == camera_id && d.device_type == DeviceType::Camera)

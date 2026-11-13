@@ -764,12 +764,11 @@ the grading result for sequencer-captured frames.
 | `Connected` | `{ "device_type": string, "device_id": string }` |
 | `Disconnected` | `{ "device_type": string, "device_id": string }` |
 | `Error` | `{ "device_type": string, "device_id": string, "message": string }` |
-| `MountSlewStarted` | `{ "ra": number, "dec": number }` |
-| `MountSlewCompleted` | `{ "ra": number, "dec": number }` |
-| `MountTrackingStarted` / `MountTrackingStopped` | `{}` |
-| `MountParkStarted` / `MountParkCompleted` / `MountUnparked` | `{}` |
+| `MountSlewStarted` | `{ "device_id": string, "ra": number, "dec": number }` |
+| `MountSlewCompleted` | `{ "device_id": string, "ra": number, "dec": number }` |
+| `MountTrackingStarted` / `MountTrackingStopped` | `{ "device_id": string }` |
+| `MountParkStarted` / `MountParkCompleted` / `MountUnparked` | `{ "device_id": string }` |
 | `FocuserMoveStarted` / `FocuserMoveCompleted` | `{ "target_position"\|"position": int }` |
-| `FocuserTemperatureChanged` | `{ "temperature": number }` |
 | `FilterChanging` / `FilterChanged` | `{ "from_position"?: int, "to_position"\|"position": int, "filter_name": string? }` |
 | `RotatorMoveStarted` / `RotatorMoveCompleted` | `{ "target_angle"\|"angle": number }` |
 | `CameraCoolingStarted` | `{ "target_temp": number }` |
