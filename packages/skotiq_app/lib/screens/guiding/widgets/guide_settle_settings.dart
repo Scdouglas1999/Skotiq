@@ -67,7 +67,7 @@ class GuideSettleSettings extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     if (settings == null) return const SizedBox.shrink();
     Widget row<T>(String key, SettingField<AppSettingsState, T> field,
-        {FieldHelpId? helpId, double width = 104}) {
+        {FieldHelpId? helpId, double width = 88}) {
       final help = helpId == null ? null : helpFor(helpId);
       return _SettleRow(
         key: ValueKey('guide-settle-$key'),
@@ -85,7 +85,7 @@ class GuideSettleSettings extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         row('dither-size', _ditherSize,
-            helpId: FieldHelpId.ditherAmount, width: 136),
+            helpId: FieldHelpId.ditherAmount, width: 124),
         row('dither-ra-only', _ditherRaOnly),
         row('threshold', _settleThreshold,
             helpId: FieldHelpId.settleThreshold),
