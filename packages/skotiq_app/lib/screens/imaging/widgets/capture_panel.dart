@@ -646,7 +646,6 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
     try {
       final result = await ref.read(hostFoldersProvider).pickUsable(
         context,
-        host: ref.read(backendProvider).remoteHost?.files,
         title: widget.isRemote
             ? 'Select host capture folder'
             : 'Select capture folder',

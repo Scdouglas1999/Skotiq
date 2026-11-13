@@ -166,7 +166,7 @@ class _ScienceJumpNav extends ConsumerWidget {
     try {
       final backend = ref.read(backendProvider);
       final exporter = ref.read(scienceReportExporterProvider);
-      final folders = ref.read(hostFoldersProvider);
+      final folders = ref.read(localFoldersProvider);
       final file = await exportScienceShortcutReport(
         backend: backend,
         sessionId: sessionId,

@@ -58,9 +58,9 @@ Future<HarnessHandle> _pump(
         backupDirectoryWriterProvider.overrideWithValue((p) async {
           moves.add(p);
         }),
-      hostFoldersProvider.overrideWithValue(_Folders(
+      localFoldersProvider.overrideWithValue(_Folders(
         reveals,
-        onPick: ({required host, required initialPath}) async => picks,
+        onPick: ({required initialPath}) async => picks,
       )),
     ],
   );
