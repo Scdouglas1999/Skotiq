@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/services/host_folders.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/onboarding/steps/capture_dir_step.dart';
 import 'package:skotiq_core/backend.dart';
@@ -40,7 +39,7 @@ class _TestOnboardingNotifier extends OnboardingNotifier {
             _SwitchingBackendNotifier(ref, _MockNetworkBackend());
       }),
       onboardingDraftProvider.overrideWith(_TestOnboardingNotifier.new),
-      hostFoldersProvider.overrideWithValue(FakeHostFolders(onPick: picker)),
+      fakeHostFoldersPerHost(() => FakeHostFolders(onPick: picker)),
       onboardingCaptureDirectoryWriterProvider.overrideWithValue(writer),
     ],
   );
@@ -66,7 +65,7 @@ void main() {
     var pickerCalls = 0;
     final writes = <String>[];
     final h = _container(
-      picker: ({required host, required initialPath}) {
+      picker: ({required initialPath}) {
         pickerCalls++;
         return pickerCalls == 1 ? first.future : second.future;
       },
@@ -116,7 +115,7 @@ void main() {
       (tester) async {
     final picker = Completer<String?>();
     final h = _container(
-      picker: ({required host, required initialPath}) =>
+      picker: ({required initialPath}) =>
           picker.future,
       writer: (path) async {},
     );

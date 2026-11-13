@@ -59,7 +59,7 @@ void main() {
         ),
         appSettingsProvider.overrideWith(_LoadedAppSettings.new),
         hostFoldersProvider.overrideWithValue(FakeHostFolders(
-          onPick: ({required host, required initialPath}) {
+          onPick: ({required initialPath}) {
             return pickers[pickerCalls++].future;
           },
         )),

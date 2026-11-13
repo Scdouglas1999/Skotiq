@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -138,7 +137,14 @@ class _OnboardingCaptureDirStepState
 
   bool _selecting = false;
   bool _validating = false;
-  int _operationGeneration = 0;
+
+  /// A verdict belongs to the folders it was checked on, which change with
+  /// the imaging host, and only the newest operation may apply its result.
+  late final AsyncScopes<HostFolders> _operations = AsyncScopes(
+    ref.read,
+    hostFoldersProvider,
+    alive: () => mounted,
+  );
 
   /// Re-check pending for the text now in the box.
   Timer? _editDebounce;
@@ -276,8 +282,7 @@ class _OnboardingCaptureDirStepState
     if (path.isEmpty || path == current) return;
     if (_selecting || _validating) return;
 
-    final authority = ref.read(backendProvider);
-    final generation = ++_operationGeneration;
+    final operation = _operations.beginLatest();
     setState(() {
       _validating = true;
       _check = null;
@@ -288,21 +293,21 @@ class _OnboardingCaptureDirStepState
       // Part of this commit, not a new operation, so its result is this
       // commit's; staying `_validating` keeps the box disabled for the round
       // trip, which stops the focus-loss listener asking a second time.
-      await _verify(path, operation: generation);
-      if (!_isCurrent(generation, authority)) return;
+      await _verify(path, operation: operation);
+      if (operation.isStale) return;
       setState(() => _validating = false);
       if (_check == _FolderCheck.writable && _checkedPath == path) {
         await ref.read(onboardingCaptureDirectoryWriterProvider)(path);
       }
     } catch (error) {
-      if (!mounted || !_isCurrent(generation, authority)) return;
+      if (operation.isStale) return;
       setState(() {
         _validating = false;
         _check = _FolderCheck.failed;
         _checkDetail = 'Could not set the capture folder: ${userFacingError(error)}';
       });
     } finally {
-      if (mounted && generation == _operationGeneration && _validating) {
+      if (operation.isCurrent && _validating) {
         setState(() => _validating = false);
       }
     }
@@ -317,11 +322,10 @@ class _OnboardingCaptureDirStepState
   ///
   /// [operation] joins an already-open operation instead of starting a new one.
   /// A caller that keeps working after the check (the typed-path commit, which
-  /// still has a draft write to do) must share its generation, or it supersedes
+  /// still has a draft write to do) must share its scope, or it supersedes
   /// itself and discards its own result.
-  Future<void> _verify(String path, {int? operation}) async {
-    final authority = ref.read(backendProvider);
-    final generation = operation ?? ++_operationGeneration;
+  Future<void> _verify(String path, {AsyncScope<HostFolders>? operation}) async {
+    final scope = operation ?? _operations.beginLatest();
     setState(() {
       _check = _FolderCheck.checking;
       _checkedPath = path;
@@ -331,16 +335,13 @@ class _OnboardingCaptureDirStepState
     _FolderCheck outcome;
     String? detail;
     try {
-      (outcome, detail) = _describe(await ref.read(hostFoldersProvider).check(
-            path,
-            host: authority.remoteHost?.files,
-          ));
+      (outcome, detail) = _describe(await scope.value.check(path));
     } catch (error) {
       outcome = _FolderCheck.unverified;
       detail = 'Could not check this folder: ${userFacingError(error)}';
     }
 
-    if (!_isCurrent(generation, authority)) return;
+    if (scope.isStale) return;
     setState(() {
       _check = outcome;
       _checkDetail = detail;
@@ -358,10 +359,8 @@ class _OnboardingCaptureDirStepState
       };
 
   Future<void> _pickDirectory() async {
-    final authority = ref.read(backendProvider);
-    final hostFiles = authority.remoteHost?.files;
-    final folders = ref.read(hostFoldersProvider);
-    final generation = ++_operationGeneration;
+    final operation = _operations.beginLatest();
+    final folders = operation.value;
     setState(() {
       _selecting = true;
       _check = null;
@@ -369,28 +368,19 @@ class _OnboardingCaptureDirStepState
       _checkDetail = null;
     });
     try {
-      final selected = await folders.pick(
+      final picked = await folders.pickChecked(
         context,
-        host: hostFiles,
-        title: hostFiles == null
-            ? 'Choose capture folder'
-            : 'Choose capture folder on host',
+        title: ref.read(isRemoteModeProvider)
+            ? 'Choose capture folder on host'
+            : 'Choose capture folder',
         initialPath: ref.read(onboardingDraftProvider).captureDirectory,
         confirmLabel: 'Use this folder',
       );
-      if (selected == null || !_isCurrent(generation, authority)) return;
-
+      if (picked == null || operation.isStale) return;
+      final selected = picked.path;
+      final (outcome, detail) = _describe(picked.verdict);
       setState(() {
         _selecting = false;
-        _validating = true;
-      });
-      // The host's folder browser only returns a folder it has checked.
-      final (outcome, detail) = hostFiles != null
-          ? (_FolderCheck.writable, null)
-          : _describe(await folders.check(selected, host: null));
-      if (!_isCurrent(generation, authority)) return;
-      setState(() {
-        _validating = false;
         _checkedPath = selected;
         _check = outcome;
         _checkDetail = detail;
@@ -399,7 +389,7 @@ class _OnboardingCaptureDirStepState
         await ref.read(onboardingCaptureDirectoryWriterProvider)(selected);
       }
     } catch (error) {
-      if (!mounted || !_isCurrent(generation, authority)) return;
+      if (operation.isStale) return;
       setState(() {
         _selecting = false;
         _validating = false;
@@ -407,7 +397,7 @@ class _OnboardingCaptureDirStepState
         _checkDetail = 'Could not set the capture folder: ${userFacingError(error)}';
       });
     } finally {
-      if (mounted && generation == _operationGeneration) {
+      if (operation.isCurrent) {
         setState(() {
           _selecting = false;
           _validating = false;
@@ -418,13 +408,13 @@ class _OnboardingCaptureDirStepState
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
+    ref.listen<HostFolders>(hostFoldersProvider, (previous, next) {
       if (previous == null || identical(previous, next)) return;
       // A verdict earned against the previous host says nothing about this one:
       // /mnt/captures may be a real, writable folder on the Pi and not exist at
       // all on the laptop the app just fell back to. Drop the outcome and
       // re-check the remembered path against whoever is answering now.
-      _operationGeneration++;
+      _operations.cancelAll();
       setState(() {
         _selecting = false;
         _validating = false;
@@ -605,11 +595,5 @@ class _OnboardingCaptureDirStepState
       case null:
         return const [];
     }
-  }
-
-  bool _isCurrent(int generation, SkotiqBackend authority) {
-    return mounted &&
-        generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority);
   }
 }

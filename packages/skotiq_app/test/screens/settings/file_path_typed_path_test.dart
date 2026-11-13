@@ -40,6 +40,15 @@ Future<HarnessHandle> _pump(
   String? probeFailure,
   List<(String, String)>? reveals,
 }) async {
+  final folders = _Folders(
+    reveals,
+    // The full-path rule is the real one; the disk is faked.
+    onCheck: (path) async => !p.isAbsolute(path)
+        ? await const LocalFolders().check(path)
+        : probeFailure == null
+            ? const FolderUsable()
+            : FolderRefused(probeFailure),
+  );
   final handle = await pumpAppScreen(
     tester,
     const SettingsFormScope(
@@ -55,15 +64,7 @@ Future<HarnessHandle> _pump(
       backupDirectoryOverrideProvider.overrideWith((ref) async => null),
       applicationDataPathProvider.overrideWith((ref) async => '/appdata'),
       applicationLogPathProvider.overrideWith((ref) async => '/support/logs'),
-      hostFoldersProvider.overrideWithValue(_Folders(
-        reveals,
-        // The full-path rule is the real one; the disk is faked.
-        onCheck: (path, host) async => !p.isAbsolute(path)
-            ? await const HostFolders().check(path, host: host)
-            : probeFailure == null
-                ? const FolderUsable()
-                : FolderRefused(probeFailure),
-      )),
+      localFoldersProvider.overrideWithValue(folders),
     ],
   );
   await tester.pump();
