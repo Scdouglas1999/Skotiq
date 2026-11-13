@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -519,7 +518,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       // (the plan's exposures/timing/targets come from synced settings +
       // profile and are unaffected). Browse the rig's darks via the
       // Calibration Library screen instead.
-      final isRemoteBackend = host.value.remoteHost != null;
+      final isRemoteBackend = ref.read(isRemoteModeProvider);
       final SmartNightDarkLibraryMissing darkLibraryMissing;
       if (exposureContext == null || isRemoteBackend) {
         darkLibraryMissing = const SmartNightDarkLibraryMissing.empty();

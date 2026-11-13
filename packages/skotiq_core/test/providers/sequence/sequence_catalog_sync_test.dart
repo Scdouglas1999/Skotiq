@@ -13,10 +13,14 @@ import '../../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
+class _MockLocalBackend extends Mock implements SkotiqBackend {}
+
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
     state = backend;
   }
+
+  void replaceWith(SkotiqBackend backend) => state = backend;
 }
 
 void main() {
@@ -144,5 +148,34 @@ void main() {
         expect(fetchCount, greaterThan(before));
       },
     );
+
+    test('follows the events of a host linked after start-up', () async {
+      final local = _MockLocalBackend();
+      when(
+        () => local.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final eventController = StreamController<SkotiqEvent>.broadcast();
+      final host = _MockNetworkBackend();
+      when(() => host.eventStream).thenAnswer((_) => eventController.stream);
+      when(() => host.listFullSequences()).thenAnswer((_) async => []);
+
+      late _FixedBackendNotifier backendNotifier;
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => backendNotifier = _FixedBackendNotifier(ref, local),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        await eventController.close();
+        container.dispose();
+      });
+
+      container.read(sequenceLibrarySyncProvider);
+      backendNotifier.replaceWith(host);
+      expect(eventController.hasListener, isTrue);
+    });
   });
 }

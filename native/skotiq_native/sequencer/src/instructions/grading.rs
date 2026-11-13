@@ -682,9 +682,13 @@ pub(crate) async fn emit_grade_progress(
                     rejected,
                 );
                 tracing::warn!("{}", message);
+                let notice = crate::decision::RunNotice::RejectStreak {
+                    consecutive_rejects: consecutive,
+                    reason: reason.to_string(),
+                };
                 if let Some(event_tx) = &ctx.run.event_tx {
                     let _ = event_tx.send(crate::executor::ExecutorEvent::NoticedWarning {
-                        notice: crate::decision::RunNotice::RejectStreak,
+                        notice: notice.clone(),
                         message,
                     });
                 }
@@ -703,7 +707,7 @@ pub(crate) async fn emit_grade_progress(
                             "rejected_total": rejected,
                         }),
                     )
-                    .with_notice(crate::decision::RunNotice::RejectStreak),
+                    .with_notice(notice),
                 );
             }
         }

@@ -50,9 +50,9 @@ final _savePathStatusProvider = FutureProvider<SavePathStatus>((ref) async {
     );
   }
 
-  final backend = ref.watch(backendProvider);
+  final hostFiles = ref.watch(linkedHostFilesProvider);
   try {
-    final exists = await configuredSavePathExists(backend, savePath);
+    final exists = await configuredSavePathExists(hostFiles, savePath);
     return SavePathStatus(
       path: savePath,
       existence: exists ? SavePathExistence.present : SavePathExistence.missing,
@@ -159,14 +159,14 @@ SavePathChip savePathChipFor(
 }
 
 /// Checks the configured capture directory on the machine that performs the
-/// capture. A remote controller cannot infer host-path validity from its own
-/// filesystem.
+/// capture: the linked host's ([hostFiles]) or this one's. A remote controller
+/// cannot infer host-path validity from its own filesystem.
 Future<bool> configuredSavePathExists(
-  SkotiqBackend backend,
+  HostFiles? hostFiles,
   String savePath,
 ) async {
-  if (backend.remoteHost case final linkedHost?) {
-    final validation = await linkedHost.files.validateRemoteDirectory(
+  if (hostFiles != null) {
+    final validation = await hostFiles.validateRemoteDirectory(
       savePath,
       mustExist: true,
       mustBeWritable: false,

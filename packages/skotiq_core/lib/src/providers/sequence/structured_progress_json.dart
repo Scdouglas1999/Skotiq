@@ -14,6 +14,10 @@ library;
 
 import 'dart:convert';
 
+import '../../backend/bridge_events.dart'
+    show SequencerEvent_InstructionProgressStructured;
+import '../../models/sequence/instruction_progress_detail.dart';
+
 /// Decode a `detail_json` payload into the structured value consumers expect.
 ///
 /// - a JSON String is decoded (this is what production sends)
@@ -31,4 +35,14 @@ Object? decodeStructuredProgressJson(Object? raw) {
     }
   }
   return raw;
+}
+
+extension StructuredProgressDetail
+    on SequencerEvent_InstructionProgressStructured {
+  /// What the step reports, read by its kind.
+  InstructionProgressDetail get detail =>
+      InstructionProgressDetail.fromStructuredData(
+        detailKind: detailKind,
+        detailJson: decodeStructuredProgressJson(detailJson),
+      );
 }

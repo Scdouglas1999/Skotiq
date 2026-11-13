@@ -1,7 +1,7 @@
 // The two-implementations trap, on the stop path.
 //
-// An operator Stop reaches Dart as a sequencer `Error` carrying "Sequence
-// cancelled". FIVE producers can turn that into an error message:
+// Every stop reaches Dart as a sequencer `Error` of kind `cancelled`. FIVE
+// producers can turn that into an error message:
 //
 //   1. NotificationEventClassifier          -> "Sequence failed" toast + push
 //   2. SequenceExecutor._handleSequencerEvent -> rollup "Error: …", red node
@@ -41,6 +41,19 @@ SkotiqEvent _sequencerEvent(
 
 SkotiqEvent _sequencerError(String message) => _sequencerEvent('Error', {
   'message': message,
+  'kind': 'step_failed',
+}, severity: EventSeverity.error);
+
+/// A stopped run's cancellation, as the host sends it.
+SkotiqEvent _cancellation() => _sequencerEvent('Error', {
+  'message': kSequenceCancelledNotice,
+  'kind': 'cancelled',
+}, severity: EventSeverity.error);
+
+/// The same, from a host before the `cancelled` kind: a failing step with the
+/// fixed notice.
+SkotiqEvent _olderHostCancellation() => _sequencerEvent('Error', {
+  'message': kSequenceCancelledNotice,
 }, severity: EventSeverity.error);
 
 /// The row the trigger monitor writes when a trigger ends the run, exactly as
@@ -54,10 +67,20 @@ SkotiqEvent _triggerFired(String name, String action) =>
     }, severity: EventSeverity.warning);
 
 SkotiqEvent _operatorStopDecision() => _sequencerEvent('DecisionLogged', {
-  'category': kManualInterventionDecisionCategory,
-  'summary': 'Operator: stop requested',
-  'details_json': '{}',
+  'category': 'manual_intervention',
+  'summary': 'Operator: stop',
+  'details_json': '{"action":"stop"}',
+  'stop': {'by': 'operator'},
 });
+
+/// The operator's stop row from a host before the typed `stop`: only its
+/// words say whose stop it was.
+SkotiqEvent _olderHostOperatorStopDecision() =>
+    _sequencerEvent('DecisionLogged', {
+      'category': 'manual_intervention',
+      'summary': 'Operator: stop requested',
+      'details_json': '{}',
+    });
 
 void main() {
   group('the DeviceService-driven pump (producer 2b)', () {
@@ -73,7 +96,7 @@ void main() {
       );
       applySequencerEventToSequenceProviders(
         container.read,
-        _sequencerError(kSequenceCancelledNotice),
+        _cancellation(),
       );
 
       final message = container.read(sequenceProgressProvider).message;
@@ -91,7 +114,7 @@ void main() {
       );
       applySequencerEventToSequenceProviders(
         container.read,
-        _sequencerError(kSequenceCancelledNotice),
+        _cancellation(),
       );
 
       final message = container.read(sequenceProgressProvider).message;
@@ -109,14 +132,15 @@ void main() {
       applySequencerEventToSequenceProviders(
         container.read,
         _sequencerEvent('DecisionLogged', {
-          'category': kSystemEventDecisionCategory,
+          'category': 'system_event',
           'summary': kSequenceCancelledNotice,
           'details_json': '{"phase":"cancelled"}',
+          'stop': {'by': 'cancelled'},
         }),
       );
       applySequencerEventToSequenceProviders(
         container.read,
-        _sequencerError(kSequenceCancelledNotice),
+        _cancellation(),
       );
 
       expect(
@@ -128,7 +152,7 @@ void main() {
     test('a cancel nothing on the wire explains claims no cause', () {
       applySequencerEventToSequenceProviders(
         container.read,
-        _sequencerError(kSequenceCancelledNotice),
+        _cancellation(),
       );
 
       final message = container.read(sequenceProgressProvider).message;
@@ -149,12 +173,46 @@ void main() {
       );
       applySequencerEventToSequenceProviders(
         container.read,
-        _sequencerError(kSequenceCancelledNotice),
+        _cancellation(),
       );
 
       expect(
         container.read(sequenceProgressProvider).message,
         kSequenceStoppedMessage,
+      );
+    });
+
+    test('a stop from an older host reads the same', () {
+      applySequencerEventToSequenceProviders(
+        container.read,
+        _olderHostOperatorStopDecision(),
+      );
+      applySequencerEventToSequenceProviders(
+        container.read,
+        _olderHostCancellation(),
+      );
+
+      expect(
+        container.read(sequenceProgressProvider).message,
+        kSequenceStoppedByRequestMessage,
+      );
+    });
+
+    test('a system stop names the part of the system that stopped it', () {
+      applySequencerEventToSequenceProviders(
+        container.read,
+        _sequencerEvent('DecisionLogged', {
+          'category': 'system_event',
+          'summary': 'System: stop',
+          'details_json': '{"origin":"disk-watchdog","action":"stop"}',
+          'stop': {'by': 'system', 'origin': 'disk-watchdog'},
+        }),
+      );
+      applySequencerEventToSequenceProviders(container.read, _cancellation());
+
+      expect(
+        container.read(sequenceProgressProvider).message,
+        'Stopped by the disk-space watchdog',
       );
     });
 
@@ -189,10 +247,10 @@ void main() {
       );
       expect(
         source,
-        contains('isSequenceCancelledNotice('),
+        contains('SequencerErrorKind.cancelled'),
         reason:
             '$path handles a sequencer Error without asking whether it is '
-            'the operator\'s Stop. That is the defect this file keeps '
+            'a stopped run\'s cancellation. That is the defect this file keeps '
             'reopening: one producer fixed, the other still crying wolf.',
       );
       expect(

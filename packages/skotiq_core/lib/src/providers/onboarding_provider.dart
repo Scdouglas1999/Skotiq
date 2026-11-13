@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/hardware_presets/hardware_preset_models.dart';
 import '../models/onboarding/onboarding_state.dart';
-import '../backend/remote_host.dart';
 import '../database/database.dart'
     show
         kSimGuideCameraId,
@@ -524,7 +523,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     final indi = draft.selectedDrivers.contains(DriverType.indi);
     final alpaca = draft.selectedDrivers.contains(DriverType.alpaca);
 
-    if (backend.remoteHost != null) {
+    if (_ref.read(isRemoteModeProvider)) {
       final settings = await backend.getSettings();
       requireAuthority('loading the app settings');
       await backend.updateSettings(

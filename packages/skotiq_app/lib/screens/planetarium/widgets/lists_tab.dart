@@ -7,7 +7,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
@@ -678,9 +677,9 @@ class _ExportToSequenceButtonState
 
   Future<void> _exportToSequence() async {
     setState(() => _exporting = true);
-    final backend = ref.read(backendProvider);
+    final hostSequences = ref.read(linkedHostSequencesProvider);
     final sequencesDao =
-        backend.remoteHost != null ? null : ref.read(sequencesDaoProvider);
+        hostSequences != null ? null : ref.read(sequencesDaoProvider);
     int? sequenceId;
     try {
       // Read items through the remote-aware provider so a slave exports the
@@ -695,8 +694,8 @@ class _ExportToSequenceButtonState
         return;
       }
 
-      if (backend.remoteHost case final linkedHost?) {
-        sequenceId = await linkedHost.sequences.createSequence({
+      if (hostSequences != null) {
+        sequenceId = await hostSequences.createSequence({
           'name': widget.listName,
           'isTemplate': false,
         });
@@ -718,8 +717,8 @@ class _ExportToSequenceButtonState
           'dec': item.dec,
           if (item.catalogId != null) 'catalogId': item.catalogId,
         });
-        if (backend.remoteHost case final linkedHost?) {
-          await linkedHost.sequences.createSequenceNode(sequenceId, {
+        if (hostSequences != null) {
+          await hostSequences.createSequenceNode(sequenceId, {
             'nodeId': nodeId,
             'nodeType': 'target',
             'specificType': 'target',
@@ -752,8 +751,8 @@ class _ExportToSequenceButtonState
       Object? rollbackError;
       if (sequenceId != null) {
         try {
-          if (backend.remoteHost case final linkedHost?) {
-            await linkedHost.sequences.deleteSequence(sequenceId);
+          if (hostSequences != null) {
+            await hostSequences.deleteSequence(sequenceId);
           } else {
             await sequencesDao!.deleteSequence(sequenceId);
           }

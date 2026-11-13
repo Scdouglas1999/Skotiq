@@ -1,15 +1,15 @@
-import '../errors/error_text.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
+import 'linked_host.dart';
+import '../errors/error_text.dart';
 import 'database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../services/logging_service.dart';
 import '../services/stack_and_share_service.dart';
-import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'logging_service_provider.dart';
 import 'stack_and_share_service_provider.dart';
@@ -274,8 +274,7 @@ final stackAndShareProvider =
 /// blank stack.
 final stackResultViewerProvider =
     FutureProvider.family<StackAndShareResult, int>((ref, id) async {
-      final backend = ref.watch(backendProvider);
-      final host = backend.remoteHost?.liveStack;
+      final host = ref.watch(linkedHostLiveStackProvider);
       if (host != null) {
         return (await ref.watch(remoteStackResultProvider(id).future)).result;
       }
@@ -293,8 +292,7 @@ final stackResultViewerProvider =
 /// Stack & Share run, so a new stack appears without a restart.
 final recentStackedResultsProvider =
     FutureProvider.autoDispose<List<StackAndShareResult>>((ref) async {
-      final backend = ref.watch(backendProvider);
-      final host = backend.remoteHost?.liveStack;
+      final host = ref.watch(linkedHostLiveStackProvider);
       if (host != null) {
         final remote = await host.stackingGetSavedResults();
         return [for (final record in remote) record.result];
@@ -341,8 +339,7 @@ Future<File?> _localPreviewFile(Ref ref, StackAndShareResult result) async {
 /// the old future rather than letting its response populate the new session.
 final remoteStackResultProvider =
     FutureProvider.family<RemoteStackedResult, int>((ref, id) async {
-      final backend = ref.watch(backendProvider);
-      final host = backend.remoteHost?.liveStack;
+      final host = ref.watch(linkedHostLiveStackProvider);
       if (host == null) {
         throw StateError('Remote stack metadata requires a network backend.');
       }
@@ -357,8 +354,7 @@ final remoteStackResultProvider =
 /// a stale or mismatched artifact cannot be displayed under the wrong stats.
 final stackResultPreviewProvider = FutureProvider.autoDispose
     .family<Uint8List?, int>((ref, id) async {
-      final backend = ref.watch(backendProvider);
-      final host = backend.remoteHost?.liveStack;
+      final host = ref.watch(linkedHostLiveStackProvider);
       final result = await ref.watch(stackResultViewerProvider(id).future);
 
       late final Uint8List encoded;

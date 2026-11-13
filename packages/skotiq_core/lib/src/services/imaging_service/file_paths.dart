@@ -43,8 +43,7 @@ extension _ImagingServiceFilePaths on ImagingService {
       timestamp: timestamp,
     );
 
-    final backend = _ref.read(backendProvider);
-    final hostRecords = backend.remoteHost?.imagingRecords;
+    final hostRecords = _hostRecords;
     if (hostRecords != null) {
       // The host writes the keeper and creates its folder, so the path is
       // built in the host's style and only the host can say what is taken.
@@ -151,7 +150,7 @@ extension _ImagingServiceFilePaths on ImagingService {
       if (basePath == null || basePath.isEmpty) return fallback;
 
       final backend = _ref.read(backendProvider);
-      final hostPaths = backend.remoteHost != null
+      final hostPaths = _ref.read(isRemoteModeProvider)
           ? hostPathContext(basePath)
           : null;
       final namingPattern = _ref.read(namingPatternProvider);

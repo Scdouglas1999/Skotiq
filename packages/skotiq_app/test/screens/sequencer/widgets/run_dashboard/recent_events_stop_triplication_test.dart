@@ -48,11 +48,22 @@ bridge_event.SkotiqEvent _error(int id, String message, DateTime at) =>
       ),
     );
 
-bridge_event.SkotiqEvent _lifecycleDecision(
-  int id,
-  String summary,
-  DateTime at,
-) =>
+/// A stopped run's cancellation, as the host sends it.
+bridge_event.SkotiqEvent _cancellation(int id, DateTime at) =>
+    bridge_event.SkotiqEvent(
+      eventId: BigInt.from(id),
+      timestamp: at.millisecondsSinceEpoch,
+      severity: bridge_event.EventSeverity.error,
+      category: bridge_event.EventCategory.sequencer,
+      payload: bridge_event.EventPayload.sequencer(
+        bridge_event.SequencerEvent.error(
+          message: kSequenceCancelledNotice,
+          kind: bridge_event.SequencerErrorKind.cancelled,
+        ),
+      ),
+    );
+
+bridge_event.SkotiqEvent _cancellationRow(int id, DateTime at) =>
     bridge_event.SkotiqEvent(
       eventId: BigInt.from(id),
       timestamp: at.millisecondsSinceEpoch,
@@ -62,9 +73,10 @@ bridge_event.SkotiqEvent _lifecycleDecision(
         bridge_event.SequencerEvent.decisionLogged(
           timestampIso: at.toUtc().toIso8601String(),
           category: 'system_event',
-          summary: summary,
+          summary: kSequenceCancelledNotice,
           detailsJson: '{"phase":"cancelled"}',
           sequenceRunId: 15,
+          stop: const bridge_event.SequencerStop.cancelled(),
         ),
       ),
     );
@@ -101,10 +113,8 @@ void main() {
   /// from a safety abort — every cancellation path emits the other four.
   void pressStop(ProviderContainer container, {required int base}) {
     final history = container.read(eventHistoryProvider.notifier);
-    history.addEvent(_error(base, kSequenceCancelledNotice, _stopAt));
-    history.addEvent(
-      _lifecycleDecision(base + 1, kSequenceCancelledNotice, _stopAt),
-    );
+    history.addEvent(_cancellation(base, _stopAt));
+    history.addEvent(_cancellationRow(base + 1, _stopAt));
     history.addEvent(
       bridge_event.SkotiqEvent(
         eventId: BigInt.from(base + 4),
@@ -115,9 +125,10 @@ void main() {
           bridge_event.SequencerEvent.decisionLogged(
             timestampIso: _stopAt.toUtc().toIso8601String(),
             category: 'manual_intervention',
-            summary: 'Operator: stop requested',
-            detailsJson: '{}',
+            summary: 'Operator: stop',
+            detailsJson: '{"action":"stop"}',
             sequenceRunId: 15,
+            stop: const bridge_event.SequencerStop.operator_(),
           ),
         ),
       ),
@@ -182,7 +193,7 @@ void main() {
     final container = makeContainer();
     final history = container.read(eventHistoryProvider.notifier);
     final earlier = _stopAt.subtract(const Duration(minutes: 20));
-    history.addEvent(_error(1, kSequenceCancelledNotice, earlier));
+    history.addEvent(_cancellation(1, earlier));
     history.addEvent(_stopped(2, earlier));
     pressStop(container, base: 10);
 

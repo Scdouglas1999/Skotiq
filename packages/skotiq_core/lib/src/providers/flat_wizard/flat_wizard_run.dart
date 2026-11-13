@@ -51,7 +51,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       // frames were actually shot at.
       final runSettings = state.globalSettings;
       final backend = ref.read(backendProvider);
-      final host = backend.remoteHost;
+      final hostFiles = ref.read(linkedHostFilesProvider);
       final cameraState = ref.read(cameraStateProvider);
       // Build the service inline from the current backend + settings rather
       // than `ref.read(flatWizardServiceProvider)`: that provider `ref.watch`es
@@ -102,10 +102,10 @@ extension FlatWizardRun on FlatWizardNotifier {
         );
         return;
       }
-      if (host != null) {
+      if (hostFiles != null) {
         try {
           savePath = await validateRemoteFlatOutputDirectory(
-            host.files,
+            hostFiles,
             savePath,
           );
         } catch (error) {
@@ -117,7 +117,7 @@ extension FlatWizardRun on FlatWizardNotifier {
         }
       }
       if (usesCaptureFolder) {
-        savePath = defaultFlatFolder(savePath, onHost: host != null)!;
+        savePath = defaultFlatFolder(savePath, onHost: hostFiles != null)!;
       }
 
       final queue = _buildFilterQueue();
@@ -194,7 +194,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       // Committed: from here we are truly capturing
       _prepareFiltersForRun(queue);
       ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
-        remote: host != null,
+        remote: hostFiles != null,
       );
       state = state.copyWith(
         isCapturing: true,
@@ -207,7 +207,7 @@ extension FlatWizardRun on FlatWizardNotifier {
 
       // Base save path with optional date subfolder.
       // On a linked client the folder is the host's, joined in its style.
-      final paths = host != null ? hostPathContext(savePath) : p.context;
+      final paths = hostFiles != null ? hostPathContext(savePath) : p.context;
       var baseSavePath = savePath;
       if (runSettings.createDateSubfolder) {
         baseSavePath = paths.join(
@@ -215,7 +215,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           ClockFormat.date(DateTime.now()),
         );
       }
-      final createOutputLocally = host == null;
+      final createOutputLocally = hostFiles == null;
       await prepareFlatOutputDirectory(
         baseSavePath,
         createLocally: createOutputLocally,
@@ -704,7 +704,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       filters: {...output.filters, filter: existing.withPath(filePath)},
       remote: output.remote,
     );
-    if (backend.remoteHost != null) return;
+    if (ref.read(isRemoteModeProvider)) return;
     try {
       await ref
           .read(calibrationBacklogServiceProvider)
@@ -982,7 +982,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       final twilightPhase = runMode == FlatWizardMode.skyFlats
           ? (runTwilightMode == TwilightMode.dawn ? 'dawn' : 'dusk')
           : null;
-      final remote = backend.remoteHost?.calibrationFrames;
+      final remote = ref.read(linkedHostCalibrationFramesProvider);
       if (remote != null) {
         await remote.recordFlat(
           filter: filterName,

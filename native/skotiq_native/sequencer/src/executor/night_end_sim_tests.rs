@@ -295,6 +295,93 @@ fn guided_plan(start_guiding: bool) -> SequenceDefinition {
     sequence
 }
 
+fn drain_decisions(rx: &mut crate::decision::DecisionReceiver) -> Vec<crate::DecisionEvent> {
+    let mut decisions = Vec::new();
+    while let Ok(decision) = rx.try_recv() {
+        decisions.push(decision);
+    }
+    decisions
+}
+
+/// The dawn park's trigger row says the trigger parked the mount and ended
+/// the run, and the run's cancellation row says only that it ended.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_dawn_park_records_the_trigger_that_stopped_the_run() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let plan = night_plan(node("park", "Park mount", NodeType::Park));
+    let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    let mut decisions = executor.subscribe_decisions();
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Cancelled);
+    let stops: Vec<_> = drain_decisions(&mut decisions)
+        .into_iter()
+        .filter_map(|d| d.stop)
+        .collect();
+    assert!(
+        stops.contains(&crate::RunStop::Trigger {
+            trigger_id: "dawn_approaching".to_string(),
+            trigger_name: "Dawn Approaching".to_string(),
+        }),
+        "stops={stops:?}"
+    );
+    assert!(
+        stops.contains(&crate::RunStop::Cancelled),
+        "stops={stops:?}"
+    );
+}
+
+/// A stop the system asked for names the part of the system, and the run's
+/// end is a cancellation, not an error.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_system_stop_records_who_stopped_the_run() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let plan = night_plan(node("park", "Park mount", NodeType::Park));
+    let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    let mut decisions = executor.subscribe_decisions();
+    let mut events = executor.subscribe();
+    wait_for_step(&executor, "imaging").await;
+
+    executor
+        .stop_with_origin(super::StopOrigin::System("disk-watchdog".to_string()))
+        .await
+        .expect("the run stops");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+
+    let stops: Vec<_> = drain_decisions(&mut decisions)
+        .into_iter()
+        .filter_map(|d| d.stop)
+        .collect();
+    assert_eq!(
+        stops,
+        vec![
+            crate::RunStop::System {
+                origin: "disk-watchdog".to_string()
+            },
+            crate::RunStop::Cancelled,
+        ]
+    );
+    let mut cancelled = false;
+    let mut errors = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        match event {
+            super::ExecutorEvent::Cancelled => cancelled = true,
+            super::ExecutorEvent::Error { message } => errors.push(message),
+            _ => {}
+        }
+    }
+    assert!(cancelled, "the run's end is a cancellation");
+    assert!(
+        !errors.iter().any(|e| e == "Sequence cancelled"),
+        "errors={errors:?}"
+    );
+}
+
 async fn wait_for_step(executor: &super::SequenceExecutor, id: &str) {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
     while executor.get_progress().current_node_id.as_deref() != Some(id) {

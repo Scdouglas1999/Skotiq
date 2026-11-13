@@ -81,6 +81,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
     try {
       final backend = _ref.read(backendProvider);
+      // A linked host writes, calibrates and grades the frame itself; this
+      // machine cannot open the host's path and must not process it twice.
+      final hostFiles = _hostFiles;
+      final hostOwnsFrame = hostFiles != null;
       final deviceId = cameraState.deviceId;
 
       if (deviceId == null) {
@@ -288,7 +292,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
         // Get the captured image from backend (remote uses JPEG wire format).
         _logger.debug(
-          'Calling cameraGetLastImage (${backend.remoteHost != null ? 'remote/jpeg' : 'local'})...',
+          'Calling cameraGetLastImage (${hostOwnsFrame ? 'remote/jpeg' : 'local'})...',
           source: 'ImagingService',
         );
         final capturedImage = await backend
@@ -380,7 +384,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             settings: settings,
             capturedAt: observationStartedAt,
             targetName: targetName,
-            previewSource: backend.remoteHost != null
+            previewSource: hostOwnsFrame
                 ? CapturePreviewSource.remote
                 : CapturePreviewSource.local,
             purpose: purpose,
@@ -502,6 +506,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             try {
               dbImageId = await _saveToDatabase(
                 backend: backend,
+                fileOnHost: hostOwnsFrame,
                 filePath: savedFilePath,
                 capturedImage: capturedImage,
                 exposureSettings: settings,
@@ -596,11 +601,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         }
 
         _logger.debug('FITS save complete.', source: 'ImagingService');
-
-        // A companion's frame lives on the imaging host, which owns its
-        // calibration, quality and science processing; this machine cannot
-        // open the host path and must not process the frame a second time.
-        final hostOwnsFrame = backend.remoteHost != null;
 
         // Auto-calibration: apply dark/flat/bias correction if enabled
         // Only calibrate light frames - darks, flats, and biases should not be calibrated

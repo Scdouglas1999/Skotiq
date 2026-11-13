@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/bridge_event_mapper.dart' show tryBridgeEventFromCoreEvent;
+import '../backend/bridge_event_codec.dart';
 import '../backend/bridge_events.dart' as bridge;
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/backend/host_mutation_event.dart';

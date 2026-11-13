@@ -311,6 +311,13 @@ impl FiredTriggerAction {
         .to_string()
     }
 
+    /// Whether running this ends the run with the mount parked.
+    pub(crate) fn parks_and_ends_run(&self) -> bool {
+        !self.notify_only
+            && !self.end_without_parking
+            && matches!(self.action, RecoveryAction::ParkAndAbort)
+    }
+
     /// One plain sentence for the decision log: what fired and what it does.
     pub(crate) fn decision_summary(&self, trigger_name: &str) -> String {
         if let (false, false, RecoveryAction::MeridianFlip(config)) =

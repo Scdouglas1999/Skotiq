@@ -20,6 +20,9 @@ pub enum SequencerErrorKind {
     /// An operation started by hand (an autofocus, a polar alignment)
     /// reported it. No run is involved.
     Standalone,
+    /// The run was cancelled and `Stopped` follows. The message is a fixed
+    /// notice; who stopped the run is on the stop decision rows.
+    Cancelled,
 }
 
 impl SequencerErrorKind {
@@ -27,7 +30,9 @@ impl SequencerErrorKind {
     pub(crate) fn run_severity(self) -> EventSeverity {
         match self {
             Self::Advisory | Self::StepProblem => EventSeverity::Warning,
-            Self::RunHeld | Self::StepFailed | Self::Standalone => EventSeverity::Error,
+            Self::RunHeld | Self::StepFailed | Self::Standalone | Self::Cancelled => {
+                EventSeverity::Error
+            }
         }
     }
 }
@@ -38,19 +43,103 @@ impl SequencerErrorKind {
 /// the run's warnings and raises nothing of its own. Mirrors
 /// `skotiq_sequencer::RunNotice`.
 #[frb]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SequencerNotice {
     AutofocusContinued,
-    RejectStreak,
-    ProblemNoticed,
+    RejectStreak {
+        consecutive_rejects: u32,
+        /// Why the latest frame of the streak was rejected.
+        reason: String,
+    },
+    ProblemNoticed {
+        /// What noticed the problem.
+        source: String,
+        /// What it found.
+        problem: String,
+    },
 }
 
 impl From<skotiq_sequencer::RunNotice> for SequencerNotice {
     fn from(notice: skotiq_sequencer::RunNotice) -> Self {
         match notice {
             skotiq_sequencer::RunNotice::AutofocusContinued => Self::AutofocusContinued,
-            skotiq_sequencer::RunNotice::RejectStreak => Self::RejectStreak,
-            skotiq_sequencer::RunNotice::ProblemNoticed => Self::ProblemNoticed,
+            skotiq_sequencer::RunNotice::RejectStreak {
+                consecutive_rejects,
+                reason,
+            } => Self::RejectStreak {
+                consecutive_rejects,
+                reason,
+            },
+            skotiq_sequencer::RunNotice::ProblemNoticed { source, problem } => {
+                Self::ProblemNoticed { source, problem }
+            }
+        }
+    }
+}
+
+/// What a stop decision row says about how a run ended. Mirrors
+/// `skotiq_sequencer::RunStop`.
+#[frb]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SequencerStop {
+    /// The run's cancellation. Every way a run is stopped writes this row, so
+    /// it says only that the run ended, not who ended it.
+    Cancelled,
+    /// A person pressed Stop.
+    Operator,
+    /// The autopilot stopped the run on an unattended re-plan.
+    Autopilot,
+    /// A part of the system stopped the run.
+    System {
+        /// The caller the stop was given ("rollback", "disk-watchdog").
+        origin: String,
+    },
+    /// A trigger parked the mount and ended the run.
+    Trigger {
+        trigger_id: String,
+        trigger_name: String,
+    },
+}
+
+impl From<skotiq_sequencer::RunStop> for SequencerStop {
+    fn from(stop: skotiq_sequencer::RunStop) -> Self {
+        use skotiq_sequencer::RunStop;
+        match stop {
+            RunStop::Cancelled => Self::Cancelled,
+            RunStop::Operator => Self::Operator,
+            RunStop::Autopilot => Self::Autopilot,
+            RunStop::System { origin } => Self::System { origin },
+            RunStop::Trigger {
+                trigger_id,
+                trigger_name,
+            } => Self::Trigger {
+                trigger_id,
+                trigger_name,
+            },
+        }
+    }
+}
+
+/// What a `MeridianFlipOutcome` event reports. Mirrors
+/// `skotiq_sequencer::meridian_flip_executor::FlipOutcome`.
+#[frb]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FlipOutcome {
+    /// The mount reached its new pier side; the verdict still follows.
+    PierChanged,
+    Success,
+    Failed,
+    Aborted,
+}
+
+impl From<skotiq_sequencer::meridian_flip_executor::FlipOutcome> for FlipOutcome {
+    fn from(outcome: skotiq_sequencer::meridian_flip_executor::FlipOutcome) -> Self {
+        use skotiq_sequencer::meridian_flip_executor::FlipOutcome as Outcome;
+        match outcome {
+            Outcome::PierChanged => Self::PierChanged,
+            Outcome::Success => Self::Success,
+            Outcome::Failed => Self::Failed,
+            Outcome::Aborted => Self::Aborted,
         }
     }
 }
@@ -133,8 +222,7 @@ pub enum SequencerEvent {
     /// run-stats layer, which counts the flip and surfaces a failed post-flip
     /// recenter rather than sniffing either out of a log string.
     MeridianFlipOutcome {
-        /// `"success"`, `"failed"`, or `"aborted"`.
-        outcome: String,
+        outcome: FlipOutcome,
         /// Target the flip was performed for.
         target_name: String,
         /// Pier side reported after the flip (`East` / `West` / `Unknown`).
@@ -589,6 +677,9 @@ pub enum SequencerEvent {
         /// Set on the row of a happening the operator is told about once.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         notice: Option<SequencerNotice>,
+        /// Set on the rows that record a run's stop.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stop: Option<SequencerStop>,
     },
 }
 

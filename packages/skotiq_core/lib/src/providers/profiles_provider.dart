@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
+import 'linked_host.dart';
 import '../backend/remote_host.dart';
 import '../backend/roles/profile_settings_backend.dart';
 import '../backend/skotiq_backend.dart' show SkotiqBackend;

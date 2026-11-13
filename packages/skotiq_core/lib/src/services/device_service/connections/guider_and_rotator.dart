@@ -19,8 +19,7 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
       // PHD2 is launched only on the imaging host, and only when the socket
       // is local. A linked client asks the host to launch it instead.
       final connectHost = resolvePhd2ConnectHost(requestedHost);
-      if (_backend.remoteHost == null &&
-          _phd2Launcher.isLocalHost(requestedHost)) {
+      if (!_hostOwnsDevices && _phd2Launcher.isLocalHost(requestedHost)) {
         await _phd2Launcher.ensureRunning(
           executablePath: settings.phd2Path,
           host: connectHost,

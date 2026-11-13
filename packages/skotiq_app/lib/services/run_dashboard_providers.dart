@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -217,22 +215,10 @@ Map<String, double> _computeGoalSecs(Sequence? sequence) {
 final runDashboardSessionIntegrationProvider =
     FutureProvider.family<RunDashboardSessionIntegration, int>(
         (ref, sessionId) async {
-  final backend = ref.watch(backendProvider);
-  // On a remote-client slave the local captured_images table is never
-  // populated, so the host's accruing per-filter totals are only reachable
-  // over the wire. Pull the same session rows the host serialized
-  // (`image.toJson()`) and run the identical accepted/total accumulation so
-  // the Filter Integration panel ticks up live instead of stuck at zero.
-  // Keep the FutureProvider re-evaluated on the dashboard's existing refresh
-  // ticks (callers re-read it) so the slave's totals stay fresh.
-  final List<DbCapturedImage> images;
-  if (backend.remoteHost case final linkedHost?) {
-    final rows = await linkedHost.imagingRecords.getSessionImageRows(sessionId);
-    images = rows.map(DbCapturedImage.fromJson).toList();
-  } else {
-    final dao = ref.watch(imagesDaoProvider);
-    images = await dao.getImagesForSession(sessionId);
-  }
+  // A linked client's session rows are the host's; the dashboard's refresh
+  // ticks re-read this provider so the totals stay current.
+  final images =
+      await ref.watch(imagingRecordsProvider).getImagesForSession(sessionId);
   final accepted = <String, double>{};
   final total = <String, double>{};
   for (final img in images) {
@@ -515,27 +501,32 @@ bool _isAtLeastError(sk_events.SkotiqEvent event) =>
     event.severity == sk_events.EventSeverity.error ||
     event.severity == sk_events.EventSeverity.critical;
 
-/// True when this bridge event is the operator's Stop wearing an error's
-/// clothes.
-///
-/// PRODUCER 3 of the stop pipeline. The native executor ends a cancelled run
-/// with `SequencerEvent.Error(message: "Sequence cancelled")`, and that payload
-/// variant is on the `isCriticalEvent` allow-list — so a deliberate Stop
-/// produced a red "Critical · Sequencer" toast, a full-width red Dashboard
-/// banner titled "Sequencer error", and a RECENT EVENTS row saying the same,
-/// all at the same second as a Session Report titled "Stopped (resumable)".
-///
-/// The predicate itself lives in the core so the notification classifier, the
-/// executor's own handler and this bridge cannot disagree about what the notice
-/// is; only the exact notice is reclassified (a fault whose text merely
-/// contains "cancelled" is still an error).
-bool isOperatorStopNotice(sk_events.SkotiqEvent event) {
-  final payload = event.payload;
-  if (payload is! sk_events.EventPayload_Sequencer) return false;
-  final sequencerEvent = payload.field0;
-  if (sequencerEvent is! sk_events.SequencerEvent_Error) return false;
-  return isSequenceCancelledNotice(sequencerEvent.message);
-}
+/// True when this bridge event is a stopped run's cancellation `Error`. It
+/// names nobody: every way a run is stopped sends it.
+bool _isRunCancellation(sk_events.SkotiqEvent event) =>
+    switch (_sequencerEvent(event)) {
+      sk_events.SequencerEvent_Error(
+        kind: sk_events.SequencerErrorKind.cancelled,
+      ) =>
+        true,
+      _ => false,
+    };
+
+/// True when this bridge event is a stopped run's cancellation decision row.
+bool _isCancellationRow(sk_events.SkotiqEvent event) =>
+    switch (_sequencerEvent(event)) {
+      sk_events.SequencerEvent_DecisionLogged(
+        stop: sk_events.SequencerStop_Cancelled(),
+      ) =>
+        true,
+      _ => false,
+    };
+
+sk_events.SequencerEvent? _sequencerEvent(sk_events.SkotiqEvent event) =>
+    switch (event.payload) {
+      sk_events.EventPayload_Sequencer(:final field0) => field0,
+      _ => null,
+    };
 
 /// Whether this event is POSITIVE EVIDENCE that the operator ended the run:
 /// ONLY the manual-intervention decision the executor logs from
@@ -552,17 +543,12 @@ bool _isOperatorStopEvidence(sk_events.SkotiqEvent event) =>
 /// SHARED vocabulary in `run_stop_classification.dart` — the same reader the
 /// notification router uses on the core-typed stream, so the feed row and the
 /// phone push can never disagree about whose stop it was.
-SequenceStopDecision? _stopDecision(sk_events.SkotiqEvent event) {
-  final payload = event.payload;
-  if (payload is! sk_events.EventPayload_Sequencer) return null;
-  final sequencerEvent = payload.field0;
-  if (sequencerEvent is! sk_events.SequencerEvent_DecisionLogged) return null;
-  return sequenceStopDecision(
-    category: sequencerEvent.category,
-    summary: sequencerEvent.summary,
-    detailsJson: sequencerEvent.detailsJson,
-  );
-}
+SequenceStopDecision? _stopDecision(sk_events.SkotiqEvent event) =>
+    switch (_sequencerEvent(event)) {
+      sk_events.SequencerEvent_DecisionLogged(:final stop) =>
+        sequenceStopDecisionOf(stop),
+      _ => null,
+    };
 
 /// The system decision the executor logs when the AUTOPILOT commanded the
 /// stop (origin `scheduler` on the stop API). Evidence of a cause — just
@@ -590,15 +576,10 @@ int? _stopFamilyRunId(sk_events.SkotiqEvent event) {
 /// The rest of the stop family — cause-neutral members that mark THAT the
 /// run ended, not WHY: the terminal `Stopped` pair, the cancel-notice Error,
 /// and the cancel-notice lifecycle decision.
-bool _isNeutralStopFamilyEvent(sk_events.SkotiqEvent event) {
-  if (isOperatorStopNotice(event)) return true;
-  final payload = event.payload;
-  if (payload is! sk_events.EventPayload_Sequencer) return false;
-  final sequencerEvent = payload.field0;
-  if (sequencerEvent is sk_events.SequencerEvent_Stopped) return true;
-  return sequencerEvent is sk_events.SequencerEvent_DecisionLogged &&
-      isSequenceCancelledNotice(sequencerEvent.summary);
-}
+bool _isNeutralStopFamilyEvent(sk_events.SkotiqEvent event) =>
+    _isRunCancellation(event) ||
+    _isCancellationRow(event) ||
+    _sequencerEvent(event) is sk_events.SequencerEvent_Stopped;
 
 /// Which once-per-press producer this event is, or null for the neutral
 /// `Stopped` pair (one press legitimately publishes two of those). Each of
@@ -608,17 +589,8 @@ bool _isNeutralStopFamilyEvent(sk_events.SkotiqEvent event) {
 /// Stop repeats every couple of seconds — no time window can separate those,
 /// but identity can.
 String? _stopEvidenceKind(sk_events.SkotiqEvent event) {
-  final payload = event.payload;
-  if (payload is! sk_events.EventPayload_Sequencer) return null;
-  final sequencerEvent = payload.field0;
-  if (sequencerEvent is sk_events.SequencerEvent_Error &&
-      sequencerEvent.message == kSequenceCancelledNotice) {
-    return 'error-notice';
-  }
-  if (sequencerEvent is! sk_events.SequencerEvent_DecisionLogged) return null;
-  if (sequencerEvent.summary == kSequenceCancelledNotice) {
-    return 'decision-notice';
-  }
+  if (_isRunCancellation(event)) return 'error-notice';
+  if (_isCancellationRow(event)) return 'decision-notice';
   switch (_stopDecision(event)?.author) {
     case SequenceStopAuthor.operatorPress:
       return 'manual-intervention';
@@ -856,7 +828,7 @@ bool _isSuccessfulFlip(sk_events.SkotiqEvent event) {
   if (payload is! sk_events.EventPayload_Sequencer) return false;
   final sequencerEvent = payload.field0;
   return sequencerEvent is sk_events.SequencerEvent_MeridianFlipOutcome &&
-      sequencerEvent.outcome == 'success';
+      sequencerEvent.outcome == sk_events.FlipOutcome.success;
 }
 
 /// True for the events that say the run goes on: a resume, or a new run.
@@ -1274,19 +1246,6 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
         }
         if (event.severity == sk_events.EventSeverity.info) continue;
         if (!sk_events.isCriticalEvent(event)) continue;
-        // The operator's own Stop arrives here as a critical sequencer Error
-        // (see [isOperatorStopNotice]). It is not an alert: no red banner, no
-        // "Critical · Sequencer" toast, no audible alarm, no phone page for a
-        // button the operator just pressed. It still reaches the feed as an
-        // info row via [_toDashboardEvent].
-        if (isOperatorStopNotice(event)) {
-          Log.debug(
-            '[$kStopClassificationLogTag] run_dashboard bridge: cancellation '
-            'notice not escalated',
-            source: 'RunCriticalAlerts',
-          );
-          continue;
-        }
         if (_isRestatedFailureReason(event, escalatedSequencerFailureReasons)) {
           continue;
         }

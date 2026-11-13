@@ -54,15 +54,9 @@ final targetCoordinateLookupProvider = FutureProvider.autoDispose
     matches.add(match);
   }
 
-  final backend = ref.read(backendProvider);
   try {
-    final List<DbTarget> rows;
-    if (backend.remoteHost case final linkedHost?) {
-      final json = await linkedHost.imagingRecords.searchTargets(trimmed);
-      rows = json.map(DbTarget.fromJson).toList();
-    } else {
-      rows = await ref.read(targetsDaoProvider).searchTargets(trimmed);
-    }
+    final rows =
+        await ref.read(targetLibraryServiceProvider).searchTargets(trimmed);
     for (final row in rows) {
       add(TargetCoordinateMatch(
         name: row.name,

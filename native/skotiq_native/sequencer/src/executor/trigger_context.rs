@@ -304,6 +304,7 @@ pub(super) fn emit_lifecycle_decision(
         "cancelled" => "Sequence cancelled".to_string(),
         other => format!("Sequence lifecycle: {}", other),
     };
+    let stop = (phase == "cancelled").then_some(crate::decision::RunStop::Cancelled);
     let mut details = match extra {
         serde_json::Value::Object(m) => serde_json::Value::Object(m),
         // Why: wrap non-object payloads under a `data` key so the
@@ -325,6 +326,7 @@ pub(super) fn emit_lifecycle_decision(
         node_id: None,
         sequence_run_id: *active_run_id.read(),
         notice: None,
+        stop,
     };
     let _ = tx.send(event);
 }

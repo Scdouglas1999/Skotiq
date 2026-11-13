@@ -1143,14 +1143,34 @@ typedef struct wire_cst_SequencerEvent_ExposureCompleted {
   double duration_secs;
 } wire_cst_SequencerEvent_ExposureCompleted;
 
+typedef struct wire_cst_SequencerNotice_RejectStreak {
+  uint32_t consecutive_rejects;
+  struct wire_cst_list_prim_u_8_strict *reason;
+} wire_cst_SequencerNotice_RejectStreak;
+
+typedef struct wire_cst_SequencerNotice_ProblemNoticed {
+  struct wire_cst_list_prim_u_8_strict *source;
+  struct wire_cst_list_prim_u_8_strict *problem;
+} wire_cst_SequencerNotice_ProblemNoticed;
+
+typedef union SequencerNoticeKind {
+  struct wire_cst_SequencerNotice_RejectStreak RejectStreak;
+  struct wire_cst_SequencerNotice_ProblemNoticed ProblemNoticed;
+} SequencerNoticeKind;
+
+typedef struct wire_cst_sequencer_notice {
+  int32_t tag;
+  union SequencerNoticeKind kind;
+} wire_cst_sequencer_notice;
+
 typedef struct wire_cst_SequencerEvent_Error {
   struct wire_cst_list_prim_u_8_strict *message;
   int32_t kind;
-  int32_t *notice;
+  struct wire_cst_sequencer_notice *notice;
 } wire_cst_SequencerEvent_Error;
 
 typedef struct wire_cst_SequencerEvent_MeridianFlipOutcome {
-  struct wire_cst_list_prim_u_8_strict *outcome;
+  int32_t outcome;
   struct wire_cst_list_prim_u_8_strict *target_name;
   struct wire_cst_list_prim_u_8_strict *new_pier_side;
   double duration_secs;
@@ -1373,6 +1393,25 @@ typedef struct wire_cst_SequencerEvent_PluginNodeProgress {
   struct wire_cst_list_prim_u_8_strict *detail_json;
 } wire_cst_SequencerEvent_PluginNodeProgress;
 
+typedef struct wire_cst_SequencerStop_System {
+  struct wire_cst_list_prim_u_8_strict *origin;
+} wire_cst_SequencerStop_System;
+
+typedef struct wire_cst_SequencerStop_Trigger {
+  struct wire_cst_list_prim_u_8_strict *trigger_id;
+  struct wire_cst_list_prim_u_8_strict *trigger_name;
+} wire_cst_SequencerStop_Trigger;
+
+typedef union SequencerStopKind {
+  struct wire_cst_SequencerStop_System System;
+  struct wire_cst_SequencerStop_Trigger Trigger;
+} SequencerStopKind;
+
+typedef struct wire_cst_sequencer_stop {
+  int32_t tag;
+  union SequencerStopKind kind;
+} wire_cst_sequencer_stop;
+
 typedef struct wire_cst_SequencerEvent_DecisionLogged {
   struct wire_cst_list_prim_u_8_strict *timestamp_iso;
   struct wire_cst_list_prim_u_8_strict *category;
@@ -1380,7 +1419,8 @@ typedef struct wire_cst_SequencerEvent_DecisionLogged {
   struct wire_cst_list_prim_u_8_strict *details_json;
   struct wire_cst_list_prim_u_8_strict *node_id;
   int64_t *sequence_run_id;
-  int32_t *notice;
+  struct wire_cst_sequencer_notice *notice;
+  struct wire_cst_sequencer_stop *stop;
 } wire_cst_SequencerEvent_DecisionLogged;
 
 typedef union SequencerEventKind {
@@ -3555,7 +3595,9 @@ struct wire_cst_secondary_rig_config_api *frbgen_skotiq_bridge_cst_new_box_autoa
 
 struct wire_cst_sequencer_event *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event(void);
 
-int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(int32_t value);
+struct wire_cst_sequencer_notice *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(void);
+
+struct wire_cst_sequencer_stop *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_stop(void);
 
 int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status(int32_t value);
 
@@ -3684,6 +3726,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_secondary_rig_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_stop);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_star_detection_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_stretch_params_api);

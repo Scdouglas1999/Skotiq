@@ -25,8 +25,8 @@ class ConnectionSettings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
-    final linkedHost = backend.remoteHost;
-    final isNetwork = linkedHost != null;
+    final hostLink = ref.watch(linkedHostLinkProvider);
+    final isNetwork = hostLink != null;
     final isDisconnected = backend.hasNoHost;
     // Live connection state — the authoritative signal for whether a network
     // backend is actually connected, mid-handshake, or errored. Relying on
@@ -49,8 +49,8 @@ class ConnectionSettings extends ConsumerWidget {
     String connectionStatus = 'Disconnected';
     Color statusColor = colors.textMuted;
 
-    if (linkedHost != null) {
-      serverAddress = linkedHost.link.address;
+    if (hostLink != null) {
+      serverAddress = hostLink.address;
       if (isConnected) {
         connectionStatus = 'Connected';
         statusColor = colors.success;

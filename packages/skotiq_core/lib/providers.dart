@@ -34,6 +34,7 @@ export 'src/providers/sequence_stats_provider.dart';
 export 'src/providers/sequence/run_dither_event.dart';
 // Sequencer events, typed once at the Dart boundary.
 export 'src/providers/sequence/sequencer_run_event.dart';
+export 'src/providers/sequence/structured_progress_json.dart';
 export 'src/providers/sequence/plan_run_end.dart';
 export 'src/providers/sequence/plan_timer_provider.dart';
 // The one vocabulary for an exposure node's per-frame progress line.
@@ -63,6 +64,7 @@ export 'src/providers/focus_model_profile_data_provider.dart';
 export 'src/providers/guiding_provider.dart';
 export 'src/providers/backend_provider.dart';
 export 'src/providers/host_role.dart';
+export 'src/providers/linked_host.dart';
 export 'src/providers/captured_image_rows.dart';
 export 'src/providers/remote_session_sync_provider.dart';
 export 'src/providers/host_link_provider.dart';
@@ -96,6 +98,7 @@ export 'src/providers/runtime_mirror/channels/notice_acks_channel.dart';
 export 'src/providers/runtime_mirror/channels/manual_loop_channel.dart';
 export 'src/providers/runtime_mirror/channels/meridian_flip_channel.dart';
 export 'src/providers/runtime_mirror/channels/plate_solve_channel.dart';
+export 'src/providers/runtime_mirror/channels/plate_solver_setup_channel.dart';
 export 'src/providers/runtime_mirror/channels/run_record_channel.dart';
 export 'src/providers/runtime_mirror/channels/scheduled_start_channel.dart';
 export 'src/providers/runtime_mirror/channels/sequence_run_channel.dart';

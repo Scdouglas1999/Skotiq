@@ -19,6 +19,17 @@ part 'target_constraints_editor/add_constraint_wizard_dialog.dart';
 part 'target_constraints_editor/wizard_kind_step.dart';
 part 'target_constraints_editor/wizard_params_review.dart';
 
+/// Reads the horizon profiles a constraint can name: the linked host's, or
+/// this machine's.
+final _horizonProfilesProvider =
+    hostRoleProvider<Future<List<HorizonProfile>> Function()>(
+  here: (ref) {
+    final db = ref.watch(databaseProvider);
+    return () => loadHorizonProfiles(db);
+  },
+  linked: (_, host) => host.planning.getHorizonProfiles,
+);
+
 ///
 /// Manages four constraint kinds:
 ///   * timeWindow:            HH:MM start / HH:MM end (local time).
@@ -78,21 +89,14 @@ class _TargetConstraintsEditorState
   }
 
   Future<_LoadedConstraints> _load() async {
-    // Constraints come through the (now host-aware) service, so on a remote
-    // slave they reflect the HOST's rows rather than the slave's empty local
-    // table. Horizon profiles are sourced from the host too on a slave.
+    // Constraints and horizon profiles are the imaging host's: a linked
+    // client's own tables are empty.
     final backend = ref.read(backendProvider);
     final svc = ref.read(targetConstraintServiceProvider);
+    final readHorizonProfiles = ref.read(_horizonProfilesProvider);
     final constraints = await svc.listForTarget(widget.targetId);
-
-    final List<HorizonProfile> profiles;
-    if (backend.remoteHost case final linkedHost?) {
-      profiles = (await linkedHost.planning.getHorizonProfiles())
-        ..sort((a, b) => a.name.compareTo(b.name));
-    } else {
-      profiles = (await loadHorizonProfiles(ref.read(databaseProvider)))
-        ..sort((a, b) => a.name.compareTo(b.name));
-    }
+    final profiles = (await readHorizonProfiles())
+      ..sort((a, b) => a.name.compareTo(b.name));
 
     return _LoadedConstraints(
       authority: backend,

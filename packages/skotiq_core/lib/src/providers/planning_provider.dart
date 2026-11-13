@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/skotiq_backend.dart';
+import 'linked_host.dart';
+import '../backend/remote_host.dart';
+import 'host_role.dart';
 import '../models/planning/night_forecast.dart';
 import '../models/planning/project.dart';
 import '../models/planning/project_progress.dart';
@@ -14,8 +16,6 @@ import '../services/planning/project_service.dart';
 import '../services/weather/providers/openmeteo_cloud_provider.dart';
 import '../services/weather/radar_provider.dart';
 import '../utils/resilient_poll_stream.dart';
-import '../backend/remote_host.dart';
-import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'scheduler_provider.dart';
 import 'settings_provider.dart';
@@ -38,8 +38,7 @@ import '../services/logging_service.dart';
 /// The row backing [activeProjectIdProvider]: the decimal project id, with
 /// no row or an empty one meaning no active project. A linked client keeps
 /// one row per host.
-Setting<String?> _activeProjectSettingFor(SkotiqBackend backend) {
-  final identity = backend.remoteHost?.link.identity;
+Setting<String?> _activeProjectSettingFor(String? identity) {
   if (identity == null) return StoreSettings.activePlanningProject.row('');
   final encoded = base64Url.encode(utf8.encode(identity)).replaceAll('=', '');
   return StoreSettings.activePlanningProject.row('.remote.$encoded');
@@ -54,9 +53,10 @@ Setting<String?> _activeProjectSettingFor(SkotiqBackend backend) {
 final activeProjectIdProvider =
     StateNotifierProvider<ActiveProjectNotifier, int?>((ref) {
       final notifier = ActiveProjectNotifier(ref);
-      ref.listen(backendProvider, (_, next) {
-        notifier._switchBackend(next);
-      });
+      ref.listenAcrossHosts(
+        (host) => host?.link.identity,
+        notifier._switchHost,
+      );
       // Kick off the async hydrate immediately. Until it resolves the state is
       // `null` (no active project), which is the correct cold-start default.
       unawaited(notifier._load());
@@ -66,7 +66,7 @@ final activeProjectIdProvider =
 /// State notifier owning the active-project selection and its persistence.
 class ActiveProjectNotifier extends StateNotifier<int?> {
   ActiveProjectNotifier(this._ref) : super(null) {
-    _setting = _activeProjectSettingFor(_ref.read(backendProvider));
+    _setting = _activeProjectSettingFor(_ref.read(linkedHostIdentityProvider));
   }
 
   final Ref _ref;
@@ -124,8 +124,8 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
     }
   }
 
-  void _switchBackend(SkotiqBackend backend) {
-    final next = _activeProjectSettingFor(backend);
+  void _switchHost(String? identity) {
+    final next = _activeProjectSettingFor(identity);
     if (next.key == _setting.key) return;
 
     _setting = next;
@@ -199,38 +199,35 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
 /// front and then re-listing on each mutation.
 final projectListProvider = StreamProvider<List<Project>>((ref) {
   final service = ref.watch(projectServiceProvider);
-  final backend = ref.watch(backendProvider);
-
-  // On a remote SLAVE the projects live in the HOST DB and there is no local
-  // mutation stream to bridge — service.watchChanges() never fires — so poll
-  // the host on a fixed tick with a change-guard. Host-side project CRUD
-  // surfaces within the interval.
-  if (backend.remoteHost != null) {
-    return resilientDistinctPoll(
-      fetch: service.listProjects,
-      unchanged: listEquals,
-      interval: const Duration(seconds: 10),
-      onRetainedError: (error, stackTrace) {
-        Log.warning(
-          'Remote project poll failed; retaining last value',
-          source: 'PlanningProvider',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      },
-    );
-  }
-
-  Stream<List<Project>> listOnChange() async* {
-    // Initial emit so the UI has data before the first mutation.
-    yield await service.listProjects();
-    await for (final _ in service.watchChanges()) {
-      yield await service.listProjects();
-    }
-  }
-
-  return listOnChange();
+  return ref.watch(_projectListFeedProvider)(service);
 });
+
+/// How the project list stays current: re-listed on each change to this
+/// machine's tables, or polled from the linked host, whose changes raise no
+/// stream here.
+final _projectListFeedProvider =
+    hostRoleProvider<Stream<List<Project>> Function(ProjectService service)>(
+      here: (_) => (service) async* {
+        yield await service.listProjects();
+        await for (final _ in service.watchChanges()) {
+          yield await service.listProjects();
+        }
+      },
+      linked: (_, _) =>
+          (service) => resilientDistinctPoll(
+            fetch: service.listProjects,
+            unchanged: listEquals,
+            interval: const Duration(seconds: 10),
+            onRetainedError: (error, stackTrace) {
+              Log.warning(
+                'Remote project poll failed; retaining last value',
+                source: 'PlanningProvider',
+                error: error,
+                stackTrace: stackTrace,
+              );
+            },
+          ),
+    );
 
 /// Per-project accrued-vs-remaining roll-up.
 ///

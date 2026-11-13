@@ -19,7 +19,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
-import '../backend/skotiq_backend.dart';
+import 'host_role.dart';
 import '../backend/remote_host.dart';
 import '../services/imaging_service.dart';
 import 'backend_provider.dart';
@@ -168,21 +168,15 @@ class SecondaryRigConfigNotifier extends StateNotifier<SecondaryRigConfig> {
       state = state.copyWith(ditherPolicy: p);
 }
 
-String _secondaryRigConfigScope(SkotiqBackend backend) =>
-    backend.remoteHost?.link.identity ?? 'local';
-
 final secondaryRigConfigProvider =
     StateNotifierProvider<SecondaryRigConfigNotifier, SecondaryRigConfig>((
       ref,
     ) {
       final notifier = SecondaryRigConfigNotifier();
-      var scope = _secondaryRigConfigScope(ref.read(backendProvider));
-      ref.listen(backendProvider, (_, next) {
-        final nextScope = _secondaryRigConfigScope(next);
-        if (nextScope == scope) return;
-        scope = nextScope;
-        notifier.reset();
-      });
+      ref.listenAcrossHosts(
+        (host) => host?.link.identity,
+        (_) => notifier.reset(),
+      );
       return notifier;
     });
 
@@ -217,27 +211,28 @@ class SecondaryRigStartContext {
 
 /// Controller that arms / stops the secondary rig through the FRB bindings.
 class SecondaryRigController {
-  SecondaryRigController(this._ref) : _backend = _ref.read(backendProvider);
+  SecondaryRigController(this._ref)
+    : _drive = _ref.read(_secondaryRigDriveProvider);
 
   final Ref _ref;
-  SkotiqBackend _backend;
-  int _backendRevision = 0;
+  _SecondaryRigDrive _drive;
+  int _driveRevision = 0;
   Future<void> _operationTail = Future<void>.value();
 
   /// Arm + start the secondary capture loop. Arm BEFORE starting the primary
   /// sequence so the dither barrier is installed when the executor starts.
   Future<void> start(SecondaryRigStartContext context) {
-    final backend = _backend;
-    final revision = _backendRevision;
+    final drive = _drive;
+    final revision = _driveRevision;
     return _serialized(() {
-      _ensureAuthority(backend, revision);
-      return _withBusy(revision, () => _start(context, backend));
+      _ensureAuthority(drive, revision);
+      return _withBusy(revision, () => _start(context, drive));
     });
   }
 
   Future<void> _start(
     SecondaryRigStartContext context,
-    SkotiqBackend backend,
+    _SecondaryRigDrive drive,
   ) async {
     final config = _ref.read(secondaryRigConfigProvider);
     if (!config.isValid) {
@@ -266,119 +261,38 @@ class SecondaryRigController {
       );
     }
 
-    final remote = backend.remoteHost?.secondaryRig;
-    if (remote != null) {
-      await remote.secondaryRigStart({
-        'cameraId': config.cameraId,
-        'exposureSecs': config.exposureSecs,
-        if (config.gain != null) 'gain': config.gain,
-        if (config.offset != null) 'offset': config.offset,
-        'binX': config.binX,
-        'binY': config.binY,
-        if (config.frameCount != null) 'frameCount': config.frameCount,
-        if (config.filterName != null) 'filterName': config.filterName,
-        if (config.targetTempC != null) 'targetTempC': config.targetTempC,
-        'rigLabel': config.rigLabel,
-        'ditherMaxWaitSecs': config.ditherMaxWaitSecs,
-        'inFlightPolicy': config.ditherPolicy.wire,
-        'saveBasePath': saveBasePath,
-        if (context.targetName != null) 'targetName': context.targetName,
-        if (context.targetRaHours != null)
-          'targetRaHours': context.targetRaHours,
-        if (context.targetDecDegrees != null)
-          'targetDecDegrees': context.targetDecDegrees,
-        if (context.observerName != null) 'observerName': context.observerName,
-        if (context.siteLatitudeDeg != null)
-          'siteLatitudeDeg': context.siteLatitudeDeg,
-        if (context.siteLongitudeDeg != null)
-          'siteLongitudeDeg': context.siteLongitudeDeg,
-        if (context.siteElevationM != null)
-          'siteElevationM': context.siteElevationM,
-      });
-      return;
-    }
-
-    await bridge_api.apiSecondaryRigStart(
-      config: bridge_api.SecondaryRigConfigApi(
-        cameraId: config.cameraId!,
-        exposureSecs: config.exposureSecs,
-        gain: config.gain,
-        offset: config.offset,
-        binX: config.binX,
-        binY: config.binY,
-        frameCount: config.frameCount,
-        filterName: config.filterName,
-        targetTempC: config.targetTempC,
-        rigLabel: config.rigLabel,
-        ditherMaxWaitSecs: config.ditherMaxWaitSecs,
-        inFlightPolicy: config.ditherPolicy.wire,
-        saveBasePath: saveBasePath,
-        saveTo: ImagingService.secondaryRigSaveTemplate(
-          _ref.read(namingPatternProvider).pattern,
-          rigLabel: config.rigLabel,
-          gain: config.gain,
-          offset: config.offset,
-          binX: config.binX,
-          binY: config.binY,
-          sentAt: _ref.read(clockProvider).nowUtc(),
-        ),
-        targetName: context.targetName,
-        targetRaHours: context.targetRaHours,
-        targetDecDegrees: context.targetDecDegrees,
-        observerName: context.observerName,
-        siteLatitudeDeg: context.siteLatitudeDeg,
-        siteLongitudeDeg: context.siteLongitudeDeg,
-        siteElevationM: context.siteElevationM,
-      ),
-    );
+    await drive.start(config, context, saveBasePath);
   }
 
   Future<void> stop() {
-    final backend = _backend;
-    final remote = backend.remoteHost?.secondaryRig;
-    final revision = _backendRevision;
+    final drive = _drive;
+    final revision = _driveRevision;
     return _serialized(() {
-      _ensureAuthority(backend, revision);
-      return _withBusy(revision, () async {
-        if (remote != null) {
-          await remote.secondaryRigStop();
-        } else {
-          await bridge_api.apiSecondaryRigStop();
-        }
-      });
+      _ensureAuthority(drive, revision);
+      return _withBusy(revision, drive.stop);
     });
   }
 
   Future<bool> isArmed() async => (await getStatus()).armed;
 
   Future<SecondaryRigStatus> getStatus() async {
-    final backend = _backend;
-    final remote = backend.remoteHost?.secondaryRig;
-    final revision = _backendRevision;
-    late final SecondaryRigStatus status;
-    if (remote != null) {
-      status = SecondaryRigStatus.fromJson(
-        await remote.secondaryRigGetStatus(),
-      );
-    } else {
-      status = SecondaryRigStatus.fromBridge(
-        await bridge_api.apiSecondaryRigGetStatus(),
-      );
-    }
-    _ensureAuthority(backend, revision);
+    final drive = _drive;
+    final revision = _driveRevision;
+    final status = await drive.status();
+    _ensureAuthority(drive, revision);
     return status;
   }
 
-  void _switchBackend(SkotiqBackend backend) {
-    if (identical(backend, _backend)) return;
-    _backend = backend;
-    _backendRevision++;
+  void _switchDrive(_SecondaryRigDrive drive) {
+    if (identical(drive, _drive)) return;
+    _drive = drive;
+    _driveRevision++;
     _operationTail = Future<void>.value();
     _ref.read(secondaryRigOperationInProgressProvider.notifier).state = false;
   }
 
-  void _ensureAuthority(SkotiqBackend backend, int revision) {
-    if (revision != _backendRevision || !identical(backend, _backend)) {
+  void _ensureAuthority(_SecondaryRigDrive drive, int revision) {
+    if (revision != _driveRevision || !identical(drive, _drive)) {
       throw StateError(
         'The imaging host changed before the secondary-rig action completed.',
       );
@@ -411,7 +325,7 @@ class SecondaryRigController {
     try {
       return await operation();
     } finally {
-      if (revision == _backendRevision) {
+      if (revision == _driveRevision) {
         _ref.read(secondaryRigOperationInProgressProvider.notifier).state =
             false;
       }
@@ -497,11 +411,143 @@ class SecondaryRigStatus {
   }
 }
 
+/// The second camera's capture loop where it runs: this process's drivers,
+/// or the linked host's.
+abstract interface class _SecondaryRigDrive {
+  Future<void> start(
+    SecondaryRigConfig config,
+    SecondaryRigStartContext context,
+    String saveBasePath,
+  );
+  Future<void> stop();
+  Future<SecondaryRigStatus> status();
+}
+
+final class _BridgeSecondaryRig implements _SecondaryRigDrive {
+  _BridgeSecondaryRig(this._ref);
+
+  final Ref _ref;
+
+  /// This process's capture loop is one drive, whichever ref asked for it.
+  @override
+  bool operator ==(Object other) => other is _BridgeSecondaryRig;
+
+  @override
+  int get hashCode => (_BridgeSecondaryRig).hashCode;
+
+  @override
+  Future<void> start(
+    SecondaryRigConfig config,
+    SecondaryRigStartContext context,
+    String saveBasePath,
+  ) async {
+    await bridge_api.apiSecondaryRigStart(
+      config: bridge_api.SecondaryRigConfigApi(
+        cameraId: config.cameraId!,
+        exposureSecs: config.exposureSecs,
+        gain: config.gain,
+        offset: config.offset,
+        binX: config.binX,
+        binY: config.binY,
+        frameCount: config.frameCount,
+        filterName: config.filterName,
+        targetTempC: config.targetTempC,
+        rigLabel: config.rigLabel,
+        ditherMaxWaitSecs: config.ditherMaxWaitSecs,
+        inFlightPolicy: config.ditherPolicy.wire,
+        saveBasePath: saveBasePath,
+        saveTo: ImagingService.secondaryRigSaveTemplate(
+          _ref.read(namingPatternProvider).pattern,
+          rigLabel: config.rigLabel,
+          gain: config.gain,
+          offset: config.offset,
+          binX: config.binX,
+          binY: config.binY,
+          sentAt: _ref.read(clockProvider).nowUtc(),
+        ),
+        targetName: context.targetName,
+        targetRaHours: context.targetRaHours,
+        targetDecDegrees: context.targetDecDegrees,
+        observerName: context.observerName,
+        siteLatitudeDeg: context.siteLatitudeDeg,
+        siteLongitudeDeg: context.siteLongitudeDeg,
+        siteElevationM: context.siteElevationM,
+      ),
+    );
+  }
+
+  @override
+  Future<void> stop() => bridge_api.apiSecondaryRigStop();
+
+  @override
+  Future<SecondaryRigStatus> status() async => SecondaryRigStatus.fromBridge(
+    await bridge_api.apiSecondaryRigGetStatus(),
+  );
+}
+
+final class _HostSecondaryRigDrive implements _SecondaryRigDrive {
+  const _HostSecondaryRigDrive(this._host);
+
+  final HostSecondaryRig _host;
+
+  @override
+  Future<void> start(
+    SecondaryRigConfig config,
+    SecondaryRigStartContext context,
+    String saveBasePath,
+  ) async {
+    await _host.secondaryRigStart({
+      'cameraId': config.cameraId,
+      'exposureSecs': config.exposureSecs,
+      if (config.gain != null) 'gain': config.gain,
+      if (config.offset != null) 'offset': config.offset,
+      'binX': config.binX,
+      'binY': config.binY,
+      if (config.frameCount != null) 'frameCount': config.frameCount,
+      if (config.filterName != null) 'filterName': config.filterName,
+      if (config.targetTempC != null) 'targetTempC': config.targetTempC,
+      'rigLabel': config.rigLabel,
+      'ditherMaxWaitSecs': config.ditherMaxWaitSecs,
+      'inFlightPolicy': config.ditherPolicy.wire,
+      'saveBasePath': saveBasePath,
+      if (context.targetName != null) 'targetName': context.targetName,
+      if (context.targetRaHours != null) 'targetRaHours': context.targetRaHours,
+      if (context.targetDecDegrees != null)
+        'targetDecDegrees': context.targetDecDegrees,
+      if (context.observerName != null) 'observerName': context.observerName,
+      if (context.siteLatitudeDeg != null)
+        'siteLatitudeDeg': context.siteLatitudeDeg,
+      if (context.siteLongitudeDeg != null)
+        'siteLongitudeDeg': context.siteLongitudeDeg,
+      if (context.siteElevationM != null)
+        'siteElevationM': context.siteElevationM,
+    });
+  }
+
+  @override
+  Future<void> stop() => _host.secondaryRigStop();
+
+  @override
+  Future<SecondaryRigStatus> status() async =>
+      SecondaryRigStatus.fromJson(await _host.secondaryRigGetStatus());
+}
+
+_SecondaryRigDrive _secondaryRigDriveOn(Ref ref, RemoteHost? host) =>
+    host == null
+    ? _BridgeSecondaryRig(ref)
+    : _HostSecondaryRigDrive(host.secondaryRig);
+
+final _secondaryRigDriveProvider = hostRoleProvider<_SecondaryRigDrive>(
+  here: (ref) => _secondaryRigDriveOn(ref, null),
+  linked: (ref, host) => _secondaryRigDriveOn(ref, host),
+);
+
 final secondaryRigControllerProvider = Provider<SecondaryRigController>((ref) {
   final controller = SecondaryRigController(ref);
-  ref.listen(backendProvider, (_, next) {
-    controller._switchBackend(next);
-  });
+  ref.listenAcrossHosts(
+    (host) => _secondaryRigDriveOn(ref, host),
+    controller._switchDrive,
+  );
   return controller;
 });
 

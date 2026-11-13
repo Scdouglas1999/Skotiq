@@ -371,11 +371,15 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           });
           return;
         }
-        // A rig switch from Saved Servers swaps in a fresh NetworkBackend
-        // without routing through _connectToServer, so re-arm the WS monitor
-        // on the new instance. Idempotent — it cancels any prior subscription
-        // first.
-        if (next.remoteHost != null && !identical(previous, next)) {
+      });
+      // A rig switch from Saved Servers swaps in a fresh NetworkBackend
+      // without routing through _connectToServer, so re-arm the WS monitor
+      // on the new link. Idempotent — it cancels any prior subscription
+      // first. This follows the link, not the backend: a backend listener
+      // runs before the link is rebuilt.
+      ref.listen<HostLink?>(linkedHostLinkProvider, (previous, next) {
+        if (!mounted) return;
+        if (next != null && !identical(previous, next)) {
           _startConnectionMonitor();
         }
       });

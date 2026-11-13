@@ -11192,6 +11192,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerStop dco_decode_box_autoadd_sequencer_stop(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sequencer_stop(raw);
+  }
+
+  @protected
   ShutterStatus dco_decode_box_autoadd_shutter_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_shutter_status(raw);
@@ -12054,6 +12060,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       filterWheelId: dco_decode_opt_String(arr[18]),
       rotatorId: dco_decode_opt_String(arr[19]),
     );
+  }
+
+  @protected
+  FlipOutcome dco_decode_flip_outcome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return FlipOutcome.values[raw as int];
   }
 
   @protected
@@ -12953,6 +12965,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerStop? dco_decode_opt_box_autoadd_sequencer_stop(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_sequencer_stop(raw);
+  }
+
+  @protected
   ShutterStatus? dco_decode_opt_box_autoadd_shutter_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_shutter_status(raw);
@@ -13527,7 +13545,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 14:
         return SequencerEvent_MeridianFlipOutcome(
-          outcome: dco_decode_String(raw[1]),
+          outcome: dco_decode_flip_outcome(raw[1]),
           targetName: dco_decode_String(raw[2]),
           newPierSide: dco_decode_String(raw[3]),
           durationSecs: dco_decode_f_64(raw[4]),
@@ -13745,6 +13763,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           nodeId: dco_decode_opt_String(raw[5]),
           sequenceRunId: dco_decode_opt_box_autoadd_i_64(raw[6]),
           notice: dco_decode_opt_box_autoadd_sequencer_notice(raw[7]),
+          stop: dco_decode_opt_box_autoadd_sequencer_stop(raw[8]),
         );
       default:
         throw Exception("unreachable");
@@ -13754,7 +13773,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SequencerNotice dco_decode_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return SequencerNotice.values[raw as int];
+    switch (raw[0]) {
+      case 0:
+        return SequencerNotice_AutofocusContinued();
+      case 1:
+        return SequencerNotice_RejectStreak(
+          consecutiveRejects: dco_decode_u_32(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 2:
+        return SequencerNotice_ProblemNoticed(
+          source: dco_decode_String(raw[1]),
+          problem: dco_decode_String(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -13776,6 +13810,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       currentFilter: dco_decode_opt_String(arr[9]),
       message: dco_decode_opt_String(arr[10]),
     );
+  }
+
+  @protected
+  SequencerStop dco_decode_sequencer_stop(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return SequencerStop_Cancelled();
+      case 1:
+        return SequencerStop_Operator();
+      case 2:
+        return SequencerStop_Autopilot();
+      case 3:
+        return SequencerStop_System(origin: dco_decode_String(raw[1]));
+      case 4:
+        return SequencerStop_Trigger(
+          triggerId: dco_decode_String(raw[1]),
+          triggerName: dco_decode_String(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -15158,6 +15214,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerStop sse_decode_box_autoadd_sequencer_stop(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sequencer_stop(deserializer));
+  }
+
+  @protected
   ShutterStatus sse_decode_box_autoadd_shutter_status(
     SseDeserializer deserializer,
   ) {
@@ -16338,6 +16402,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       filterWheelId: var_filterWheelId,
       rotatorId: var_rotatorId,
     );
+  }
+
+  @protected
+  FlipOutcome sse_decode_flip_outcome(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return FlipOutcome.values[inner];
   }
 
   @protected
@@ -17681,6 +17752,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerStop? sse_decode_opt_box_autoadd_sequencer_stop(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sequencer_stop(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   ShutterStatus? sse_decode_opt_box_autoadd_shutter_status(
     SseDeserializer deserializer,
   ) {
@@ -18432,7 +18516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           notice: var_notice,
         );
       case 14:
-        var var_outcome = sse_decode_String(deserializer);
+        var var_outcome = sse_decode_flip_outcome(deserializer);
         var var_targetName = sse_decode_String(deserializer);
         var var_newPierSide = sse_decode_String(deserializer);
         var var_durationSecs = sse_decode_f_64(deserializer);
@@ -18820,6 +18904,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_notice = sse_decode_opt_box_autoadd_sequencer_notice(
           deserializer,
         );
+        var var_stop = sse_decode_opt_box_autoadd_sequencer_stop(deserializer);
         return SequencerEvent_DecisionLogged(
           timestampIso: var_timestampIso,
           category: var_category,
@@ -18828,6 +18913,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           nodeId: var_nodeId,
           sequenceRunId: var_sequenceRunId,
           notice: var_notice,
+          stop: var_stop,
         );
       default:
         throw UnimplementedError('');
@@ -18837,8 +18923,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SequencerNotice sse_decode_sequencer_notice(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return SequencerNotice.values[inner];
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return SequencerNotice_AutofocusContinued();
+      case 1:
+        var var_consecutiveRejects = sse_decode_u_32(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return SequencerNotice_RejectStreak(
+          consecutiveRejects: var_consecutiveRejects,
+          reason: var_reason,
+        );
+      case 2:
+        var var_source = sse_decode_String(deserializer);
+        var var_problem = sse_decode_String(deserializer);
+        return SequencerNotice_ProblemNoticed(
+          source: var_source,
+          problem: var_problem,
+        );
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -18870,6 +18976,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       currentFilter: var_currentFilter,
       message: var_message,
     );
+  }
+
+  @protected
+  SequencerStop sse_decode_sequencer_stop(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return SequencerStop_Cancelled();
+      case 1:
+        return SequencerStop_Operator();
+      case 2:
+        return SequencerStop_Autopilot();
+      case 3:
+        var var_origin = sse_decode_String(deserializer);
+        return SequencerStop_System(origin: var_origin);
+      case 4:
+        var var_triggerId = sse_decode_String(deserializer);
+        var var_triggerName = sse_decode_String(deserializer);
+        return SequencerStop_Trigger(
+          triggerId: var_triggerId,
+          triggerName: var_triggerName,
+        );
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -19477,6 +19610,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int cst_encode_flip_outcome(FlipOutcome raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
   int cst_encode_frame_type(FrameType raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
@@ -19508,12 +19647,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return cst_encode_i_32(raw.index);
-  }
-
-  @protected
-  int cst_encode_sequencer_notice(SequencerNotice raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -20402,6 +20535,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_sequencer_notice(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_sequencer_stop(
+    SequencerStop self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sequencer_stop(self, serializer);
   }
 
   @protected
@@ -21327,6 +21469,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.focuserId, serializer);
     sse_encode_opt_String(self.filterWheelId, serializer);
     sse_encode_opt_String(self.rotatorId, serializer);
+  }
+
+  @protected
+  void sse_encode_flip_outcome(FlipOutcome self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -22467,6 +22615,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sequencer_stop(
+    SequencerStop? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sequencer_stop(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_shutter_status(
     ShutterStatus? self,
     SseSerializer serializer,
@@ -23068,7 +23229,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         actionTaken: final actionTaken,
       ):
         sse_encode_i_32(14, serializer);
-        sse_encode_String(outcome, serializer);
+        sse_encode_flip_outcome(outcome, serializer);
         sse_encode_String(targetName, serializer);
         sse_encode_String(newPierSide, serializer);
         sse_encode_f_64(durationSecs, serializer);
@@ -23430,6 +23591,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         nodeId: final nodeId,
         sequenceRunId: final sequenceRunId,
         notice: final notice,
+        stop: final stop,
       ):
         sse_encode_i_32(33, serializer);
         sse_encode_String(timestampIso, serializer);
@@ -23439,6 +23601,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_opt_String(nodeId, serializer);
         sse_encode_opt_box_autoadd_i_64(sequenceRunId, serializer);
         sse_encode_opt_box_autoadd_sequencer_notice(notice, serializer);
+        sse_encode_opt_box_autoadd_sequencer_stop(stop, serializer);
     }
   }
 
@@ -23448,7 +23611,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
+    switch (self) {
+      case SequencerNotice_AutofocusContinued():
+        sse_encode_i_32(0, serializer);
+      case SequencerNotice_RejectStreak(
+        consecutiveRejects: final consecutiveRejects,
+        reason: final reason,
+      ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_32(consecutiveRejects, serializer);
+        sse_encode_String(reason, serializer);
+      case SequencerNotice_ProblemNoticed(
+        source: final source,
+        problem: final problem,
+      ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(source, serializer);
+        sse_encode_String(problem, serializer);
+    }
   }
 
   @protected
@@ -23468,6 +23648,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.currentTarget, serializer);
     sse_encode_opt_String(self.currentFilter, serializer);
     sse_encode_opt_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_sequencer_stop(SequencerStop self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case SequencerStop_Cancelled():
+        sse_encode_i_32(0, serializer);
+      case SequencerStop_Operator():
+        sse_encode_i_32(1, serializer);
+      case SequencerStop_Autopilot():
+        sse_encode_i_32(2, serializer);
+      case SequencerStop_System(origin: final origin):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(origin, serializer);
+      case SequencerStop_Trigger(
+        triggerId: final triggerId,
+        triggerName: final triggerName,
+      ):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(triggerId, serializer);
+        sse_encode_String(triggerName, serializer);
+    }
   }
 
   @protected

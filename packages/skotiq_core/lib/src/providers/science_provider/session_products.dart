@@ -455,28 +455,32 @@ Future<Map<String, String>> _loadScienceSettingsMap(Ref ref) {
 /// UI must preserve the host's exact committed text.
 final scienceRawSettingsProvider =
     FutureProvider.autoDispose<Map<String, String>>((ref) async {
-      final remote = ref.watch(backendProvider).remoteHost;
-      if (remote != null) {
-        final settings = await remote.scienceSettingRows.getAllSettings();
+      return ref.watch(_scienceRawRowsProvider)(ref);
+    });
+
+final _scienceRawRowsProvider =
+    hostRoleProvider<Future<Map<String, String>> Function(Ref ref)>(
+      here: (_) => (ref) async {
+        final settings = await ref.watch(allSettingsProvider.future);
+        return Map.unmodifiable({
+          for (final entry in settings.entries)
+            if (entry.key.startsWith('science.')) entry.key: entry.value,
+        });
+      },
+      linked: (_, host) => (ref) async {
+        final settings = await host.scienceSettingRows.getAllSettings();
         Timer? refreshTimer;
         ref.onDispose(() => refreshTimer?.cancel());
         refreshTimer = Timer(const Duration(seconds: 10), ref.invalidateSelf);
         return Map.unmodifiable(settings);
-      }
-
-      final settings = await ref.watch(allSettingsProvider.future);
-      return Map.unmodifiable({
-        for (final entry in settings.entries)
-          if (entry.key.startsWith('science.')) entry.key: entry.value,
-      });
-    });
+      },
+    );
 
 final scienceRawSettingsActionsProvider = Provider((ref) {
-  final backend = ref.watch(backendProvider);
   return ScienceRawSettingsActions(
     ref,
     rows: ref.read(_scienceSettingRowsProvider),
-    localCameraAutoConfig: backend.remoteHost == null
+    localCameraAutoConfig: !ref.watch(isRemoteModeProvider)
         ? ref.read(scienceCameraAutoConfigProvider)
         : null,
   );

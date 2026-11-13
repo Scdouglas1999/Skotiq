@@ -22,6 +22,7 @@
 //!     they are lifecycle gestures (drive the loop), not state reads.
 
 use super::{ExecutorCommand, SequenceExecutor};
+use crate::decision::{DecisionCategory, DecisionEvent, RunStop};
 
 /// Who asked a run to stop.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +60,16 @@ impl StopOrigin {
             Self::Operator => "Operator: stop",
             Self::Scheduler => "Autopilot: stop",
             Self::System(_) => "System: stop",
+        }
+    }
+
+    fn run_stop(&self) -> RunStop {
+        match self {
+            Self::Operator => RunStop::Operator,
+            Self::Scheduler => RunStop::Autopilot,
+            Self::System(name) => RunStop::System {
+                origin: name.clone(),
+            },
         }
     }
 }
@@ -176,12 +187,20 @@ impl SequenceExecutor {
         match &origin {
             // The one decision that is never silenceable: it is the only
             // evidence the stop was human rather than a safety abort.
-            StopOrigin::Operator => self.emit_manual_intervention("stop", serde_json::json!({})),
+            // It is never silenced by the decision-logging preference, or a
+            // press with logging off would read the same as an unattended
+            // weather abort.
+            StopOrigin::Operator => {
+                let row = self
+                    .manual_intervention_row("stop", serde_json::json!({}))
+                    .with_stop(origin.run_stop());
+                let _ = self.decision_tx.send(row);
+            }
             // What the system did, under the normal decision-logging gate.
-            // The feed's stop row stays cause-neutral for a system stop.
             StopOrigin::Scheduler | StopOrigin::System(_) => self.emit_lifecycle_system_decision(
                 origin.decision_summary(),
                 serde_json::json!({ "origin": origin.wire_name(), "action": "stop" }),
+                origin.run_stop(),
             ),
         }
 
@@ -203,16 +222,15 @@ impl SequenceExecutor {
     /// `runtime_config.rs` emit their own `RuntimeConfigUpdated` event
     /// instead.
     pub(super) fn emit_manual_intervention(&self, action: &str, details: serde_json::Value) {
-        // The "stop" decision is the ONLY event that distinguishes an
-        // operator's stop from a safety abort (every cancellation path emits
-        // the same cancel-notice pair), and the dashboard's stop row claims
-        // "Stopped by request" solely off it. Evidence of an operator action
-        // must not be silenceable by the decision-logging preference, or a
-        // press with logging off renders byte-identical to an unattended
-        // weather abort.
-        if action != "stop" && !self.decision_logging_enabled() {
+        if !self.decision_logging_enabled() {
             return;
         }
+        let _ = self
+            .decision_tx
+            .send(self.manual_intervention_row(action, details));
+    }
+
+    fn manual_intervention_row(&self, action: &str, details: serde_json::Value) -> DecisionEvent {
         let summary = format!("Operator: {}", action);
         let mut full = details;
         if let serde_json::Value::Object(ref mut m) = full {
@@ -223,34 +241,40 @@ impl SequenceExecutor {
         } else {
             full = serde_json::json!({ "action": action, "data": full });
         }
-        let ev = crate::decision::DecisionEvent {
+        DecisionEvent {
             timestamp: chrono::Utc::now(),
-            category: crate::decision::DecisionCategory::ManualIntervention,
+            category: DecisionCategory::ManualIntervention,
             summary,
             details: full,
             node_id: None,
             sequence_run_id: self.active_sequence_run_id(),
             notice: None,
-        };
-        let _ = self.decision_tx.send(ev);
+            stop: None,
+        }
     }
 
     /// Replay Debug — emit a [`crate::decision::DecisionCategory::SystemEvent`]
     /// decision from a lifecycle method. Unlike the operator's stop
     /// decision this respects the decision-logging gate: it records what
     /// the SYSTEM did, not evidence of a human action.
-    fn emit_lifecycle_system_decision(&self, summary: &str, details: serde_json::Value) {
+    fn emit_lifecycle_system_decision(
+        &self,
+        summary: &str,
+        details: serde_json::Value,
+        stop: RunStop,
+    ) {
         if !self.decision_logging_enabled() {
             return;
         }
-        let ev = crate::decision::DecisionEvent {
+        let ev = DecisionEvent {
             timestamp: chrono::Utc::now(),
-            category: crate::decision::DecisionCategory::SystemEvent,
+            category: DecisionCategory::SystemEvent,
             summary: summary.to_string(),
             details,
             node_id: None,
             sequence_run_id: self.active_sequence_run_id(),
             notice: None,
+            stop: Some(stop),
         };
         let _ = self.decision_tx.send(ev);
     }

@@ -32,7 +32,7 @@ class CapturePreviewPublisher {
   }) {
     final generation = ++_generation;
     final backend = _read(ref, backendProvider);
-    final source = backend.remoteHost != null
+    final source = _read(ref, isRemoteModeProvider)
         ? CapturePreviewSource.remote
         : CapturePreviewSource.local;
     final scheduleRaw = loadRaw && _shouldScheduleRawLoad(backend);

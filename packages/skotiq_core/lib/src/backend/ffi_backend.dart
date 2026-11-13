@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert' show jsonDecode;
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -24,8 +23,6 @@ import '../services/thumbnail_sidecar_service.dart';
 import '../utils/device_id.dart';
 import 'bridge_error_message.dart';
 import 'device_connect_exception.dart';
-import 'sequencer_error_kind.dart';
-import 'sequencer_notice.dart';
 import 'skotiq_backend.dart';
 import '../models/settings/app_settings.dart' as models;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
@@ -34,14 +31,12 @@ import '../models/backend/device_capabilities.dart' as dart_caps;
 import '../models/backend/device_status.dart' as dart_status;
 import '../models/backend/device_types.dart' as dart_types;
 import '../models/errors/skotiq_error.dart' as dart_error;
-import 'bridge_event_mapper.dart' show recoveryFieldsFromTyped;
+import 'bridge_event_codec.dart';
 import '../services/ip_geolocation.dart';
-import 'frame_capture_metadata.dart';
 import '../models/backend/backend_types.dart';
 import '../services/logging_service.dart';
 
 part 'ffi_backend/native_runtime.dart';
-part 'ffi_backend/event_mapping.dart';
 part 'ffi_backend/type_mappers.dart';
 part 'ffi_backend/discovery_camera_operations.dart';
 part 'ffi_backend/mount_guiding_operations.dart';
@@ -112,22 +107,14 @@ abstract class _FfiBackendBase implements SkotiqBackend {
     if (_cachedEventStream == null) {
       _logger.info('Creating event stream from native bridge');
       _cachedEventStream = _nativeEventStream().map((bridgeEvent) {
-        final payloadInfo = _extractPayloadInfo(bridgeEvent.payload);
-        final category = _fromBridgeCategory(bridgeEvent.category);
-
-        if (category == EventCategory.guiding) {
+        final event = wireEventFromTyped(bridgeEvent);
+        if (event.category == EventCategory.guiding) {
           _logger.info(
-            'FfiBackend received guiding event: ${payloadInfo.$1} data=${payloadInfo.$2}',
+            'FfiBackend received guiding event: ${event.eventType} '
+            'data=${event.data}',
           );
         }
-
-        return SkotiqEvent(
-          timestamp: bridgeEvent.timestamp,
-          severity: _fromBridgeSeverity(bridgeEvent.severity),
-          category: category,
-          eventType: payloadInfo.$1,
-          data: payloadInfo.$2,
-        );
+        return event;
       }).asBroadcastStream();
 
       _logger.info('Event stream created as broadcast stream');
@@ -195,40 +182,4 @@ class FfiBackend extends _FfiBackendBase
   bridge.EquipmentProfile profileToBridgeForTesting(EquipmentProfile value) =>
       _toBridgeProfile(value);
 
-  /// The `(eventType, data)` pair a typed sequencer payload becomes on its way
-  /// into [SkotiqEvent.data].
-  ///
-  /// A seam, not a reimplementation: it calls the same private mapper the event
-  /// stream uses, so a test can assert what actually reaches the map without
-  /// standing up the native bridge. Worth the seam because this is the only
-  /// hop between the typed FRB payload and the untyped map every listener
-  /// reads — dropping a field here puts NULLs back in `captured_images` with
-  /// nothing on either side of it noticing.
-  @visibleForTesting
-  (String, Map<String, dynamic>) sequencerEventInfoForTesting(dynamic event) =>
-      _extractSequencerEventInfo(event);
-
-  /// Family seams matching [sequencerEventInfoForTesting], one per union the
-  /// event stream dispatches. The mappers take `dynamic`, so a test can hand
-  /// a stand-in whose runtime type name mimics a generated variant this build
-  /// has no arm for — the only way to reach the unread fallback while every
-  /// real variant is mapped.
-  @visibleForTesting
-  (String, Map<String, dynamic>) safetyEventInfoForTesting(dynamic event) =>
-      _extractSafetyEventInfo(event);
-  @visibleForTesting
-  (String, Map<String, dynamic>) systemEventInfoForTesting(dynamic event) =>
-      _extractSystemEventInfo(event);
-  @visibleForTesting
-  (String, Map<String, dynamic>) equipmentEventInfoForTesting(dynamic event) =>
-      _extractEquipmentEventInfo(event);
-  @visibleForTesting
-  (String, Map<String, dynamic>) guidingEventInfoForTesting(dynamic event) =>
-      _extractGuidingEventInfo(event);
-  @visibleForTesting
-  (String, Map<String, dynamic>) imagingEventInfoForTesting(dynamic event) =>
-      _extractImagingEventInfo(event);
-  @visibleForTesting
-  (String, Map<String, dynamic>) depthLockEventInfoForTesting(dynamic event) =>
-      _extractDepthLockEventInfo(event);
 }

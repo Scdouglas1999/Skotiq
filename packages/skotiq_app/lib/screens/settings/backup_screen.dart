@@ -199,13 +199,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _loadAvailableBackups() async {
     final generation = ++_loadGeneration;
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     setState(() {
       _isLoadingBackups = true;
       _loadError = null;
     });
     try {
-      final hostBackups = backend.remoteHost?.backups;
       final entries = hostBackups != null
           ? parseRemoteBackupList(await hostBackups.listBackups())
           : await Future.wait(
@@ -233,12 +233,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _createBackup() async {
     if (_rejectIfBusy()) return;
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     setState(() => _isCreatingBackup = true);
     try {
       String? createdPath;
-      if (backend.remoteHost case final linkedHost?) {
-        final result = await linkedHost.backups.createBackup();
+      if (hostBackups != null) {
+        final result = await hostBackups.createBackup();
         if ((result['status'] as String?) != 'created') {
           throw Exception(result['error'] ?? 'Backup failed');
         }
@@ -284,6 +285,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     // Capture the backend up front and dispatch to it, so a host switch after
     // the confirm dialog can't send this row to a different host.
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     final confirmed = await ConfirmDialog.restore(
       context: context,
@@ -299,11 +301,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     setState(() => _isRestoring = true);
     try {
-      if (backend.remoteHost case final linkedHost?) {
+      if (hostBackups != null) {
         // Address the backup by its stable id — the host resolves it to a file
         // inside its backup directory, so no absolute server path crosses the
         // wire and the host can't be pointed at an arbitrary file.
-        final result = await linkedHost.backups.restoreBackupById(backup.id);
+        final result = await hostBackups.restoreBackupById(backup.id);
         if ((result['status'] as String?) != 'restored') {
           throw Exception(result['error'] ?? 'Restore failed');
         }
@@ -345,6 +347,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     if (_rejectIfBusy() || _rejectRestoreDuringActiveRun()) return;
     final generation = ++_importGeneration;
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     setState(() => _isImportingBackup = true);
 
@@ -364,10 +367,10 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
       int restored;
       String? notRestored;
-      if (backend.remoteHost case final linkedHost?) {
+      if (hostBackups != null) {
         final bytes = await ref.read(backupImportReaderProvider)(file);
         if (!_isCurrentImport(generation, token)) return;
-        final result = await linkedHost.backups.uploadBackupAndRestore(
+        final result = await hostBackups.uploadBackupAndRestore(
           Uint8List.fromList(bytes),
           path.basename(file.path),
         );
@@ -392,7 +395,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       _refreshAfterRestore();
       _announceRestore(
         restored,
-        remote: backend.remoteHost != null,
+        remote: hostBackups != null,
         notRestored: notRestored,
       );
       await _loadAvailableBackups();
@@ -415,6 +418,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _deleteBackup(BackupListEntry backup) async {
     if (_rejectIfBusy() || _rejectIfBackendChanged()) return;
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     final confirmed = await ConfirmDialog.delete(
       context: context,
@@ -430,8 +434,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     setState(() => _isManagingBackup = true);
     try {
-      if (backend.remoteHost case final linkedHost?) {
-        await linkedHost.backups.deleteBackup(backup.id);
+      if (hostBackups != null) {
+        await hostBackups.deleteBackup(backup.id);
       } else {
         await File(backup.filePath).delete();
       }
@@ -454,8 +458,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _downloadBackup(BackupListEntry backup) async {
     if (_rejectIfBusy() || _rejectIfBackendChanged()) return;
     final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
-    if (linkedHost == null) return;
+    final hostBackups = ref.read(linkedHostBackupsProvider);
+    if (hostBackups == null) return;
     final token = backendBackupToken(backend);
     setState(() => _isManagingBackup = true);
     try {
@@ -472,7 +476,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         return;
       }
 
-      final bytes = await linkedHost.backups.downloadBackup(backup.id);
+      final bytes = await hostBackups.downloadBackup(backup.id);
       await File(target.path).writeAsBytes(bytes, flush: true);
       if (!mounted || !_backendStillMatches(token)) return;
       await revealExportedFile(
@@ -507,7 +511,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         if (_isImportingBackup) {
           setState(() => _isImportingBackup = false);
         }
-        _loadAvailableBackups();
+        // After this notification: the backups half the load reads is
+        // rebuilt only once the backend's listeners have run.
+        Future.microtask(() {
+          if (mounted) _loadAvailableBackups();
+        });
       }
     });
 

@@ -37,7 +37,8 @@ import '../utils/utc_timestamp.dart';
 import 'frame_identity.dart';
 import 'logging_service.dart';
 import 'frame_quality_score.dart';
-import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_files.dart';
+import '../backend/roles/host_data/host_imaging_records.dart';
 import '../models/backend/backend_types.dart';
 import '../settings/app_settings_state.g.dart';
 import '../providers/calibration_service_providers.dart';
@@ -102,9 +103,19 @@ class ImagingService {
   /// cannot stall a capture.
   static const int _keeperProbeLimit = 100000;
 
-  ImagingService(this._ref)
-    : _host = _ref.providerBackendScope(),
-      _logger = _ref.read(loggingServiceProvider);
+  /// [hostFiles] and [hostRecords] are the linked host's, or null where the
+  /// camera's frames are written and recorded by this process.
+  ImagingService(
+    this._ref, {
+    HostFiles? hostFiles,
+    HostImagingRecords? hostRecords,
+  }) : _host = _ref.providerBackendScope(),
+       _logger = _ref.read(loggingServiceProvider),
+       _hostFiles = hostFiles,
+       _hostRecords = hostRecords;
+
+  final HostFiles? _hostFiles;
+  final HostImagingRecords? _hostRecords;
 
   /// Start a single exposure and KEEP the frame: it is written to the
   /// operator's configured image folder under the naming pattern and indexed

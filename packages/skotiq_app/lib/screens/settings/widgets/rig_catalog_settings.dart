@@ -40,7 +40,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
   String? _busyCatalog;
   bool _confirmationOpen = false;
   String? _error;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  ProviderSubscription<HostCatalogs?>? _hostSubscription;
 
   /// Catalog list loads (the newest wins) and catalog actions on the host; a
   /// host change drops what the old host answers.
@@ -48,15 +48,13 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 
   bool get _busy => _actionToken != null;
 
-  RemoteHost? get _backend {
-    return ref.read(backendProvider).remoteHost;
-  }
+  HostCatalogs? get _catalogs => ref.read(linkedHostCatalogsProvider);
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    _hostSubscription = ref.listenManual<HostCatalogs?>(
+      linkedHostCatalogsProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
         _hostScopes.cancelAll();
@@ -64,13 +62,13 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
           _installed = const [];
           _available = const [];
           _error = null;
-          _loading = next.remoteHost != null;
+          _loading = next != null;
           _actionToken = null;
           _busyAction = null;
           _busyCatalog = null;
           _confirmationOpen = false;
         });
-        if (next.remoteHost != null) unawaited(_refresh());
+        if (next != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -80,14 +78,14 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     super.dispose();
   }
 
   Future<void> _refresh() async {
     final load = _hostScopes.beginLatest();
-    final backend = load.value.remoteHost;
-    if (backend == null) {
+    final catalogs = _catalogs;
+    if (catalogs == null) {
       if (!mounted) return;
       setState(() {
         _installed = const [];
@@ -103,8 +101,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     });
     try {
       final responses = await Future.wait<Object>([
-        backend.catalogs.getCatalogStatus(),
-        backend.catalogs.listAvailableCatalogs(),
+        catalogs.getCatalogStatus(),
+        catalogs.listAvailableCatalogs(),
       ]);
       if (load.isStale) return;
       final status = responses[0] as RemoteCatalogStatusResponse;
@@ -135,12 +133,14 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     required String successMessage,
     String? catalogName,
     String? Function()? successMessageOverride,
-    required Future<void> Function(RemoteHost backend) action,
+    required Future<void> Function(HostCatalogs catalogs, HostJobs jobs)
+        action,
   }) async {
     if (_busy || _confirmationOpen) return;
     final host = _hostScopes.begin();
-    final backend = host.value.remoteHost;
-    if (backend == null) return;
+    final catalogs = _catalogs;
+    final jobs = ref.read(linkedHostJobsProvider);
+    if (catalogs == null || jobs == null) return;
     final token = Object();
     setState(() {
       _actionToken = token;
@@ -148,7 +148,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       _busyCatalog = catalogName;
     });
     try {
-      await action(backend);
+      await action(catalogs, jobs);
       if (mounted && _isCurrentAction(host, token)) {
         final override = successMessageOverride?.call();
         if (override != null) {
@@ -193,11 +193,11 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       actionLabel: 'Download',
       successMessage: '${catalog.displayName} installed',
       catalogName: catalog.name,
-      action: (backend) async {
-        final accepted = await backend.catalogs.downloadCatalog(catalog.name);
+      action: (catalogs, jobs) async {
+        final accepted = await catalogs.downloadCatalog(catalog.name);
         final completed = accepted.isTerminal
             ? accepted
-            : await backend.jobs.awaitJobCompletion(
+            : await jobs.awaitJobCompletion(
                 accepted.jobId,
                 timeout: const Duration(minutes: 30),
               );
@@ -219,10 +219,9 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       successMessage: '${_catalogPhrase(label)} verified',
       catalogName: catalog.name,
       successMessageOverride: () => note,
-      action: (backend) async {
+      action: (catalogs, _) async {
         note = null;
-        final results =
-            await backend.catalogs.verifyCatalog(name: catalog.name);
+        final results = await catalogs.verifyCatalog(name: catalog.name);
         final result = results[catalog.name];
         if (result == null) {
           throw StateError('the appliance returned no verification result');
@@ -265,7 +264,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
   Future<void> _confirmUninstall(RemoteCatalogStatus catalog) async {
     if (_busy || _confirmationOpen) return;
     final host = _hostScopes.begin();
-    if (host.value.remoteHost == null) return;
+    if (_catalogs == null) return;
     setState(() => _confirmationOpen = true);
     final bool confirmed;
     try {
@@ -289,7 +288,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       actionLabel: 'Remove',
       successMessage: '${_catalogPhrase(_displayNameFor(catalog))} removed',
       catalogName: catalog.name,
-      action: (authority) => authority.catalogs.uninstallCatalog(catalog.name),
+      action: (catalogs, _) => catalogs.uninstallCatalog(catalog.name),
     );
   }
 
@@ -328,13 +327,13 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final backend = _backend;
+    final catalogs = ref.watch(linkedHostCatalogsProvider);
 
     return SettingsPage(
       title: 'Appliance catalogs',
       description: 'Download and verify the rig\'s plate-solve / star catalogs',
       children: [
-        if (backend == null)
+        if (catalogs == null)
           // Give the disconnected state a direct path to connection setup.
           _NotConnected(colors: colors)
         else ...[
@@ -367,8 +366,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                       ? () => _run(
                             actionLabel: 'Reload',
                             successMessage: 'Catalog loaders reloaded',
-                            action: (backend) =>
-                                backend.catalogs.reloadCatalogs(),
+                            action: (catalogs, _) => catalogs.reloadCatalogs(),
                           )
                       : null,
                   label: 'Reload',

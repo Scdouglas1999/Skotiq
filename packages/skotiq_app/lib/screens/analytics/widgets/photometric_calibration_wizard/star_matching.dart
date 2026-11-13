@@ -140,6 +140,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     }
 
     final authority = ref.read(backendProvider);
+    final hostTools = ref.read(linkedHostCalibrationToolsProvider);
     final generation = ++_operationGeneration;
     final imageIds = List<int>.unmodifiable(_selectedImageIds);
 
@@ -152,9 +153,9 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     try {
       final matches = <CatalogStarMatch>[];
       for (final imageId in imageIds) {
-        if (authority.remoteHost case final linkedHost?) {
+        if (hostTools != null) {
           matches.addAll(
-            await linkedHost.calibrationTools.matchPhotometricCalibrationStars(imageId),
+            await hostTools.matchPhotometricCalibrationStars(imageId),
           );
         } else {
           matches.addAll(

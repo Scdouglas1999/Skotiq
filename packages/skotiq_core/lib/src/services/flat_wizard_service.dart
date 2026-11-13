@@ -11,7 +11,6 @@ import '../providers/flat_wizard_provider.dart';
 import 'sky_brightness_tracker.dart';
 import 'flat_exposure_calculator.dart';
 import 'flat_exposure_follower.dart';
-import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
 import 'logging_service.dart';
 part 'flat_wizard_service/flat_wizard_models.dart';
@@ -74,9 +73,12 @@ class FlatWizardService {
   /// Calls are best-effort so the UI can still render a disconnected/partial
   /// preview, but the returned [FlatCaptureConfig.rangeKnown] tells capture
   /// callers whether the ADU range is authoritative enough to automate.
+  /// [cameraOnHost] is true on a linked client, where [backend] reaches the
+  /// host's camera.
   static Future<FlatCaptureConfig> resolveCaptureConfig({
     required SkotiqBackend backend,
     required String deviceId,
+    bool cameraOnHost = false,
     int? profileDefaultGain,
     int? profileDefaultOffset,
     int? profileBinX,
@@ -198,7 +200,7 @@ class FlatWizardService {
       canAsymmetricBin: canAsymmetricBin,
       maxBinX: caps?.maxBinX ?? binX,
       maxBinY: caps?.maxBinY ?? binY,
-      hostAuthoritative: backend.remoteHost != null,
+      hostAuthoritative: cameraOnHost,
       capabilitiesKnown: caps != null,
       rangeKnown: rangeKnown,
     );

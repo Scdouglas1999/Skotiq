@@ -30,7 +30,21 @@ be.SkotiqEvent _error(int id, String message, DateTime at) => be.SkotiqEvent(
       ),
     );
 
-be.SkotiqEvent _decision(int id, String summary, DateTime at) => be.SkotiqEvent(
+/// A stopped run's cancellation, as the host sends it.
+be.SkotiqEvent _cancellation(int id, DateTime at) => be.SkotiqEvent(
+      eventId: BigInt.from(id),
+      timestamp: at.millisecondsSinceEpoch,
+      severity: be.EventSeverity.error,
+      category: be.EventCategory.sequencer,
+      payload: be.EventPayload.sequencer(
+        be.SequencerEvent.error(
+          message: kSequenceCancelledNotice,
+          kind: be.SequencerErrorKind.cancelled,
+        ),
+      ),
+    );
+
+be.SkotiqEvent _cancellationRow(int id, DateTime at) => be.SkotiqEvent(
       eventId: BigInt.from(id),
       timestamp: at.millisecondsSinceEpoch,
       severity: be.EventSeverity.info,
@@ -39,9 +53,10 @@ be.SkotiqEvent _decision(int id, String summary, DateTime at) => be.SkotiqEvent(
         be.SequencerEvent.decisionLogged(
           timestampIso: at.toUtc().toIso8601String(),
           category: 'system_event',
-          summary: summary,
+          summary: kSequenceCancelledNotice,
           detailsJson: '{"phase":"cancelled"}',
           sequenceRunId: 15,
+          stop: const be.SequencerStop.cancelled(),
         ),
       ),
     );
@@ -55,9 +70,10 @@ be.SkotiqEvent _manualStop(int id, DateTime at) => be.SkotiqEvent(
         be.SequencerEvent.decisionLogged(
           timestampIso: at.toUtc().toIso8601String(),
           category: 'manual_intervention',
-          summary: 'Operator: stop requested',
-          detailsJson: '{}',
+          summary: 'Operator: stop',
+          detailsJson: '{"action":"stop"}',
           sequenceRunId: 15,
+          stop: const be.SequencerStop.operator_(),
         ),
       ),
     );
@@ -85,6 +101,7 @@ be.SkotiqEvent _autopilotStop(int id, DateTime at, {int? runId}) =>
           summary: 'Autopilot: stop',
           detailsJson: '{"origin":"scheduler","action":"stop"}',
           sequenceRunId: runId ?? 15,
+          stop: const be.SequencerStop.autopilot(),
         ),
       ),
     );
@@ -131,8 +148,8 @@ void main() {
   void pressStop(ProviderContainer c, {required int base, DateTime? at}) {
     final when = at ?? _t0;
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(base, kSequenceCancelledNotice, when));
-    h.addEvent(_decision(base + 1, kSequenceCancelledNotice, when));
+    h.addEvent(_cancellation(base, when));
+    h.addEvent(_cancellationRow(base + 1, when));
     h.addEvent(_manualStop(base + 2, when));
     h.addEvent(_stopped(base + 3, when));
     h.addEvent(_stopped(base + 4, when));
@@ -145,8 +162,8 @@ void main() {
   void abortStop(ProviderContainer c, {required int base, DateTime? at}) {
     final when = at ?? _t0;
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(base, kSequenceCancelledNotice, when));
-    h.addEvent(_decision(base + 1, kSequenceCancelledNotice, when));
+    h.addEvent(_cancellation(base, when));
+    h.addEvent(_cancellationRow(base + 1, when));
     h.addEvent(_stopped(base + 2, when));
     h.addEvent(_stopped(base + 3, when));
   }
@@ -273,8 +290,8 @@ void main() {
     // device/park event landing between them is the normal live case.
     final c = makeContainer();
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(1, kSequenceCancelledNotice, _t0));
-    h.addEvent(_decision(2, kSequenceCancelledNotice, _t0));
+    h.addEvent(_cancellation(1, _t0));
+    h.addEvent(_cancellationRow(2, _t0));
     h.addEvent(_stopped(3, _t0));
     h.addEvent(
       _error(
@@ -351,8 +368,8 @@ void main() {
     // eventId, and it carries the cause.
     final c = makeContainer();
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(1, kSequenceCancelledNotice, _t0));
-    h.addEvent(_decision(2, kSequenceCancelledNotice, _t0));
+    h.addEvent(_cancellation(1, _t0));
+    h.addEvent(_cancellationRow(2, _t0));
     h.addEvent(_manualStop(3, _t0));
     h.addEvent(_stopped(4, _t0));
     h.addEvent(_stopped(5, _t0.add(const Duration(seconds: 20))));
@@ -379,8 +396,8 @@ void main() {
     // the emitted row, never swap in an older member's row wholesale.
     final c = makeContainer();
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(1, kSequenceCancelledNotice, _t0));
-    h.addEvent(_decision(2, kSequenceCancelledNotice, _t0));
+    h.addEvent(_cancellation(1, _t0));
+    h.addEvent(_cancellationRow(2, _t0));
     h.addEvent(_manualStop(3, _t0));
     h.addEvent(_stopped(4, _t0));
     h.addEvent(
@@ -459,7 +476,7 @@ void main() {
     // invented one.
     final c = makeContainer();
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(1, kSequenceCancelledNotice, _t0));
+    h.addEvent(_cancellation(1, _t0));
     h.addEvent(_stopped(2, _t0));
     h.addEvent(_stopped(3, _t0));
 
@@ -490,8 +507,8 @@ void main() {
   test('D13 a 14s teardown with a mid-family error stays one press row', () {
     final c = makeContainer();
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(1, kSequenceCancelledNotice, _t0));
-    h.addEvent(_decision(2, kSequenceCancelledNotice, _t0));
+    h.addEvent(_cancellation(1, _t0));
+    h.addEvent(_cancellationRow(2, _t0));
     h.addEvent(_manualStop(3, _t0));
     h.addEvent(_stopped(4, _t0));
     h.addEvent(
@@ -522,8 +539,8 @@ void main() {
     final h = c.read(eventHistoryProvider.notifier);
     h.addEvent(_stopped(1, _t0, runId: 14));
     final press = _t0.add(const Duration(seconds: 90));
-    h.addEvent(_error(10, kSequenceCancelledNotice, press));
-    h.addEvent(_decision(11, kSequenceCancelledNotice, press));
+    h.addEvent(_cancellation(10, press));
+    h.addEvent(_cancellationRow(11, press));
     h.addEvent(_manualStop(12, press));
     h.addEvent(_stopped(13, press, runId: 15));
 
@@ -546,8 +563,8 @@ void main() {
     // late terminal joins its own episode however long that took.
     final c = makeContainer();
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(1, kSequenceCancelledNotice, _t0));
-    h.addEvent(_decision(2, kSequenceCancelledNotice, _t0));
+    h.addEvent(_cancellation(1, _t0));
+    h.addEvent(_cancellationRow(2, _t0));
     h.addEvent(_manualStop(3, _t0));
     h.addEvent(_stopped(4, _t0, runId: 15));
     h.addEvent(_stopped(5, _t0.add(const Duration(minutes: 5)), runId: 15));
@@ -571,8 +588,8 @@ void main() {
     // request" invents a human that was not there.
     final c = makeContainer();
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(1, kSequenceCancelledNotice, _t0));
-    h.addEvent(_decision(2, kSequenceCancelledNotice, _t0));
+    h.addEvent(_cancellation(1, _t0));
+    h.addEvent(_cancellationRow(2, _t0));
     h.addEvent(_autopilotStop(3, _t0));
     h.addEvent(_stopped(4, _t0, runId: 15));
     h.addEvent(_stopped(5, _t0, runId: 15));
@@ -618,8 +635,8 @@ void main() {
     // operator evidence, so the feed's stop row must stay neutral.
     final c = makeContainer();
     final h = c.read(eventHistoryProvider.notifier);
-    h.addEvent(_error(1, kSequenceCancelledNotice, _t0));
-    h.addEvent(_decision(2, kSequenceCancelledNotice, _t0));
+    h.addEvent(_cancellation(1, _t0));
+    h.addEvent(_cancellationRow(2, _t0));
     h.addEvent(_stopped(3, _t0, runId: 15));
 
     final recent = c.read(runDashboardRecentEventsProvider(5));

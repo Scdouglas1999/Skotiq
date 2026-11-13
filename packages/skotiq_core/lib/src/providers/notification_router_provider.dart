@@ -49,7 +49,6 @@ import '../services/notification/transports/pushover_transport.dart';
 import '../services/notification/transports/system_push_transport.dart';
 import '../services/notification/transports/telegram_transport.dart';
 import '../services/notification/transports/webhook_transport.dart';
-import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'push_notification_provider.dart';
@@ -881,7 +880,7 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   // delivery depend on the phone being connected and can duplicate the host's
   // own sends. Remote controllers retain only local in-app banners until the
   // host exposes routing configuration APIs.
-  if (backend.remoteHost != null) {
+  if (ref.watch(isRemoteModeProvider)) {
     final router = NotificationRouter(
       transports: [InAppTransport(uiNotifier)],
       matrix: inAppOnlyFallbackMatrix(),

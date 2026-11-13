@@ -51,7 +51,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   _LinkedProfiles? get _remote {
     final owner = ref.read(backendProvider.notifier);
     final backend = owner.currentBackend;
-    final host = backend.remoteHost?.profiles;
+    final host = ref.read(linkedHostProfilesProvider);
     return host == null ? null : (host: host, backend: backend, owner: owner);
   }
 
@@ -87,7 +87,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
 
   @override
   Future<EquipmentProfilesState> build() async {
-    final host = ref.watch(backendProvider).remoteHost?.profiles;
+    final host = ref.watch(linkedHostProfilesProvider);
     if (host != null) {
       try {
         final remoteProfiles = await host.getProfiles();

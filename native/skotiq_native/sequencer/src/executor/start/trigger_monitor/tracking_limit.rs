@@ -836,7 +836,9 @@ mod tests {
         assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
     }
 
-    fn flip_outcomes(events: &mut broadcast::Receiver<ExecutorEvent>) -> Vec<(String, String)> {
+    fn flip_outcomes(
+        events: &mut broadcast::Receiver<ExecutorEvent>,
+    ) -> Vec<(crate::meridian_flip_executor::FlipOutcome, String)> {
         let mut outcomes = Vec::new();
         while let Ok(event) = events.try_recv() {
             if let ExecutorEvent::MeridianFlipOutcome {
@@ -895,8 +897,14 @@ mod tests {
         assert_eq!(
             flip_outcomes(&mut outcomes),
             vec![
-                ("pier_changed".to_string(), "East".to_string()),
-                ("success".to_string(), "East".to_string()),
+                (
+                    crate::meridian_flip_executor::FlipOutcome::PierChanged,
+                    "East".to_string()
+                ),
+                (
+                    crate::meridian_flip_executor::FlipOutcome::Success,
+                    "East".to_string()
+                ),
             ]
         );
         let reasons: Vec<String> = h

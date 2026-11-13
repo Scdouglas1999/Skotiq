@@ -3,20 +3,21 @@ part of '../node_progress_panels.dart';
 class _SlewProgressPanel extends StatelessWidget {
   final SkotiqColors colors;
   final double progressPercent;
-  final String detail;
+
+  /// The Center step's latest report; null for a slew.
+  final CenterInstructionProgressDetail? centering;
   final bool isCentering;
 
   const _SlewProgressPanel({
     required this.colors,
     required this.progressPercent,
-    required this.detail,
+    required this.centering,
     required this.isCentering,
   });
 
   @override
   Widget build(BuildContext context) {
-    final sepMatch = RegExp(r'(\d+\.?\d*)"?').firstMatch(detail);
-    final separation = double.tryParse(sepMatch?.group(1) ?? '');
+    final separation = centering?.lastSeparationArcsec;
 
     return _ProgressPanelContainer(
       colors: colors,

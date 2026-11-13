@@ -17,7 +17,6 @@ import '../sensor_specs/camera_sensor_entry.dart';
 import '../sensor_specs/camera_sensor_specs.dart';
 import '../sensor_specs/published_figure.dart';
 import '../smart_night/hardware_specs_service.dart';
-import '../../backend/remote_host.dart';
 import '../../models/backend/backend_types.dart';
 import '../../providers/logging_service_provider.dart';
 
@@ -61,6 +60,9 @@ class ScienceCameraAutoConfig {
   final Ref _ref;
   final SkotiqBackend _backend;
 
+  /// False on a linked client: the host owns the camera and these settings.
+  final bool _cameraIsHere;
+
   int _syncGeneration = 0;
   bool _retired = false;
 
@@ -69,7 +71,11 @@ class ScienceCameraAutoConfig {
   /// that is what the written values are actually derived from.
   (String, int?, int, int?)? _lastApplied;
 
-  ScienceCameraAutoConfig(this._ref, this._backend);
+  ScienceCameraAutoConfig(
+    this._ref,
+    this._backend, {
+    required bool cameraIsHere,
+  }) : _cameraIsHere = cameraIsHere;
 
   LoggingService get _logger => _ref.read(loggingServiceProvider);
 
@@ -82,9 +88,7 @@ class ScienceCameraAutoConfig {
   }) async {
     final generation = ++_syncGeneration;
     try {
-      if (!_isCurrent(generation) || _backend.remoteHost != null) {
-        return; // The appliance host owns the hardware and these settings.
-      }
+      if (!_isCurrent(generation) || !_cameraIsHere) return;
       final dao = _ref.read(settingsDaoProvider);
       final autoManaged = await dao.getSetting(autoManagedKey);
       if (!_isCurrent(generation)) return;

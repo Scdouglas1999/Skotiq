@@ -47,7 +47,7 @@ void main() {
     final sent = _repairNotice.toEvent();
     final received = SkotiqEvent.fromWireJson({'type': 'event', ...sent.toJson()});
 
-    final event = tryBridgeEventFromCoreEvent(received);
+    final event = typedEventFromWire(received);
 
     expect(event, isNotNull);
     final payload = event!.payload as typed.EventPayload_System;

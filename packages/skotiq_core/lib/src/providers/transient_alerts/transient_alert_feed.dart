@@ -43,8 +43,7 @@ final transientFeedCheckProvider = StateProvider<TransientFeedCheck?>(
 /// In local mode, fetches directly from AAVSO/TNS APIs.
 final activeTransientAlertsProvider =
     StreamProvider.autoDispose<List<TransientAlert>>((ref) {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.transients;
+      final remote = ref.watch(linkedHostTransientsProvider);
       final service = ref.watch(transientAlertServiceProvider);
       final settings = ref.watch(transientAlertSettingsProvider);
       final logger = ref.watch(loggingServiceProvider);

@@ -66,6 +66,9 @@ if [[ $SKIP_FRB -eq 0 ]]; then
     _clang_res="$(clang -print-resource-dir 2>/dev/null)"
     ( cd "$NATIVE_DIR" && CC=clang CPATH="${_clang_res:+$_clang_res/include:}/usr/include${CPATH:+:$CPATH}" flutter_rust_bridge_codegen generate )
     ok "FRB bindings regenerated"
+    # The event wire codec is generated from the event unions FRB just wrote.
+    ( cd "$SCRIPT_DIR/.." && dart run packages/skotiq_bridge/tool/generate_event_wire.dart >/dev/null )
+    ok "Event wire codec regenerated"
   else
     echo "  flutter_rust_bridge_codegen not found; install with:" >&2
     echo "    cargo install flutter_rust_bridge_codegen --version 2.11.1 --locked" >&2

@@ -593,7 +593,7 @@ mod consecutive_reject_limit {
                 match event {
                     crate::executor::ExecutorEvent::Error { .. } => seen.errors += 1,
                     crate::executor::ExecutorEvent::NoticedWarning {
-                        notice: crate::decision::RunNotice::RejectStreak,
+                        notice: crate::decision::RunNotice::RejectStreak { .. },
                         message,
                     } => {
                         assert!(
@@ -606,7 +606,13 @@ mod consecutive_reject_limit {
                 }
             }
             while let Ok(decision) = self.decisions.try_recv() {
-                if decision.notice == Some(crate::decision::RunNotice::RejectStreak) {
+                if let Some(crate::decision::RunNotice::RejectStreak {
+                    consecutive_rejects,
+                    reason,
+                }) = &decision.notice
+                {
+                    assert_eq!(*consecutive_rejects, max);
+                    assert_eq!(decision.details["reason"], reason.as_str());
                     assert_eq!(decision.details["consecutive_rejects"], max);
                     assert_eq!(
                         decision.details["reason"],

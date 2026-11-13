@@ -27,4 +27,30 @@ void main() {
       isA<ExposureInstructionProgressDetail>(),
     );
   });
+
+  // An autofocus reports "Point 4/9: pos 800" (free text) between the points
+  // it measures; the panel reads the point, HFR and stars from the store.
+  test('a step keeps its last reading across its free-text lines', () {
+    final notifier = RunRecordNotifier();
+    const measured = AutofocusInstructionProgressDetail(
+      step: 3,
+      totalSteps: 9,
+      currentHfr: 3.1,
+      starCount: 40,
+    );
+
+    notifier.updateNodeStructuredProgress('af', 30, measured);
+    notifier.updateNodeStructuredProgress(
+      'af',
+      35,
+      const UnknownInstructionProgressDetail(
+        kind: kGenericProgressDetailKind,
+        rawJson: {},
+      ),
+    );
+
+    final progress = notifier.state.progress;
+    expect(progress.nodeProgressStructuredDetail['af'], measured);
+    expect(progress.nodeProgressPercent['af'], 35);
+  });
 }
