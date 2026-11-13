@@ -387,29 +387,44 @@ pub fn is_astrometry_keyword(key: &str) -> bool {
 
 /// True for a keyword that identifies *what was observed and with what*, and
 /// stays true of a frame that has been rescaled, rebalanced, or filtered in
-/// place: target, filter, timing, optics, sensor settings and site.
+/// place: target, filter, timing and pointing, plus the instrument
+/// ([`is_instrument_keyword`]).
 ///
 /// Deliberately excluded: `BAYERPAT`/`XBAYROFF`/`YBAYROFF`. A CFA pattern
 /// describes a raw mosaic; carrying it onto a debayered or integrated frame
 /// makes a downstream reader debayer an already-colour image.
 pub fn is_observation_keyword(key: &str) -> bool {
+    is_instrument_keyword(key)
+        || matches!(
+            key,
+            "OBJECT"
+                | "OBJCTRA"
+                | "OBJCTDEC"
+                | "RA"
+                | "DEC"
+                | "FILTER"
+                | "DATE-OBS"
+                | "DATE-END"
+                | "EXPTIME"
+                | "EXPOSURE"
+                | "AIRMASS"
+        )
+}
+
+/// True for a keyword that describes the instrument and site a frame was
+/// taken with: optics, sensor and its settings, observer and site. These stay
+/// true of a product combined from many exposures of one setup, which the
+/// rest of [`is_observation_keyword`] (one exposure's timing and pointing) do
+/// not.
+pub fn is_instrument_keyword(key: &str) -> bool {
     matches!(
         key,
-        "OBJECT"
-            | "OBJCTRA"
-            | "OBJCTDEC"
-            | "RA"
-            | "DEC"
-            | "FILTER"
-            | "DATE-OBS"
-            | "DATE-END"
-            | "EXPTIME"
-            | "EXPOSURE"
-            | "TELESCOP"
+        "TELESCOP"
             | "INSTRUME"
             | "OBSERVER"
             | "FOCALLEN"
             | "APTDIA"
+            | "APTAREA"
             | "XPIXSZ"
             | "YPIXSZ"
             | "PIXSIZE1"
@@ -425,7 +440,6 @@ pub fn is_observation_keyword(key: &str) -> bool {
             | "SITELAT"
             | "SITELONG"
             | "SITEELEV"
-            | "AIRMASS"
     )
 }
 
@@ -481,6 +495,27 @@ pub fn copy_header_cards(
 /// writes reads as unsolved and the next op in the chain has no sky reference.
 pub fn copy_astrometry_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize {
     copy_header_cards(dst, src, is_astrometry_keyword)
+}
+
+/// Give `dst` the astrometry of `src` in place of its own, returning the
+/// number of cards copied: every astrometry card `dst` held goes first, so no
+/// earlier `PC` matrix or SIP polynomial is read on top of `src`'s solution.
+pub fn replace_astrometry_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize {
+    remove_astrometry_headers(dst);
+    copy_astrometry_headers(dst, src)
+}
+
+/// Remove every astrometry card ([`is_astrometry_keyword`]) from `header`.
+pub fn remove_astrometry_headers(header: &mut FitsHeader) {
+    let astrometry: Vec<String> = header
+        .cards()
+        .map(|(key, _, _)| key)
+        .filter(|key| is_astrometry_keyword(key))
+        .map(str::to_string)
+        .collect();
+    for key in astrometry {
+        header.remove(&key);
+    }
 }
 
 /// Carry the source frame's observation identity ([`is_observation_keyword`])
@@ -775,6 +810,28 @@ pub fn header_text_cards(content: &str) -> Vec<&str> {
         }
     }
     cards
+}
+
+/// A header written out as text (a solver's `.wcs` sidecar), read by the
+/// same card rules as a file's header: [`header_text_cards`] splits it and
+/// each card is read as the reader reads records. An `END` card is not
+/// required.
+pub fn header_from_text(content: &str) -> Result<FitsHeader, FitsError> {
+    let mut records: Vec<u8> = Vec::new();
+    for card in header_text_cards(content) {
+        let bytes = &card.as_bytes()[..card.len().min(CARD_LEN)];
+        if bytes[..bytes.len().min(8)].trim_ascii_end() == b"END" {
+            break;
+        }
+        let mut record = [b' '; CARD_LEN];
+        record[..bytes.len()].copy_from_slice(bytes);
+        records.extend_from_slice(&record);
+    }
+    let mut end = [b' '; CARD_LEN];
+    end[..3].copy_from_slice(b"END");
+    records.extend_from_slice(&end);
+    records.resize(records.len().div_ceil(2880) * 2880, b' ');
+    read_header(&mut std::io::Cursor::new(records))
 }
 
 /// The keyword and raw value text of a value card (`KEYWORD = value /

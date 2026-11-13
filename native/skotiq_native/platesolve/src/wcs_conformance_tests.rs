@@ -209,6 +209,10 @@ fn parse_matches_the_pinned_rust_expectations() {
                 }
                 other => panic!("{id}: expected WcsMissingKeyword ({why}), got {other:?}"),
             },
+            "not_a_header" => match parsed {
+                Err(PlateSolveError::WcsHeader { .. }) => {}
+                other => panic!("{id}: expected WcsHeader ({why}), got {other:?}"),
+            },
             other => panic!("{id}: unknown expected outcome {other:?}"),
         }
     }

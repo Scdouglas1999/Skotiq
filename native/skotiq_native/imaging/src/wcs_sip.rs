@@ -229,8 +229,14 @@ impl SipWcs {
     /// * SIP polynomials are read when their `*_ORDER` cards are present.
     ///
     /// The result is what the header says, not a judgment of it: a caller that
-    /// will invert the projection checks [`Self::is_invertible`].
+    /// will invert the projection checks [`Self::is_invertible`]. A header
+    /// with an astrometry card that should hold a number and does not
+    /// ([`unreadable_astrometry_card`]) carries no WCS: reading the rest
+    /// would default that card and describe another sky.
     pub fn from_header(header: &FitsHeader) -> Option<Self> {
+        if unreadable_astrometry_card(header).is_some() {
+            return None;
+        }
         let crval1 = header.get_float("CRVAL1")?;
         let crval2 = header.get_float("CRVAL2")?;
         let centre = |axis: &str| header.get_int(axis).unwrap_or(0) as f64 / 2.0 + 0.5;
@@ -271,15 +277,7 @@ impl SipWcs {
     /// held before goes first, so no earlier `PC` matrix or SIP polynomial
     /// is read on top of this solution.
     pub fn write_to_header(&self, header: &mut FitsHeader) {
-        let earlier: Vec<String> = header
-            .cards()
-            .map(|(key, _, _)| key)
-            .filter(|key| crate::fits::is_astrometry_keyword(key))
-            .map(str::to_string)
-            .collect();
-        for key in earlier {
-            header.remove(&key);
-        }
+        crate::fits::remove_astrometry_headers(header);
         header.set_float("CRVAL1", self.crval1);
         header.set_float("CRVAL2", self.crval2);
         header.set_float("CRPIX1", self.crpix1);
@@ -715,6 +713,28 @@ impl From<&WcsInfo> for SipWcs {
     }
 }
 
+/// The first astrometry card ([`crate::fits::is_astrometry_keyword`]) that
+/// should hold a number and holds something else, with that value as text.
+/// Only the axis types, units and reference system are words.
+pub fn unreadable_astrometry_card(header: &FitsHeader) -> Option<(&str, String)> {
+    let is_word = |key: &str| {
+        key.starts_with("CTYPE")
+            || key.starts_with("CUNIT")
+            || matches!(key, "RADESYS" | "RADECSYS")
+    };
+    header.cards().find_map(|(key, value, _)| {
+        (crate::fits::is_astrometry_keyword(key) && !is_word(key) && value.as_f64().is_none()).then(
+            || {
+                let text = match value {
+                    crate::FitsValue::String(text) => text.clone(),
+                    other => crate::fits::value_card_text(other),
+                };
+                (key, text)
+            },
+        )
+    })
+}
+
 /// The CD matrix `[cd1_1, cd1_2, cd2_1, cd2_2]` of the header's linear
 /// transformation, in the precedence and with the defaults of
 /// [`SipWcs::from_header`].
@@ -888,6 +908,34 @@ mod tests {
             v[3 * stride] = 4.0e-10; // A_3_0 (only valid at order >= 3)
         }
         v
+    }
+
+    /// A garbled number in an astrometry card is no solution, not a
+    /// solution with that term at its default.
+    #[test]
+    fn a_header_with_a_garbled_astrometry_number_carries_no_wcs() {
+        let mut header = FitsHeader::new();
+        header.set_string("CTYPE1", "RA---TAN");
+        header.set_string("CTYPE2", "DEC--TAN");
+        header.set_string("RADESYS", "ICRS");
+        for (key, value) in [
+            ("CRVAL1", 10.0),
+            ("CRVAL2", 41.0),
+            ("CD1_1", -2.8e-4),
+            ("CD1_2", 0.0),
+            ("CD2_2", 2.8e-4),
+        ] {
+            header.set_float(key, value);
+        }
+        header.set_string("CD2_1", "1.0e-6x");
+        assert_eq!(
+            unreadable_astrometry_card(&header),
+            Some(("CD2_1", "1.0e-6x".to_string()))
+        );
+        assert!(SipWcs::from_header(&header).is_none());
+        header.set_float("CD2_1", 0.0);
+        assert_eq!(unreadable_astrometry_card(&header), None);
+        assert!(SipWcs::from_header(&header).is_some());
     }
 
     #[test]
