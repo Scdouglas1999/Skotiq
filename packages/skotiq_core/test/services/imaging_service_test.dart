@@ -71,14 +71,16 @@ class _RecordingScienceProcessingService extends ScienceProcessingService {
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
-/// A host that lists one root, so remote scratch frames have a host path.
-void _stubHostRoots(_MockNetworkBackend backend) {
-  when(() => backend.browseRemoteDirectories()).thenAnswer(
-    (_) async => const RemoteDirectoryListing(
-      currentPath: null,
-      parentPath: null,
-      directories: [RemoteDirectoryEntry(name: 'Documents', path: '/rig/docs')],
+/// A host that keeps its scratch frames in `/rig/scratch`.
+void _stubHostScratch(_MockNetworkBackend backend) {
+  when(
+    () => backend.saveScratchFrameFromLastCapture(
+      deviceId: any(named: 'deviceId'),
+      name: any(named: 'name'),
+      headerData: any(named: 'headerData'),
     ),
+  ).thenAnswer(
+    (invocation) async => '/rig/scratch/${invocation.namedArguments[#name]}',
   );
 }
 
@@ -589,7 +591,7 @@ void main() {
         final remoteEvents = StreamController<SkotiqEvent>.broadcast();
         addTearDown(remoteEvents.close);
         final profiles = Completer<EquipmentProfilesState>();
-        _stubHostRoots(remoteBackend);
+        _stubHostScratch(remoteBackend);
 
         when(
           () => remoteBackend.eventStream,
@@ -631,7 +633,18 @@ void main() {
             headerData: any(named: 'headerData'),
             keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
+        when(
+          () => remoteBackend.saveScratchFrameFromLastCapture(
+            deviceId: any(named: 'deviceId'),
+            name: any(named: 'name'),
+            headerData: any(named: 'headerData'),
+          ),
+        ).thenAnswer(
+          (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+        );
 
         late TestBackendNotifier remoteBackendNotifier;
         final remoteContainer = ProviderContainer(
@@ -706,7 +719,7 @@ void main() {
 
     test('remote FITS header uses the imaging host active profile', () async {
       final remoteBackend = _MockNetworkBackend();
-      _stubHostRoots(remoteBackend);
+      _stubHostScratch(remoteBackend);
       final remoteEvents = StreamController<SkotiqEvent>.broadcast();
       addTearDown(remoteEvents.close);
 
@@ -747,7 +760,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => remoteBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -799,11 +823,10 @@ void main() {
       expect(result, isNotNull);
       final header =
           verify(
-                () => remoteBackend.saveFitsFromLastCapture(
+                () => remoteBackend.saveScratchFrameFromLastCapture(
                   deviceId: 'remote-camera',
-                  filePath: any(named: 'filePath'),
+                  name: any(named: 'name'),
                   headerData: captureAny(named: 'headerData'),
-                  keepCameraFile: any(named: 'keepCameraFile'),
                 ),
               ).captured.single
               as FitsWriteHeader;
@@ -814,7 +837,7 @@ void main() {
 
     test('a companion never processes the host frame it captured', () async {
       final remoteBackend = _MockNetworkBackend();
-      _stubHostRoots(remoteBackend);
+      _stubHostScratch(remoteBackend);
       final remoteEvents = StreamController<SkotiqEvent>.broadcast();
       addTearDown(remoteEvents.close);
       when(
@@ -855,7 +878,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => remoteBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       late _RecordingScienceProcessingService science;
       final remoteContainer = ProviderContainer(
@@ -892,11 +926,12 @@ void main() {
           );
 
       expect(result, isNotNull);
-      expect(result!.filePath, startsWith('/rig/docs'));
+      expect(result!.filePath, startsWith('/scratch/capture_'));
       expect(science.processed, isEmpty);
     });
 
-    test('a linked client writes scratch frames inside a host root', () async {
+    test('a linked client asks the host to keep a live-view frame where it '
+        'keeps scratch frames, without browsing the host\'s folders', () async {
       final remoteBackend = _MockNetworkBackend();
       final remoteEvents = StreamController<SkotiqEvent>.broadcast();
       addTearDown(remoteEvents.close);
@@ -932,30 +967,14 @@ void main() {
         () => remoteBackend.cameraGetLastImage(any()),
       ).thenAnswer((_) async => makeCapturedImageResult());
       when(remoteBackend.getActiveProfile).thenAnswer((_) async => null);
-      when(() => remoteBackend.browseRemoteDirectories()).thenAnswer(
-        (_) async => const RemoteDirectoryListing(
-          currentPath: null,
-          parentPath: null,
-          directories: [
-            RemoteDirectoryEntry(
-              name: 'Documents',
-              path: r'C:\Users\scdou\Documents',
-            ),
-            RemoteDirectoryEntry(
-              name: 'Image Output',
-              path: r'C:\Users\scdou\Documents\NGC7380',
-            ),
-          ],
-        ),
-      );
+      const hostPath = '/var/tmp/skotiq_captures/liveview_native_zwo_1.fits';
       when(
-        () => remoteBackend.saveFitsFromLastCapture(
+        () => remoteBackend.saveScratchFrameFromLastCapture(
           deviceId: any(named: 'deviceId'),
-          filePath: any(named: 'filePath'),
+          name: any(named: 'name'),
           headerData: any(named: 'headerData'),
-          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer((_) async => hostPath);
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -989,17 +1008,15 @@ void main() {
             ),
           );
 
-      const hostPath =
-          r'C:\Users\scdou\Documents\Skotiq\scratch\liveview_native_zwo_1.fits';
       expect(result?.filePath, hostPath);
       verify(
-        () => remoteBackend.saveFitsFromLastCapture(
+        () => remoteBackend.saveScratchFrameFromLastCapture(
           deviceId: 'native:zwo:1',
-          filePath: hostPath,
+          name: 'liveview_native_zwo_1.fits',
           headerData: any(named: 'headerData'),
-          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).called(1);
+      verifyNever(() => remoteBackend.browseRemoteDirectories());
     });
 
     test('keeper paths are built in the host path style', () {
@@ -1156,16 +1173,6 @@ void main() {
       verifyNever(() => remoteBackend.browseRemoteDirectories());
     });
 
-    test('hostScratchFilePath joins in the host path style', () {
-      expect(
-        hostScratchFilePath(const [
-          RemoteDirectoryEntry(name: 'Home', path: '/home/rig'),
-        ], 'a.fits'),
-        '/home/rig/Skotiq/scratch/a.fits',
-      );
-      expect(hostScratchFilePath(const [], 'a.fits'), isNull);
-    });
-
     test('captureImage throws when already capturing', () async {
       // Set up a long-running capture by never completing the exposure event
       when(
@@ -1259,7 +1266,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final service = container.read(imagingServiceProvider);
       await service.captureImage(settings: settings, targetName: 'M31');
@@ -1316,7 +1334,18 @@ void main() {
             headerData: any(named: 'headerData'),
             keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
+        when(
+          () => mockBackend.saveScratchFrameFromLastCapture(
+            deviceId: any(named: 'deviceId'),
+            name: any(named: 'name'),
+            headerData: any(named: 'headerData'),
+          ),
+        ).thenAnswer(
+          (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+        );
 
         SkotiqEvent completionFrom(String deviceId) => SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -1394,7 +1423,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(
@@ -1451,6 +1491,13 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
+        ),
+      ).thenThrow(Exception('disk full'));
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
         ),
       ).thenThrow(Exception('disk full'));
 
@@ -1519,6 +1566,13 @@ void main() {
             keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenThrow(Exception('read-only output folder'));
+        when(
+          () => mockBackend.saveScratchFrameFromLastCapture(
+            deviceId: any(named: 'deviceId'),
+            name: any(named: 'name'),
+            headerData: any(named: 'headerData'),
+          ),
+        ).thenThrow(Exception('read-only output folder'));
         final errors = <String>[];
 
         await container
@@ -1578,7 +1632,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       // Verify currentImageProvider is null initially
       expect(container.read(currentImageProvider), isNull);
@@ -1773,7 +1838,18 @@ void main() {
             headerData: any(named: 'headerData'),
             keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
+        when(
+          () => mockBackend.saveScratchFrameFromLastCapture(
+            deviceId: any(named: 'deviceId'),
+            name: any(named: 'name'),
+            headerData: any(named: 'headerData'),
+          ),
+        ).thenAnswer(
+          (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+        );
 
         final service = container.read(imagingServiceProvider);
 
@@ -1870,7 +1946,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(settings: settings);
@@ -1924,17 +2011,16 @@ void main() {
 
         final headers = <FitsWriteHeader>[];
         when(
-          () => mockBackend.saveFitsFromLastCapture(
+          () => mockBackend.saveScratchFrameFromLastCapture(
             deviceId: any(named: 'deviceId'),
-            filePath: any(named: 'filePath'),
+            name: any(named: 'name'),
             headerData: any(named: 'headerData'),
-            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenAnswer((invocation) async {
           headers.add(
             invocation.namedArguments[#headerData] as FitsWriteHeader,
           );
-          return invocation.namedArguments[#filePath] as String;
+          return '/scratch/frame.fits';
         });
 
         final service = container.read(imagingServiceProvider);
@@ -1990,15 +2076,14 @@ void main() {
 
       final headers = <FitsWriteHeader>[];
       when(
-        () => mockBackend.saveFitsFromLastCapture(
+        () => mockBackend.saveScratchFrameFromLastCapture(
           deviceId: any(named: 'deviceId'),
-          filePath: any(named: 'filePath'),
+          name: any(named: 'name'),
           headerData: any(named: 'headerData'),
-          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async {
         headers.add(invocation.namedArguments[#headerData] as FitsWriteHeader);
-        return invocation.namedArguments[#filePath] as String;
+        return '/scratch/frame.fits';
       });
 
       final service = container.read(imagingServiceProvider);
@@ -2061,13 +2146,23 @@ void main() {
         () => mockBackend.cameraGetLastImage(any()),
       ).thenAnswer((_) async => makeCapturedImageResult());
       when(
-        () => mockBackend.saveFitsFromLastCapture(
+        () => mockBackend.saveScratchFrameFromLastCapture(
           deviceId: any(named: 'deviceId'),
-          filePath: any(named: 'filePath'),
+          name: any(named: 'name'),
           headerData: any(named: 'headerData'),
-          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
     }
 
     setUp(() {
@@ -2300,7 +2395,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       const settings = ExposureSettings(
         exposureTime: 5.0,
@@ -2551,7 +2657,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);
@@ -2624,7 +2741,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final capturedImages = <CapturedImageData>[];
       final errors = <String>[];
@@ -2686,7 +2814,18 @@ void main() {
           headerData: any(named: 'headerData'),
           keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);

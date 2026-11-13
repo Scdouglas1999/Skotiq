@@ -248,6 +248,7 @@ class BackupService {
       // extended-table row or write failure must roll back the earlier clear,
       // settings, profiles, and sequences instead of returning a plausible
       // partial restore.
+      final notRestored = <String, int>{};
       final categoryCounts = await database.transaction(() async {
         if (replaceExisting) {
           _logger.debug('Clearing existing data...');
@@ -302,13 +303,13 @@ class BackupService {
         }
 
         if (staged.tables != null) {
-          categoryCounts.addAll(
-            await _restoreTables(
-              staged.tables!,
-              replace: replaceExisting,
-              profileIds: profileIds,
-            ),
+          final tables = await _restoreTables(
+            staged.tables!,
+            replace: replaceExisting,
+            profileIds: profileIds,
           );
+          categoryCounts.addAll(tables.written);
+          notRestored.addAll(tables.keptOut);
         }
 
         // A 2.x backup's per-table sections. Never cleared, never
@@ -345,6 +346,7 @@ class BackupService {
         timestamp: DateTime.now(),
         itemsRestored: totalItems,
         categoryCounts: categoryCounts,
+        notRestored: notRestored,
       );
     } catch (e, stackTrace) {
       _logger.error('Restore failed: $e\n$stackTrace', source: 'BackupService');

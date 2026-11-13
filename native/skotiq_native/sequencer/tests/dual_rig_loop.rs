@@ -165,6 +165,63 @@ fn meta(base: &std::path::Path) -> SecondaryFrameMeta {
     }
 }
 
+/// Runs the secondary for `frames` frames and returns the paths it saved.
+async fn run_secondary(
+    config: SecondaryRigConfig,
+    frame_meta: SecondaryFrameMeta,
+    frames: u32,
+) -> Vec<String> {
+    let recorder = Arc::new(RecordingOps::new(Duration::from_millis(10)));
+    let ops: Arc<dyn skotiq_sequencer::DeviceOps> = recorder.clone();
+    let barrier = Arc::new(DitherBarrier::new(
+        30.0,
+        InFlightDitherPolicy::CompleteIfShort,
+    ));
+    let mut config = config;
+    config.frame_count = Some(frames);
+    let rig = SecondaryRig::start(config, ops, barrier, frame_meta);
+    for _ in 0..200 {
+        if rig.status().frames_captured >= frames {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    recorder
+        .saved_frames()
+        .into_iter()
+        .map(|(path, _)| path)
+        .collect()
+}
+
+/// The secondary names its frames by the template it is given, as a capture
+/// step does, and a second start continues the numbering from the disk
+/// instead of writing over the first start's frames.
+#[tokio::test]
+async fn secondary_frames_follow_the_naming_template_and_never_reuse_a_name() {
+    let tmp = temp_dir();
+    let mut config = SecondaryRigConfig::new("cam-secondary", 0.01);
+    config.rig_label = "WideField".to_string();
+    config.save_to = Some("${target.name}_wide_${frame:03}".to_string());
+
+    let first = run_secondary(config.clone(), meta(&tmp), 1).await;
+    assert_eq!(first.len(), 1);
+    let first = std::path::PathBuf::from(&first[0]);
+    assert_eq!(first, tmp.join("WideField").join("M31_wide_001.fits"));
+    // The frame writer would have put the file there.
+    std::fs::write(&first, b"frame").unwrap();
+
+    let second = run_secondary(config, meta(&tmp), 1).await;
+    assert_eq!(
+        second,
+        vec![tmp
+            .join("WideField")
+            .join("M31_wide_002.fits")
+            .to_string_lossy()
+            .to_string()]
+    );
+}
+
 #[tokio::test]
 async fn fixed_frame_count_stops_loop_and_attributes_rig() {
     let tmp = temp_dir();

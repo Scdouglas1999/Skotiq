@@ -49,6 +49,17 @@ abstract class ImagingBackend {
     bool keepCameraFile = false,
   });
 
+  /// Save the camera's last frame on the host as a scratch file: a frame that
+  /// is shown, solved and annotated but kept in no capture folder. The host
+  /// decides where its scratch files go; [name] is a file name with no folder,
+  /// and a name used again (one per camera for live view) replaces its file.
+  /// Returns the path written.
+  Future<String> saveScratchFrameFromLastCapture({
+    required String deviceId,
+    required String name,
+    required FitsWriteHeader headerData,
+  });
+
   /// Solve an image file. [ra] is a solver hint in degrees; [dec] and
   /// [fovDegrees] are also degrees. [timeoutSeconds] bounds the external
   /// solver process on the host.

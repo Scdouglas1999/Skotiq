@@ -141,7 +141,18 @@ void main() {
         headerData: any(named: 'headerData'),
         keepCameraFile: any(named: 'keepCameraFile'),
       ),
-    ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
+    ).thenAnswer(
+      (invocation) async => invocation.namedArguments[#filePath] as String,
+    );
+    when(
+      () => backend.saveScratchFrameFromLastCapture(
+        deviceId: any(named: 'deviceId'),
+        name: any(named: 'name'),
+        headerData: any(named: 'headerData'),
+      ),
+    ).thenAnswer(
+      (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+    );
   });
 
   tearDown(() => events.close());
@@ -183,11 +194,10 @@ void main() {
         .captureImage(settings: settings);
     expect(result, isNotNull);
     return verify(
-          () => backend.saveFitsFromLastCapture(
+          () => backend.saveScratchFrameFromLastCapture(
             deviceId: any(named: 'deviceId'),
-            filePath: any(named: 'filePath'),
+            name: any(named: 'name'),
             headerData: captureAny(named: 'headerData'),
-            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).captured.single
         as FitsWriteHeader;

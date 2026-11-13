@@ -140,8 +140,9 @@ extension _BackupSchemaTables on BackupService {
   /// anything. Rows pointing at a profile follow [profileIds] to its id
   /// here. Foreign keys are checked at commit; a restored row whose parent
   /// is in neither the backup nor the database loses that link, or is left
-  /// out when it cannot exist without it. Returns the rows written per table.
-  Future<Map<String, int>> _restoreTables(
+  /// out when it cannot exist without it. Returns the rows written per table
+  /// and the backup rows a merge kept out per table.
+  Future<({Map<String, int> written, Map<String, int> keptOut})> _restoreTables(
     Map<String, dynamic> tables, {
     required bool replace,
     required Map<int, int> profileIds,
@@ -164,7 +165,7 @@ extension _BackupSchemaTables on BackupService {
 
     final counts = <String, int>{};
     final keptLive = <String, Set<Object>>{};
-    var skipped = 0;
+    final keptOut = <String, int>{};
     for (final name in _parentsFirst(shapes)) {
       final rows = (tables[name] as List).cast<Map<String, dynamic>>();
       if (name == 'weather_settings') {
@@ -194,7 +195,19 @@ extension _BackupSchemaTables on BackupService {
           }
         }
         if (orphanOfKept) {
-          skipped++;
+          // The same row already here was not kept out.
+          final alreadyHere = switch (shape.primaryKey) {
+            final key? when row[key] != null => await _liveRowEquals(
+              name,
+              key,
+              row,
+              whenAbsent: false,
+            ),
+            _ => false,
+          };
+          if (!alreadyHere) {
+            keptOut.update(name, (n) => n + 1, ifAbsent: () => 1);
+          }
           continue;
         }
         if (await _writeRow(name, row, replace: replace) > 0) {
@@ -202,20 +215,16 @@ extension _BackupSchemaTables on BackupService {
         } else if (shape.primaryKey case final key?
             when row[key] != null && !await _liveRowEquals(name, key, row)) {
           (keptLive[name] ??= {}).add(row[key]!);
-          skipped++;
+          keptOut.update(name, (n) => n + 1, ifAbsent: () => 1);
         }
       }
       counts[name] = written;
     }
-    if (skipped > 0) {
-      _logger.warning(
-        '$skipped backup rows not restored: the database already holds a '
-        'different row under the same key, or one such row is their parent',
-        source: 'BackupService',
-      );
+    if (restoreNotRestoredNotice(keptOut) case final notice?) {
+      _logger.warning(notice, source: 'BackupService');
     }
     await _settleOrphans(violationsBefore, shapes);
-    return counts;
+    return (written: counts, keptOut: keptOut);
   }
 
   /// Table names in an order that restores every parent before its children
@@ -259,18 +268,21 @@ extension _BackupSchemaTables on BackupService {
     );
   }
 
+  /// Whether the live row under [row]'s [key] holds the same values;
+  /// [whenAbsent] when there is no live row.
   Future<bool> _liveRowEquals(
     String table,
     String key,
-    Map<String, Object?> row,
-  ) async {
+    Map<String, Object?> row, {
+    bool whenAbsent = true,
+  }) async {
     final live = await database
         .customSelect(
           'SELECT * FROM "$table" WHERE "$key" = ?',
           variables: [_variable(row[key])],
         )
         .getSingleOrNull();
-    if (live == null) return true;
+    if (live == null) return whenAbsent;
     for (final MapEntry(key: column, :value) in row.entries) {
       final here = live.data[column];
       if (value is Uint8List && here is Uint8List) {

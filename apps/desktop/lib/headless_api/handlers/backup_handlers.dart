@@ -428,18 +428,23 @@ class BackupHandlers implements RouteSource {
   /// write erases every restored value. The body reports whether it worked.
   Future<Map<String, Object?>> _restoredBody(RestoreResult result) async {
     final reloaded = await _reloadRestoredState();
+    final notRestored = result.notRestoredNotice;
     return {
       'status': 'restored',
       'itemsRestored': result.itemsRestored,
       'categoryCounts': result.categoryCounts,
+      'notRestored': result.notRestored,
       'timestamp': result.timestamp.millisecondsSinceEpoch,
       'reloaded': reloaded,
-      'message': reloaded
-          ? 'Restored ${result.itemsRestored} items. This host is now running '
-                'on the restored data.'
-          : 'Restored ${result.itemsRestored} items, but this host could not '
-                'reload its cached state. Restart Skotiq before the next '
-                'run or the restore may be overwritten.',
+      'message': [
+        reloaded
+            ? 'Restored ${result.itemsRestored} items. This host is now '
+                  'running on the restored data.'
+            : 'Restored ${result.itemsRestored} items, but this host could '
+                  'not reload its cached state. Restart Skotiq before the '
+                  'next run or the restore may be overwritten.',
+        ?notRestored,
+      ].join(' '),
     };
   }
 

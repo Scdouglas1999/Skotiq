@@ -239,7 +239,7 @@ List<SummaryFragment> nodeSummary(
             filter,
             icon: LucideIcons.circle,
           ),
-        if (gain != null)
+        if (gain != null && sensitivity.hasGain)
           EditableFragment(
             InlineEditKind.gain,
             sensitivity.describe(gain),

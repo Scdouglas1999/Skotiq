@@ -72,16 +72,10 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     final capabilitiesAsync =
         ref.watch(cameraCapabilitiesProvider(cameraState.deviceId ?? ''));
     final capabilities = capabilitiesAsync.valueOrNull;
-    final capabilitiesLoading = capabilitiesAsync.isLoading;
-    final hasCoolingTelemetry = cameraState.temperature != null ||
-        cameraState.coolerPower != null ||
-        cameraState.isCooling;
-    // Show cooling controls when support is known, still loading, or live
-    // telemetry confirms cooling is active.
-    final showCoolingSection = isConnected &&
-        (capabilitiesLoading ||
-            (capabilities?.canSetCcdTemperature == true) ||
-            hasCoolingTelemetry);
+    // A camera with no cooler has no cooling card; a sensor temperature it
+    // reports is not a cooler.
+    final showCoolingSection =
+        isConnected && ref.watch(cameraHasCoolerProvider);
     // Cooler target-temperature slider range. Prefer the camera's reported
     // operating range; fall back to a conservative -30..20°C window when caps
     // are unknown or when a driver reports a nonsensical range (min >= max).
@@ -143,7 +137,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
               ],
             ),
           ),
-
         if (showCoolingSection)
           PanelSection(
             title: 'Cooling',
@@ -245,7 +238,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                     ),
                   ),
                 const SizedBox(height: 16),
-
                 SliderRowInteractive(
                   label: 'Target temperature',
                   value: targetTemp.clamp(coolerMinTempC, coolerMaxTempC),
@@ -302,8 +294,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                                   .setCooling(true);
                             }
                           } catch (e) {
-                            if (context.mounted &&
-                                host.isCurrent) {
+                            if (context.mounted && host.isCurrent) {
                               context.showErrorSnackBar(
                                   'Failed to set cooling: ${userFacingError(e)}');
                             }
@@ -352,8 +343,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                               context.showSuccessSnackBar(message);
                             }
                           } catch (e) {
-                            if (context.mounted &&
-                                host.isCurrent) {
+                            if (context.mounted && host.isCurrent) {
                               context.showErrorSnackBar(
                                 'Failed to warm up: ${userFacingError(e)}',
                               );
@@ -371,23 +361,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
               ],
             ),
           ),
-        if (isConnected &&
-            !capabilitiesLoading &&
-            !capabilitiesAsync.hasError &&
-            capabilities != null &&
-            !capabilities.canSetCcdTemperature)
-          PanelSection(
-            title: 'Cooling',
-            colors: widget.colors,
-            child: Text(
-              'Cooling not supported by this camera',
-              style: SkotiqTypography.caption.copyWith(
-                  color: widget.colors.textSecondary,
-                  fontStyle: FontStyle.italic),
-            ),
-          ),
         const SizedBox(height: 20),
-
         PanelSection(
           title: 'Sensor',
           colors: widget.colors,
@@ -442,7 +416,8 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                               if (idx < 0) return;
                               final deviceId = cameraState.deviceId;
                               if (deviceId == null) return;
-                              final host = ref.backendScope(alive: () => mounted);
+                              final host =
+                                  ref.backendScope(alive: () => mounted);
                               final deviceBackend =
                                   ref.read(deviceBackendProvider);
                               final exposureUpdater = ref.read(
@@ -466,8 +441,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                                   );
                                 }
                               } catch (e) {
-                                if (context.mounted &&
-                                    host.isCurrent) {
+                                if (context.mounted && host.isCurrent) {
                                   context.showErrorSnackBar(
                                     'Failed to set read mode: ${userFacingError(e)}',
                                   );
@@ -489,7 +463,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
           ),
         ),
         const SizedBox(height: 20),
-
         if (canSetGain || canSetOffset)
           PanelSection(
             title: sensitivity.hasOffset

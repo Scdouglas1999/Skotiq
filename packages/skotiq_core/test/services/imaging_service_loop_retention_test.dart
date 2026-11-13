@@ -158,6 +158,22 @@ void main() {
       File(path).writeAsBytesSync(const <int>[0]);
       return invocation.namedArguments[#filePath] as String;
     });
+    when(
+      () => backend.saveScratchFrameFromLastCapture(
+        deviceId: any(named: 'deviceId'),
+        name: any(named: 'name'),
+        headerData: any(named: 'headerData'),
+      ),
+    ).thenAnswer((invocation) async {
+      final path =
+          '${Directory.systemTemp.path}/skotiq_captures/${invocation.namedArguments[#name]}';
+      writtenPaths.add(path);
+      keptCameraFiles.add(false);
+      File(path)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(const <int>[0]);
+      return path;
+    });
   });
 
   tearDown(() {

@@ -21,8 +21,11 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import 'host_role.dart';
 import '../backend/remote_host.dart';
+import '../services/imaging_service.dart';
 import 'backend_provider.dart';
+import 'clock_provider.dart';
 import 'equipment/camera_state_provider.dart';
+import 'imaging_provider.dart' show namingPatternProvider;
 import 'settings_provider.dart';
 
 /// In-flight-exposure policy when the primary announces a dither.
@@ -421,7 +424,16 @@ abstract interface class _SecondaryRigDrive {
 }
 
 final class _BridgeSecondaryRig implements _SecondaryRigDrive {
-  const _BridgeSecondaryRig();
+  _BridgeSecondaryRig(this._ref);
+
+  final Ref _ref;
+
+  /// This process's capture loop is one drive, whichever ref asked for it.
+  @override
+  bool operator ==(Object other) => other is _BridgeSecondaryRig;
+
+  @override
+  int get hashCode => (_BridgeSecondaryRig).hashCode;
 
   @override
   Future<void> start(
@@ -444,6 +456,15 @@ final class _BridgeSecondaryRig implements _SecondaryRigDrive {
         ditherMaxWaitSecs: config.ditherMaxWaitSecs,
         inFlightPolicy: config.ditherPolicy.wire,
         saveBasePath: saveBasePath,
+        saveTo: ImagingService.secondaryRigSaveTemplate(
+          _ref.read(namingPatternProvider).pattern,
+          rigLabel: config.rigLabel,
+          gain: config.gain,
+          offset: config.offset,
+          binX: config.binX,
+          binY: config.binY,
+          sentAt: _ref.read(clockProvider).nowUtc(),
+        ),
         targetName: context.targetName,
         targetRaHours: context.targetRaHours,
         targetDecDegrees: context.targetDecDegrees,
@@ -511,18 +532,22 @@ final class _HostSecondaryRigDrive implements _SecondaryRigDrive {
       SecondaryRigStatus.fromJson(await _host.secondaryRigGetStatus());
 }
 
-_SecondaryRigDrive _secondaryRigDriveOn(RemoteHost? host) => host == null
-    ? const _BridgeSecondaryRig()
+_SecondaryRigDrive _secondaryRigDriveOn(Ref ref, RemoteHost? host) =>
+    host == null
+    ? _BridgeSecondaryRig(ref)
     : _HostSecondaryRigDrive(host.secondaryRig);
 
 final _secondaryRigDriveProvider = hostRoleProvider<_SecondaryRigDrive>(
-  here: (_) => _secondaryRigDriveOn(null),
-  linked: (_, host) => _secondaryRigDriveOn(host),
+  here: (ref) => _secondaryRigDriveOn(ref, null),
+  linked: (ref, host) => _secondaryRigDriveOn(ref, host),
 );
 
 final secondaryRigControllerProvider = Provider<SecondaryRigController>((ref) {
   final controller = SecondaryRigController(ref);
-  ref.listenAcrossHosts(_secondaryRigDriveOn, controller._switchDrive);
+  ref.listenAcrossHosts(
+    (host) => _secondaryRigDriveOn(ref, host),
+    controller._switchDrive,
+  );
   return controller;
 });
 

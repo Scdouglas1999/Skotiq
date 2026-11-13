@@ -54,20 +54,6 @@ part 'imaging_service/exposure_state.dart';
 part 'imaging_service/naming_internals.dart';
 
 /// Service for managing camera capture operations
-/// Where a linked client asks the host to write a scratch frame named
-/// [fileName]: `Skotiq/scratch` under the host's Documents root (or its first
-/// listed root), joined in the host's own path style. The host only writes
-/// inside the roots it lists, so a path in the client's temp folder is
-/// refused. Null when the host lists no roots.
-@visibleForTesting
-String? hostScratchFilePath(List<RemoteDirectoryEntry> roots, String fileName) {
-  if (roots.isEmpty) return null;
-  final root = roots
-      .firstWhere((r) => r.name == 'Documents', orElse: () => roots.first)
-      .path;
-  return hostPathContext(root).join(root, 'Skotiq', 'scratch', fileName);
-}
-
 class ImagingService {
   final Ref _ref;
   final AsyncScope<SkotiqBackend> _host;
@@ -596,6 +582,31 @@ class ImagingService {
     return candidate;
   }
 
+  /// Where a kept frame of [exposureSettings] taken now goes in [folder] (a
+  /// folder of the imaging host): named by the Settings naming pattern as a
+  /// manual capture is, at the next frame number not on disk, and never a
+  /// name that is taken or already handed out. For a screen that keeps frames
+  /// in its own folder (the Flat Wizard).
+  Future<String> keeperFilePath({
+    required String folder,
+    required ExposureSettings exposureSettings,
+    String? targetName,
+  }) async {
+    final frameNumber = await _nextKeeperFrameNumber(
+      basePath: folder,
+      exposureSettings: exposureSettings,
+      targetName: targetName,
+    );
+    return _generateImageFilePath(
+      basePath: folder,
+      exposureSettings: exposureSettings,
+      targetName: targetName,
+      frameNumber: frameNumber,
+      // The instant the frame number was probed with.
+      timestamp: _ref.read(clockProvider).nowUtc(),
+    );
+  }
+
   /// The naming-pattern tokens a run fills in as it saves each frame, as the
   /// native save template spells them: values that change from frame to
   /// frame (number, time, sensor temperature) or that only the run knows (the
@@ -642,6 +653,32 @@ class ImagingService {
         .substring(0, 10)
         .replaceAll('-', ''),
   };
+
+  /// The Settings naming [pattern] as the save template of a secondary
+  /// (piggyback) camera's frames, which the rig names under its own folder:
+  /// light frames of the rig labeled [rigLabel], which also stands for the
+  /// camera and the plan.
+  static String secondaryRigSaveTemplate(
+    String pattern, {
+    required String rigLabel,
+    required int? gain,
+    required int? offset,
+    required int binX,
+    required int binY,
+    required DateTime sentAt,
+  }) => runFrameSaveTemplate(
+    pattern,
+    runFrameFixedTokens(
+      sequence: rigLabel,
+      frameType: FrameType.light,
+      gain: gain ?? 0,
+      offset: offset ?? 0,
+      binning: '${binX}x$binY',
+      camera: rigLabel,
+      telescope: rigLabel,
+      sentAt: sentAt,
+    ),
+  );
 
   /// The Settings naming [pattern] as the save template (`save_to`) of a
   /// run's frames: [runFrameTokens] become the run's placeholders, every

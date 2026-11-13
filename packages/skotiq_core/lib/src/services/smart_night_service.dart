@@ -15,7 +15,7 @@ import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import 'logging_service.dart';
 import 'hardware_presets/hardware_presets_service.dart';
 import 'smart_night/camera_capture_defaults.dart';
-import 'pre_session_simulator.dart';
+import 'plan_timer.dart';
 import 'sensor_specs/camera_sensor_spec_resolver.dart';
 import 'session_optimizer_service.dart' show SmartNightExposureContext;
 import 'smart_night/dark_library_coverage.dart'
@@ -271,6 +271,8 @@ class SmartNightService {
   /// target once they are met.
   ///
   /// [availableFilters] is the rig's filter list (`effectiveFiltersProvider`).
+  /// [planTimer] (`planTimerProvider`) times the night for its warnings and
+  /// run length, with the dawn park and autofocus runs the pre-flight counts.
   ///
   /// Validates required inputs and throws [SmartNightBuildException] when an
   /// essential field is missing, rather than planning a night around a
@@ -284,6 +286,7 @@ class SmartNightService {
     required List<TargetSuggestion> selectedSuggestions,
     required SmartNightStrategy strategy,
     required SmartNightSettings settings,
+    required PlanTimer planTimer,
     SmartNightExposureContext? exposureContext,
     SmartNightFlatPlan? flatPlan,
     Map<int, List<IntegrationGoalProgress>> integrationGoals = const {},
@@ -582,12 +585,9 @@ class SmartNightService {
       planned: planned,
       flatPlan: flatPlan,
     );
-    final simulation = const PreSessionSimulator().simulate(
+    final simulation = planTimer.simulate(
       sequence,
       start: context.windowStart,
-      latitude: latitudeDeg,
-      longitude: longitudeDeg,
-      minAltitude: settings.minAltitudeDeg,
       darkWindowStart: context.windowStart,
       darkWindowEnd: context.windowEnd,
     );

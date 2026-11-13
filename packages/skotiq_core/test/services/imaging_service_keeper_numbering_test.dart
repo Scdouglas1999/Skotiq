@@ -183,6 +183,21 @@ void main() {
       File(path).writeAsBytesSync(const <int>[0]);
       return invocation.namedArguments[#filePath] as String;
     });
+    when(
+      () => backend.saveScratchFrameFromLastCapture(
+        deviceId: any(named: 'deviceId'),
+        name: any(named: 'name'),
+        headerData: any(named: 'headerData'),
+      ),
+    ).thenAnswer((invocation) async {
+      final path =
+          '${Directory.systemTemp.path}/skotiq_captures/${invocation.namedArguments[#name]}';
+      writtenPaths.add(path);
+      File(path)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(const <int>[0]);
+      return path;
+    });
   });
 
   tearDown(() async {
@@ -332,6 +347,34 @@ void main() {
       isEmpty,
       reason: 'a restart must not need the collision uniquifier',
     );
+  });
+
+  test('a frame kept in a screen\'s own folder is named by the Settings '
+      'pattern and never takes a name on disk', () async {
+    final container = await buildContainer();
+    final service = container.read(imagingServiceProvider);
+    final flats = p.join(outputDir.path, 'Flats', 'L');
+    const flat = ExposureSettings(
+      exposureTime: 1.5,
+      gain: 100,
+      offset: 10,
+      frameType: FrameType.flat,
+      filter: 'L',
+    );
+    final first = await service.keeperFilePath(
+      folder: flats,
+      exposureSettings: flat,
+      targetName: 'Flat',
+    );
+    expect(first, p.join(flats, 'Flat_L_2026-01-15_0001.fits'));
+    File(first).writeAsBytesSync(const <int>[0]);
+
+    final second = await service.keeperFilePath(
+      folder: flats,
+      exposureSettings: flat,
+      targetName: 'Flat',
+    );
+    expect(second, p.join(flats, 'Flat_L_2026-01-15_0002.fits'));
   });
 
   test('numbering restarts when the folder is empty again', () async {
