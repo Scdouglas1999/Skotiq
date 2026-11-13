@@ -8,7 +8,6 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'pass_view_charts.dart';
 import 'pass_view_parts.dart';
 
 
@@ -212,7 +211,7 @@ class PassLedger extends StatelessWidget {
               child: weighed && m && f.accepted && f.weight != null
                   ? _WeightBar(
                       weight: f.weight!,
-                      color: passFilterColor(lane.lane, colors),
+                      color: FilterColors.forName(lane.lane, colors: colors),
                     )
                   : (rejected
                       ? Text(

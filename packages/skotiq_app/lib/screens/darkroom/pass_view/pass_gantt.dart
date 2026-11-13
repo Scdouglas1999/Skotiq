@@ -158,7 +158,7 @@ class _GanttPainter extends CustomPainter {
       final f = rows[i];
       final label = f ?? afterLabel;
       final color =
-          f == null ? colors.textSecondary : passFilterColor(f, colors);
+          f == null ? colors.textSecondary : FilterColors.forName(f, colors: colors);
       canvas.drawRect(Rect.fromLTWH(0, top + rowHeight / 2 - 4, 8, 8),
           Paint()..color = color);
       _text(
@@ -184,7 +184,7 @@ class _GanttPainter extends CustomPainter {
           ? colors.error
           : (s.lane == null
               ? colors.textSecondary
-              : passFilterColor(s.lane!, colors));
+              : FilterColors.forName(s.lane!, colors: colors));
       // Adjacent stages alternate two strengths of the lane color.
       final fill = base.withValues(alpha: n.isEven ? 0.92 : 0.62);
       final left = x(s.start);

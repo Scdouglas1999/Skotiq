@@ -12,13 +12,6 @@ const double _kMixTouchRowHeight = 44;
 /// enough that 0 and 1 are positions the thumb lands on rather than hunts for.
 const int _kMixNotchesPerUnit = 20;
 
-String _mixRoleName(String role) => switch (role) {
-      'hAlpha' => 'Ha',
-      'oiii' => 'OIII',
-      'sii' => 'SII',
-      _ => role,
-    };
-
 String _mixChannelName(String channel) => switch (channel) {
       'red' => 'Red',
       'green' => 'Green',
@@ -232,7 +225,7 @@ class _DarkroomChannelMixControl extends StatelessWidget {
   ) {
     final value = mix.weight(channel, role);
     final what =
-        '${_mixRoleName(role)} in ${_mixChannelName(channel).toLowerCase()}';
+        '${darkroomRoleName(role)} in ${_mixChannelName(channel).toLowerCase()}';
     final min = spec.min;
     final max = spec.max;
     void write(double weight) =>
@@ -242,7 +235,7 @@ class _DarkroomChannelMixControl extends StatelessWidget {
         SizedBox(
           width: _kMixRoleWidth,
           child: Text(
-            _mixRoleName(role),
+            darkroomRoleName(role),
             style: SkotiqTypography.captionSm.copyWith(
               color: value == 0 ? colors.textMuted : colors.textSecondary,
             ),
