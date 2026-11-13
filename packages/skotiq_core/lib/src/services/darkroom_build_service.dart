@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -295,9 +296,7 @@ class DarkroomBuildService {
     bool shareFlats = true,
     Map<String, String> selectedFlats = const {},
   }) async {
-    final lights = frames
-        .where((f) => f.isAccepted && f.frameType.toLowerCase() == 'light')
-        .toList();
+    final lights = frames.where((f) => f.isAccepted && f.isLight).toList();
     final headers = <int, Map<String, String>>{};
     for (final f in lights) {
       headers[f.id] = await _readHeader(f.filePath);

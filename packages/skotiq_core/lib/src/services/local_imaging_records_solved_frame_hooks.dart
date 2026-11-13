@@ -55,7 +55,7 @@ Future<void> _driveCoImagingAutoContribute({
   required LoggingService logger,
   required db.DbCapturedImage image,
 }) async {
-  if (image.frameType.toLowerCase() != 'light' || !image.isAccepted) return;
+  if (!image.isLight || !image.isAccepted) return;
   final ra = image.solvedRa;
   final dec = image.solvedDec;
   if (ra == null || dec == null) return;
@@ -148,7 +148,7 @@ Future<void> _runFirstLightScan({
   required SolvedWcsDistortion distortion,
 }) async {
   // Only difference real light frames (a solved flat/dark would be nonsense).
-  if (image.frameType.toLowerCase() != 'light') return;
+  if (!image.isLight) return;
   final ra = image.solvedRa;
   final dec = image.solvedDec;
   final scale = image.solvedPixelScale;

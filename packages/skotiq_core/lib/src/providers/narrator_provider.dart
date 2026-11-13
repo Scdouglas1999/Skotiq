@@ -6,6 +6,7 @@
 /// uses, so the Narrator ingests for exactly as long as a session is running.
 library;
 
+import '../models/imaging/frame_type_record.dart';
 import '../database/daos/narrator_events_dao.dart';
 import 'dart:async';
 
@@ -180,7 +181,7 @@ List<NarratorFilterIntegration> _aggregateFilterIntegration(
 ) {
   final acceptedSecs = <String, double>{};
   for (final img in images) {
-    if (img.frameType != 'light') continue;
+    if (!img.isLight) continue;
     if (!img.isAccepted) continue;
     final filter = (img.filter == null || img.filter!.isEmpty)
         ? 'Unfiltered'

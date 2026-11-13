@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart' show DbCapturedImage, ImagingSession;
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart' show allDbImagesProvider;
 // kReadoutUnknown: the one em dash the design system spells, so a screen
 // never invents its own way of saying "not known".
@@ -163,7 +164,7 @@ final gradingBySessionProvider = Provider<Map<int, SessionFrameGrading>?>((
   final rejected = <int, int>{};
   for (final image in images) {
     final sessionId = image.sessionId;
-    if (sessionId == null || image.frameType != 'light') continue;
+    if (sessionId == null || !image.isLight) continue;
     final bucket = image.isAccepted ? accepted : rejected;
     bucket[sessionId] = (bucket[sessionId] ?? 0) + 1;
   }

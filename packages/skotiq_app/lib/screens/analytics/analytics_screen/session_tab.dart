@@ -160,7 +160,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
             ? '${sessionState.completedExposures}/${sessionState.totalExposures}'
             : frameMetric((images) {
                 final lights = images
-                    .where((i) => i.frameType.toLowerCase() == 'light')
+                    .where((i) => i.isLight)
                     .length;
                 final accepted = acceptedLights(images).length;
                 return lights == accepted ? '$accepted' : '$accepted/$lights';

@@ -13,6 +13,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 // Exports hand off through revealExportedFile (share sheet on mobile, path

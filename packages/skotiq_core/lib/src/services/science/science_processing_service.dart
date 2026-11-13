@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'frame_camera_noise.dart';
 import 'dart:io';

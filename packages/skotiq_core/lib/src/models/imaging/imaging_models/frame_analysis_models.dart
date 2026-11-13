@@ -20,6 +20,31 @@ enum FrameType {
     FrameType.snapshot => 'Snapshot',
   };
 
+  /// The frame type as a captured-image record names it: the `frame_type`
+  /// column, the host's image rows and the executor's capture events.
+  String get record => switch (this) {
+    FrameType.light => 'light',
+    FrameType.dark => 'dark',
+    FrameType.flat => 'flat',
+    FrameType.bias => 'bias',
+    FrameType.darkFlat => 'darkflat',
+    FrameType.snapshot => 'snapshot',
+  };
+
+  /// The frame type a record names, in any letter case and with or without a
+  /// separator ("Light", "darkFlat", "dark_flat", an `IMAGETYP` card); null
+  /// for a name no record should carry.
+  static FrameType? fromRecord(String value) =>
+      switch (value.trim().toLowerCase().replaceAll(RegExp(r'[\s_-]'), '')) {
+        'light' => FrameType.light,
+        'dark' => FrameType.dark,
+        'flat' => FrameType.flat,
+        'bias' => FrameType.bias,
+        'darkflat' => FrameType.darkFlat,
+        'snapshot' => FrameType.snapshot,
+        _ => null,
+      };
+
   String get displayName {
     switch (this) {
       case FrameType.light:

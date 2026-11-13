@@ -5,33 +5,16 @@ part of '../device_handlers.dart';
 /// An unrecognised string is a bad request, never [FrameType.light]: coercing
 /// it would let a typo in a calibration script mislabel darks and flats as
 /// lights in both the image record and the FITS `IMAGETYP` keyword, with
-/// nothing said to the operator. Every declared enum value — [FrameType.snapshot]
-/// included — is mapped here so the rejection arm only catches real typos.
-FrameType _parseFrameType(String type) {
-  switch (type.toLowerCase()) {
-    case 'light':
-      return FrameType.light;
-    case 'dark':
-      return FrameType.dark;
-    case 'flat':
-      return FrameType.flat;
-    case 'bias':
-      return FrameType.bias;
-    case 'darkflat':
-    case 'dark_flat':
-      return FrameType.darkFlat;
-    case 'snapshot':
-      return FrameType.snapshot;
-    default:
-      throw BadRequestError(
-        field: 'frameType',
-        expected: 'one of: light, dark, flat, bias, darkFlat, snapshot',
-        message:
-            'Unknown frame type "$type"; expected one of '
-            'light, dark, flat, bias, darkFlat, snapshot',
-      );
-  }
-}
+/// nothing said to the operator.
+FrameType _parseFrameType(String type) =>
+    FrameType.fromRecord(type) ??
+    (throw BadRequestError(
+      field: 'frameType',
+      expected: 'one of: light, dark, flat, bias, darkFlat, snapshot',
+      message:
+          'Unknown frame type "$type"; expected one of '
+          'light, dark, flat, bias, darkFlat, snapshot',
+    ));
 
 /// Internal sentinel raised by `_dispatchConnect` when the requested
 /// device id does not match anything `DeviceService.discoverDevices`

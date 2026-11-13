@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -181,5 +182,4 @@ class FfiBackend extends _FfiBackendBase
   @visibleForTesting
   bridge.EquipmentProfile profileToBridgeForTesting(EquipmentProfile value) =>
       _toBridgeProfile(value);
-
 }

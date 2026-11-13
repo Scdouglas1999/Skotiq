@@ -95,7 +95,7 @@ final _latestScienceSessionProvider = hostRoleProvider<Future<int?>>(
 int? latestSessionIdWithLightFrames(Iterable<DbCapturedImage> rows) {
   DbCapturedImage? newest;
   for (final row in rows) {
-    if (row.sessionId == null || row.frameType.toLowerCase() != 'light') {
+    if (row.sessionId == null || !row.isLight) {
       continue;
     }
     if (newest == null || row.capturedAt.isAfter(newest.capturedAt)) {
@@ -370,7 +370,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
     track(imagesAsync);
     final imageList = imagesAsync.valueOrNull ?? const [];
     final lightFrames = imageList
-        .where((image) => image.frameType.toLowerCase() == 'light')
+        .where((image) => image.isLight)
         .toList(growable: false);
     final solvedFrames =
         lightFrames.where((image) => image.isPlateSolved).length;

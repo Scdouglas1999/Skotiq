@@ -222,7 +222,7 @@ final runDashboardSessionIntegrationProvider =
   final accepted = <String, double>{};
   final total = <String, double>{};
   for (final img in images) {
-    if (img.frameType != 'light') continue;
+    if (!img.isLight) continue;
     final filter = (img.filter == null || img.filter!.isEmpty)
         ? 'Unfiltered'
         : img.filter!;

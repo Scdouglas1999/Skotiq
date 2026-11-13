@@ -1,3 +1,5 @@
+import '../../models/imaging/imaging_models.dart' show FrameType;
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -164,9 +166,7 @@ class ScienceReportExporter {
   }
 
   String _frameCounts(List<DbCapturedImage> images) {
-    final lights = images
-        .where((i) => i.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
+    final lights = images.where((i) => i.isLight).toList(growable: false);
     final accepted = lights.where((i) => i.isAccepted).length;
     final integrationSeconds = lights
         .where((i) => i.isAccepted)
@@ -177,15 +177,15 @@ class ScienceReportExporter {
         '| Frame type | Total | Accepted | Plate-solved |\n'
         '| --- | ---: | ---: | ---: |\n'
         '| Light | ${lights.length} | $accepted | $solved |\n'
-        '| Dark | ${_countOf(images, "dark")} | — | — |\n'
-        '| Flat | ${_countOf(images, "flat")} | — | — |\n'
-        '| Bias | ${_countOf(images, "bias")} | — | — |\n'
+        '| Dark | ${_countOf(images, FrameType.dark)} | — | — |\n'
+        '| Flat | ${_countOf(images, FrameType.flat)} | — | — |\n'
+        '| Bias | ${_countOf(images, FrameType.bias)} | — | — |\n'
         '\n'
         '**Accepted integration time:** ${DurationFormat.of(Duration(seconds: integrationSeconds.round()))}.';
   }
 
-  int _countOf(List<DbCapturedImage> images, String type) =>
-      images.where((i) => i.frameType.toLowerCase() == type).length;
+  int _countOf(List<DbCapturedImage> images, FrameType type) =>
+      images.where((i) => i.recordedFrameType == type).length;
 
   String _photometrySnapshot(
     List<FramePhotometricCalibrationRow> calibrations,
@@ -368,7 +368,7 @@ class ScienceReportExporter {
   String _filterBreakdown(List<DbCapturedImage> images) {
     final perFilter = <String, ({int frames, double seconds})>{};
     for (final image in images) {
-      if (image.frameType.toLowerCase() != 'light' || !image.isAccepted) {
+      if (!image.isLight || !image.isAccepted) {
         continue;
       }
       final filter = (image.filter ?? '').isEmpty

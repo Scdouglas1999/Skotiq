@@ -476,7 +476,7 @@ class AnalyticsHandlers implements RouteSource {
           break;
       }
 
-      if (img.hfr != null && img.frameType == 'light') {
+      if (img.hfr != null && img.isLight) {
         totalLightHfr += img.hfr!;
         lightHfrCount++;
       }
@@ -650,7 +650,7 @@ class AnalyticsHandlers implements RouteSource {
           .customSelect(
             'SELECT session_id, is_accepted, COUNT(*) AS frames '
             'FROM captured_images '
-            "WHERE frame_type = 'light' AND session_id IN ($placeholders) "
+            'WHERE $lightFrameSql AND session_id IN ($placeholders) '
             'GROUP BY session_id, is_accepted',
             variables: [for (final id in batch) Variable<int>(id)],
             readsFrom: {database.capturedImages},

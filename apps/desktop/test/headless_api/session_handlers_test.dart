@@ -377,6 +377,54 @@ void main() {
   // Range header shapes. The handler streams via `file.openRead(start,
   // end+1)` so the response body covers exactly the requested byte
   // slice; we drain the body to verify the bytes are correct.
+  group('SessionHandlers POST /api/images', () {
+    late ProviderContainer container;
+    late SessionHandlers handlers;
+    late SkotiqDatabase db;
+
+    setUp(() {
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      handlers = SessionHandlers(container);
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await db.close();
+    });
+
+    Future<Response> post(String frameType) => translateHandlerErrors(
+      handlers.handleCreateImage(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/images'),
+          body: jsonEncode({
+            'filePath': '/nowhere/frame.fits',
+            'fileName': 'frame.fits',
+            'frameType': frameType,
+            'exposureDuration': 60,
+            'capturedAt': DateTime.utc(2026, 11, 13).toIso8601String(),
+          }),
+        ),
+      ),
+    );
+
+    test('a frame type is stored in the one record spelling', () async {
+      final response = await post('Light');
+      expect(response.statusCode, HttpStatus.ok);
+      final rows = await db.select(db.capturedImages).get();
+      expect(rows.single.frameType, 'light');
+    });
+
+    test('a name that is no frame type is refused', () async {
+      final response = await post('lights');
+      expect(response.statusCode, HttpStatus.badRequest);
+      expect(await db.select(db.capturedImages).get(), isEmpty);
+    });
+  });
+
   group('SessionHandlers /api/images/{id}/download (Range)', () {
     late ProviderContainer container;
     late SessionHandlers handlers;

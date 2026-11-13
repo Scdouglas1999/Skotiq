@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:csv/csv.dart';
@@ -34,7 +35,7 @@ class SessionFrameGrading {
     var lights = 0;
     var accepted = 0;
     for (final image in images) {
-      if (image.frameType != 'light') continue;
+      if (!image.isLight) continue;
       lights++;
       if (image.isAccepted) accepted++;
     }

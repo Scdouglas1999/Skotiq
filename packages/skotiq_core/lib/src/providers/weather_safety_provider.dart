@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -722,7 +723,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
 
   static List<StarSample> _starSamples(List<db.DbCapturedImage> rows) => [
     for (final row in rows)
-      if (row.frameType.toLowerCase() == 'light' && row.starCount != null)
+      if (row.isLight && row.starCount != null)
         (
           capturedAt: row.capturedAt,
           stars: row.starCount!,

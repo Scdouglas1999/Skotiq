@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:convert';
 
 import 'package:skotiq_astro/format.dart';
@@ -85,9 +86,7 @@ class SessionReportService {
     // `equipment_stats` and `session_chart` all normalise before comparing and
     // this was the one place that did not — a row that reached the table with
     // its original capitalisation was invisible to the report alone.
-    final lightFrames = images
-        .where((i) => i.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
+    final lightFrames = images.where((i) => i.isLight).toList(growable: false);
     // Everything that is not a light. Previously discarded outright, which is
     // how a dark-only session reported "Frames accepted 0/0" and "Integration
     // 0s" while three dark FITS sat on disk, `imaging_sessions` recorded
@@ -95,7 +94,7 @@ class SessionReportService {
     // Calibration frames do not belong in a target's integration, but they are
     // frames, and the report has to say so.
     final calibrationFrames = images
-        .where((i) => i.frameType.toLowerCase() != 'light')
+        .where((i) => !i.isLight)
         .toList(growable: false);
 
     final scienceSnrById = await _loadScienceSnr(sessionId);
@@ -187,7 +186,8 @@ class SessionReportService {
 
     final byType = <String, List<DbCapturedImage>>{};
     for (final frame in frames) {
-      final type = frame.frameType.toLowerCase();
+      final type =
+          frame.recordedFrameType?.record ?? frame.frameType.toLowerCase();
       byType.putIfAbsent(type, () => <DbCapturedImage>[]).add(frame);
     }
 

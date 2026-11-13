@@ -19,9 +19,8 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
       db.DbCapturedImage? capturedImage;
       if (capturedImageId != null) {
         capturedImage = await _imagesRepo.getImageById(capturedImageId);
-        final frameType = capturedImage?.frameType.toLowerCase();
         // Science products in v1 are computed for light frames only.
-        if (frameType != null && frameType != 'light') {
+        if (capturedImage != null && !capturedImage.isLight) {
           _status.dequeue();
           return const ScienceFrameOutcome.skipped();
         }
@@ -590,8 +589,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
           for (final image
               in recent.toList()
                 ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt))) {
-            if (image.filePath.isEmpty ||
-                image.frameType.toLowerCase() != 'light') {
+            if (image.filePath.isEmpty || !image.isLight) {
               continue;
             }
             final frameWcs = image.id == capturedImageId

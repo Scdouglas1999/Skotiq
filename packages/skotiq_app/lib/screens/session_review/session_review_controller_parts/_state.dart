@@ -148,7 +148,7 @@ class SessionReviewState {
 
   /// Light subs only (the integration population is always lights).
   List<DbCapturedImage> get lights =>
-      subs.where((s) => s.frameType == 'light').toList(growable: false);
+      subs.where((s) => s.isLight).toList(growable: false);
 
   /// Accepted light subs — the population the A/B compare and accumulation
   /// consume.
