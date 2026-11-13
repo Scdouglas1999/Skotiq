@@ -8,7 +8,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `thumbnail_generation_gate`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
 Future<AutofocusResultApi> apiRunAutofocus({
@@ -288,17 +288,6 @@ Future<void> apiSaveRgbaJpegFile({
   height: height,
   rgba: rgba,
   quality: quality,
-);
-
-/// Set cards in a frame file's metadata, FITS or XISF, keeping its pixels and
-/// everything else it holds. The file is replaced whole, never left half
-/// written.
-Future<void> apiUpdateFrameCards({
-  required String filePath,
-  required List<FrameCardUpdate> cards,
-}) => RustLib.instance.api.crateApiImagingApiUpdateFrameCards(
-  filePath: filePath,
-  cards: cards,
 );
 
 /// Square cutouts of a mono frame file, `2 * half + 1` pixels on a side,
@@ -948,42 +937,6 @@ class FocusDataPoint {
           hfr == other.hfr &&
           fwhm == other.fwhm &&
           starCount == other.starCount;
-}
-
-/// One card to set in a frame file's metadata. Exactly one value is given.
-class FrameCardUpdate {
-  final String keyword;
-  final String? stringValue;
-  final PlatformInt64? intValue;
-  final double? doubleValue;
-  final String? comment;
-
-  const FrameCardUpdate({
-    required this.keyword,
-    this.stringValue,
-    this.intValue,
-    this.doubleValue,
-    this.comment,
-  });
-
-  @override
-  int get hashCode =>
-      keyword.hashCode ^
-      stringValue.hashCode ^
-      intValue.hashCode ^
-      doubleValue.hashCode ^
-      comment.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FrameCardUpdate &&
-          runtimeType == other.runtimeType &&
-          keyword == other.keyword &&
-          stringValue == other.stringValue &&
-          intValue == other.intValue &&
-          doubleValue == other.doubleValue &&
-          comment == other.comment;
 }
 
 /// Image statistics

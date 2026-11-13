@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
 import 'database_provider.dart';
@@ -6,6 +5,8 @@ import 'darkroom_pass/pass_providers.dart' show passReporterProvider;
 import '../services/color_calibration_service.dart';
 import '../services/plate_solve_service.dart';
 import '../services/wcs/gnomonic_projection.dart';
+import '../services/wcs/plate_solve_data_from_result.dart'
+    show solvedWcsFromResult;
 import '../services/post_session_integration_service.dart';
 import 'calibration_library_service_providers.dart';
 import 'color_calibration_service_provider.dart';
@@ -80,24 +81,12 @@ final postSessionIntegrationServiceProvider = Provider<PostSessionIntegrationSer
             // optional WCS step.
             return null;
           }
-          if (!solve.success) return null;
-
-          // Convert (ra°, dec°, pixelScale arcsec/px, rotation°) to the CD matrix.
-          final scaleDeg = solve.pixelScale / 3600.0;
-          final rotRad = solve.rotation * math.pi / 180.0;
-          final cosRot = math.cos(rotRad);
-          final sinRot = math.sin(rotRad);
-          return MasterWcsSolution(
-            crval1: solve.ra,
-            crval2: solve.dec,
-            crpix1: imageWidth / 2.0,
-            crpix2: imageHeight / 2.0,
-            cd1_1:
-                -scaleDeg * cosRot, // Negative for RA increasing to the left.
-            cd1_2: scaleDeg * sinRot,
-            cd2_1: scaleDeg * sinRot,
-            cd2_2: scaleDeg * cosRot,
+          final wcs = solvedWcsFromResult(
+            solve,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
           );
+          return wcs == null ? null : MasterWcsSolution.of(wcs);
         },
   );
 });

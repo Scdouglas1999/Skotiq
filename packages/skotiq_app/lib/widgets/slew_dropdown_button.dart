@@ -8,12 +8,10 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/mount_command_service.dart';
 import 'centering_dialog.dart';
-import '../utils/authority_bound_dialog.dart';
 import '../utils/confirm_dialog.dart';
 import '../utils/snackbar_helper.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -290,8 +288,22 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     context.showCommandActionResult(result);
   }
 
-  Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) async {
-    if (!await _preflightCentering(revision, backend)) return;
+  Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) =>
+      _slewAndCenter(revision, backend);
+
+  /// Slews, then opens the centering dialog on the target. Completes with
+  /// the first centering run's result once that run ends, or null when the
+  /// slew failed or the dialog closed without a run.
+  ///
+  /// The dialog stays open on its result until the user closes it. The
+  /// button is busy for the run, not for the dialog: after an abort or a
+  /// failure it has to offer the slew again, not sit on "Working..." behind
+  /// a finished result.
+  Future<CenteringResult?> _slewAndCenter(
+    int revision,
+    SkotiqBackend backend,
+  ) async {
+    if (!await _preflightCentering(revision, backend)) return null;
 
     final mountService = ref.read(mountCommandServiceProvider);
     final slewResult = await mountService.slewTo(
@@ -303,68 +315,27 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     if (!mounted ||
         !_isCurrentOperation(revision, backend) ||
         !identical(ref.read(mountCommandServiceProvider), mountService)) {
-      return;
+      return null;
     }
 
     if (!slewResult.isSuccess) {
       context.showCommandActionResult(slewResult);
-      return;
+      return null;
     }
 
-    // The centering dialog runs the plate-solve loop and then stays open on
-    // its result until the user closes it. The button is busy for the RUN, not
-    // for the dialog: after an abort or a failure it has to offer the slew
-    // again, not sit on "Working..." behind a finished result.
-    if (!mounted) return;
-    final runEnded = Completer<void>();
-    final dialogClosed = showCenteringDialog(
+    return showCenteringDialog(
       context: context,
       targetRa: widget.ra,
       targetDec: widget.dec,
       targetName: widget.targetName ?? 'Target',
-      onRunEnded: () {
-        if (!runEnded.isCompleted) runEnded.complete();
-      },
     );
-    await Future.any<void>([runEnded.future, dialogClosed]);
   }
 
   Future<void> _handleSlewCenterRotate(
     int revision,
     SkotiqBackend backend,
   ) async {
-    if (!await _preflightCentering(revision, backend)) return;
-
-    final mountService = ref.read(mountCommandServiceProvider);
-    final slewResult = await mountService.slewTo(
-      widget.ra,
-      widget.dec,
-      showFeedback: false,
-    );
-
-    if (!mounted ||
-        !_isCurrentOperation(revision, backend) ||
-        !identical(ref.read(mountCommandServiceProvider), mountService)) {
-      return;
-    }
-
-    if (!slewResult.isSuccess) {
-      context.showCommandActionResult(slewResult);
-      return;
-    }
-
-    CenteringResult? centeringResult;
-    if (!mounted) return;
-    centeringResult = await showDialog<CenteringResult>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _CenteringDialogWithResult(
-        targetRa: widget.ra,
-        targetDec: widget.dec,
-        targetName: widget.targetName ?? 'Target',
-      ),
-    );
-
+    final centeringResult = await _slewAndCenter(revision, backend);
     if (!mounted || !_isCurrentOperation(revision, backend)) return;
 
     if (centeringResult == null || !centeringResult.success) {
@@ -517,232 +488,4 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       mounted &&
       revision == _operationRevision &&
       ref.backendScopeOver(backend).isCurrent;
-}
-
-/// Internal version of CenteringDialog that returns the result
-class _CenteringDialogWithResult extends ConsumerStatefulWidget {
-  final double targetRa;
-  final double targetDec;
-  final String targetName;
-
-  const _CenteringDialogWithResult({
-    required this.targetRa,
-    required this.targetDec,
-    required this.targetName,
-  });
-
-  @override
-  ConsumerState<_CenteringDialogWithResult> createState() =>
-      _CenteringDialogWithResultState();
-}
-
-class _CenteringDialogWithResultState
-    extends ConsumerState<_CenteringDialogWithResult>
-    with HostBoundDialogState<_CenteringDialogWithResult> {
-  @override
-  String? get hostChangedMessage => null;
-
-  bool _isCentering = false;
-  bool _cancelInFlight = false;
-
-  Future<AppSettingsState> _resolvedAppSettings() =>
-      ref.read(appSettingsProvider.future);
-
-  CenteringConfig _centeringConfig(AppSettingsState settings) {
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final exposureTime = profile?.defaultCenteringExposure ?? 5.0;
-    return CenteringConfig(
-      maxIterations: 5,
-      toleranceArcsec: 30.0,
-      exposureTime: exposureTime > 0 ? exposureTime : 5.0,
-      binning: profile?.defaultBinX ?? 2,
-      gain: profile?.defaultGain,
-      offset: profile?.defaultOffset,
-      // Settings → Plate Solving → "Sync mount when centering". Without the
-      // sync each correction re-issues the slew that produced the mis-pointed
-      // frame, so the offset never changes and the run ends on max iterations.
-      syncMount: settings.centeringSyncMount,
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startCentering();
-    });
-  }
-
-  Future<void> _startCentering() async {
-    setState(() {
-      _isCentering = true;
-    });
-
-    final centeringService = ref.read(centeringServiceProvider);
-    late final AppSettingsState appSettings;
-    try {
-      appSettings = await _resolvedAppSettings();
-    } catch (error) {
-      if (mounted && host.isCurrent) {
-        setState(() => _isCentering = false);
-        Navigator.of(context).pop(
-          CenteringResult.failure(
-            errorMessage: 'Unable to load plate-solving settings: ${userFacingError(error)}',
-            iterations: 0,
-            iterationHistory: const [],
-          ),
-        );
-      }
-      return;
-    }
-    if (!mounted || host.isStale) return;
-
-    final solverConfig = PlateSolverConfig(
-      timeoutSeconds: appSettings.plateSolveTimeout,
-      searchRadius: appSettings.plateSolveSearchRadius,
-    );
-
-    try {
-      final result = await centeringService.centerOnTarget(
-        targetRa: widget.targetRa,
-        targetDec: widget.targetDec,
-        solverConfig: solverConfig,
-        config: _centeringConfig(appSettings),
-        onStatusUpdate: (status) {
-          if (host.isCurrent) {
-            ref.read(centeringStatusProvider.notifier).state = status;
-          }
-        },
-      );
-
-      if (mounted && host.isCurrent) {
-        setState(() {
-          _isCentering = false;
-        });
-
-        Navigator.of(context).pop(result);
-      }
-    } on SolverNotAvailableError catch (e) {
-      if (mounted && host.isCurrent) {
-        final failureResult = CenteringResult.failure(
-          errorMessage: e.message,
-          iterations: 0,
-          iterationHistory: const [],
-        );
-        setState(() => _isCentering = false);
-        Navigator.of(context).pop(failureResult);
-      }
-    } catch (e) {
-      if (mounted && host.isCurrent) {
-        final failureResult = CenteringResult.failure(
-          errorMessage: 'Centering error: ${userFacingError(e)}',
-          iterations: 0,
-          iterationHistory: [],
-        );
-        setState(() {
-          _isCentering = false;
-        });
-        Navigator.of(context).pop(failureResult);
-      }
-    }
-  }
-
-  Future<void> _cancelCentering() async {
-    setState(() => _cancelInFlight = true);
-    try {
-      await ref.read(centeringServiceProvider).stop();
-    } catch (e) {
-      if (mounted) {
-        context.showErrorSnackBar('Cancel failed: ${userFacingError(e)}');
-      }
-    }
-    if (mounted && host.isCurrent) {
-      Navigator.of(context).pop(null);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final centeringStatus = ref.watch(centeringStatusProvider);
-    final colors = SkotiqColors.of(context);
-
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: AdaptiveDialogConstraints.hybrid(
-          context,
-          designMaxWidth: 400,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Icon(LucideIcons.target, color: colors.primary, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Centering Target',
-                          style: TextStyle(
-                            fontSize: SkotiqTypography.fontSize18,
-                            fontWeight: FontWeight.bold,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          widget.targetName,
-                          style: TextStyle(
-                            fontSize: SkotiqTypography.fontSize12,
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              if (_isCentering) ...[
-                const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
-                const SizedBox(height: 16),
-                Text(
-                  centeringStatus.message ?? 'Centering...',
-                  style: TextStyle(color: colors.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Iteration ${centeringStatus.currentIteration}/${centeringStatus.maxIterations}',
-                  style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize12,
-                      color: colors.textMuted),
-                ),
-                if (centeringStatus.currentOffsetArcmin != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Offset: ${centeringStatus.currentOffsetArcmin!.toStringAsFixed(2)} arcmin',
-                    style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize12,
-                        color: colors.textSecondary),
-                  ),
-                ],
-              ],
-              const SizedBox(height: 16),
-              if (_isCentering)
-                SkotiqButton(
-                  onPressed: _cancelInFlight ? null : _cancelCentering,
-                  label: 'Cancel',
-                  variant: ButtonVariant.ghost,
-                  size: ButtonSize.small,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

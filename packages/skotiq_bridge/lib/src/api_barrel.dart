@@ -22,6 +22,7 @@ export 'api/event_stream.dart';
 export 'api/finishing_analyze.dart';
 export 'api/finishing_combine.dart';
 export 'api/finishing_enhance.dart';
+export 'api/frame_file.dart';
 export 'api/guiding.dart';
 export 'api/heartbeat.dart';
 export 'api/hotplug.dart';

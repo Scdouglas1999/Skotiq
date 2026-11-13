@@ -424,4 +424,58 @@ void main() {
       );
     });
   });
+
+  group('the web pages', () {
+    final webJs = Directory('../../apps/desktop/web_run_watch/js');
+    // `<category>: Object.freeze({` then `<name>: '<Type>',` per type.
+    Map<String, Set<String>> table() {
+      final byCategory = <String, Set<String>>{};
+      Set<String>? current;
+      for (final line in File(
+        '${webJs.path}/wire-events.js',
+      ).readAsLinesSync()) {
+        final category = RegExp(r'^  (\w+): Object\.freeze').firstMatch(line);
+        if (category != null) {
+          current = byCategory[category[1]!] = {};
+          continue;
+        }
+        final entry = RegExp(r"^    (\w+): '(\w+)',").firstMatch(line);
+        if (entry != null) current!.add('${entry[1]}=${entry[2]}');
+      }
+      return byCategory;
+    }
+
+    test('their table of event types is the types the codec sends', () {
+      final byCategory = table();
+      for (final category in EventCategory.values) {
+        final sent = eventWireTypes[category];
+        if (sent == null) continue;
+        expect(
+          {for (final e in byCategory[category.name]!) e.split('=').last},
+          sent.toSet(),
+          reason: category.name,
+        );
+      }
+    });
+
+    test('run-watch names every event it listens for from that table', () {
+      final names = {
+        for (final entries in table().entries)
+          for (final e in entries.value) '${entries.key}.${e.split('=').first}',
+      };
+      final source = File('${webJs.path}/run-watch.js').readAsStringSync();
+      final references = RegExp(
+        r'WIRE_EVENTS\.(\w+)\.(\w+)',
+      ).allMatches(source).map((m) => '${m[1]}.${m[2]}');
+      expect(references, isNotEmpty);
+      for (final reference in references) {
+        expect(names, contains(reference));
+      }
+      // A listener named by a string literal bypasses the table.
+      expect(
+        RegExp(r"sse\.addEventListener\(\s*'").hasMatch(source),
+        isFalse,
+      );
+    });
+  });
 }

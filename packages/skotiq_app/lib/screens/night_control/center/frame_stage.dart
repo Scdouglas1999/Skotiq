@@ -324,17 +324,8 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
     dec: result.dec,
     rotation: result.rotation,
     scale: result.pixelScale,
-    cd: frameSolveCdOf(result),
-    sip: encodeSolvedSip(
-      aOrder: result.sipAOrder,
-      bOrder: result.sipBOrder,
-      aCoeffs: result.sipACoeffs.toList(),
-      bCoeffs: result.sipBCoeffs.toList(),
-      apOrder: result.sipApOrder,
-      bpOrder: result.sipBpOrder,
-      apCoeffs: result.sipApCoeffs.toList(),
-      bpCoeffs: result.sipBpCoeffs.toList(),
-    ),
+    cd: result.cdMatrix,
+    sip: encodeSolvedSip(result.sipTerms),
   );
 });
 
@@ -562,19 +553,7 @@ class _LiveFrame extends ConsumerWidget {
     if (id != null) {
       final wcs = ref.watch(capturedImageWcsProvider(id)).valueOrNull;
       if (wcs != null && wcs.isPlateSolved) {
-        final stored = solvedWcsFromStored(
-          raHours: wcs.solvedRaHours,
-          decDegrees: wcs.solvedDecDegrees,
-          rotationDeg: wcs.solvedRotationDegrees,
-          pixelScaleArcsec: wcs.solvedPixelScaleArcsecPerPixel,
-          imageWidth: image.width,
-          imageHeight: image.height,
-          cd1_1: wcs.cd1_1,
-          cd1_2: wcs.cd1_2,
-          cd2_1: wcs.cd2_1,
-          cd2_2: wcs.cd2_2,
-          sip: wcs.sip,
-        );
+        final stored = wcs.solvedWcs(width: image.width, height: image.height);
         if (stored != null) return stored;
       }
     }

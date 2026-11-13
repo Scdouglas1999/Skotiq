@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1423759513;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1858074738;
 
 // Section: executor
 
@@ -4633,6 +4633,31 @@ fn wire__crate__api__imaging__api_read_frame_cutouts_impl(
         },
     )
 }
+fn wire__crate__api__frame_file__api_read_frame_header_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    file_path: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_read_frame_header",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_file_path = file_path.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::frame_file::api_read_frame_header(api_file_path).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__finishing_enhance__api_reduce_stars_preview_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     args_json: impl CstDecode<String>,
@@ -6582,10 +6607,10 @@ fn wire__crate__api__devices__switch__api_switch_set_value_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_update_frame_cards_impl(
+fn wire__crate__api__frame_file__api_update_frame_cards_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     file_path: impl CstDecode<String>,
-    cards: impl CstDecode<Vec<crate::api::imaging::FrameCardUpdate>>,
+    cards: impl CstDecode<Vec<crate::api::frame_file::FrameCardUpdate>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -6599,9 +6624,11 @@ fn wire__crate__api__imaging__api_update_frame_cards_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::imaging::api_update_frame_cards(api_file_path, api_cards)
-                                .await?;
+                        let output_ok = crate::api::frame_file::api_update_frame_cards(
+                            api_file_path,
+                            api_cards,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -6625,6 +6652,34 @@ fn wire__crate__api__storage__api_update_settings_impl(
                 let output_ok = crate::api::storage::api_update_settings(api_settings)?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__frame_file__api_write_frame_wcs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    file_path: impl CstDecode<String>,
+    wcs: impl CstDecode<crate::api::frame_file::FrameWcs>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_write_frame_wcs",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_file_path = file_path.cst_decode();
+            let api_wcs = wcs.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::frame_file::api_write_frame_wcs(api_file_path, api_wcs)
+                                .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
         },
     )
 }
@@ -9390,7 +9445,21 @@ impl SseDecode for crate::event::sequencer::FrameCaptureMetadata {
     }
 }
 
-impl SseDecode for crate::api::imaging::FrameCardUpdate {
+impl SseDecode for crate::api::frame_file::FrameCard {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_keyword = <String>::sse_decode(deserializer);
+        let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_number = <Option<f64>>::sse_decode(deserializer);
+        return crate::api::frame_file::FrameCard {
+            keyword: var_keyword,
+            text: var_text,
+            number: var_number,
+        };
+    }
+}
+
+impl SseDecode for crate::api::frame_file::FrameCardUpdate {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_keyword = <String>::sse_decode(deserializer);
@@ -9398,12 +9467,24 @@ impl SseDecode for crate::api::imaging::FrameCardUpdate {
         let mut var_intValue = <Option<i64>>::sse_decode(deserializer);
         let mut var_doubleValue = <Option<f64>>::sse_decode(deserializer);
         let mut var_comment = <Option<String>>::sse_decode(deserializer);
-        return crate::api::imaging::FrameCardUpdate {
+        return crate::api::frame_file::FrameCardUpdate {
             keyword: var_keyword,
             string_value: var_stringValue,
             int_value: var_intValue,
             double_value: var_doubleValue,
             comment: var_comment,
+        };
+    }
+}
+
+impl SseDecode for crate::api::frame_file::FrameHeaderRead {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_cards = <Vec<crate::api::frame_file::FrameCard>>::sse_decode(deserializer);
+        let mut var_wcs = <Option<crate::api::frame_file::FrameWcs>>::sse_decode(deserializer);
+        return crate::api::frame_file::FrameHeaderRead {
+            cards: var_cards,
+            wcs: var_wcs,
         };
     }
 }
@@ -9419,6 +9500,46 @@ impl SseDecode for crate::device::FrameType {
             3 => crate::device::FrameType::Bias,
             4 => crate::device::FrameType::DarkFlat,
             _ => unreachable!("Invalid variant for FrameType: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::frame_file::FrameWcs {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_crval1 = <f64>::sse_decode(deserializer);
+        let mut var_crval2 = <f64>::sse_decode(deserializer);
+        let mut var_crpix1 = <f64>::sse_decode(deserializer);
+        let mut var_crpix2 = <f64>::sse_decode(deserializer);
+        let mut var_cd11 = <f64>::sse_decode(deserializer);
+        let mut var_cd12 = <f64>::sse_decode(deserializer);
+        let mut var_cd21 = <f64>::sse_decode(deserializer);
+        let mut var_cd22 = <f64>::sse_decode(deserializer);
+        let mut var_aOrder = <u32>::sse_decode(deserializer);
+        let mut var_bOrder = <u32>::sse_decode(deserializer);
+        let mut var_aCoeffs = <Vec<f64>>::sse_decode(deserializer);
+        let mut var_bCoeffs = <Vec<f64>>::sse_decode(deserializer);
+        let mut var_apOrder = <u32>::sse_decode(deserializer);
+        let mut var_bpOrder = <u32>::sse_decode(deserializer);
+        let mut var_apCoeffs = <Vec<f64>>::sse_decode(deserializer);
+        let mut var_bpCoeffs = <Vec<f64>>::sse_decode(deserializer);
+        return crate::api::frame_file::FrameWcs {
+            crval1: var_crval1,
+            crval2: var_crval2,
+            crpix1: var_crpix1,
+            crpix2: var_crpix2,
+            cd1_1: var_cd11,
+            cd1_2: var_cd12,
+            cd2_1: var_cd21,
+            cd2_2: var_cd22,
+            a_order: var_aOrder,
+            b_order: var_bOrder,
+            a_coeffs: var_aCoeffs,
+            b_coeffs: var_bCoeffs,
+            ap_order: var_apOrder,
+            bp_order: var_bpOrder,
+            ap_coeffs: var_apCoeffs,
+            bp_coeffs: var_bpCoeffs,
         };
     }
 }
@@ -9881,13 +10002,27 @@ impl SseDecode for Vec<crate::api::imaging::FocusDataPoint> {
     }
 }
 
-impl SseDecode for Vec<crate::api::imaging::FrameCardUpdate> {
+impl SseDecode for Vec<crate::api::frame_file::FrameCard> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::imaging::FrameCardUpdate>::sse_decode(
+            ans_.push(<crate::api::frame_file::FrameCard>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::frame_file::FrameCardUpdate> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::frame_file::FrameCardUpdate>::sse_decode(
                 deserializer,
             ));
         }
@@ -10546,6 +10681,17 @@ impl SseDecode for Option<f64> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<f64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::frame_file::FrameWcs> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::frame_file::FrameWcs>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -14603,7 +14749,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::FrameCaptureMeta
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::imaging::FrameCardUpdate {
+impl flutter_rust_bridge::IntoDart for crate::api::frame_file::FrameCard {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.keyword.into_into_dart().into_dart(),
+            self.text.into_into_dart().into_dart(),
+            self.number.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::frame_file::FrameCard
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameCard>
+    for crate::api::frame_file::FrameCard
+{
+    fn into_into_dart(self) -> crate::api::frame_file::FrameCard {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::frame_file::FrameCardUpdate {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.keyword.into_into_dart().into_dart(),
@@ -14616,13 +14784,34 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::FrameCardUpdate {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::imaging::FrameCardUpdate
+    for crate::api::frame_file::FrameCardUpdate
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::imaging::FrameCardUpdate>
-    for crate::api::imaging::FrameCardUpdate
+impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameCardUpdate>
+    for crate::api::frame_file::FrameCardUpdate
 {
-    fn into_into_dart(self) -> crate::api::imaging::FrameCardUpdate {
+    fn into_into_dart(self) -> crate::api::frame_file::FrameCardUpdate {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::frame_file::FrameHeaderRead {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.cards.into_into_dart().into_dart(),
+            self.wcs.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::frame_file::FrameHeaderRead
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameHeaderRead>
+    for crate::api::frame_file::FrameHeaderRead
+{
+    fn into_into_dart(self) -> crate::api::frame_file::FrameHeaderRead {
         self
     }
 }
@@ -14642,6 +14831,41 @@ impl flutter_rust_bridge::IntoDart for crate::device::FrameType {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::device::FrameType {}
 impl flutter_rust_bridge::IntoIntoDart<crate::device::FrameType> for crate::device::FrameType {
     fn into_into_dart(self) -> crate::device::FrameType {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::frame_file::FrameWcs {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.crval1.into_into_dart().into_dart(),
+            self.crval2.into_into_dart().into_dart(),
+            self.crpix1.into_into_dart().into_dart(),
+            self.crpix2.into_into_dart().into_dart(),
+            self.cd1_1.into_into_dart().into_dart(),
+            self.cd1_2.into_into_dart().into_dart(),
+            self.cd2_1.into_into_dart().into_dart(),
+            self.cd2_2.into_into_dart().into_dart(),
+            self.a_order.into_into_dart().into_dart(),
+            self.b_order.into_into_dart().into_dart(),
+            self.a_coeffs.into_into_dart().into_dart(),
+            self.b_coeffs.into_into_dart().into_dart(),
+            self.ap_order.into_into_dart().into_dart(),
+            self.bp_order.into_into_dart().into_dart(),
+            self.ap_coeffs.into_into_dart().into_dart(),
+            self.bp_coeffs.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::frame_file::FrameWcs
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameWcs>
+    for crate::api::frame_file::FrameWcs
+{
+    fn into_into_dart(self) -> crate::api::frame_file::FrameWcs {
         self
     }
 }
@@ -18618,7 +18842,16 @@ impl SseEncode for crate::event::sequencer::FrameCaptureMetadata {
     }
 }
 
-impl SseEncode for crate::api::imaging::FrameCardUpdate {
+impl SseEncode for crate::api::frame_file::FrameCard {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.keyword, serializer);
+        <String>::sse_encode(self.text, serializer);
+        <Option<f64>>::sse_encode(self.number, serializer);
+    }
+}
+
+impl SseEncode for crate::api::frame_file::FrameCardUpdate {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.keyword, serializer);
@@ -18626,6 +18859,14 @@ impl SseEncode for crate::api::imaging::FrameCardUpdate {
         <Option<i64>>::sse_encode(self.int_value, serializer);
         <Option<f64>>::sse_encode(self.double_value, serializer);
         <Option<String>>::sse_encode(self.comment, serializer);
+    }
+}
+
+impl SseEncode for crate::api::frame_file::FrameHeaderRead {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::frame_file::FrameCard>>::sse_encode(self.cards, serializer);
+        <Option<crate::api::frame_file::FrameWcs>>::sse_encode(self.wcs, serializer);
     }
 }
 
@@ -18645,6 +18886,28 @@ impl SseEncode for crate::device::FrameType {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::frame_file::FrameWcs {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.crval1, serializer);
+        <f64>::sse_encode(self.crval2, serializer);
+        <f64>::sse_encode(self.crpix1, serializer);
+        <f64>::sse_encode(self.crpix2, serializer);
+        <f64>::sse_encode(self.cd1_1, serializer);
+        <f64>::sse_encode(self.cd1_2, serializer);
+        <f64>::sse_encode(self.cd2_1, serializer);
+        <f64>::sse_encode(self.cd2_2, serializer);
+        <u32>::sse_encode(self.a_order, serializer);
+        <u32>::sse_encode(self.b_order, serializer);
+        <Vec<f64>>::sse_encode(self.a_coeffs, serializer);
+        <Vec<f64>>::sse_encode(self.b_coeffs, serializer);
+        <u32>::sse_encode(self.ap_order, serializer);
+        <u32>::sse_encode(self.bp_order, serializer);
+        <Vec<f64>>::sse_encode(self.ap_coeffs, serializer);
+        <Vec<f64>>::sse_encode(self.bp_coeffs, serializer);
     }
 }
 
@@ -19033,12 +19296,22 @@ impl SseEncode for Vec<crate::api::imaging::FocusDataPoint> {
     }
 }
 
-impl SseEncode for Vec<crate::api::imaging::FrameCardUpdate> {
+impl SseEncode for Vec<crate::api::frame_file::FrameCard> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::imaging::FrameCardUpdate>::sse_encode(item, serializer);
+            <crate::api::frame_file::FrameCard>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::frame_file::FrameCardUpdate> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::frame_file::FrameCardUpdate>::sse_encode(item, serializer);
         }
     }
 }
@@ -19509,6 +19782,16 @@ impl SseEncode for Option<f64> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <f64>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::frame_file::FrameWcs> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::frame_file::FrameWcs>::sse_encode(value, serializer);
         }
     }
 }
@@ -21827,6 +22110,13 @@ mod io {
             CstDecode::<crate::event::sequencer::FrameCaptureMetadata>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::api::frame_file::FrameWcs> for *mut wire_cst_frame_wcs {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::frame_file::FrameWcs {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::frame_file::FrameWcs>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<crate::event::guiding::GuidingEvent> for *mut wire_cst_guiding_event {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::event::guiding::GuidingEvent {
@@ -22950,15 +23240,57 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::imaging::FrameCardUpdate> for wire_cst_frame_card_update {
+    impl CstDecode<crate::api::frame_file::FrameCard> for wire_cst_frame_card {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::imaging::FrameCardUpdate {
-            crate::api::imaging::FrameCardUpdate {
+        fn cst_decode(self) -> crate::api::frame_file::FrameCard {
+            crate::api::frame_file::FrameCard {
+                keyword: self.keyword.cst_decode(),
+                text: self.text.cst_decode(),
+                number: self.number.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::frame_file::FrameCardUpdate> for wire_cst_frame_card_update {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::frame_file::FrameCardUpdate {
+            crate::api::frame_file::FrameCardUpdate {
                 keyword: self.keyword.cst_decode(),
                 string_value: self.string_value.cst_decode(),
                 int_value: self.int_value.cst_decode(),
                 double_value: self.double_value.cst_decode(),
                 comment: self.comment.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::frame_file::FrameHeaderRead> for wire_cst_frame_header_read {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::frame_file::FrameHeaderRead {
+            crate::api::frame_file::FrameHeaderRead {
+                cards: self.cards.cst_decode(),
+                wcs: self.wcs.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::frame_file::FrameWcs> for wire_cst_frame_wcs {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::frame_file::FrameWcs {
+            crate::api::frame_file::FrameWcs {
+                crval1: self.crval1.cst_decode(),
+                crval2: self.crval2.cst_decode(),
+                crpix1: self.crpix1.cst_decode(),
+                crpix2: self.crpix2.cst_decode(),
+                cd1_1: self.cd1_1.cst_decode(),
+                cd1_2: self.cd1_2.cst_decode(),
+                cd2_1: self.cd2_1.cst_decode(),
+                cd2_2: self.cd2_2.cst_decode(),
+                a_order: self.a_order.cst_decode(),
+                b_order: self.b_order.cst_decode(),
+                a_coeffs: self.a_coeffs.cst_decode(),
+                b_coeffs: self.b_coeffs.cst_decode(),
+                ap_order: self.ap_order.cst_decode(),
+                bp_order: self.bp_order.cst_decode(),
+                ap_coeffs: self.ap_coeffs.cst_decode(),
+                bp_coeffs: self.bp_coeffs.cst_decode(),
             }
         }
     }
@@ -23284,9 +23616,21 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::imaging::FrameCardUpdate>> for *mut wire_cst_list_frame_card_update {
+    impl CstDecode<Vec<crate::api::frame_file::FrameCard>> for *mut wire_cst_list_frame_card {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::imaging::FrameCardUpdate> {
+        fn cst_decode(self) -> Vec<crate::api::frame_file::FrameCard> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::frame_file::FrameCardUpdate>>
+        for *mut wire_cst_list_frame_card_update
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::frame_file::FrameCardUpdate> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -25869,6 +26213,20 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_frame_card {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                keyword: core::ptr::null_mut(),
+                text: core::ptr::null_mut(),
+                number: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_frame_card {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_frame_card_update {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -25881,6 +26239,46 @@ mod io {
         }
     }
     impl Default for wire_cst_frame_card_update {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_frame_header_read {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                cards: core::ptr::null_mut(),
+                wcs: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_frame_header_read {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_frame_wcs {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                crval1: Default::default(),
+                crval2: Default::default(),
+                crpix1: Default::default(),
+                crpix2: Default::default(),
+                cd1_1: Default::default(),
+                cd1_2: Default::default(),
+                cd2_1: Default::default(),
+                cd2_2: Default::default(),
+                a_order: Default::default(),
+                b_order: Default::default(),
+                a_coeffs: core::ptr::null_mut(),
+                b_coeffs: core::ptr::null_mut(),
+                ap_order: Default::default(),
+                bp_order: Default::default(),
+                ap_coeffs: core::ptr::null_mut(),
+                bp_coeffs: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_frame_wcs {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -28672,6 +29070,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__frame_file__api_read_frame_header(
+        port_: i64,
+        file_path: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__frame_file__api_read_frame_header_impl(port_, file_path)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_reduce_stars_preview(
         port_: i64,
         args_json: *mut wire_cst_list_prim_u_8_strict,
@@ -29477,12 +29883,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_update_frame_cards(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__frame_file__api_update_frame_cards(
         port_: i64,
         file_path: *mut wire_cst_list_prim_u_8_strict,
         cards: *mut wire_cst_list_frame_card_update,
     ) {
-        wire__crate__api__imaging__api_update_frame_cards_impl(port_, file_path, cards)
+        wire__crate__api__frame_file__api_update_frame_cards_impl(port_, file_path, cards)
     }
 
     #[unsafe(no_mangle)]
@@ -29490,6 +29896,15 @@ mod io {
         settings: *mut wire_cst_app_settings,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
         wire__crate__api__storage__api_update_settings_impl(settings)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__frame_file__api_write_frame_wcs(
+        port_: i64,
+        file_path: *mut wire_cst_list_prim_u_8_strict,
+        wcs: *mut wire_cst_frame_wcs,
+    ) {
+        wire__crate__api__frame_file__api_write_frame_wcs_impl(port_, file_path, wcs)
     }
 
     #[unsafe(no_mangle)]
@@ -29861,6 +30276,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_frame_wcs() -> *mut wire_cst_frame_wcs
+    {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wire_cst_frame_wcs::new_with_null_ptr())
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_guiding_event(
     ) -> *mut wire_cst_guiding_event {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -30206,6 +30627,20 @@ mod io {
         let wrap = wire_cst_list_focus_data_point {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_focus_data_point>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_frame_card(
+        len: i32,
+    ) -> *mut wire_cst_list_frame_card {
+        let wrap = wire_cst_list_frame_card {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_frame_card>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -31549,12 +31984,45 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_frame_card {
+        keyword: *mut wire_cst_list_prim_u_8_strict,
+        text: *mut wire_cst_list_prim_u_8_strict,
+        number: *mut f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_frame_card_update {
         keyword: *mut wire_cst_list_prim_u_8_strict,
         string_value: *mut wire_cst_list_prim_u_8_strict,
         int_value: *mut i64,
         double_value: *mut f64,
         comment: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_frame_header_read {
+        cards: *mut wire_cst_list_frame_card,
+        wcs: *mut wire_cst_frame_wcs,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_frame_wcs {
+        crval1: f64,
+        crval2: f64,
+        crpix1: f64,
+        crpix2: f64,
+        cd1_1: f64,
+        cd1_2: f64,
+        cd2_1: f64,
+        cd2_2: f64,
+        a_order: u32,
+        b_order: u32,
+        a_coeffs: *mut wire_cst_list_prim_f_64_strict,
+        b_coeffs: *mut wire_cst_list_prim_f_64_strict,
+        ap_order: u32,
+        bp_order: u32,
+        ap_coeffs: *mut wire_cst_list_prim_f_64_strict,
+        bp_coeffs: *mut wire_cst_list_prim_f_64_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -31819,6 +32287,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_focus_data_point {
         ptr: *mut wire_cst_focus_data_point,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_frame_card {
+        ptr: *mut wire_cst_frame_card,
         len: i32,
     }
     #[repr(C)]

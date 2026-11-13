@@ -19,11 +19,12 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'skotiq-run-watch-v1';
+const CACHE_VERSION = 'skotiq-run-watch-v2';
 const SHELL_FILES = [
   '/run-watch/',
   '/run-watch/index.html',
   '/run-watch/css/style.css',
+  '/run-watch/js/wire-events.js',
   '/run-watch/js/run-watch.js',
   '/run-watch/manifest.json',
   '/run-watch/icons/icon.svg',

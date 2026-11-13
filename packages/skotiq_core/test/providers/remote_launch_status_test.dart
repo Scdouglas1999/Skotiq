@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../harness/in_memory_database.dart';
@@ -106,6 +107,30 @@ void main() {
       expect(notifier.connects, 1);
       container.dispose();
     });
+  });
+
+  test('a scope refusal on connect is not a rejected token', () {
+    // Text that names a 403 says nothing about which 403 it was.
+    const refusal = ServerError(
+      code: 'insufficient_scope',
+      message: 'HTTP 403: POST /api/ws/ticket failed',
+      httpStatus: 403,
+    );
+    expect(
+      classifyRemoteLaunchFailure(refusal, tokenRejected: false),
+      isNot(RemoteLaunchFailure.tokenRejected),
+    );
+    expect(
+      classifyRemoteLaunchFailure(
+        const ServerError(
+          code: 'invalid_token',
+          message: 'Invalid authentication token',
+          httpStatus: 403,
+        ),
+        tokenRejected: false,
+      ),
+      RemoteLaunchFailure.tokenRejected,
+    );
   });
 
   test('a companion launch never runs the equipment onboarding', () async {

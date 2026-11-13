@@ -56,6 +56,7 @@ import 'package:skotiq_core/providers.dart' show isRemoteModeProvider;
 import '../../router/settings_sections.dart';
 import 'widgets/settings_widgets.dart';
 import '../../router/app_routes.dart';
+import '../../utils/snackbar_helper.dart';
 
 part 'integrations_settings/plugin_rows.dart';
 part 'integrations_settings/plugin_enable_switch.dart';

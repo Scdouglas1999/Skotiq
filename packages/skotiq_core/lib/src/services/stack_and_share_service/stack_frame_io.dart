@@ -67,9 +67,11 @@ extension _StackFrameIo on StackAndShareService {
   /// Read a frame's unstretched linear pixels and quantise to u16.
   ///
   /// Uses the science-grade linear read path so the stacked integration works
-  /// on genuine sensor values rather than display-stretched bytes. Linear
-  /// values are clamped to `[0, 65535]` (the engine and calibration pipeline
-  /// operate on u16); the FITS reader in Rust has already applied BZERO/BSCALE.
+  /// on genuine sensor values rather than display-stretched bytes. The native
+  /// reader returns samples on the 16-bit ADU scale (BZERO/BSCALE and the
+  /// file's declared range applied); they are clamped to `[0, 65535]` (the
+  /// engine and calibration pipeline operate on u16), and a NaN sample, which
+  /// a float master holds where it rejected every frame, becomes 0.
   Future<_RawFrame> _loadRawU16(String filePath) async {
     final linear = await _engine.readLinearFrame(filePath);
     _ensureSameHost();
@@ -83,7 +85,7 @@ extension _StackFrameIo on StackAndShareService {
     final data = Uint16List(pixelCount);
     for (var i = 0; i < pixelCount; i++) {
       final v = linear.linearData[i];
-      if (v <= 0) {
+      if (!(v > 0)) {
         data[i] = 0;
       } else if (v >= 65535) {
         data[i] = 65535;

@@ -1537,44 +1537,6 @@ pub struct FitsWriteHeader {
     pub rotator_id: Option<String>,
 }
 
-/// One card to set in a frame file's metadata. Exactly one value is given.
-#[derive(Debug, Clone)]
-pub struct FrameCardUpdate {
-    pub keyword: String,
-    pub string_value: Option<String>,
-    pub int_value: Option<i64>,
-    pub double_value: Option<f64>,
-    pub comment: Option<String>,
-}
-
-/// Set cards in a frame file's metadata, FITS or XISF, keeping its pixels and
-/// everything else it holds. The file is replaced whole, never left half
-/// written.
-pub async fn api_update_frame_cards(
-    file_path: String,
-    cards: Vec<FrameCardUpdate>,
-) -> Result<(), SkotiqError> {
-    tokio::task::spawn_blocking(move || {
-        skotiq_imaging::rewrite_frame_header(std::path::Path::new(&file_path), |header| {
-            for card in &cards {
-                if let Some(v) = &card.string_value {
-                    header.set_string(&card.keyword, v);
-                } else if let Some(v) = card.int_value {
-                    header.set_int(&card.keyword, v);
-                } else if let Some(v) = card.double_value {
-                    header.set_float(&card.keyword, v);
-                }
-                if let Some(comment) = &card.comment {
-                    header.set_comment(&card.keyword, comment);
-                }
-            }
-        })
-    })
-    .await
-    .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {e}")))?
-    .map_err(|e| SkotiqError::ImageError(format!("Could not update the frame's metadata: {e}")))
-}
-
 /// Square cutouts of a mono frame file, `2 * half + 1` pixels on a side,
 /// centered on each (`centers_x[i]`, `centers_y[i]`) (0-based, row 0 = first
 /// stored row), concatenated in that order. A center whose cutout leaves the

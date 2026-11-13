@@ -13,9 +13,7 @@ enum ApiErrorLayout {
   /// message for clients that only display it.
   messageAsError,
 
-  /// `{error: <code>, message, ...details}` with no `code` key. A few of
-  /// these routes write a short summary under `error` ("Access denied")
-  /// where the others write a code; it is read as the code all the same.
+  /// `{error: <code>, message, ...details}` with no `code` key.
   errorAsCode,
 
   /// `{error: <message>}` with no code: the oldest bodies.
@@ -67,10 +65,13 @@ class ApiErrorBody {
     );
   }
 
-  /// The message of the 403 the host answers when a token is not one it
-  /// knows. A client reads it to tell "re-pair" from a scope refusal, which
-  /// is also a 403.
-  static const String invalidTokenMessage = 'Invalid authentication token';
+  /// The code of the 403 for a token the host does not know: the client has
+  /// to pair again.
+  static const String invalidToken = 'invalid_token';
+
+  /// The code of the 403 for a token the host knows whose access level does
+  /// not cover the route. The token still works for what it does cover.
+  static const String insufficientScope = 'insufficient_scope';
 
   /// Machine-readable name of the failure.
   final String code;

@@ -15,24 +15,17 @@ class GuideSettle {
     required this.ditherRaOnly,
   });
 
-  /// The settings' values, each held to the range a guider accepts.
+  /// The settings' values, each held to the range a guider accepts (the
+  /// settings table's bounds).
   factory GuideSettle.of(AppSettingsState settings) => GuideSettle(
-    pixels: settings.settleThreshold.clamp(minPixels, maxPixels).toDouble(),
-    seconds: settings.settleTime.toDouble().clamp(minSeconds, maxSeconds),
-    timeoutSeconds: settings.settleTimeout.toDouble().clamp(
-      minTimeoutSeconds,
-      maxTimeoutSeconds,
-    ),
+    pixels: AppSettingDefs.settleThreshold.clean(settings.settleThreshold),
+    seconds: AppSettingDefs.settleTime.clean(settings.settleTime).toDouble(),
+    timeoutSeconds: AppSettingDefs.settleTimeout
+        .clean(settings.settleTimeout)
+        .toDouble(),
     ditherPixels: ditherScalePixels(settings.ditherScale),
     ditherRaOnly: settings.ditherRaOnly,
   );
-
-  static const double minPixels = 0.5;
-  static const double maxPixels = 5.0;
-  static const double minSeconds = 5;
-  static const double maxSeconds = 60;
-  static const double minTimeoutSeconds = 30;
-  static const double maxTimeoutSeconds = 180;
 
   /// The guide error, in pixels, below which guiding counts as settled.
   final double pixels;

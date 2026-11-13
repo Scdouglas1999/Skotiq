@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import '../../../database/database.dart';
 import '../../../models/science/science_models.dart';
-import '../../../models/backend/remote_science_bundle.dart';
 
 /// Science products a linked imaging host derives from its frames:
 /// photometry, transforms, reports and their settings.
@@ -36,4 +35,30 @@ abstract interface class HostScience {
   Future<int> savePhotometricTransform(
     PhotometricTransformCoefficients coefficients,
   );
+}
+
+/// Every science table the host holds for one session (or for none), read
+/// in one request.
+class RemoteScienceBundle {
+  final List<PhotometryMeasurementRow> photometry;
+  final List<FramePhotometricCalibrationRow> calibrations;
+  final List<TransparencySampleRow> transparency;
+  final List<PsfFieldTileRow> psfTiles;
+  final List<ScienceFrameQualityMetricsRow> frameQuality;
+  final List<ScienceTileMetricRow> tileMetrics;
+  final List<AstrometryResidualVectorRow> residuals;
+  final List<MovingObjectCandidateRow> movingObjects;
+  final List<LineRatioProductRow> lineRatios;
+
+  const RemoteScienceBundle({
+    required this.photometry,
+    required this.calibrations,
+    required this.transparency,
+    required this.psfTiles,
+    required this.frameQuality,
+    required this.tileMetrics,
+    required this.residuals,
+    required this.movingObjects,
+    required this.lineRatios,
+  });
 }

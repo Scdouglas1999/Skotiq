@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../models/sequence/instruction_progress_detail.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/node_exposure_tally.dart';
 import '../../sequence/run_record.dart';
@@ -22,13 +23,12 @@ final _sequenceRunSnapshotProvider = Provider<SequenceRunSnapshot>(
   ),
 );
 
-/// What the host's run executor knows about the run in progress: which steps
-/// finished and how, the frame tallies per step, and the session counters.
+/// What the host's run executor knows about the run in progress: its phase,
+/// the current step and what it reports, which steps finished and how, the
+/// frame tallies per step, and the session counters.
 ///
-/// A client watching a run it did not start has only the run's lifecycle and
-/// current-step events, so its step list showed nothing done and its session
-/// counters stayed at zero. A client that started the run itself has its own
-/// executor attached and keeps its own values.
+/// The one source of a linked client's run progress: the client folds none of
+/// the host's sequencer events into it and asks for no status per event.
 class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
   const SequenceRunChannel();
 
@@ -53,6 +53,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
     };
     return {
       'progress': {
+        'state': p.state.name,
         'currentNodeId': p.currentNodeId,
         'currentNodeName': p.currentNodeName,
         'currentNodeStatus': p.currentNodeStatus?.name,
@@ -76,6 +77,14 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
         'nodeDetail': {
           for (final e in p.nodeProgressDetail.entries)
             if (running.contains(e.key)) e.key: e.value,
+        },
+        'nodeStructuredDetail': {
+          for (final e in p.nodeProgressStructuredDetail.entries)
+            if (running.contains(e.key))
+              e.key: {
+                'kind': e.value.wire.detailKind,
+                'fields': e.value.wire.detailJson,
+              },
         },
       },
       'tally': {
@@ -122,10 +131,18 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
       }
       final percent = progress['nodePercent'];
       final detail = progress['nodeDetail'];
+      final structured = progress['nodeStructuredDetail'];
+      final phase = SequenceExecutionState.values
+          .where((s) => s.name == progress['state'])
+          .firstOrNull;
+      if (phase == null) {
+        throw const FormatException('Run progress names no known phase');
+      }
       context
           .read(runRecordProvider.notifier)
           .mirrorHostProgress(
             SequenceProgress(
+              state: phase,
               currentNodeId: jsonString(progress['currentNodeId']),
               currentNodeName: jsonString(progress['currentNodeName']),
               currentNodeStatus: status(progress['currentNodeStatus']),
@@ -158,6 +175,18 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
                   for (final e in detail.entries)
                     if (e.key is String && e.value is String)
                       e.key as String: e.value as String,
+              },
+              nodeProgressStructuredDetail: {
+                if (structured is Map)
+                  for (final e in structured.entries)
+                    if (e.key is String &&
+                        e.value is Map &&
+                        (e.value as Map)['kind'] is String)
+                      e.key as String:
+                          InstructionProgressDetail.fromStructuredData(
+                            detailKind: (e.value as Map)['kind'] as String,
+                            detailJson: (e.value as Map)['fields'],
+                          ),
               },
             ),
           );
