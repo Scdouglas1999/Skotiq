@@ -157,8 +157,7 @@ fn parse_demosaic_quality(quality: &str) -> Result<DebayerAlgorithm, String> {
     match quality.trim().to_ascii_lowercase().as_str() {
         "bilinear" => Ok(DebayerAlgorithm::Bilinear),
         "vng" => Ok(DebayerAlgorithm::VNG),
-        // The Dart enum spells it `superPixel`; a person types "super pixel".
-        "superpixel" | "super_pixel" | "super pixel" => Ok(DebayerAlgorithm::SuperPixel),
+        "superpixel" => Ok(DebayerAlgorithm::SuperPixel),
         other => Err(format!(
             "Unknown demosaic quality '{}' (expected one of: bilinear, vng, superpixel)",
             other

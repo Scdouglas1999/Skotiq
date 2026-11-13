@@ -97,7 +97,6 @@ fn config_parses_valid_demosaic_qualities() {
         ("bilinear", DebayerAlgorithm::Bilinear),
         ("VNG", DebayerAlgorithm::VNG),
         ("superpixel", DebayerAlgorithm::SuperPixel),
-        ("super pixel", DebayerAlgorithm::SuperPixel),
     ] {
         let cfg = ApiLiveStackingConfig {
             demosaic_quality: q.to_string(),
