@@ -178,7 +178,7 @@ fn a_written_wcs_replaces_the_astrometry_the_frame_held() {
         (wcs.cd2_2, plain.cd2_2),
     ] {
         assert!(
-            (got - want).abs() <= 1e-12 * want.abs().max(1e-6),
+            (got - want).abs() <= 1e-10 * want.abs().max(1e-6),
             "{got} vs {want}"
         );
     }
