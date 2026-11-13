@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 454717944;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 722662679;
 
 // Section: executor
 
@@ -6343,39 +6343,6 @@ fn wire__crate__api__polar_alignment__entrypoints__api_start_all_sky_polar_align
                     })().await)
                 } })
 }
-fn wire__crate__api__heartbeat__api_start_device_heartbeat_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_type: impl CstDecode<crate::device::DeviceType>,
-    device_id: impl CstDecode<String>,
-    interval_ms: impl CstDecode<u64>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_start_device_heartbeat",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_type = device_type.cst_decode();
-            let api_device_id = device_id.cst_decode();
-            let api_interval_ms = interval_ms.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::heartbeat::api_start_device_heartbeat(
-                            api_device_type,
-                            api_device_id,
-                            api_interval_ms,
-                        )
-                        .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__polar_alignment__run_loop__api_start_polar_alignment_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     exposure_time: impl CstDecode<f64>,
@@ -6451,31 +6418,6 @@ fn wire__crate__api__mosaic__api_stitch_mosaic_impl(
                     let output_ok = crate::api::mosaic::api_stitch_mosaic(api_args_json)?;
                     Ok(output_ok)
                 })())
-            }
-        },
-    )
-}
-fn wire__crate__api__heartbeat__api_stop_device_heartbeat_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_stop_device_heartbeat",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::heartbeat::api_stop_device_heartbeat(api_device_id).await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
             }
         },
     )
@@ -29056,21 +28998,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_start_device_heartbeat(
-        port_: i64,
-        device_type: i32,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        interval_ms: u64,
-    ) {
-        wire__crate__api__heartbeat__api_start_device_heartbeat_impl(
-            port_,
-            device_type,
-            device_id,
-            interval_ms,
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__polar_alignment__run_loop__api_start_polar_alignment(
         port_: i64,
         exposure_time: f64,
@@ -29107,14 +29034,6 @@ mod io {
         args_json: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__mosaic__api_stitch_mosaic_impl(port_, args_json)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_stop_device_heartbeat(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__heartbeat__api_stop_device_heartbeat_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]

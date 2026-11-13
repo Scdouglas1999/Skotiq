@@ -171,10 +171,7 @@ void main() {
       test(
         'backend switch retires the run before a late solve can slew',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           final solve = Completer<PlateSolveResult>();
           when(
             mockImagingService.captureUtilityFrame(
@@ -232,10 +229,7 @@ void main() {
         const targetDec = 45.0; // degrees
         const toleranceArcsec = 30.0;
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         const config = CenteringConfig(
           maxIterations: 5,
@@ -327,10 +321,7 @@ void main() {
       test(
         'omitted gain and offset preserve current imaging settings',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           container.read(exposureSettingsProvider.notifier).state =
               const ExposureSettings(exposureTime: 120, gain: 137, offset: 42);
           ExposureSettings? commandedSettings;
@@ -408,10 +399,7 @@ void main() {
         const targetDecDeg = 45.0;
         const solvedRaDeg = targetRaHours * 15.0; // 150.0°
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         when(
           mockImagingService.captureUtilityFrame(
@@ -501,10 +489,7 @@ void main() {
           const expectedArcsec = 180.0; // cos(60°) * 0.10° * 3600
           const solvedRaDeg = targetRaHours * 15.0 + deltaRaDeg; // 90.10°
 
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
 
           when(
             mockImagingService.captureUtilityFrame(
@@ -595,10 +580,7 @@ void main() {
           const solvedRaDeg =
               targetRaHours * 15.0 + (120.0 / 3600.0); // degrees
 
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
 
           var iter = 0;
           when(
@@ -718,10 +700,7 @@ void main() {
         const targetDecDeg = 30.0;
         const errorRaHours = 0.02; // 0.3 deg of RA
         const errorDecDeg = 0.2; // 720 arcsec, well outside tolerance
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         late double commandedRa;
         late double commandedDec;
@@ -895,10 +874,7 @@ void main() {
         const targetDec = 45.0; // degrees
         const toleranceArcsec = 30.0;
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         const config = CenteringConfig(
           maxIterations: 5,
@@ -1029,10 +1005,7 @@ void main() {
         const toleranceArcsec = 30.0;
         const maxIterations = 3;
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         const config = CenteringConfig(
           maxIterations: maxIterations,
@@ -1143,10 +1116,7 @@ void main() {
           ],
         );
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         // Act
         final service = disconnectedContainer.read(centeringServiceProvider);
@@ -1165,10 +1135,7 @@ void main() {
       });
 
       test('missing selected solver fails before taking an exposure', () async {
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '',
-        );
+        const solverConfig = PlateSolverConfig();
         when(
           mockPlateSolveService.ensureSolverAvailable(),
         ).thenThrow(const SolverNotAvailableError('ASTAP is not configured'));
@@ -1198,10 +1165,7 @@ void main() {
       test(
         'timeout cancels the exposure and waits for its owner Future to settle',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
 
           // Signal when the exposure is actually in flight. The pre-capture
           // pipeline (validation, solver availability, initial-slew status)
@@ -1274,10 +1238,7 @@ void main() {
               .centerOnTarget(
                 targetRa: 25,
                 targetDec: 45,
-                solverConfig: const PlateSolverConfig(
-                  type: PlateSolverType.astap,
-                  executablePath: '/usr/bin/astap',
-                ),
+                solverConfig: const PlateSolverConfig(),
                 config: const CenteringConfig(exposureTime: -1),
               );
 
@@ -1297,10 +1258,7 @@ void main() {
       );
 
       test('abort during plate solve never commands a late slew', () async {
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
         final solveCompleter = Completer<PlateSolveResult>();
         when(
           mockImagingService.captureUtilityFrame(
@@ -1350,10 +1308,7 @@ void main() {
       test(
         'a concurrent centering request is rejected without another capture',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           final exposureCompleter = Completer<CapturedImageData?>();
           when(
             mockImagingService.captureUtilityFrame(
@@ -1421,10 +1376,7 @@ void main() {
           ],
         );
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         // Act
         final service = disconnectedContainer.read(centeringServiceProvider);
@@ -1444,10 +1396,7 @@ void main() {
 
       test('fails when plate solve fails', () async {
         // Arrange
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         final capturedImage = CapturedImageData(
           width: 1920,
@@ -1528,10 +1477,7 @@ void main() {
         const targetRa = 10.0;
         const targetDec = 45.0;
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         const config = CenteringConfig(maxIterations: 2);
 
@@ -1663,10 +1609,7 @@ void main() {
       test(
         'waits for an initial slew to settle before the first exposure',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           final settleCompleter = Completer<MountStatus>();
           var statusCalls = 0;
           mt.when(() => pollBackend.getMountStatus(mt.any())).thenAnswer((_) {
@@ -1843,10 +1786,7 @@ void main() {
         () async {
           const targetRa = 10.0;
           const targetDec = 45.0;
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           stubTwoIterationPlateSolve(targetRa, targetDec);
           var statusCalls = 0;
           mt.when(() => pollBackend.getMountStatus(mt.any())).thenAnswer((
@@ -1886,10 +1826,7 @@ void main() {
           'normally (regression)', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         stubTwoIterationPlateSolve(targetRa, targetDec);
         // Default setUp stub already returns a settled mount, but pin it
@@ -1919,10 +1856,7 @@ void main() {
           'escalate (regression — must not be over-aggressive)', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         stubTwoIterationPlateSolve(targetRa, targetDec);
 
@@ -1965,10 +1899,7 @@ void main() {
           'CenteringMountUnresponsiveException', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         // Only need the FIRST iteration to slew, then fail polling.
         when(
@@ -2067,10 +1998,7 @@ void main() {
           'continues', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         stubTwoIterationPlateSolve(targetRa, targetDec);
 
@@ -2153,10 +2081,7 @@ void main() {
       // light into the operator's light-frame folder and indexed it in
       // captured_images on EVERY iteration, inflating the night's frame and
       // integration totals with images nobody will ever stack.
-      const solverConfig = PlateSolverConfig(
-        type: PlateSolverType.astap,
-        executablePath: '/usr/bin/astap',
-      );
+      const solverConfig = PlateSolverConfig();
 
       PlateSolveResult onTarget(double raHours, double dec) => PlateSolveResult(
         success: true,

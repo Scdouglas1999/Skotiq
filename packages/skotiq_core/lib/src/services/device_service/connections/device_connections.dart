@@ -2,7 +2,7 @@ part of '../../device_service.dart';
 
 /// The one connect and the one disconnect every device type goes through.
 ///
-/// What differs by type is in the [DeviceSlot] table (heartbeat, model check)
+/// What differs by type is in the [DeviceSlot] table (model check)
 /// and in the hooks below: what to read from the device before it counts as
 /// connected ([_bringUp]), and what to stop, shut down, restart or drop
 /// around a disconnect.
@@ -57,7 +57,6 @@ extension _DeviceServiceConnections on DeviceService {
         opened = true;
       }
       await _bringUp(type, deviceId, deviceName);
-      if (slot.heartbeat) await _startHeartbeat(type, deviceId);
       _attempts.cameUp(deviceId);
     } catch (e) {
       // The driver opened the device but it never became usable: let go of
@@ -141,9 +140,6 @@ extension _DeviceServiceConnections on DeviceService {
       _markUserInitiatedDisconnect(deviceId);
       try {
         await _shutDown(type, deviceId);
-        if (slot.heartbeat) {
-          await _heartbeat.stop(deviceType: type, deviceId: deviceId);
-        }
         if (type == DeviceType.guider && isPhd2DeviceId(deviceId)) {
           await _backend.phd2Disconnect();
         } else {
@@ -152,18 +148,12 @@ extension _DeviceServiceConnections on DeviceService {
       } catch (_) {
         _clearUserInitiatedDisconnect(deviceId);
         _resume(type, deviceId);
-        if (slot.heartbeat) await _startHeartbeat(type, deviceId);
         rethrow;
       }
       _ref.read(slot.notifier).setDisconnected();
       _released(type, deviceId);
     });
   }
-
-  /// The heartbeat router logs and swallows its own failures, so a device
-  /// without a heartbeat still connects.
-  Future<void> _startHeartbeat(DeviceType type, String deviceId) =>
-      _heartbeat.start(deviceType: type, deviceId: deviceId, intervalMs: 10000);
 
   /// Read what the device's card needs and mark the slot connected. Throwing
   /// here fails the connect.

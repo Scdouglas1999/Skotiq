@@ -1,10 +1,6 @@
 part of '../backup_service.dart';
 
 extension _BackupSequenceCodec on BackupService {
-  Map<String, dynamic> _sequenceToJson(Sequence sequence) {
-    return SequenceFileService().sequenceToMap(sequence);
-  }
-
   Future<int> _importSettings(
     Map<String, dynamic> settingsMap, {
     bool replace = false,
@@ -30,8 +26,11 @@ extension _BackupSequenceCodec on BackupService {
   /// Backup row IDs are installation-local, so profiles are matched by name
   /// and new rows receive fresh IDs. A merge preserves the local active/default
   /// selections; an empty table may adopt one of each from the backup. Returns
-  /// only the number of rows actually written.
-  Future<int> _importProfiles(List<dynamic> profilesList) async {
+  /// the number of rows actually written and, by backup id, the id each
+  /// profile has here.
+  Future<({int count, Map<int, int> ids})> _importProfiles(
+    List<dynamic> profilesList,
+  ) async {
     final existing = await database.select(database.equipmentProfiles).get();
     final unclaimedIdsByName = <String, List<int>>{};
     for (final row in existing) {
@@ -56,6 +55,7 @@ extension _BackupSequenceCodec on BackupService {
     }
 
     int count = 0;
+    final ids = <int, int>{};
 
     for (var index = 0; index < profilesList.length; index++) {
       final profile = profilesList[index] as Map<String, dynamic>;
@@ -121,18 +121,23 @@ extension _BackupSequenceCodec on BackupService {
         updatedAt: _dateTimeValue(profile['updatedAt']),
       );
 
+      final backupId = (profile['id'] as num?)?.toInt();
       if (isInsert) {
-        await database.into(database.equipmentProfiles).insert(companion);
+        final id = await database
+            .into(database.equipmentProfiles)
+            .insert(companion);
+        if (backupId != null) ids[backupId] = id;
         count++;
       } else {
         final written = await (database.update(
           database.equipmentProfiles,
         )..where((tbl) => tbl.id.equals(targetId))).write(companion);
+        if (backupId != null) ids[backupId] = targetId;
         if (written > 0) count++;
       }
     }
 
-    return count;
+    return (count: count, ids: ids);
   }
 
   Future<int> _importTargets(

@@ -4,11 +4,11 @@
 //! HFR baseline updates, and the final structured ProgressUpdate that carries
 //! `completed_exposure_secs` for the executor's global counter.
 
-use crate::expressions::{interpolate, EvaluationFrame};
+use crate::expressions::{interpolate_with, EvaluationFrame};
 use crate::instructions::{
     execute_autofocus, execute_exposure_with_renderer, notify_autofocus_failed_continuing,
-    resolve_burst_filter, AutofocusProgress, BurstFilter, FrameSavePathRenderer, InstructionResult,
-    Setback,
+    resolve_burst_filter, AutofocusProgress, BurstFilter, FrameSavePathRenderer, FrameToName,
+    InstructionResult, Setback,
 };
 use crate::node::context::ExecutionContext;
 use crate::node::instructions::autofocus::autofocus_detail;
@@ -466,43 +466,59 @@ pub(crate) fn build_save_path_renderer(
         }
     }
 
-    Ok(Box::new(move |_frame_in_burst: u32, total: u32| {
+    Ok(Box::new(move |frame: &FrameToName| {
         let render = |frame_number: u32| -> Result<(PathBuf, String), String> {
             let eval = EvaluationFrame {
                 frame: Some(frame_number),
-                frame_total: Some(total),
+                frame_total: Some(frame.burst_total),
                 exposure_duration_secs: Some(duration_secs),
                 exposure_gain,
                 exposure_offset,
                 exposure_binning: Some(exposure_binning.clone()),
                 filter_position: filter_index,
-                session_start: None,
-                now_override: None,
-                moon_phase: None,
-                weather_temp_c: None,
-                weather_humidity: None,
-                sqm: None,
+                now_override: Some(frame.started_at),
+                sensor_temp_c: frame.sensor_temp_c,
+                ..EvaluationFrame::default()
             };
-            let rendered = interpolate(&effective_template, &ctx_snapshot, &eval)
-                .map_err(|e| e.to_string())?;
+            let rendered = interpolate_with(
+                &effective_template,
+                &ctx_snapshot,
+                &eval,
+                |value: String| path_segment(&value),
+            )
+            .map_err(|e| e.to_string())?;
             let (dir, name) = split_rendered_save_path(&rendered, base_path.as_ref())?;
             Ok((dir, with_frame_extension(&name, extension)))
         };
-        let taken = |frame_number: u32| -> Result<bool, String> {
-            let (dir, name) = render(frame_number)?;
+
+        // Held from the probe to the claim, so two bursts saving at once (a
+        // second camera in a Parallel branch) never take one name.
+        let mut claimed = CLAIMED_FRAME_PATHS
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        claimed.retain(|path| !path.exists());
+        let taken = |dir: &std::path::Path, name: &str| {
             let reject_dir =
-                crate::instructions::resolve_reject_dir(&dir, reject_folder_override.as_deref());
-            Ok(dir.join(&name).exists() || reject_dir.join(&name).exists())
+                crate::instructions::resolve_reject_dir(dir, reject_folder_override.as_deref());
+            let path = dir.join(name);
+            path.exists() || reject_dir.join(name).exists() || claimed.contains(&path)
         };
 
         let first = render(1)?;
-        // A template that renders no frame number names every frame the
-        // same; there the FITS writer's collision suffix keeps them apart.
         let (final_dir, filename) = if render(2)? == first {
-            first
+            // A template that renders no frame number names every frame the
+            // same; a taken name gets the next free `_001`-style suffix.
+            let (dir, name) = first;
+            let name = free_suffixed_name(&name, |candidate| taken(&dir, candidate));
+            (dir, name)
         } else {
-            render(first_free_frame_number(taken)?)?
+            render(first_free_frame_number(|n| {
+                let (dir, name) = render(n)?;
+                Ok(taken(&dir, &name))
+            })?)?
         };
+        claimed.insert(final_dir.join(&filename));
+        drop(claimed);
         // Pre-create the directory so the FITS writer downstream finds it.
         // A failure here is fatal (the caller turns the Err into a hard
         // node failure).
@@ -516,6 +532,55 @@ pub(crate) fn build_save_path_renderer(
     }))
 }
 
+/// Frame files named and not yet on disk, across every burst of the process.
+static CLAIMED_FRAME_PATHS: std::sync::Mutex<std::collections::BTreeSet<PathBuf>> =
+    std::sync::Mutex::new(std::collections::BTreeSet::new());
+
+/// `name`, or with the first `_001`-style suffix before its extension that
+/// `taken` does not hold.
+fn free_suffixed_name(name: &str, taken: impl Fn(&str) -> bool) -> String {
+    if !taken(name) {
+        return name.to_string();
+    }
+    let path = std::path::Path::new(name);
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let extension = path.extension().map(|e| e.to_string_lossy().into_owned());
+    (1u32..)
+        .map(|suffix| match &extension {
+            Some(ext) => format!("{stem}_{suffix:03}.{ext}"),
+            None => format!("{stem}_{suffix:03}"),
+        })
+        .find(|candidate| !taken(candidate))
+        .expect("u32 suffixes run out only after four billion files")
+}
+
+/// A variable's value as one path segment of a frame's save path: the same
+/// rule the app's naming pattern applies (`ImagingService` `_sanitizePathComponent`,
+/// both pinned by `test_fixtures/path_segment_cases.json`). A target named
+/// `M31/Ha` stays one folder, and nothing renders as `..`.
+pub(crate) fn path_segment(value: &str) -> String {
+    let replaced: String = value
+        .chars()
+        .map(|c| match c {
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
+            c if (c as u32) < 0x20 => '_',
+            c => c,
+        })
+        .collect();
+    let trimmed = replaced
+        .trim()
+        .trim_start_matches(['.', ' ', '_'])
+        .trim_end_matches(['.', ' ']);
+    if trimmed.is_empty() {
+        "_".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
 /// `name` with the extension of the format frames are saved in. A template
 /// that names a frame format (`.fits`, `.xisf`, ...) or none gets the saved
 /// format's, so the capture format setting decides what lands on disk; any
@@ -523,7 +588,9 @@ pub(crate) fn build_save_path_renderer(
 fn with_frame_extension(name: &str, extension: &str) -> String {
     let path = std::path::Path::new(name);
     if skotiq_imaging::is_frame_path(path) {
-        path.with_extension(extension).to_string_lossy().into_owned()
+        path.with_extension(extension)
+            .to_string_lossy()
+            .into_owned()
     } else {
         format!("{name}.{extension}")
     }
@@ -1077,6 +1144,15 @@ pub(crate) async fn check_exposure_triggers(
 
 #[cfg(test)]
 mod tests {
+    fn one_frame() -> crate::instructions::FrameToName {
+        crate::instructions::FrameToName {
+            index_in_burst: 1,
+            burst_total: 1,
+            started_at: chrono::Utc::now(),
+            sensor_temp_c: None,
+        }
+    }
+
     use super::*;
 
     /// The status line read "Trigger fired: HfrAbove(3.5) - Running autofocus".
@@ -1303,7 +1379,7 @@ mod tests {
         let ctx = renderer_context(&root);
         let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
 
-        let (dir, name) = render(1, 1).unwrap();
+        let (dir, name) = render(&one_frame()).unwrap();
 
         assert_eq!(dir, root.join("NGC0891"));
         assert_eq!(name, "NGC0891_L_0001.fits");
@@ -1320,7 +1396,7 @@ mod tests {
         let mut names = Vec::new();
         for _visit in 0..3 {
             let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
-            let (dir, name) = render(1, 1).unwrap();
+            let (dir, name) = render(&one_frame()).unwrap();
             std::fs::write(dir.join(&name), b"").unwrap();
             names.push(name);
         }
@@ -1347,7 +1423,7 @@ mod tests {
         std::fs::write(target_dir.join("Reject").join("NGC0891_L_0002.fits"), b"").unwrap();
         let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
 
-        let (_, name) = render(1, 1).unwrap();
+        let (_, name) = render(&one_frame()).unwrap();
 
         assert_eq!(name, "NGC0891_L_0003.fits");
         let _ = std::fs::remove_dir_all(&root);
@@ -1363,7 +1439,7 @@ mod tests {
         ctx.current_filter = Some("R".to_string());
         let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
 
-        let (_, name) = render(1, 1).unwrap();
+        let (_, name) = render(&one_frame()).unwrap();
 
         assert_eq!(name, "NGC0891_R_0001.fits");
         let _ = std::fs::remove_dir_all(&root);
@@ -1541,6 +1617,99 @@ mod tests {
             "two 0.4s exposures on one camera must run one after the other; \
              finished in {elapsed:?}, so they overlapped on the same sensor"
         );
+    }
+
+    /// Two bursts naming frames at once (a second camera in a Parallel
+    /// branch) get two names: a name handed out and not yet written is taken.
+    #[test]
+    fn a_name_handed_out_is_not_handed_out_again() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-claim-{}", uuid::Uuid::new_v4()));
+        let mut ctx_a = ExecutionContext::new_for_test("expose-a".to_string());
+        ctx_a.run.rig.save_path = Some(dir.clone());
+        let mut ctx_b = ctx_a.clone();
+        ctx_b.run.rig.camera_id = Some("sim_camera_2".to_string());
+        let dark = crate::ExposureConfig {
+            frame_type: "dark".to_string(),
+            ..Default::default()
+        };
+        let camera_a = build_save_path_renderer(&ctx_a, &dark, 1.0).unwrap();
+        let camera_b = build_save_path_renderer(&ctx_b, &dark, 1.0).unwrap();
+        let first = camera_a(&one_frame()).unwrap();
+        let second = camera_b(&one_frame()).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(first.1, "Dark_nofilter_0001.fits");
+        assert_eq!(second.1, "Dark_nofilter_0002.fits");
+    }
+
+    /// A template without a frame number gives a taken name a suffix rather
+    /// than writing over it.
+    #[test]
+    fn a_template_without_a_number_suffixes_a_taken_name() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-sfx-{}", uuid::Uuid::new_v4()));
+        let mut ctx = ExecutionContext::new_for_test("expose-sfx".to_string());
+        ctx.run.rig.save_path = Some(dir.clone());
+        ctx.target_name = Some("M42".to_string());
+        let config = crate::ExposureConfig {
+            save_to: Some("${target.name}".into()),
+            ..Default::default()
+        };
+        let render = build_save_path_renderer(&ctx, &config, 1.0).unwrap();
+        let first = render(&one_frame()).unwrap();
+        let second = render(&one_frame()).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(first.1, "M42.fits");
+        assert_eq!(second.1, "M42_001.fits");
+    }
+
+    /// The app's naming pattern and a run's save template keep a value in
+    /// one path segment by one rule.
+    #[test]
+    fn a_value_becomes_one_path_segment_as_the_app_makes_it() {
+        let fixture = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/path_segment/cases.json"
+        ))
+        .expect("fixture");
+        let cases: serde_json::Value = serde_json::from_str(&fixture).expect("json");
+        for case in cases["cases"].as_array().expect("cases") {
+            let value = case["value"].as_str().expect("value");
+            assert_eq!(
+                path_segment(value),
+                case["segment"].as_str().expect("segment"),
+                "{value:?}"
+            );
+        }
+    }
+
+    /// A frame's name carries the time its shutter opened and the sensor
+    /// temperature it reported, and a target name is one folder.
+    #[tokio::test]
+    async fn a_frame_is_named_from_its_own_time_and_temperature() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-name-{}", uuid::Uuid::new_v4()));
+        let mut ctx = ExecutionContext::new_for_test("expose-name".to_string());
+        ctx.run.rig.save_path = Some(dir.clone());
+        ctx.target_name = Some("M31/Ha".to_string());
+        let config = crate::ExposureConfig {
+            save_to: Some(
+                "${target.name}/${time.date}_${time.clock}_${camera.temp_c:.0f}C_${frame:04}"
+                    .into(),
+            ),
+            ..Default::default()
+        };
+        let render = build_save_path_renderer(&ctx, &config, 60.0).unwrap();
+        let started_at = chrono::TimeZone::with_ymd_and_hms(&chrono::Utc, 2026, 11, 13, 1, 2, 3)
+            .single()
+            .unwrap();
+        let (dir_out, name) = render(&crate::instructions::FrameToName {
+            index_in_burst: 1,
+            burst_total: 1,
+            started_at,
+            sensor_temp_c: Some(-9.6),
+        })
+        .unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(dir_out, dir.join("M31_Ha"));
+        assert_eq!(name, "2026-11-13_01-02-03_-10C_0001.fits");
     }
 
     /// Two different cameras must still expose in parallel — the lock is

@@ -140,7 +140,7 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
     // second round trip.
     final status = await _tryFilterWheelStatus(deviceId);
     final names = status?.filterNames ?? const <String>[];
-    if (names.isNotEmpty && !names.contains(name)) {
+    if (names.isNotEmpty && matchingFilterIndex(name, names) == null) {
       throw BadRequestError(
         field: 'name',
         expected: 'one of: ${names.join(', ')}',

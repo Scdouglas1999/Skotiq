@@ -262,7 +262,7 @@ class DeviceService {
     // can drive the "reconnecting" health indicator through it (the
     // native HeartbeatReconnecting event is never emitted, so the Dart
     // side surfaces that state from the reconnect signals it does see).
-    _heartbeat = DeviceHeartbeatRouter(ref: _ref, backend: _backend);
+    _heartbeat = DeviceHeartbeatRouter(ref: _ref);
     _reconnectCoordinator = DeviceReconnectCoordinator(
       ref: _ref,
       backend: _backend,

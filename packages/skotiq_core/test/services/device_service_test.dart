@@ -54,14 +54,6 @@ void main() {
     when(
       () => mockBackend.cameraGetRecommendedSettings(any()),
     ).thenAnswer((_) async => const CameraRecommendedSettings(notes: ''));
-    when(
-      () => mockBackend.startDeviceHeartbeat(
-        deviceType: any(named: 'deviceType'),
-        deviceId: any(named: 'deviceId'),
-        intervalMs: any(named: 'intervalMs'),
-      ),
-    ).thenAnswer((_) async {});
-    when(() => mockBackend.stopDeviceHeartbeat(any())).thenAnswer((_) async {});
 
     container = ProviderContainer(
       overrides: [
@@ -126,13 +118,6 @@ void main() {
             canSetOffset: true,
           ),
         );
-        when(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: any(named: 'deviceType'),
-            deviceId: any(named: 'deviceId'),
-            intervalMs: any(named: 'intervalMs'),
-          ),
-        ).thenAnswer((_) async {});
 
         final service = container.read(deviceServiceProvider);
         await service.connect(DeviceType.camera, deviceId);
@@ -141,13 +126,6 @@ void main() {
         expect(state.connectionState, DeviceConnectionState.connected);
         expect(state.deviceId, deviceId);
 
-        verify(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: DeviceType.camera,
-            deviceId: deviceId,
-            intervalMs: 10000,
-          ),
-        ).called(1);
       },
     );
 
@@ -183,9 +161,6 @@ void main() {
       notifier.setConnected();
 
       when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
-      when(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
 
@@ -196,7 +171,6 @@ void main() {
       expect(state.connectionState, DeviceConnectionState.disconnected);
       expect(state.deviceId, isNull);
 
-      verify(() => mockBackend.stopDeviceHeartbeat(deviceId)).called(1);
       verify(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).called(1);
@@ -235,13 +209,6 @@ void main() {
           canSetTrackingRate: true,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       await service.connect(DeviceType.mount, deviceId);
@@ -315,49 +282,6 @@ void main() {
       expect(state.maxPosition, 50000);
       expect(state.temperature, 12.5);
       expect(state.isMoving, isFalse);
-      verify(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.focuser,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        ),
-      ).called(1);
-    });
-
-    // The rotator never started a heartbeat, so its last contact froze at
-    // connect and System health called it unhealthy all night (RV-05).
-    test('connectRotator starts its heartbeat', () async {
-      const deviceId = 'sim_rotator_1';
-      when(
-        () => mockBackend.connectDevice(DeviceType.rotator, deviceId),
-      ).thenAnswer((_) async {});
-      when(() => mockBackend.getRotatorStatus(deviceId)).thenAnswer(
-        (_) async => const RotatorStatus(
-          connected: true,
-          position: 0,
-          moving: false,
-          mechanicalPosition: 0,
-          isMoving: false,
-          canReverse: false,
-        ),
-      );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.rotator,
-          deviceId: deviceId,
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
-
-      await container.read(deviceServiceProvider).connect(DeviceType.rotator, deviceId);
-
-      verify(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.rotator,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        ),
-      ).called(1);
     });
 
     test('disconnectFocuser resets state', () async {
@@ -376,7 +300,6 @@ void main() {
 
       final state = container.read(focuserStateProvider);
       expect(state.connectionState, DeviceConnectionState.disconnected);
-      verify(() => mockBackend.stopDeviceHeartbeat(deviceId)).called(1);
     });
   });
 
@@ -745,13 +668,6 @@ void main() {
         when(
           () => mockBackend.connectDevice(DeviceType.camera, deviceId),
         ).thenAnswer((_) async {});
-        when(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: any(named: 'deviceType'),
-            deviceId: any(named: 'deviceId'),
-            intervalMs: any(named: 'intervalMs'),
-          ),
-        ).thenAnswer((_) async {});
 
         // Return temperature data on every status poll
         when(() => mockBackend.getCameraStatus(deviceId)).thenAnswer(
@@ -799,13 +715,6 @@ void main() {
       when(
         () => mockBackend.connectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
       when(() => mockBackend.getCameraStatus(deviceId)).thenAnswer(
         (_) async => const CameraStatus(
           connected: true,
@@ -828,9 +737,6 @@ void main() {
           canSetOffset: true,
         ),
       );
-      when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
       when(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
@@ -866,16 +772,6 @@ void main() {
         ).thenAnswer((_) async {});
         when(
           () => mockBackend.disconnectDevice(DeviceType.camera, any()),
-        ).thenAnswer((_) async {});
-        when(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: any(named: 'deviceType'),
-            deviceId: any(named: 'deviceId'),
-            intervalMs: any(named: 'intervalMs'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
-          () => mockBackend.stopDeviceHeartbeat(any()),
         ).thenAnswer((_) async {});
         when(
           () => mockBackend.getCameraStatus(firstDeviceId),
@@ -1107,13 +1003,6 @@ void main() {
           hasTemperature: true,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final focuserNotifier = container.read(focuserStateProvider.notifier);
       focuserNotifier.setConnecting(focuser2, 'Test Focuser');
@@ -1460,13 +1349,6 @@ void main() {
       when(
         () => mockBackend.connectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       // First call throws, subsequent calls succeed
       when(() => mockBackend.getCameraStatus(deviceId)).thenAnswer((_) async {
@@ -1646,9 +1528,6 @@ void main() {
       notifier.setConnected();
 
       when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
-      when(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
 
@@ -1679,9 +1558,6 @@ void main() {
         ..setConnecting(mountDeviceId, 'Test Mount')
         ..setConnected();
 
-      when(
-        () => mockBackend.stopDeviceHeartbeat(any()),
-      ).thenAnswer((_) async {});
       // Camera disconnect succeeds.
       when(
         () => mockBackend.disconnectDevice(DeviceType.camera, cameraDeviceId),
@@ -1763,16 +1639,6 @@ void main() {
         ..setConnected();
 
       when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.camera,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        ),
-      ).thenAnswer((_) async {});
-      when(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).thenThrow(StateError('camera driver refused disconnect'));
       when(() => mockBackend.getCameraStatus(deviceId)).thenAnswer(
@@ -1812,13 +1678,6 @@ void main() {
             .isUserInitiatedDisconnect(deviceId),
         isFalse,
       );
-      verify(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.camera,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        ),
-      ).called(1);
     });
 
     test(
@@ -1829,16 +1688,6 @@ void main() {
           ..setConnecting(deviceId, 'Test Mount')
           ..setConnected();
 
-        when(
-          () => mockBackend.stopDeviceHeartbeat(deviceId),
-        ).thenAnswer((_) async {});
-        when(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: DeviceType.mount,
-            deviceId: deviceId,
-            intervalMs: 10000,
-          ),
-        ).thenAnswer((_) async {});
         when(
           () => mockBackend.disconnectDevice(DeviceType.mount, deviceId),
         ).thenThrow(StateError('mount driver refused disconnect'));
@@ -1878,13 +1727,6 @@ void main() {
               .isUserInitiatedDisconnect(deviceId),
           isFalse,
         );
-        verify(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: DeviceType.mount,
-            deviceId: deviceId,
-            intervalMs: 10000,
-          ),
-        ).called(1);
       },
     );
 

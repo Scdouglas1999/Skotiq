@@ -431,7 +431,8 @@
           "filter_index": 0,
           "filter_name": "L",
           "gain": 100,
-          "offset": 20
+          "offset": 20,
+          "save_to": "${target.name}_${filter}_${time.date}_${frame:04}"
         },
         {
           "binning": "One",
@@ -441,7 +442,8 @@
           "filter_index": null,
           "filter_name": "R",
           "gain": null,
-          "offset": null
+          "offset": null,
+          "save_to": "${target.name}_${filter}_${time.date}_${frame:04}"
         }
       ],
       "rotate_filters": false,
@@ -506,7 +508,7 @@
       "frame_type": "Flat",
       "gain": 120,
       "offset": 30,
-      "save_to": null,
+      "save_to": "${target.name}_${filter}_${time.date}_${frame:04}",
       "triggers": [
         {
           "action": "Autofocus",

@@ -13,25 +13,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 List<DeviceType> apiNativeReconnectedDeviceTypes() =>
     RustLib.instance.api.crateApiHeartbeatApiNativeReconnectedDeviceTypes();
 
-/// Start heartbeat monitoring for a device: poll its status every `interval_ms`
-/// (10000 is the usual cadence) and emit a Disconnected event once it stops
-/// answering.
-Future<void> apiStartDeviceHeartbeat({
-  required DeviceType deviceType,
-  required String deviceId,
-  required BigInt intervalMs,
-}) => RustLib.instance.api.crateApiHeartbeatApiStartDeviceHeartbeat(
-  deviceType: deviceType,
-  deviceId: deviceId,
-  intervalMs: intervalMs,
-);
-
-/// Stop heartbeat monitoring for a device.
-Future<void> apiStopDeviceHeartbeat({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiHeartbeatApiStopDeviceHeartbeat(deviceId: deviceId);
-
 /// Device health as `(last_successful_comm_ms, is_healthy)`: when the device last
 /// answered, and whether it is still responding to heartbeat checks.
 Future<(PlatformInt64, bool)> apiGetDeviceHealth({required String deviceId}) =>

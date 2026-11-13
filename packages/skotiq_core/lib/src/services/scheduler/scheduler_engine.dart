@@ -10,6 +10,7 @@ import 'package:skotiq_astro/skotiq_astro.dart'
         WeightedScoreMode;
 import 'package:uuid/uuid.dart';
 
+import '../../models/equipment/filter_names.dart';
 import '../../models/scheduler/integration_goal.dart';
 import '../../models/scheduler/scheduler_decision.dart';
 import '../../models/scheduler/scheduler_status.dart';
@@ -22,6 +23,12 @@ import 'scheduler_log.dart';
 part 'scheduler_engine/contracts.dart';
 part 'scheduler_engine/evaluation.dart';
 part 'scheduler_engine/scoring.dart';
+
+/// Whether a rig with [wheel] can take [goal]: an unfiltered goal needs no
+/// filter, any other needs a slot the filter-name rule matches ("Ha" is the
+/// wheel's "Ha 7nm", as the run will find it).
+bool _wheelTakes(IntegrationGoal goal, List<String> wheel) =>
+    goal.filter.trim().isEmpty || matchingFilterIndex(goal.filter, wheel) != null;
 
 /// The dynamic RoboTarget-class scheduler.
 ///
@@ -567,11 +574,7 @@ class SchedulerEngine {
               // here would admit the candidate and then silently discard the
               // operator's exposure and frame count, falling back to a
               // defensive default frame.
-              (p) =>
-                  p.goal.filter.isEmpty ||
-                  c.availableFilters
-                      .map((f) => f.toLowerCase())
-                      .contains(p.goal.filter.toLowerCase()),
+              (p) => _wheelTakes(p.goal, c.availableFilters),
             )
             .toList()
           ..sort((a, b) {

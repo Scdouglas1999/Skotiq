@@ -425,3 +425,50 @@ async fn a_failed_reconnect_attempt_publishes_one_event() {
     drop(devices);
     get_sim_mount().write().await.status.connected = false;
 }
+
+// Connecting a device starts its heartbeat at its type's policy interval and
+// disconnecting it stops the heartbeat; no caller picks the interval.
+#[tokio::test]
+async fn connect_starts_the_policy_heartbeat_and_disconnect_stops_it() {
+    use crate::event::bus::EventPayload;
+    use crate::event::equipment::EquipmentEvent;
+    use tokio::sync::broadcast::error::TryRecvError;
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let device_id = "sim_rotator_1";
+    manager
+        .register_device(build_sim_info(device_id, DeviceType::Rotator), false)
+        .await;
+    let mut rx = manager.app_state.event_bus.subscribe();
+
+    manager.connect_device(device_id).await.expect("sim rotator connects");
+    manager.disconnect_device(device_id).await.expect("sim rotator disconnects");
+
+    let mut started = Vec::new();
+    let mut stopped = 0;
+    loop {
+        match rx.try_recv() {
+            Ok(event) => match &event.payload {
+                EventPayload::Equipment(EquipmentEvent::HeartbeatStarted {
+                    device_id: id,
+                    interval_secs,
+                    ..
+                }) if id == device_id => started.push(*interval_secs),
+                EventPayload::Equipment(EquipmentEvent::HeartbeatStopped {
+                    device_id: id, ..
+                }) if id == device_id => stopped += 1,
+                _ => {}
+            },
+            Err(TryRecvError::Empty) | Err(TryRecvError::Closed) => break,
+            Err(TryRecvError::Lagged(_)) => continue,
+        }
+    }
+    assert_eq!(
+        started,
+        vec![crate::device_manager::policy::policy(DeviceType::Rotator)
+            .heartbeat
+            .base_interval_secs]
+    );
+    assert_eq!(stopped, 1);
+}

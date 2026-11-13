@@ -61,6 +61,7 @@ fn frame_with_burst() -> EvaluationFrame {
         weather_temp_c: Some(12.4),
         weather_humidity: Some(67.0),
         sqm: Some(21.2),
+        sensor_temp_c: None,
     }
 }
 

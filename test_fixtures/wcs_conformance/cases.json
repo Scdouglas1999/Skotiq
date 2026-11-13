@@ -1,8 +1,7 @@
 {
   "version": 1,
-  "purpose": "One golden set of .wcs headers with the exact parse each implementation produces, consumed by BOTH packages/skotiq_core/test/services/wcs_conformance_test.dart and the wcs_conformance tests in native/skotiq_native/imaging/src/platesolve.rs, so the two .wcs parsers cannot drift apart silently.",
+  "purpose": "Golden .wcs headers, written the way the solvers write them, with the exact card split and parse the one .wcs parser produces; read by native/skotiq_native/platesolve/src/wcs_conformance_tests.rs.",
   "implementations": {
-    "dart": "packages/skotiq_core/lib/src/services/plate_solve_service.dart (_fitsHeaderCards, _parseWcsFile, _parseWcsValue)",
     "rust": "native/skotiq_native/platesolve/src/lib.rs (fits_header_cards, parse_wcs_file_inner, sip_indices, sip_layout)"
   },
   "tolerances": {
@@ -23,13 +22,6 @@
           "19": "END                                                                             "
         }
       },
-      "dart": {
-        "success": true,
-        "ra": 187.7,
-        "dec": -12.39,
-        "pixel_scale": 1.5000012,
-        "rotation": 1.25
-      },
       "rust": {
         "outcome": "ok",
         "ra": 187.7,
@@ -50,8 +42,7 @@
         "b_coeffs": [],
         "ap_coeffs": [],
         "bp_coeffs": []
-      },
-      "divergence": "rotation: the Dart parser returns CROTA2 verbatim (+1.25); the Rust parser derives it from the CD matrix as atan2(CD2_1, -CD1_1) (-1.25). The golden header builds CD from CDELT/CROTA2 with the standard AIPS relation (CD1_1=CDELT1*cos, CD1_2=-CDELT2*sin, CD2_1=CDELT1*sin, CD2_2=CDELT2*cos), under which the two are exact negations. Which sign a real ASTAP .wcs implies is NOT verifiable from this repo, so both are pinned as-is and neither parser is changed. Anyone touching either sign convention gets a red build here and must settle it against a real solver output."
+      }
     },
     {
       "id": "astap_crlf_delimited",
@@ -66,13 +57,6 @@
           "19": "END                                                                             "
         }
       },
-      "dart": {
-        "success": true,
-        "ra": 187.7,
-        "dec": -12.39,
-        "pixel_scale": 1.5000012,
-        "rotation": 1.25
-      },
       "rust": {
         "outcome": "ok",
         "ra": 187.7,
@@ -93,8 +77,7 @@
         "b_coeffs": [],
         "ap_coeffs": [],
         "bp_coeffs": []
-      },
-      "divergence": "rotation: the Dart parser returns CROTA2 verbatim (+1.25); the Rust parser derives it from the CD matrix as atan2(CD2_1, -CD1_1) (-1.25). The golden header builds CD from CDELT/CROTA2 with the standard AIPS relation (CD1_1=CDELT1*cos, CD1_2=-CDELT2*sin, CD2_1=CDELT1*sin, CD2_2=CDELT2*cos), under which the two are exact negations. Which sign a real ASTAP .wcs implies is NOT verifiable from this repo, so both are pinned as-is and neither parser is changed. Anyone touching either sign convention gets a red build here and must settle it against a real solver output."
+      }
     },
     {
       "id": "astrometry_net_sip",
@@ -108,13 +91,6 @@
           "13": "A_ORDER =                    2",
           "25": "END"
         }
-      },
-      "dart": {
-        "success": true,
-        "ra": 150.0,
-        "dec": 20.0,
-        "pixel_scale": 0.0,
-        "rotation": 0.0
       },
       "rust": {
         "outcome": "ok",
@@ -166,8 +142,7 @@
           0.0,
           0.0
         ]
-      },
-      "divergence": "pixel scale and rotation: the Dart parser reads only CDELT1/CROTA2 and this header has neither, so it reports pixel_scale 0 and rotation 0 while still reporting success on CRVAL1/CRVAL2. The Rust parser derives both from the CD matrix. The Dart parser also ignores the CD matrix and every SIP term entirely: its PlateSolveResult leaves cd11..cd22 and the SIP vectors unset by design (pinned by plate_solve_service_test.dart 'a local-parser success carries position but no CD/SIP')."
+      }
     },
     {
       "id": "cdelt_only_no_cd_matrix",
@@ -181,18 +156,10 @@
           "8": "END                                                                             "
         }
       },
-      "dart": {
-        "success": true,
-        "ra": 187.7,
-        "dec": -12.39,
-        "pixel_scale": 1.5000012,
-        "rotation": 1.25
-      },
       "rust": {
         "outcome": "missing_keyword",
         "keyword": "CD1_1"
-      },
-      "divergence": "SUCCESS vs ERROR on the same solved header. Dart requires only CRVAL1/CRVAL2 and derives scale/rotation from CDELT1/CROTA2; Rust additionally requires all four CD terms and fails with WcsMissingKeyword{CD1_1} when they are absent. Neither is changed here: the Rust path feeds SipWcs, which cannot be built without a CD matrix, while the Dart path only needs RA/Dec for centering. Recorded, not unified."
+      }
     },
     {
       "id": "misaligned_equals_column",
@@ -206,18 +173,10 @@
           "7": "CD2_2 = 4.1656784453730E-004"
         }
       },
-      "dart": {
-        "success": true,
-        "ra": 187.7,
-        "dec": -12.39,
-        "pixel_scale": 1.5000012,
-        "rotation": 1.25
-      },
       "rust": {
         "outcome": "missing_keyword",
         "keyword": "CRVAL1"
-      },
-      "divergence": "Rust reads the keyword from columns 0..8 and requires '=' at column 8, so every card here is skipped and the parse fails on the first required keyword. Dart matches with startsWith() and splits on the first '=', so it accepts the off-standard layout. Rust is the standard-conformant reader; Dart is the lenient one. Recorded, not unified \u2014 tightening Dart could reject headers it reads today."
+      }
     },
     {
       "id": "malformed_crval1",
@@ -230,19 +189,11 @@
           "0": "CRVAL1  = not-a-number / deliberately malformed                                 "
         }
       },
-      "dart": {
-        "success": false,
-        "ra": 0.0,
-        "dec": 0.0,
-        "pixel_scale": 0.0,
-        "rotation": 0.0
-      },
       "rust": {
         "outcome": "parse_error",
         "keyword": "CRVAL1",
         "raw_value": "not-a-number"
-      },
-      "divergence": "Both fail closed, with different diagnostics: Rust names the keyword and the raw value (WcsParse), Dart returns the generic 'Could not parse WCS file' because an unparseable value is indistinguishable from an absent one in its Optional-based accumulation."
+      }
     },
     {
       "id": "missing_crval2",
@@ -255,18 +206,10 @@
           "0": "CRVAL1  = 187.70000000000000                                                    "
         }
       },
-      "dart": {
-        "success": false,
-        "ra": 0.0,
-        "dec": 0.0,
-        "pixel_scale": 0.0,
-        "rotation": 0.0
-      },
       "rust": {
         "outcome": "missing_keyword",
         "keyword": "CRVAL2"
-      },
-      "divergence": null
+      }
     },
     {
       "id": "no_wcs_keywords",
@@ -279,18 +222,10 @@
           "0": "COMMENT no coordinates here"
         }
       },
-      "dart": {
-        "success": false,
-        "ra": 0.0,
-        "dec": 0.0,
-        "pixel_scale": 0.0,
-        "rotation": 0.0
-      },
       "rust": {
         "outcome": "missing_keyword",
         "keyword": "CRVAL1"
-      },
-      "divergence": null
+      }
     },
     {
       "id": "nan_crval1",
@@ -302,13 +237,6 @@
         "at": {
           "0": "CRVAL1  = NaN / hazard: parses as a float in BOTH languages                     "
         }
-      },
-      "dart": {
-        "success": true,
-        "ra": "nan",
-        "dec": -12.39,
-        "pixel_scale": 0.0,
-        "rotation": 0.0
       },
       "rust": {
         "outcome": "ok",
@@ -330,8 +258,7 @@
         "b_coeffs": [],
         "ap_coeffs": [],
         "bp_coeffs": []
-      },
-      "divergence": "Agreement, but on a hazard: both sides report success with a NaN RA. Nothing downstream of either parser rejects NaN. Not changed in this pass (a fix is a behaviour change and needs a reproduction in the running app), but pinned so the hazard cannot be forgotten and so a future guard has to update BOTH sides at once."
+      }
     }
   ]
 }

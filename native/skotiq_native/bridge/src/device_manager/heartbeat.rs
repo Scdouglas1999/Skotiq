@@ -242,39 +242,6 @@ impl DeviceManager {
         Ok(connected)
     }
 
-    /// Start heartbeat monitoring for a device with default configuration
-    ///
-    /// This spawns a background task that periodically checks if the device
-    /// is still responding. If the device fails to respond after multiple
-    /// attempts with exponential backoff, a Disconnected event is emitted.
-    ///
-    /// Uses device-type specific defaults for heartbeat configuration.
-    /// If `interval` is non-zero, it overrides the device-type default interval.
-    pub async fn start_heartbeat(&self, device_id: &str, interval: Duration) -> Result<(), String> {
-        // Check if device exists and get its info
-        let (device_type, _device_type_str, _driver_type) = {
-            let devices = self.devices.read().await;
-            match devices.get(device_id) {
-                Some(device) => (
-                    device.info.device_type.clone(),
-                    device.info.device_type.as_str().to_string(),
-                    device.info.driver_type.clone(),
-                ),
-                None => return Err(format!("Device {} not found", device_id)),
-            }
-        };
-
-        let mut config = policy(device_type).heartbeat;
-
-        // Allow interval override if provided (non-zero)
-        if !interval.is_zero() {
-            config.base_interval_secs = interval.as_secs();
-        }
-
-        // Use the configurable version
-        self.start_heartbeat_with_config(device_id, config).await
-    }
-
     /// Start heartbeat monitoring with custom configuration
     ///
     /// Allows full control over heartbeat parameters including:

@@ -1143,34 +1143,10 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       ImageFileFormat.fromRecord(str) ??
       (throw FormatException('Unknown captured-image file format: $str'));
 
-  @override
-  Future<void> startDeviceHeartbeat({
-    required DeviceType deviceType,
-    required String deviceId,
-    required int intervalMs,
-  }) async {
-    await _post(
-      EquipmentApi.startDeviceHeartbeat,
-      body: {
-        'device_type': deviceType.name,
-        'device_id': deviceId,
-        'interval_ms': intervalMs,
-      },
-    );
-  }
-
   /// The host reconnects its own devices; a linked client reconnects none
   /// of them (see `DeviceReconnectCoordinator`), so nothing here is native.
   @override
   Set<DeviceType> get nativeReconnectedDeviceTypes => const {};
-
-  @override
-  Future<void> stopDeviceHeartbeat(String deviceId) async {
-    await _post(
-      EquipmentApi.stopDeviceHeartbeat,
-      body: {'device_id': deviceId},
-    );
-  }
 
   @override
   Future<(int, bool)> getDeviceHealth(String deviceId) async {

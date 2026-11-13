@@ -993,6 +993,9 @@ pub struct FilterPlan {
     /// count-bounded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth_goal: Option<crate::depth_goal::DepthGoalBinding>,
+    /// Where this plan's frames are saved, as `ExposureConfig::save_to`.
+    #[serde(default)]
+    pub save_to: Option<String>,
 }
 
 impl Default for FilterPlan {
@@ -1007,6 +1010,7 @@ impl Default for FilterPlan {
             binning: Binning::default(),
             dither_every: None,
             depth_goal: None,
+            save_to: None,
         }
     }
 }
