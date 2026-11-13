@@ -118,13 +118,22 @@ pub(crate) enum ExposurePlan {
 /// A timed speed this close to the request is the request.
 const SAME_DURATION: f64 = 0.01;
 
+/// The longest timed speed used when the body can also do bulb. A timed
+/// capture holds the camera (and libgphoto2) until it ends and cannot be
+/// aborted, so longer frames are bulb, as NINA makes them (EDCamera.cs:689,
+/// bulb above 30 s) and INDI makes every frame of a second or more by
+/// default (gphoto_driver.cpp:1165, force bulb on). Fujifilm bodies list
+/// timed speeds up to "60m".
+const LONGEST_TIMED_WITH_BULB_SECONDS: f64 = 30.0;
+
 /// Bulb is timed by the host, which cannot hold a sub-second release
 /// reliably: the release can reach the camera before it starts exposing
 /// (gphoto_driver.cpp:1160-1162).
 const SHORTEST_BULB_SECONDS: f64 = 1.0;
 
 /// The way to make an exposure of `seconds`: a timed speed of the same
-/// duration, else bulb for exactly the request when the body can do it,
+/// duration (up to 30 s on a body that can also do bulb), else bulb for
+/// exactly the request when the body can do it,
 /// else the nearest timed speed (the frame then records that speed).
 pub(crate) fn plan_exposure(
     model: &str,
@@ -137,10 +146,13 @@ pub(crate) fn plan_exposure(
             "an exposure lasts longer than 0 s; {seconds} s was requested"
         )));
     }
+    let bulb_instead =
+        can_bulb && seconds > LONGEST_TIMED_WITH_BULB_SECONDS * (1.0 + SAME_DURATION);
     if let Some(same) = speeds
         .timed
         .iter()
         .find(|s| ((s.seconds - seconds) / seconds).abs() <= SAME_DURATION)
+        .filter(|_| !bulb_instead)
     {
         return Ok(ExposurePlan::Timed(same.clone()));
     }
