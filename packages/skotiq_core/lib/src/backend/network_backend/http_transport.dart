@@ -182,7 +182,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   ) {
     final body = _errorBody(statusCode, responseBody);
     if (statusCode == HttpStatus.forbidden &&
-        body?.message == ApiErrorBody.invalidTokenMessage) {
+        body?.code == ApiErrorBody.invalidToken) {
       _latchAuthRejection('$method $endpoint');
     }
     return ServerError(
@@ -253,7 +253,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     final rejected = _rejectedAuthToken;
     if (rejected != null && rejected == authToken) {
       throw const ServerError(
-        code: 'invalid_auth_token',
+        code: ApiErrorBody.invalidToken,
         message:
             'Access denied: Invalid authentication token (not retried — '
             'the host rejected this token)',
