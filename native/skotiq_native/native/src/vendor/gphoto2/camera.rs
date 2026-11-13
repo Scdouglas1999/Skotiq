@@ -126,7 +126,7 @@ unsafe impl Sync for GPhoto2Camera {}
 
 /// One event a body reports.
 pub(crate) enum CameraEvent {
-    FileAdded(CameraFilePath),
+    FileAdded(Box<CameraFilePath>),
     CaptureComplete,
     Timeout,
     Other,
@@ -816,7 +816,7 @@ impl GPhoto2Camera {
             } else {
                 Ok(match kind {
                     GP_EVENT_FILE_ADDED if !data.is_null() => {
-                        CameraEvent::FileAdded((*(data as *const CameraFilePath)).clone())
+                        CameraEvent::FileAdded(Box::new((*(data as *const CameraFilePath)).clone()))
                     }
                     GP_EVENT_CAPTURE_COMPLETE => CameraEvent::CaptureComplete,
                     GP_EVENT_TIMEOUT => CameraEvent::Timeout,
@@ -843,7 +843,7 @@ impl GPhoto2Camera {
             let timeout_ms = left.as_millis().clamp(1, 1000) as c_int;
             match self.next_event(sdk, timeout_ms)? {
                 CameraEvent::FileAdded(path) => {
-                    files.push(path);
+                    files.push(*path);
                     deadline = Instant::now() + settle;
                 }
                 CameraEvent::CaptureComplete if !files.is_empty() => break,
