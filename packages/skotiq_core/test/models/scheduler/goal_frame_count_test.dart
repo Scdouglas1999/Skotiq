@@ -6,11 +6,8 @@ void main() {
     const frames = {'Ha 7nm': 30, 'L': 3, 'L-eXtreme': 5, 'lum': 2, '': 7};
     expect(goalFrameCount('Ha', frames), 30);
     expect(goalFrameCount('L', frames), 3);
-    expect(
-      goalFrameCount('Luminance', frames),
-      5,
-      reason: 'no exact spelling: "L" and "lum" share the canonical name',
-    );
+    expect(goalFrameCount('Luminance', frames), 5,
+        reason: 'no exact spelling: "L" and "lum" share the canonical name');
     expect(goalFrameCount('OIII', frames), 0);
   });
 

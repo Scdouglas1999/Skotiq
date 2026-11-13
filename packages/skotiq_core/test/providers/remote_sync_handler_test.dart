@@ -92,10 +92,7 @@ void main() {
         },
       );
 
-      applyHostLocalSyncEvent(
-        container,
-        hostSays(HostMutationAction.disconnected, 'sim_camera_2'),
-      );
+      applyHostLocalSyncEvent(container, hostSays(HostMutationAction.disconnected, 'sim_camera_2'));
       expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
       expect(
         container.read(cameraStateProvider).connectionState,
@@ -103,22 +100,13 @@ void main() {
       );
 
       // Another camera's disconnect, guide camera or not, is not this one's.
-      applyHostLocalSyncEvent(
-        container,
-        hostSays(HostMutationAction.disconnected, 'sim_camera_9'),
-      );
+      applyHostLocalSyncEvent(container, hostSays(HostMutationAction.disconnected, 'sim_camera_9'));
       expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
 
-      applyHostLocalSyncEvent(
-        container,
-        hostSays(HostMutationAction.connected, 'sim_camera_2'),
-      );
+      applyHostLocalSyncEvent(container, hostSays(HostMutationAction.connected, 'sim_camera_2'));
       expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
 
-      applyHostLocalSyncEvent(
-        container,
-        hostSays(HostMutationAction.disconnected, 'sim_camera_1'),
-      );
+      applyHostLocalSyncEvent(container, hostSays(HostMutationAction.disconnected, 'sim_camera_1'));
       expect(
         container.read(cameraStateProvider).connectionState,
         DeviceConnectionState.disconnected,
@@ -144,16 +132,13 @@ void main() {
         ..setConnecting('sim_focuser_1', 'Simulated Focuser')
         ..connectFailed(StateError('unplugged'));
 
-      applyHostLocalSyncEvent(
-        container,
-        const SkotiqEvent(
+      applyHostLocalSyncEvent(container, const SkotiqEvent(
           timestamp: 1,
           severity: EventSeverity.info,
           category: EventCategory.equipment,
           eventType: 'Disconnected',
           data: {'device_type': 'focuser', 'device_id': 'sim_focuser_1'},
-        ),
-      );
+        ));
 
       final slot = container.read(focuserStateProvider);
       expect(slot.connectionState, DeviceConnectionState.error);
@@ -195,9 +180,7 @@ void main() {
             .connect(DeviceType.focuser, 'sim_focuser_1'),
         throwsA(isA<StateError>()),
       );
-      applyHostLocalSyncEvent(
-        container,
-        const SkotiqEvent(
+      applyHostLocalSyncEvent(container, const SkotiqEvent(
           timestamp: 1,
           severity: EventSeverity.info,
           category: EventCategory.equipment,
@@ -207,48 +190,41 @@ void main() {
             'device_id': 'sim_focuser_1',
             'device_name': 'Simulated Focuser',
           },
-        ),
-      );
+        ));
 
       final slot = container.read(focuserStateProvider);
       expect(slot.connectionState, DeviceConnectionState.error);
       expect(slot.retryDeviceId, 'sim_focuser_1');
     });
 
-    test(
-      'a device connected through the server shows on the host window',
-      () async {
-        final backend = _connectedBackend();
-        when(
-          () => backend.eventStream,
-        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+    test('a device connected through the server shows on the host window', () async {
+      final backend = _connectedBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
 
-        final container = ProviderContainer(
-          overrides: [
-            inMemoryDatabaseOverride(),
-            backendProvider.overrideWith(
-              (ref) => _FixedBackendNotifier(ref, backend),
-            ),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        applyHostLocalSyncEvent(
-          container,
-          const SkotiqEvent(
-            timestamp: 1,
-            severity: EventSeverity.info,
-            category: EventCategory.equipment,
-            eventType: 'Connected',
-            data: {'device_type': 'mount', 'device_id': 'ascom:mount:0'},
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
           ),
-        );
+        ],
+      );
+      addTearDown(container.dispose);
 
-        final mount = container.read(mountStateProvider);
-        expect(mount.connectionState, DeviceConnectionState.connected);
-        expect(mount.deviceId, 'ascom:mount:0');
-      },
-    );
+      applyHostLocalSyncEvent(container, const SkotiqEvent(
+          timestamp: 1,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'Connected',
+          data: {'device_type': 'mount', 'device_id': 'ascom:mount:0'},
+        ));
+
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.connected);
+      expect(mount.deviceId, 'ascom:mount:0');
+    });
 
     test('HostStateChanged profile mutation invalidates profiles', () async {
       final backend = _connectedBackend();
@@ -272,14 +248,11 @@ void main() {
 
       await container.read(equipmentProfilesProvider.future);
 
-      applyHostLocalSyncEvent(
-        container,
-        buildHostMutationEvent(
+      applyHostLocalSyncEvent(container, buildHostMutationEvent(
           entityType: HostMutationEntity.profile,
           action: HostMutationAction.updated,
           entityId: '1',
-        ),
-      );
+        ));
 
       await container.read(equipmentProfilesProvider.future);
       expect(loadCount, greaterThanOrEqualTo(2));
@@ -306,14 +279,11 @@ void main() {
 
         await container.read(allDbTargetsProvider.future);
 
-        applyHostLocalSyncEvent(
-          container,
-          buildHostMutationEvent(
+        applyHostLocalSyncEvent(container, buildHostMutationEvent(
             entityType: HostMutationEntity.target,
             action: HostMutationAction.updated,
             entityId: '3',
-          ),
-        );
+          ));
 
         await container.read(allDbTargetsProvider.future);
         verify(() => backend.getAllTargets()).called(greaterThanOrEqualTo(2));
@@ -344,16 +314,13 @@ void main() {
       await container.read(allTargetProgressProvider.future);
       final readsBefore = progressReads;
 
-      applyHostLocalSyncEvent(
-        container,
-        const SkotiqEvent(
+      applyHostLocalSyncEvent(container, const SkotiqEvent(
           timestamp: 4,
           severity: EventSeverity.info,
           category: EventCategory.imaging,
           eventType: 'ImageCaptured',
           data: {'targetId': 1},
-        ),
-      );
+        ));
 
       await container.read(allTargetProgressProvider.future);
       expect(progressReads, greaterThan(readsBefore));
@@ -364,12 +331,7 @@ void main() {
       when(
         () => backend.eventStream,
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-      when(
-        () => backend.cameraGetLastImage(
-          'asi:0',
-          maxWidth: any(named: 'maxWidth'),
-        ),
-      ).thenAnswer(
+      when(() => backend.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth'))).thenAnswer(
         (_) async => makeCapturedImageResult(
           width: 4,
           height: 2,
@@ -401,17 +363,13 @@ void main() {
 
       expect(container.read(currentImageProvider), isNull);
 
-      applyHostEventOnClient(
-        container,
-        backend,
-        const SkotiqEvent(
+      applyHostEventOnClient(container, backend, const SkotiqEvent(
           timestamp: 5,
           severity: EventSeverity.info,
           category: EventCategory.imaging,
           eventType: 'ImageReady',
           data: {'width': 4, 'height': 2},
-        ),
-      );
+        ));
 
       // Let the unawaited fetch + publish microtasks run.
       await pumpEventQueue();
@@ -422,12 +380,7 @@ void main() {
       expect(frame.height, 2);
       expect(frame.settings.exposureTime, 12.0);
       expect(frame.previewSource, CapturePreviewSource.remote);
-      verify(
-        () => backend.cameraGetLastImage(
-          'asi:0',
-          maxWidth: any(named: 'maxWidth'),
-        ),
-      ).called(1);
+      verify(() => backend.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth'))).called(1);
     });
 
     test('late current-frame response from an old host is discarded', () async {
@@ -435,8 +388,7 @@ void main() {
       final hostB = _connectedBackend();
       final delayedFrame = Completer<CapturedImageResult?>();
       when(
-        () =>
-            hostA.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth')),
+        () => hostA.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth')),
       ).thenAnswer((_) => delayedFrame.future);
 
       final container = ProviderContainer(
@@ -452,22 +404,15 @@ void main() {
         ..setConnecting('asi:0', 'ASI Camera')
         ..setConnected();
 
-      applyHostEventOnClient(
-        container,
-        hostA,
-        const SkotiqEvent(
+      applyHostEventOnClient(container, hostA, const SkotiqEvent(
           timestamp: 6,
           severity: EventSeverity.info,
           category: EventCategory.imaging,
           eventType: 'ImageReady',
           data: {'width': 4, 'height': 2},
-        ),
-      );
+        ));
       await pumpEventQueue();
-      verify(
-        () =>
-            hostA.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth')),
-      ).called(1);
+      verify(() => hostA.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth'))).called(1);
 
       final notifier =
           container.read(backendProvider.notifier) as _FixedBackendNotifier;
@@ -483,9 +428,7 @@ void main() {
       await pumpEventQueue(times: 20);
 
       expect(container.read(currentImageProvider), isNull);
-      verifyNever(
-        () => hostB.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
-      );
+      verifyNever(() => hostB.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')));
     });
 
     test(
@@ -512,25 +455,17 @@ void main() {
 
         // No networkBackend passed → desktop/host-local path: the host-local
         // publisher owns currentImageProvider, so the remote fetch must NOT run.
-        applyHostLocalSyncEvent(
-          container,
-          const SkotiqEvent(
+        applyHostLocalSyncEvent(container, const SkotiqEvent(
             timestamp: 6,
             severity: EventSeverity.info,
             category: EventCategory.imaging,
             eventType: 'ImageReady',
             data: {'width': 4, 'height': 2},
-          ),
-        );
+          ));
         await pumpEventQueue();
 
         expect(container.read(currentImageProvider), isNull);
-        verifyNever(
-          () => backend.cameraGetLastImage(
-            any(),
-            maxWidth: any(named: 'maxWidth'),
-          ),
-        );
+        verifyNever(() => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')));
       },
     );
 
@@ -556,17 +491,14 @@ void main() {
         container.listen(savedSequencesProvider, (_, __) {});
         await container.read(savedSequencesProvider.future);
 
-        applyHostLocalSyncEvent(
-          container,
-          SkotiqEvent.fromWireJson({
+        applyHostLocalSyncEvent(container, SkotiqEvent.fromWireJson({
             'type': 'event',
             'timestamp': 2,
             'severity': 'info',
             'category': 'sequencer',
             'eventType': sequenceUpdatedEventType,
             'data': {'sequenceId': 4, 'action': 'saved'},
-          }),
-        );
+          }));
 
         await container.read(savedSequencesProvider.future);
         verify(
@@ -594,9 +526,7 @@ void main() {
 
       await container.read(savedSequencesProvider.future);
 
-      applyHostLocalSyncEvent(
-        container,
-        SkotiqEvent.fromWireJson({
+      applyHostLocalSyncEvent(container, SkotiqEvent.fromWireJson({
           'type': 'event',
           'timestamp': 3,
           'severity': 'info',
@@ -607,8 +537,7 @@ void main() {
             'action': HostMutationAction.updated,
             'entityId': '9',
           },
-        }),
-      );
+        }));
 
       await container.read(savedSequencesProvider.future);
       verify(() => backend.listFullSequences()).called(greaterThanOrEqualTo(2));

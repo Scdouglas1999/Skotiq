@@ -28,8 +28,9 @@ Map<String, Object?> _wire(CompensationStep step) => switch (step) {
 };
 
 void main() {
-  final cases = (jsonDecode(File(_casesPath).readAsStringSync()) as List)
-      .cast<Map<String, dynamic>>();
+  final cases =
+      (jsonDecode(File(_casesPath).readAsStringSync()) as List)
+          .cast<Map<String, dynamic>>();
 
   test('the case file is the one the Rust rule runs', () {
     expect(cases.length, greaterThanOrEqualTo(12));

@@ -26,10 +26,7 @@ void main() {
       expect(report.isCovered, isFalse);
       expect(report.missing, hasLength(1));
       expect(report.underCovered, isEmpty);
-      expect(
-        report.missing.single.describe(),
-        startsWith('180 s darks at gain '),
-      );
+      expect(report.missing.single.describe(), startsWith('180 s darks at gain '));
     });
 
     test('treats a master dark inside tolerance as covered', () {

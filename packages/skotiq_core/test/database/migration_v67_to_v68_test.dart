@@ -27,11 +27,7 @@ void main() {
       try {
         const profile =
             'INSERT INTO equipment_profiles (id, name, camera_id) VALUES (?, ?, ?)';
-        await setup.customStatement(profile, [
-          1,
-          'DSLR',
-          'native:gphoto2:0:x:Canon EOS 6D',
-        ]);
+        await setup.customStatement(profile, [1, 'DSLR', 'native:gphoto2:0:x:Canon EOS 6D']);
         await setup.customStatement(profile, [2, 'Astro', 'native:zwo:0']);
         const session =
             'INSERT INTO imaging_sessions (id, profile_id, start_time) VALUES (?, ?, ?)';
@@ -41,75 +37,33 @@ void main() {
             'INSERT INTO captured_images (id, file_path, file_name, session_id, '
             'exposure_duration, gain, captured_at) VALUES (?, ?, ?, ?, ?, ?, ?)';
         // DSLR frames: an ISO-list position and no gain at all.
-        await setup.customStatement(frame, [
-          1,
-          '/a.fits',
-          'a.fits',
-          10,
-          60.0,
-          7,
-          1700000000,
-        ]);
-        await setup.customStatement(frame, [
-          2,
-          '/b.fits',
-          'b.fits',
-          10,
-          60.0,
-          null,
-          1700000000,
-        ]);
+        await setup.customStatement(frame, [1, '/a.fits', 'a.fits', 10, 60.0, 7, 1700000000]);
+        await setup.customStatement(frame, [2, '/b.fits', 'b.fits', 10, 60.0, null, 1700000000]);
         // An astronomy camera's small gain is a gain.
-        await setup.customStatement(frame, [
-          3,
-          '/c.fits',
-          'c.fits',
-          20,
-          60.0,
-          7,
-          1700000000,
-        ]);
+        await setup.customStatement(frame, [3, '/c.fits', 'c.fits', 20, 60.0, 7, 1700000000]);
         // A frame of no session cannot be told apart and is left alone.
-        await setup.customStatement(frame, [
-          4,
-          '/d.fits',
-          'd.fits',
-          null,
-          60.0,
-          7,
-          1700000000,
-        ]);
+        await setup.customStatement(frame, [4, '/d.fits', 'd.fits', null, 60.0, 7, 1700000000]);
         await setup.customStatement('PRAGMA user_version = 67');
       } finally {
         await setup.close();
       }
     }
 
-    test(
-      'only gPhoto2 frames with a small gain read as an ISO-list position',
-      () async {
-        await writeV67();
-        final db = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
-        addTearDown(db.close);
-        final version = await db
-            .customSelect('PRAGMA user_version')
-            .getSingle();
-        expect(version.data['user_version'], db.schemaVersion);
-        final rows = await db
-            .customSelect(
-              'SELECT id, gain, gain_kind FROM captured_images ORDER BY id',
-            )
-            .get();
-        expect(
-          {
-            for (final r in rows)
-              r.read<int>('id'): r.readNullable<String>('gain_kind'),
-          },
-          {1: 'isoListPosition', 2: null, 3: null, 4: null},
-        );
-        // The recorded number itself is never rewritten.
-        expect(rows.first.read<int>('gain'), 7);
-      },
-    );
+    test('only gPhoto2 frames with a small gain read as an ISO-list position', () async {
+      await writeV67();
+      final db = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      addTearDown(db.close);
+      final version = await db.customSelect('PRAGMA user_version').getSingle();
+      expect(version.data['user_version'], db.schemaVersion);
+      final rows = await db
+          .customSelect('SELECT id, gain, gain_kind FROM captured_images ORDER BY id')
+          .get();
+      expect(
+        {for (final r in rows) r.read<int>('id'): r.readNullable<String>('gain_kind')},
+        {1: 'isoListPosition', 2: null, 3: null, 4: null},
+      );
+      // The recorded number itself is never rewritten.
+      expect(rows.first.read<int>('gain'), 7);
+    });
   });
 }

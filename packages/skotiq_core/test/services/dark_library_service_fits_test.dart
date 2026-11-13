@@ -112,34 +112,37 @@ void main() {
       },
     );
 
-    test('BITPIX=-32: the declared sample range decides the scale', () async {
-      // The same numbers as the normalized master, declared to be ADU: a
-      // dark of less than one ADU, which rounds to 0 and 1.
-      final adu = _buildFitsFloat32(
-        values: <double>[0.0, 0.25, 0.5, 1.0],
-        bzero: null,
-        bscale: null,
-        range: (0.0, 65535.0),
-      );
-      expect(
-        await service.loadDarkPixels((await writeFits('adu.fit', adu)).path),
-        [0, 0, 1, 1],
-      );
+    test(
+      'BITPIX=-32: the declared sample range decides the scale',
+      () async {
+        // The same numbers as the normalized master, declared to be ADU: a
+        // dark of less than one ADU, which rounds to 0 and 1.
+        final adu = _buildFitsFloat32(
+          values: <double>[0.0, 0.25, 0.5, 1.0],
+          bzero: null,
+          bscale: null,
+          range: (0.0, 65535.0),
+        );
+        expect(
+          await service.loadDarkPixels((await writeFits('adu.fit', adu)).path),
+          [0, 0, 1, 1],
+        );
 
-      // ADU-sized numbers declared to span 0..4095 (a 12-bit scale).
-      final twelveBit = _buildFitsFloat32(
-        values: <double>[0.0, 4095.0],
-        bzero: null,
-        bscale: null,
-        range: (0.0, 4095.0),
-      );
-      expect(
-        await service.loadDarkPixels(
-          (await writeFits('twelve.fit', twelveBit)).path,
-        ),
-        [0, 65535],
-      );
-    });
+        // ADU-sized numbers declared to span 0..4095 (a 12-bit scale).
+        final twelveBit = _buildFitsFloat32(
+          values: <double>[0.0, 4095.0],
+          bzero: null,
+          bscale: null,
+          range: (0.0, 4095.0),
+        );
+        expect(
+          await service.loadDarkPixels(
+            (await writeFits('twelve.fit', twelveBit)).path,
+          ),
+          [0, 65535],
+        );
+      },
+    );
 
     test(
       'BITPIX=-32: BZERO/BSCALE linear transform is applied per FITS spec',

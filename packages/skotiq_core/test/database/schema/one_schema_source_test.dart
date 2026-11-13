@@ -141,10 +141,7 @@ void main() {
   group('a database written by the raw-DDL build', () {
     test('opens with its schema and row counts unchanged', () async {
       final file = _unpackPopulatedFixture(dir);
-      final masterBefore = _withRaw(
-        file,
-        (db) => _outsideV67(dumpMasterSql(db), db),
-      );
+      final masterBefore = _withRaw(file, (db) => _outsideV67(dumpMasterSql(db), db));
       final tablesBefore = _withRaw(file, dumpSchema)['tables']! as Map;
       final countsBefore = _withRaw(file, dumpRowCounts);
       expect(
@@ -166,27 +163,15 @@ void main() {
       // steps add columns to.
       bool kept(String key) =>
           !_columnsAddedAfterBase.keys.contains(key.split(':').last);
-      final masterAfter = _withRaw(
-        file,
-        (db) => _outsideV67(dumpMasterSql(db), db),
-      );
+      final masterAfter =
+          _withRaw(file, (db) => _outsideV67(dumpMasterSql(db), db));
       expect(
-        {
-          for (final e in masterAfter.entries)
-            if (kept(e.key)) e.key: e.value,
-        },
-        {
-          for (final e in masterBefore.entries)
-            if (kept(e.key)) e.key: e.value,
-        },
+        {for (final e in masterAfter.entries) if (kept(e.key)) e.key: e.value},
+        {for (final e in masterBefore.entries) if (kept(e.key)) e.key: e.value},
       );
-      final tablesAfter =
-          jsonDecode(
-                jsonEncode(
-                  _asOfBase(_withRaw(file, dumpSchema)['tables']! as Map),
-                ),
-              )
-              as Map;
+      final tablesAfter = jsonDecode(
+        jsonEncode(_asOfBase(_withRaw(file, dumpSchema)['tables']! as Map)),
+      ) as Map;
       final expected = _withV67(tablesBefore);
       for (final table in [
         ..._v67NullableColumns.keys,

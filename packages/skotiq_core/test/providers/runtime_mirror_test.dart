@@ -116,11 +116,7 @@ void main() {
       final client = _client(backend);
       addTearDown(client.dispose);
 
-      applyHostEventOnClient(
-        client,
-        backend,
-        _overWire(updates.single.toEvent()),
-      );
+      applyHostEventOnClient(client, backend, _overWire(updates.single.toEvent()));
 
       final mirrored = client.read(plateSolveStateProvider).lastResult;
       expect(mirrored, isNotNull);

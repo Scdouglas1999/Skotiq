@@ -574,20 +574,23 @@ void main() {
 
   // Altitude-driven longitude baton
 
-  test('observerAltitudeDegrees puts the J2000 pole within a few arcminutes of '
-      'altitude == lat', () {
-    // The pole of date sits at altitude == observer latitude for all times
-    // and longitudes. Coordinates here are J2000, and precession has carried
-    // the J2000 pole ~0.15 degrees from the pole of date by the 2020s.
-    final alt = CoImagingSessionService.observerAltitudeDegrees(
-      latitudeDeg: 47.0,
-      longitudeDeg: -122.0,
-      raDeg: 0.0,
-      decDeg: 90.0,
-      atUtc: DateTime.utc(2026, 6, 30, 8),
-    );
-    expect(alt, closeTo(47.0, 0.2));
-  });
+  test(
+    'observerAltitudeDegrees puts the J2000 pole within a few arcminutes of '
+    'altitude == lat',
+    () {
+      // The pole of date sits at altitude == observer latitude for all times
+      // and longitudes. Coordinates here are J2000, and precession has carried
+      // the J2000 pole ~0.15 degrees from the pole of date by the 2020s.
+      final alt = CoImagingSessionService.observerAltitudeDegrees(
+        latitudeDeg: 47.0,
+        longitudeDeg: -122.0,
+        raDeg: 0.0,
+        decDeg: 90.0,
+        atUtc: DateTime.utc(2026, 6, 30, 8),
+      );
+      expect(alt, closeTo(47.0, 0.2));
+    },
+  );
 
   test(
     'evaluateBaton claims when the target is up, releases when it sets',

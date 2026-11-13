@@ -531,7 +531,10 @@ void main() {
     test('camera/mount-only profile -> profileDevices ready without claiming '
         'every device is connected', () async {
       final container = _container(
-        assignedProfileSlots: const [DeviceType.camera, DeviceType.mount],
+        assignedProfileSlots: const [
+          DeviceType.camera,
+          DeviceType.mount,
+        ],
       );
       final report = await _resolveReport(container);
 

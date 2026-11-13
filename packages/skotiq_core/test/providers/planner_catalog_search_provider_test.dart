@@ -104,9 +104,7 @@ void main() {
         overrides: [
           inMemoryDatabaseOverride(),
           tonightSuggestionsProvider.overrideWith(
-            (ref) async => [
-              _suggestion(id: 1, name: 'M31', catalogId: 'NGC224'),
-            ],
+            (ref) async => [_suggestion(id: 1, name: 'M31', catalogId: 'NGC224')],
           ),
         ],
       );

@@ -13,17 +13,12 @@ void main() {
       r'fn extensions\(&self\) -> &.static \[&.static str\] \{\s*&\[([^\]]*)\]',
     ).allMatches(source)) {
       native.addAll(
-        RegExp(
-          r'"([a-z0-9]+)"',
-        ).allMatches(block.group(1)!).map((m) => m.group(1)!),
+        RegExp(r'"([a-z0-9]+)"').allMatches(block.group(1)!).map((m) => m.group(1)!),
       );
     }
     expect(native, isNotEmpty);
     // XISF is read by the native side through its own reader as well.
-    expect(
-      {...FrameFiles.all}..removeAll(FrameFiles.xisf),
-      native..removeAll(FrameFiles.xisf),
-    );
+    expect({...FrameFiles.all}..removeAll(FrameFiles.xisf), native..removeAll(FrameFiles.xisf));
   });
 
   test('frame paths are recognized by extension, case and folders aside', () {

@@ -138,7 +138,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         if (siteLatitude != null)
-          appSettingsProvider.overrideWith(() => _SiteSettings(siteLatitude)),
+          appSettingsProvider.overrideWith(
+            () => _SiteSettings(siteLatitude),
+          ),
         backendProvider.overrideWith(
           (ref) => _SwappableBackendNotifier(ref, initial ?? backend),
         ),
@@ -829,25 +831,20 @@ void main() {
     });
   });
 
-  test(
-    'the run aligns on the pole of the site, not a stale saved toggle',
-    () async {
-      bool? sentNorth;
-      _whenStartTppa(backend, (invocation) async {
-        sentNorth = invocation.namedArguments[#isNorth] as bool;
-      });
-      final container = buildContainer(siteLatitude: -33.9);
-      await container.read(appSettingsProvider.future);
+  test('the run aligns on the pole of the site, not a stale saved toggle',
+      () async {
+    bool? sentNorth;
+    _whenStartTppa(backend, (invocation) async {
+      sentNorth = invocation.namedArguments[#isNorth] as bool;
+    });
+    final container = buildContainer(siteLatitude: -33.9);
+    await container.read(appSettingsProvider.future);
 
-      await container
-          .read(polarAlignmentStateProvider.notifier)
-          .startAlignment(const PolarAlignmentConfig(isNorth: true));
+    await container
+        .read(polarAlignmentStateProvider.notifier)
+        .startAlignment(const PolarAlignmentConfig(isNorth: true));
 
-      expect(sentNorth, isFalse);
-      expect(
-        container.read(polarAlignmentStateProvider).config?.isNorth,
-        false,
-      );
-    },
-  );
+    expect(sentNorth, isFalse);
+    expect(container.read(polarAlignmentStateProvider).config?.isNorth, false);
+  });
 }

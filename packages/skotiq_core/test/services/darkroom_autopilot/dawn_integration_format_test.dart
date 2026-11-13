@@ -56,68 +56,19 @@ DawnJobReport _report(double seconds) => DawnJobReport(
 
 void main() {
   test('a sub-minute night states its seconds, never "0m"', () {
-    expect(
-      DurationFormat.seconds(
-        24.0,
-        style: DurationStyle.coarse,
-        roundToMinute: true,
-      ),
-      '24s',
-    );
-    expect(
-      DurationFormat.seconds(
-        1.0,
-        style: DurationStyle.coarse,
-        roundToMinute: true,
-      ),
-      '1s',
-    );
+    expect(DurationFormat.seconds(24.0, style: DurationStyle.coarse, roundToMinute: true), '24s');
+    expect(DurationFormat.seconds(1.0, style: DurationStyle.coarse, roundToMinute: true), '1s');
     // A fraction of a second rounds UP so it can never land back on the 0 the
     // zero branch owns.
-    expect(
-      DurationFormat.seconds(
-        0.4,
-        style: DurationStyle.coarse,
-        roundToMinute: true,
-      ),
-      '1s',
-    );
+    expect(DurationFormat.seconds(0.4, style: DurationStyle.coarse, roundToMinute: true), '1s');
   });
 
   test('a whole minute and above is unchanged', () {
-    expect(
-      DurationFormat.seconds(
-        60.0,
-        style: DurationStyle.coarse,
-        roundToMinute: true,
-      ),
-      '1m',
-    );
+    expect(DurationFormat.seconds(60.0, style: DurationStyle.coarse, roundToMinute: true), '1m');
     // 59.9s ceilings to 60 seconds, which is a minute — not "60 s".
-    expect(
-      DurationFormat.seconds(
-        59.9,
-        style: DurationStyle.coarse,
-        roundToMinute: true,
-      ),
-      '1m',
-    );
-    expect(
-      DurationFormat.seconds(
-        2520.0,
-        style: DurationStyle.coarse,
-        roundToMinute: true,
-      ),
-      '42m',
-    );
-    expect(
-      DurationFormat.seconds(
-        11520.0,
-        style: DurationStyle.coarse,
-        roundToMinute: true,
-      ),
-      '3h 12m',
-    );
+    expect(DurationFormat.seconds(59.9, style: DurationStyle.coarse, roundToMinute: true), '1m');
+    expect(DurationFormat.seconds(2520.0, style: DurationStyle.coarse, roundToMinute: true), '42m');
+    expect(DurationFormat.seconds(11520.0, style: DurationStyle.coarse, roundToMinute: true), '3h 12m');
   });
 
   test('the morning headline for a 24 s night does not read "0m"', () {

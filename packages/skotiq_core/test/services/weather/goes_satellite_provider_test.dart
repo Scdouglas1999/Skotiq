@@ -24,21 +24,19 @@ void main() {
     expect(result.frames, isEmpty);
   });
 
-  test(
-    'a server that answers without an image still gives a no-data frame',
-    () async {
-      final provider = GoesSatelliteProvider(
-        client: MockClient((_) async => http.Response('busy', 503)),
-      );
-      addTearDown(provider.dispose);
+  test('a server that answers without an image still gives a no-data frame',
+      () async {
+    final provider = GoesSatelliteProvider(
+      client: MockClient((_) async => http.Response('busy', 503)),
+    );
+    addTearDown(provider.dispose);
 
-      final result = await provider.fetchRadarFrames(
-        latitude: 40,
-        longitude: -75,
-      );
+    final result = await provider.fetchRadarFrames(
+      latitude: 40,
+      longitude: -75,
+    );
 
-      expect(result.isSuccess, isTrue);
-      expect(result.frames.single.isNoData, isTrue);
-    },
-  );
+    expect(result.isSuccess, isTrue);
+    expect(result.frames.single.isNoData, isTrue);
+  });
 }

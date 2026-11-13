@@ -22,8 +22,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart'
-    as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
 
 /// A backend whose unstubbed members answer with a completed `Future<void>`,
 /// so a start that gets past validation runs end to end without stubbing the

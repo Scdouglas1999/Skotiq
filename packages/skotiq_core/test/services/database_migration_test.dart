@@ -943,10 +943,11 @@ CREATE TABLE captured_images (
       final db = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
       try {
         final dark = await db.select(db.darkLibrary).getSingle();
-        expect(
-          (dark.filePath, dark.gain, dark.offset),
-          ('/darks/d120.fits', 139, 21),
-        );
+        expect((dark.filePath, dark.gain, dark.offset), (
+          '/darks/d120.fits',
+          139,
+          21,
+        ));
         final flats = await FlatLibraryDao(db).getAllEntries();
         expect(flats.single.gain, 0, reason: 'an old 0 stays 0');
 
@@ -963,9 +964,9 @@ CREATE TABLE captured_images (
         )..where((t) => t.filePath.equals('/darks/fli.fits'))).getSingle();
         expect((fli.gain, fli.offset), (null, null));
         await FlatLibraryDao(db).addEntry(filePath: '/flats/fli.fits');
-        final fliFlat = (await FlatLibraryDao(
-          db,
-        ).getAllEntries()).firstWhere((f) => f.filePath == '/flats/fli.fits');
+        final fliFlat = (await FlatLibraryDao(db).getAllEntries()).firstWhere(
+          (f) => f.filePath == '/flats/fli.fits',
+        );
         expect((fliFlat.gain, fliFlat.offset), (null, null));
       } finally {
         await db.close();

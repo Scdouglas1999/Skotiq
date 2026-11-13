@@ -28,21 +28,15 @@ void main() {
     expect(locations.darkroom.path, p.join(capture.path, 'darkroom'));
   });
 
-  test(
-    'without a capture folder they go to Skotiq in the documents folder',
-    () {
-      final locations = OutputLocations(
-        captureFolder: '',
-        documents: documents,
-      );
+  test('without a capture folder they go to Skotiq in the documents folder', () {
+    final locations = OutputLocations(captureFolder: '', documents: documents);
 
-      expect(locations.root, p.join(documents.path, 'Skotiq'));
-      expect(
-        locations.masters.path,
-        p.join(documents.path, 'Skotiq', 'Masters'),
-      );
-    },
-  );
+    expect(locations.root, p.join(documents.path, 'Skotiq'));
+    expect(
+      locations.masters.path,
+      p.join(documents.path, 'Skotiq', 'Masters'),
+    );
+  });
 
   test('each target has one masters folder, named safely', () async {
     final locations = OutputLocations(
@@ -56,22 +50,25 @@ void main() {
     );
   });
 
-  test('a target whose masters already live in Documents/Skotiq/Masters keeps '
-      'that folder', () async {
-    final earlier = await Directory(
-      p.join(documents.path, 'Skotiq', 'Masters', 'M31'),
-    ).create(recursive: true);
-    final locations = OutputLocations(
-      captureFolder: capture.path,
-      documents: documents,
-    );
+  test(
+    'a target whose masters already live in Documents/Skotiq/Masters keeps '
+    'that folder',
+    () async {
+      final earlier = await Directory(
+        p.join(documents.path, 'Skotiq', 'Masters', 'M31'),
+      ).create(recursive: true);
+      final locations = OutputLocations(
+        captureFolder: capture.path,
+        documents: documents,
+      );
 
-    expect((await locations.mastersOf('M31')).path, earlier.path);
-    expect(
-      (await locations.mastersOf('M33')).path,
-      p.join(capture.path, 'Masters', 'M33'),
-    );
-  });
+      expect((await locations.mastersOf('M31')).path, earlier.path);
+      expect(
+        (await locations.mastersOf('M33')).path,
+        p.join(capture.path, 'Masters', 'M33'),
+      );
+    },
+  );
 
   test(
     'once the target has a folder under the capture folder that one wins',

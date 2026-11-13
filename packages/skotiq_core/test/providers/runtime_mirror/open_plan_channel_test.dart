@@ -69,10 +69,7 @@ void main() {
     final client = mirrorClient(host.container);
     await hydrateHostRuntimeState(client.container, client.backend);
 
-    expect(
-      client.container.read(currentSequenceProvider)?.name,
-      'Autopilot pick',
-    );
+    expect(client.container.read(currentSequenceProvider)?.name, 'Autopilot pick');
     expect(
       client.container.read(activePlanOwnerProvider),
       ActivePlanOwner.autopilot,

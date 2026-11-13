@@ -187,26 +187,22 @@ void main() {
     );
   });
 
-  test(
-    'an offset move that failed leaves the judging to the next reading',
-    () async {
-      final rig = await _rig();
-      final idle = rig.container.read(idleFocusCompensationProvider);
-      idle.beginOffsetMove();
-      rig.focuser.updatePosition(5017); // stalled part-way
-      await Future<void>.delayed(Duration.zero);
-      idle.endOffsetMove(appliedSteps: 0);
+  test('an offset move that failed leaves the judging to the next reading', () async {
+    final rig = await _rig();
+    final idle = rig.container.read(idleFocusCompensationProvider);
+    idle.beginOffsetMove();
+    rig.focuser.updatePosition(5017); // stalled part-way
+    await Future<void>.delayed(Duration.zero);
+    idle.endOffsetMove(appliedSteps: 0);
 
-      await rig.read(14.9);
-      expect(rig.device.moves, isEmpty);
-      expect(
-        rig.container.read(focuserTempCompensationBaselineProvider)!.position,
-        5017,
-        reason:
-            'the focuser is not where compensation left it: a new reference',
-      );
-    },
-  );
+    await rig.read(14.9);
+    expect(rig.device.moves, isEmpty);
+    expect(
+      rig.container.read(focuserTempCompensationBaselineProvider)!.position,
+      5017,
+      reason: 'the focuser is not where compensation left it: a new reference',
+    );
+  });
 
   test('nothing moves while an autofocus started elsewhere runs', () async {
     final rig = await _rig(autofocusRunning: true);

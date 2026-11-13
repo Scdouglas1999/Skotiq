@@ -104,10 +104,7 @@ void main() {
           .then<Object?>((_) => null, onError: (Object e) => e);
 
       expect(error, isA<TargetNameLookupUnavailable>());
-      expect(
-        userFacingError(error),
-        'Could not reach SIMBAD (Connection refused).',
-      );
+      expect(userFacingError(error), 'Could not reach SIMBAD (Connection refused).');
     });
 
     test(

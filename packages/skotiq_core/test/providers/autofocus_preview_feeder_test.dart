@@ -93,12 +93,15 @@ void main() {
       data: data,
     );
 
-    SkotiqEvent center(int attempt) =>
-        event(EventCategory.sequencer, 'InstructionProgressStructured', {
-          'instruction': 'Center',
-          'detail_kind': 'Center',
-          'detail_json': '{"attempt":$attempt,"max_attempts":5}',
-        });
+    SkotiqEvent center(int attempt) => event(
+      EventCategory.sequencer,
+      'InstructionProgressStructured',
+      {
+        'instruction': 'Center',
+        'detail_kind': 'Center',
+        'detail_json': '{"attempt":$attempt,"max_attempts":5}',
+      },
+    );
 
     final done = event(EventCategory.imaging, 'ExposureComplete', {
       'success': true,

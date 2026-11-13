@@ -43,10 +43,10 @@ void main() {
         light(1, gain: null, offset: null),
         light(2, gain: 0, offset: 0),
       ]);
-      expect(needs.darks.map((d) => (d.gain, d.offset)).toSet(), {
-        (null, null),
-        (0, 0),
-      });
+      expect(
+        needs.darks.map((d) => (d.gain, d.offset)).toSet(),
+        {(null, null), (0, 0)},
+      );
       expect(
         needs.darks.firstWhere((d) => d.gain == null).label,
         contains('no gain, no offset'),

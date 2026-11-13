@@ -54,10 +54,10 @@ void main() {
       );
       expect(noGain.sensitivity.hasGain, isFalse);
       expect(noGain.sensitivity.hasOffset, isFalse);
-      expect(noGain.sensitivity.commanded(gain: 100, offset: 50), (
-        gain: null,
-        offset: null,
-      ));
+      expect(
+        noGain.sensitivity.commanded(gain: 100, offset: 50),
+        (gain: null, offset: null),
+      );
 
       const gainOnly = CameraCapabilities(
         maxWidth: 1,
@@ -66,10 +66,10 @@ void main() {
         canSetGain: true,
         canSetOffset: false,
       );
-      expect(gainOnly.sensitivity.commanded(gain: 100, offset: 50), (
-        gain: 100,
-        offset: null,
-      ));
+      expect(
+        gainOnly.sensitivity.commanded(gain: 100, offset: 50),
+        (gain: 100, offset: null),
+      );
 
       const dslr = CameraCapabilities(
         maxWidth: 1,
@@ -79,16 +79,16 @@ void main() {
         canSetOffset: true,
         isoSpeeds: [100, 800],
       );
-      expect(dslr.sensitivity.commanded(gain: 800, offset: 50), (
-        gain: 800,
-        offset: null,
-      ));
+      expect(
+        dslr.sensitivity.commanded(gain: 800, offset: 50),
+        (gain: 800, offset: null),
+      );
 
       // A camera not known yet keeps both: the host decides at the frame.
-      expect(ExposureSensitivity.of(null).commanded(gain: 100, offset: 50), (
-        gain: 100,
-        offset: 50,
-      ));
+      expect(
+        ExposureSensitivity.of(null).commanded(gain: 100, offset: 50),
+        (gain: 100, offset: 50),
+      );
     });
 
     test('ISO speeds survive the linked-client JSON round trip', () {

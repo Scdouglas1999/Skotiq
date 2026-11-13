@@ -38,8 +38,9 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  SkotiqDatabase open() =>
-      RecoveredDatabase(NativeDatabase(dbFile, setup: applySqliteBusyTimeout));
+  SkotiqDatabase open() => RecoveredDatabase(
+    NativeDatabase(dbFile, setup: applySqliteBusyTimeout),
+  );
 
   /// Open the database and ask it one trivial question, returning the error the
   /// open produced or null. Drift opens lazily, so the failure surfaces on the

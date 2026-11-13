@@ -146,35 +146,31 @@ void main() {
       );
     });
 
-    test(
-      'downloadCalibrationMaster asks for the master by type and id',
-      () async {
-        const bytes = [70, 73, 84, 83]; // "FITS"
-        String? requestedPath;
-        final server = await _server((request) async {
-          requestedPath = request.uri.path;
-          request.response.statusCode = HttpStatus.ok;
-          request.response.contentLength = bytes.length;
-          request.response.add(bytes);
-          await request.response.close();
-        });
-        addTearDown(() => server.close(force: true));
-        final backend = _backend(server);
-        addTearDown(backend.dispose);
-        final directory = await Directory.systemTemp.createTemp(
-          'skotiq-masterdl-',
-        );
-        addTearDown(() => directory.delete(recursive: true));
-        final path = '${directory.path}/master_flat.fits';
+    test('downloadCalibrationMaster asks for the master by type and id',
+        () async {
+      const bytes = [70, 73, 84, 83]; // "FITS"
+      String? requestedPath;
+      final server = await _server((request) async {
+        requestedPath = request.uri.path;
+        request.response.statusCode = HttpStatus.ok;
+        request.response.contentLength = bytes.length;
+        request.response.add(bytes);
+        await request.response.close();
+      });
+      addTearDown(() => server.close(force: true));
+      final backend = _backend(server);
+      addTearDown(backend.dispose);
+      final directory = await Directory.systemTemp.createTemp('skotiq-masterdl-');
+      addTearDown(() => directory.delete(recursive: true));
+      final path = '${directory.path}/master_flat.fits';
 
-        await backend.downloadCalibrationMaster(
-          type: 'flat',
-          id: 7,
-          localPath: path,
-        );
-        expect(await File(path).readAsBytes(), bytes);
-        expect(requestedPath, '/api/calibration-library/flat/7/file');
-      },
-    );
+      await backend.downloadCalibrationMaster(
+        type: 'flat',
+        id: 7,
+        localPath: path,
+      );
+      expect(await File(path).readAsBytes(), bytes);
+      expect(requestedPath, '/api/calibration-library/flat/7/file');
+    });
   });
 }

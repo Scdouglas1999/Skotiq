@@ -38,9 +38,7 @@ void main() {
     poll = StreamController<List<db.DbCapturedImage>>.broadcast();
     rowFetches = [];
     sessionFetches = [];
-    host = {
-      for (final id in [1, 2, 3]) id: _row(id),
-    };
+    host = {for (final id in [1, 2, 3]) id: _row(id)};
     rows = RemoteImageRows(
       poll: () => poll.stream,
       fetchRow: (id) async {
@@ -64,9 +62,7 @@ void main() {
 
   test('a frame the host lists is fetched by id at once', () async {
     final seen = <List<int>>[];
-    final sub = rows.watchAll().listen(
-      (r) => seen.add([for (final x in r) x.id]),
-    );
+    final sub = rows.watchAll().listen((r) => seen.add([for (final x in r) x.id]));
     poll.add([_row(3), _row(2), _row(1)]);
     await pumpEventQueue();
 
@@ -119,7 +115,8 @@ void main() {
     expect(rowFetches, isEmpty);
   });
 
-  test('a provider rebuilt by an invalidation reads the table again', () async {
+  test('a provider rebuilt by an invalidation reads the table again',
+      () async {
     var polls = 0;
     final rebuilt = RemoteImageRows(
       poll: () {

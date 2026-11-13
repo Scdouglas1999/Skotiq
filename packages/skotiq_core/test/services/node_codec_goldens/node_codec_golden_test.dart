@@ -38,10 +38,9 @@ void _expectGolden(String name, Object? actual) {
   );
   final expected = file.readAsStringSync();
   if (text != expected) {
-    final actual =
-        File('${Directory.systemTemp.path}/node_goldens_actual/$name.json')
-          ..createSync(recursive: true)
-          ..writeAsStringSync(text);
+    final actual = File('${Directory.systemTemp.path}/node_goldens_actual/$name.json')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(text);
     fail('${file.path} differs; the new output is in ${actual.path}');
   }
 }
@@ -178,10 +177,7 @@ void main() {
           .update(database.sequenceNodes)
           .write(const db.SequenceNodesCompanion(properties: Value('{}')));
       final loaded = await repository.loadSequence(id);
-      _expectGolden(
-        'db_decoded_empty_properties',
-        _dumpById(loaded!.nodes.values),
-      );
+      _expectGolden('db_decoded_empty_properties', _dumpById(loaded!.nodes.values));
     });
 
     test('every accepted specific_type spelling', () async {
@@ -212,7 +208,9 @@ void main() {
 
     for (final MapEntry(key: label, value: nodes) in sets.entries) {
       test('$label nodes: written maps and the nodes read back', () {
-        final maps = {for (final n in nodes()) n.id: files.nodeToMap(n)};
+        final maps = {
+          for (final n in nodes()) n.id: files.nodeToMap(n),
+        };
         _expectGolden('file_nodes_$label', maps);
         _expectGolden('file_decoded_$label', {
           for (final MapEntry(:key, :value) in maps.entries)
@@ -224,9 +222,7 @@ void main() {
     test('a whole sequence document', () {
       final map = files.sequenceToMap(flatSequence('doc', fullNodes()));
       _expectGolden('file_sequence_document', map);
-      final parsed = files.parseFromMap(
-        jsonDecode(jsonEncode(map)) as Map<String, dynamic>,
-      );
+      final parsed = files.parseFromMap(jsonDecode(jsonEncode(map)) as Map<String, dynamic>);
       _expectGolden('file_sequence_document_decoded', {
         'name': parsed.name,
         'description': parsed.description,
@@ -416,9 +412,7 @@ void main() {
       test('$label node durations', () {
         _expectGolden('durations_$label', {
           for (final n in nodes())
-            n.id: _attempt(
-              () => estimator.nodeDuration(n, at: at).inMilliseconds,
-            ),
+            n.id: _attempt(() => estimator.nodeDuration(n, at: at).inMilliseconds),
         });
       });
     }

@@ -42,32 +42,31 @@ void main() {
       AsyncScopes(container.read, backendProvider, alive: alive);
 
   test(
-    'a provider scope goes stale on a host switch without touching the '
-    'provider before it rebuilds, and when the provider is disposed',
-    () async {
-      final service = Provider.autoDispose<AsyncScope<SkotiqBackend>>((ref) {
-        ref.watch(backendProvider);
-        return ref.providerBackendScope();
-      });
-      final subscription = container.listen(service, (_, __) {});
-      final first = subscription.read();
-      expect(first.value, same(hostA));
-      expect(first.isCurrent, isTrue);
+      'a provider scope goes stale on a host switch without touching the '
+      'provider before it rebuilds, and when the provider is disposed',
+      () async {
+    final service = Provider.autoDispose<AsyncScope<SkotiqBackend>>((ref) {
+      ref.watch(backendProvider);
+      return ref.providerBackendScope();
+    });
+    final subscription = container.listen(service, (_, __) {});
+    final first = subscription.read();
+    expect(first.value, same(hostA));
+    expect(first.isCurrent, isTrue);
 
-      notifier.switchTo(hostB);
-      // The provider has not rebuilt yet; reading through its own Ref here
-      // would trip Riverpod's outdated-dependency assertion.
-      expect(first.isStale, isTrue);
+    notifier.switchTo(hostB);
+    // The provider has not rebuilt yet; reading through its own Ref here
+    // would trip Riverpod's outdated-dependency assertion.
+    expect(first.isStale, isTrue);
 
-      final second = subscription.read();
-      expect(second.value, same(hostB));
-      expect(second.isCurrent, isTrue);
+    final second = subscription.read();
+    expect(second.value, same(hostB));
+    expect(second.isCurrent, isTrue);
 
-      subscription.close();
-      await container.pump();
-      expect(second.isStale, isTrue);
-    },
-  );
+    subscription.close();
+    await container.pump();
+    expect(second.isStale, isTrue);
+  });
 
   test('a scope captures the backend and holds while it is current', () {
     final scope = scopes().begin();

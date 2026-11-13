@@ -85,12 +85,7 @@ void main() {
     reads.recordFailure(DeviceType.camera, 'native:zwo:1', 'x');
     reads.recordFailure(DeviceType.camera, 'native:zwo:1', 'x');
     expect(
-      staleReadingsFor(
-        reads.state,
-        const {},
-        DeviceType.camera,
-        'native:zwo:0',
-      ),
+      staleReadingsFor(reads.state, const {}, DeviceType.camera, 'native:zwo:0'),
       isNull,
     );
   });

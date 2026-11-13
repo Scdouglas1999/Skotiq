@@ -345,47 +345,45 @@ void main() {
     // seconds in the goal's filter at the exposure they were taken; frames are
     // the secondary count. Eleven 4 s subs are 44 s of a 20 x 105 s goal, not
     // 11 x 105 s.
-    test(
-      'goal progress is the accepted time, the same number Analytics shows',
-      () async {
-        final projectId = await service.createProject(name: 'Units');
-        final t = await insertTarget(name: 'Field One');
-        await service.addTarget(projectId: projectId, targetId: t);
-        await insertCaptures(
+    test('goal progress is the accepted time, the same number Analytics shows',
+        () async {
+      final projectId = await service.createProject(name: 'Units');
+      final t = await insertTarget(name: 'Field One');
+      await service.addTarget(projectId: projectId, targetId: t);
+      await insertCaptures(
+        targetId: t,
+        filter: 'L',
+        count: 11,
+        exposureSeconds: 4,
+      );
+      await insertCaptures(targetId: t, filter: 'R', count: 3);
+      await goalService.upsert(
+        IntegrationGoal(
           targetId: t,
           filter: 'L',
-          count: 11,
-          exposureSeconds: 4,
-        );
-        await insertCaptures(targetId: t, filter: 'R', count: 3);
-        await goalService.upsert(
-          IntegrationGoal(
-            targetId: t,
-            filter: 'L',
-            exposureSeconds: 105,
-            frameCount: 20,
-            createdAt: DateTime.utc(2026, 11, 11),
-          ),
-        );
+          exposureSeconds: 105,
+          frameCount: 20,
+          createdAt: DateTime.utc(2026, 11, 11),
+        ),
+      );
 
-        final plan = (await service.buildProgress(projectId)).targets.single;
-        expect(plan.filters.single.capturedFrames, 11);
-        expect(plan.accruedSeconds, 44);
-        expect(plan.goalSeconds, 2100);
+      final plan = (await service.buildProgress(projectId)).targets.single;
+      expect(plan.filters.single.capturedFrames, 11);
+      expect(plan.accruedSeconds, 44);
+      expect(plan.goalSeconds, 2100);
 
-        final analytics = const ProjectTrackingService()
-            .summarize(
-              targets: await database.targetsDao.getAllTargets(),
-              sessions: const [],
-              frames: await database.imagesDao.getImagesForTarget(t),
-              goals: await goalService.listAll(),
-            )
-            .single;
-        expect(analytics.goal.doneSecs, plan.accruedSeconds);
-        expect(analytics.goalIntegrationSecs, plan.goalSeconds);
-        expect(analytics.completionFraction, plan.percentComplete);
-      },
-    );
+      final analytics = const ProjectTrackingService()
+          .summarize(
+            targets: await database.targetsDao.getAllTargets(),
+            sessions: const [],
+            frames: await database.imagesDao.getImagesForTarget(t),
+            goals: await goalService.listAll(),
+          )
+          .single;
+      expect(analytics.goal.doneSecs, plan.accruedSeconds);
+      expect(analytics.goalIntegrationSecs, plan.goalSeconds);
+      expect(analytics.completionFraction, plan.percentComplete);
+    });
 
     test('throws StateError on a missing project', () async {
       expect(() => service.buildProgress(9999), throwsStateError);

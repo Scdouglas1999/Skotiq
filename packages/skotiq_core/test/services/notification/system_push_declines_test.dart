@@ -70,24 +70,22 @@ void main() {
       expect(onThePhone, hasLength(1));
     });
 
-    test(
-      'an event switched off under Mobile push is skipped, not sent',
-      () async {
-        pairAPhone();
-        push.updateConfig(
-          const PushNotificationConfig(notifySequenceCompleted: false),
-        );
-        final result = await SystemPushTransport(
-          push,
-        ).send(_message(NotificationCategory.sequenceCompleted));
-        await Future<void>.delayed(Duration.zero);
+    test('an event switched off under Mobile push is skipped, not sent',
+        () async {
+      pairAPhone();
+      push.updateConfig(
+        const PushNotificationConfig(notifySequenceCompleted: false),
+      );
+      final result = await SystemPushTransport(
+        push,
+      ).send(_message(NotificationCategory.sequenceCompleted));
+      await Future<void>.delayed(Duration.zero);
 
-        expect(result.success, isFalse);
-        expect(result.skipped, isTrue);
-        expect(result.error, contains('switched off under Mobile push'));
-        expect(onThePhone, isEmpty);
-      },
-    );
+      expect(result.success, isFalse);
+      expect(result.skipped, isTrue);
+      expect(result.error, contains('switched off under Mobile push'));
+      expect(onThePhone, isEmpty);
+    });
 
     test('a category the phone feed does not carry is skipped', () async {
       pairAPhone();
@@ -122,7 +120,8 @@ void main() {
       ),
     );
 
-    test('does not name Mobile push for an event switched off there', () async {
+    test('does not name Mobile push for an event switched off there',
+        () async {
       pairAPhone();
       push.updateConfig(
         const PushNotificationConfig(notifySequenceCompleted: false),

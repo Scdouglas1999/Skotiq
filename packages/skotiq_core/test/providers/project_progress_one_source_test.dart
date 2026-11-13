@@ -2,12 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart' show IntegrationGoal;
 import 'package:skotiq_core/providers.dart'
-    show
-        allDbImagesProvider,
-        allDbTargetsProvider,
-        allSessionsProvider,
-        integrationGoalsStreamProvider,
-        projectProgressListProvider;
+    show allDbImagesProvider, allDbTargetsProvider, allSessionsProvider, integrationGoalsStreamProvider, projectProgressListProvider;
 import 'package:skotiq_core/services.dart' show ProjectProgress;
 import 'package:skotiq_core/src/database/database.dart' as db;
 
@@ -43,24 +38,23 @@ db.ImagingSession _run(int id, DateTime start, double integrationSecs) =>
       status: 'completed',
     );
 
-db.DbCapturedImage _light(int id, int sessionId, DateTime at) =>
-    db.DbCapturedImage(
-      id: id,
-      filePath: '/captures/Field One_L_$id.fits',
-      fileName: 'Field One_L_$id.fits',
-      fileFormat: 'fits',
-      sessionId: sessionId,
-      targetId: 1,
-      frameType: 'light',
-      exposureDuration: 4,
-      binX: 1,
-      binY: 1,
-      filter: 'L',
-      isPlateSolved: false,
-      capturedAt: at,
-      createdAt: at,
-      isAccepted: true,
-    );
+db.DbCapturedImage _light(int id, int sessionId, DateTime at) => db.DbCapturedImage(
+  id: id,
+  filePath: '/captures/Field One_L_$id.fits',
+  fileName: 'Field One_L_$id.fits',
+  fileFormat: 'fits',
+  sessionId: sessionId,
+  targetId: 1,
+  frameType: 'light',
+  exposureDuration: 4,
+  binX: 1,
+  binY: 1,
+  filter: 'L',
+  isPlateSolved: false,
+  capturedAt: at,
+  createdAt: at,
+  isAccepted: true,
+);
 
 /// UX walk 2, F35: Analytics > Projects showed Field One with 0 s, 0 frames
 /// and 0 sessions while History listed its two sessions and the Darkroom its

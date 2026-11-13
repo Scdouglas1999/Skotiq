@@ -44,10 +44,8 @@ Sequence _plan(String name, {int count = 5, int? databaseId}) {
   );
 }
 
-Map<String, dynamic> _hostCanvas(
-  SequenceFileService files,
-  Sequence sequence,
-) => openPlanDocument(files, sequence, unsaved: false);
+Map<String, dynamic> _hostCanvas(SequenceFileService files, Sequence sequence) =>
+    openPlanDocument(files, sequence, unsaved: false);
 
 Future<void> _settle() =>
     Future<void>.delayed(remoteEditorWriteThroughDebounce * 2);
@@ -127,10 +125,7 @@ void main() {
     // The host now holds this plan; its echo, which went through the wire
     // format, changes nothing here.
     final shown = container.read(currentSequenceProvider)!;
-    showHostOpenPlan(
-      container,
-      _hostCanvas(files, files.parseFromMap(files.sequenceToMap(shown))),
-    );
+    showHostOpenPlan(container, _hostCanvas(files, files.parseFromMap(files.sequenceToMap(shown))));
     expect(identical(container.read(currentSequenceProvider), shown), isTrue);
     expect(editor.canUndo, isTrue);
   });
@@ -147,10 +142,7 @@ void main() {
 
       expect(written.single?['name'], 'QA M13 pair');
       final hostNow = files.parseFromMap(written.single!);
-      showHostOpenPlan(
-        container,
-        _hostCanvas(files, hostNow.copyWith(databaseId: 5)),
-      );
+      showHostOpenPlan(container, _hostCanvas(files, hostNow.copyWith(databaseId: 5)));
       expect(container.read(currentSequenceProvider)?.name, 'QA M13 pair');
     },
   );
@@ -165,10 +157,7 @@ void main() {
       await _settle();
       expect(written, hasLength(1));
 
-      showHostOpenPlan(
-        container,
-        _hostCanvas(files, _plan('Plan, host edit', count: 9)),
-      );
+      showHostOpenPlan(container, _hostCanvas(files, _plan('Plan, host edit', count: 9)));
 
       expect(container.read(currentSequenceProvider)?.name, 'Plan, host edit');
       final notes = container.read(uiNotificationProvider);

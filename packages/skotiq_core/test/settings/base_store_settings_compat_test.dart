@@ -162,9 +162,7 @@ final _probes = <_Probe>[
     // Nothing in the app reads this any more; the row is still stored and
     // scoped, so it is probed through the settings store itself.
     read: (c) async =>
-        await c
-            .read(settingsDaoProvider)
-            .read(StoreSettings.tutorialsEnabled) ??
+        await c.read(settingsDaoProvider).read(StoreSettings.tutorialsEnabled) ??
         StoreSettings.tutorialsEnabled.fallback,
     rowSets: const {
       'off': {'tutorials_enabled': 'false'},
