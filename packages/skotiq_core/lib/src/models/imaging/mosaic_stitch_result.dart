@@ -10,6 +10,8 @@
 library;
 
 /// The result of a mosaic stitch. Mirrors the native `StitchMosaicResult`.
+import '../../utils/json_validation.dart';
+
 class MosaicStitchResult {
   /// Path the `F32` mosaic master was written to (native `outputPath`).
   final String outputPath;
@@ -62,10 +64,10 @@ class MosaicStitchResult {
           : (json['previewPath'] is String
                 ? json['previewPath'] as String
                 : null),
-      outWidth: _asInt(json['outWidth']),
-      outHeight: _asInt(json['outHeight']),
-      overlapPairs: _asInt(json['overlapPairs']),
-      meanPanelGain: _asDouble(json['meanPanelGain']),
+      outWidth: lenientInt(json['outWidth']),
+      outHeight: lenientInt(json['outHeight']),
+      overlapPairs: lenientInt(json['overlapPairs']),
+      meanPanelGain: lenientDouble(json['meanPanelGain']),
     );
   }
 
@@ -102,7 +104,3 @@ class MosaicStitchResult {
     meanPanelGain,
   );
 }
-
-double _asDouble(Object? v) => v is num ? v.toDouble() : 0.0;
-
-int _asInt(Object? v) => v is num ? v.toInt() : 0;
