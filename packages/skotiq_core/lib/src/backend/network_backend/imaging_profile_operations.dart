@@ -3,7 +3,7 @@ part of '../network_backend.dart';
 mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   @override
   Future<List<EquipmentProfile>> getProfiles() async {
-    final response = await _get('profiles');
+    final response = await _get(ProfileApi.getProfiles);
     return (response['profiles'] as List)
         .map((p) => EquipmentProfile.fromJson(p as Map<String, dynamic>))
         .toList();
@@ -21,10 +21,13 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required Set<String>? fields,
   }) async {
     _lastSavedProfileId = null;
-    final response = await _post('profiles', {
-      'profile': profile.toJson(),
-      if (fields != null) 'fields': fields.toList()..sort(),
-    });
+    final response = await _post(
+      ProfileApi.saveProfile,
+      body: {
+        'profile': profile.toJson(),
+        if (fields != null) 'fields': fields.toList()..sort(),
+      },
+    );
     final rawId = response['id'];
     final id = rawId?.toString();
     if (id == null || id.isEmpty || (int.tryParse(id) ?? 0) <= 0) {
@@ -37,12 +40,12 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
   @override
   Future<void> deleteProfile(String profileId) async {
-    await _delete('profiles/$profileId');
+    await _delete(ProfileApi.deleteProfile, path: {'profileId': profileId});
   }
 
   @override
   Future<void> loadProfile(String profileId) async {
-    await _post('profiles/$profileId/load');
+    await _post(ProfileApi.loadProfile, path: {'profileId': profileId});
   }
 
   /// Set [profileId] as the host's default startup profile (atomically
@@ -53,26 +56,26 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   /// NetworkBackend-only (not on the abstract ProfileSettingsBackend role) so
   /// FfiBackend/DisconnectedBackend need no implementation.
   Future<void> setDefaultProfileRemote(String profileId) async {
-    await _post('profiles/$profileId/default');
+    await _post(ProfileApi.setDefaultProfile, path: {'profileId': profileId});
   }
 
   /// Clear the host's default startup profile (unset `isDefault` on every
   /// row). Routes to the dedicated host endpoint because saveProfile preserves
   /// the host row's existing `isDefault`. NetworkBackend-only.
   Future<void> clearDefaultProfileRemote() async {
-    await _post('profiles/default/clear');
+    await _post(ProfileApi.clearDefaultProfile);
   }
 
   /// Persist [orderedIds] as the host's profile display order. Routes to the
   /// dedicated host endpoint because saveProfile preserves the host row's
   /// existing `sortOrder`. NetworkBackend-only.
   Future<void> reorderProfilesRemote(List<String> orderedIds) async {
-    await _post('profiles/reorder', {'profileIds': orderedIds});
+    await _post(ProfileApi.reorderProfiles, body: {'profileIds': orderedIds});
   }
 
   @override
   Future<EquipmentProfile?> getActiveProfile() async {
-    final response = await _get('profiles/active');
+    final response = await _get(ProfileApi.getActiveProfile);
     if (response['profile'] == null) return null;
     return EquipmentProfile.fromJson(
       response['profile'] as Map<String, dynamic>,
@@ -85,7 +88,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   /// (the host's capture path does not exist on the phone's filesystem).
   /// Returns `null` when the host has no capture directory configured.
   Future<DiskSpaceInfo?> getHostCaptureDiskSpace() async {
-    final json = await _get('system/disk-space');
+    final json = await _get(SystemApi.diskSpace);
     if (json['configured'] == false) return null;
     return DiskSpaceInfo(
       path: json['path'] as String? ?? '',
@@ -99,7 +102,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
   @override
   Future<models.AppSettings> getSettings() async {
-    final json = await _get('settings');
+    final json = await _get(ProfileApi.getSettings);
     final settingsJson = json['settings'];
     if (settingsJson is! Map<String, dynamic>) {
       throw StateError(
@@ -114,7 +117,10 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   /// `GET /api/settings/store` and answers 404.
   Future<HostSettingsRows?> getSettingsStore() {
     return _retryableRequest(() async {
-      const endpoint = 'settings/store';
+      final endpoint = _endpointPath(
+        ProfileApi.getSettingsStore,
+        ApiMethod.get,
+      );
       final response = await _sendWithAuthRefresh(
         endpoint: endpoint,
         send: (headers) => _http.get(_apiUri(endpoint), headers: headers),
@@ -150,10 +156,10 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     Map<String, String> settings, {
     List<String> remove = const [],
   }) async {
-    await _post('settings/store', {
-      'settings': settings,
-      if (remove.isNotEmpty) 'remove': remove,
-    });
+    await _post(
+      ProfileApi.updateSettingsStore,
+      body: {'settings': settings, if (remove.isNotEmpty) 'remove': remove},
+    );
   }
 
   /// Merge [fields] into the JSON-object rows of the host's key/value store.
@@ -168,11 +174,14 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required Map<String, String> fallback,
     Map<String, Map<String, Object?>> base = const {},
   }) async {
-    final response = await _post('settings/store', {
-      'settings': fallback,
-      'merge': fields,
-      if (base.isNotEmpty) 'mergeBase': base,
-    });
+    final response = await _post(
+      ProfileApi.updateSettingsStore,
+      body: {
+        'settings': fallback,
+        'merge': fields,
+        if (base.isNotEmpty) 'mergeBase': base,
+      },
+    );
     final merged = response['merged'];
     if (merged is! Map) return fallback;
     return {
@@ -192,7 +201,11 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     final extraHeaders = commandId == null
         ? null
         : <String, String>{'X-Skotiq-Command-Id': commandId};
-    await _post('settings', {'settings': patch}, extraHeaders);
+    await _post(
+      ProfileApi.updateSettings,
+      body: {'settings': patch},
+      headers: extraHeaders,
+    );
   }
 
   @override
@@ -217,7 +230,11 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     final extraHeaders = commandId == null
         ? null
         : <String, String>{'X-Skotiq-Command-Id': commandId};
-    await _post('settings', {'settings': settings.toJson()}, extraHeaders);
+    await _post(
+      ProfileApi.updateSettings,
+      body: {'settings': settings.toJson()},
+      headers: extraHeaders,
+    );
   }
 
   /// Load the imaging host's global meridian-flip defaults.
@@ -225,7 +242,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   /// These settings drive unattended hardware behavior and therefore belong
   /// to the host, not the phone rendering the settings screen.
   Future<MeridianFlipSettings> getMeridianFlipSettings() async {
-    final response = await _get('settings/meridian-flip');
+    final response = await _get(ProfileApi.getMeridianFlipSettings);
     final raw = response['settings'];
     if (raw is! Map<String, dynamic>) {
       throw const FormatException(
@@ -237,13 +254,16 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
   /// Replace the imaging host's global meridian-flip defaults.
   Future<void> updateMeridianFlipSettings(MeridianFlipSettings settings) async {
-    await _post('settings/meridian-flip', {'settings': settings.toJson()});
+    await _post(
+      ProfileApi.updateMeridianFlipSettings,
+      body: {'settings': settings.toJson()},
+    );
   }
 
   /// Load the headless/desktop host's Home Assistant discovery and broker
   /// configuration. The returned broker never contains its password.
   Future<HomeAssistantHostSettings> getHomeAssistantHostSettings() async {
-    final response = await _get('settings/home-assistant');
+    final response = await _get(ProfileApi.getHomeAssistantSettings);
     return HomeAssistantHostSettings.fromJson(response);
   }
 
@@ -257,17 +277,20 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     String? replacementPassword,
     bool replacePassword = false,
   }) async {
-    final response = await _post('settings/home-assistant', {
-      'config': config.toJson(),
-      'broker': broker.copyWith(clearPassword: true).toJson(),
-      if (replacePassword) 'password': replacementPassword ?? '',
-    });
+    final response = await _post(
+      ProfileApi.updateHomeAssistantSettings,
+      body: {
+        'config': config.toJson(),
+        'broker': broker.copyWith(clearPassword: true).toJson(),
+        if (replacePassword) 'password': replacementPassword ?? '',
+      },
+    );
     return HomeAssistantHostSettings.fromJson(response);
   }
 
   @override
   Future<models.ObserverLocation?> getLocation() async {
-    final json = await _get('settings/location');
+    final json = await _get(ProfileApi.getLocation);
     if (json['location'] == null) return null;
     return models.ObserverLocation.fromJson(
       json['location'] as Map<String, dynamic>,
@@ -276,7 +299,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
   @override
   Future<void> setLocation(models.ObserverLocation? location) async {
-    await _post('settings/location', {'location': location?.toJson()});
+    await _post(ProfileApi.setLocation, body: {'location': location?.toJson()});
   }
 
   @override
@@ -284,10 +307,10 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     String deviceId, {
     int maxCrops = 5,
   }) async {
-    final response = await _get('imaging/star-crops', {
-      'deviceId': deviceId,
-      'maxCrops': maxCrops,
-    });
+    final response = await _get(
+      ImagingApi.getStarCrops,
+      query: {'deviceId': deviceId, 'maxCrops': maxCrops},
+    );
     final crops = response['crops'] as List<dynamic>;
     return crops
         .map((crop) => StarCrop.fromJson(crop as Map<String, dynamic>))
@@ -310,14 +333,17 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     int binY = 1,
     double? temperature,
   }) async {
-    final response = await _post('calibration/match-dark', {
-      'exposureTime': exposureTime,
-      if (gain != null) 'gain': gain,
-      if (offset != null) 'offset': offset,
-      'binX': binX,
-      'binY': binY,
-      if (temperature != null) 'temperature': temperature,
-    });
+    final response = await _post(
+      CalibrationApi.matchDark,
+      body: {
+        'exposureTime': exposureTime,
+        if (gain != null) 'gain': gain,
+        if (offset != null) 'offset': offset,
+        'binX': binX,
+        'binY': binY,
+        if (temperature != null) 'temperature': temperature,
+      },
+    );
     return response['matched'] as String?;
   }
 
@@ -335,13 +361,16 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     List<String>? darkFramePaths,
     String? darkFramesDirectory,
   }) async {
-    final response = await _post('calibration/defect-maps/build', {
-      'cameraId': cameraId,
-      'sensorTemperatureCelsius': sensorTemperatureCelsius,
-      if (darkFramePaths != null) 'darkFramePaths': darkFramePaths,
-      if (darkFramesDirectory != null)
-        'darkFramesDirectory': darkFramesDirectory,
-    });
+    final response = await _post(
+      CalibrationApi.buildDefectMap,
+      body: {
+        'cameraId': cameraId,
+        'sensorTemperatureCelsius': sensorTemperatureCelsius,
+        if (darkFramePaths != null) 'darkFramePaths': darkFramePaths,
+        if (darkFramesDirectory != null)
+          'darkFramesDirectory': darkFramesDirectory,
+      },
+    );
     final status = response['status'] as Map<String, dynamic>;
     return _defectMapStatusFromJson(status);
   }
@@ -354,12 +383,15 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required int height,
     required double sensorTemperatureCelsius,
   }) async {
-    final response = await _get('calibration/defect-maps/status', {
-      'cameraId': cameraId,
-      'width': width,
-      'height': height,
-      'sensorTemperatureCelsius': sensorTemperatureCelsius,
-    });
+    final response = await _get(
+      CalibrationApi.getDefectMapStatus,
+      query: {
+        'cameraId': cameraId,
+        'width': width,
+        'height': height,
+        'sensorTemperatureCelsius': sensorTemperatureCelsius,
+      },
+    );
     final status = response['status'];
     if (status == null) return null;
     if (status is! Map<String, dynamic>) {
@@ -375,12 +407,15 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required int height,
     required double sensorTemperatureCelsius,
   }) async {
-    await _post('calibration/defect-maps/clear', {
-      'cameraId': cameraId,
-      'width': width,
-      'height': height,
-      'sensorTemperatureCelsius': sensorTemperatureCelsius,
-    });
+    await _post(
+      CalibrationApi.clearDefectMap,
+      body: {
+        'cameraId': cameraId,
+        'width': width,
+        'height': height,
+        'sensorTemperatureCelsius': sensorTemperatureCelsius,
+      },
+    );
   }
 
   /// Push the selected map and correction strategy into the host's live
@@ -396,16 +431,19 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required DefectMapKernelSize kernel,
     required bool saveOriginal,
   }) async {
-    await _post('calibration/defect-maps/sequencer-apply', {
-      'cameraId': cameraId,
-      'width': width,
-      'height': height,
-      'sensorTemperatureCelsius': sensorTemperatureCelsius,
-      'enabled': enabled,
-      'method': method.wireValue,
-      'kernelDiameter': kernel.diameter,
-      'saveOriginal': saveOriginal,
-    });
+    await _post(
+      CalibrationApi.applyDefectMapToSequencer,
+      body: {
+        'cameraId': cameraId,
+        'width': width,
+        'height': height,
+        'sensorTemperatureCelsius': sensorTemperatureCelsius,
+        'enabled': enabled,
+        'method': method.wireValue,
+        'kernelDiameter': kernel.diameter,
+        'saveOriginal': saveOriginal,
+      },
+    );
   }
 
   DefectMapStatus _defectMapStatusFromJson(Map<String, dynamic> status) {
@@ -429,10 +467,10 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required String cameraId,
     required bool applyDuringCapture,
   }) async {
-    await _post('calibration/defect-maps/apply', {
-      'cameraId': cameraId,
-      'applyDuringCapture': applyDuringCapture,
-    });
+    await _post(
+      CalibrationApi.applyDefectMap,
+      body: {'cameraId': cameraId, 'applyDuringCapture': applyDuringCapture},
+    );
   }
 
   @override
@@ -443,13 +481,16 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     String? biasPath,
     required String outputPath,
   }) async {
-    await _post('imaging/calibrate-file', {
-      'lightPath': lightPath,
-      if (darkPath != null) 'darkPath': darkPath,
-      if (flatPath != null) 'flatPath': flatPath,
-      if (biasPath != null) 'biasPath': biasPath,
-      'outputPath': outputPath,
-    });
+    await _post(
+      ImagingApi.calibrateImageFile,
+      body: {
+        'lightPath': lightPath,
+        if (darkPath != null) 'darkPath': darkPath,
+        if (flatPath != null) 'flatPath': flatPath,
+        if (biasPath != null) 'biasPath': biasPath,
+        'outputPath': outputPath,
+      },
+    );
   }
 
   @override
@@ -515,25 +556,28 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     bool? startFromCurrent,
     double? autoCompleteThreshold,
   }) async {
-    await _post('polar-alignment/start', {
-      'exposure_time': exposureTime,
-      'step_size': stepSize,
-      'binning': binning,
-      'is_north': isNorth,
-      'manual_rotation': manualRotation,
-      'rotate_east': rotateEast,
-      if (gain != null) 'gain': gain,
-      if (offset != null) 'offset': offset,
-      if (solveTimeout != null) 'solve_timeout': solveTimeout,
-      if (startFromCurrent != null) 'start_from_current': startFromCurrent,
-      if (autoCompleteThreshold != null)
-        'auto_complete_threshold': autoCompleteThreshold,
-    });
+    await _post(
+      SessionApi.startPolarAlignment,
+      body: {
+        'exposure_time': exposureTime,
+        'step_size': stepSize,
+        'binning': binning,
+        'is_north': isNorth,
+        'manual_rotation': manualRotation,
+        'rotate_east': rotateEast,
+        if (gain != null) 'gain': gain,
+        if (offset != null) 'offset': offset,
+        if (solveTimeout != null) 'solve_timeout': solveTimeout,
+        if (startFromCurrent != null) 'start_from_current': startFromCurrent,
+        if (autoCompleteThreshold != null)
+          'auto_complete_threshold': autoCompleteThreshold,
+      },
+    );
   }
 
   @override
   Future<void> stopPolarAlignment() async {
-    await _post('polar-alignment/stop', {});
+    await _post(SessionApi.stopPolarAlignment, body: {});
   }
 
   @override
@@ -547,16 +591,19 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     int? gain,
     int? offset,
   }) async {
-    await _post('polar-alignment/all-sky/start', {
-      'exposure_time': exposureTime,
-      'solve_timeout': solveTimeout,
-      'binning': binning,
-      'is_north': isNorth,
-      'acceptance_threshold_arcsec': acceptanceThresholdArcsec,
-      'iteration_cadence_secs': iterationCadenceSecs,
-      if (gain != null) 'gain': gain,
-      if (offset != null) 'offset': offset,
-    });
+    await _post(
+      SessionApi.startAllSkyPolarAlignment,
+      body: {
+        'exposure_time': exposureTime,
+        'solve_timeout': solveTimeout,
+        'binning': binning,
+        'is_north': isNorth,
+        'acceptance_threshold_arcsec': acceptanceThresholdArcsec,
+        'iteration_cadence_secs': iterationCadenceSecs,
+        if (gain != null) 'gain': gain,
+        if (offset != null) 'offset': offset,
+      },
+    );
   }
 
   @override
@@ -584,7 +631,10 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     if (sessionId <= 0) {
       throw ArgumentError.value(sessionId, 'sessionId', 'must be positive');
     }
-    final response = await _get('sessions/$sessionId/images');
+    final response = await _get(
+      SessionApi.getSessionImages,
+      path: {'sessionId': sessionId},
+    );
     return _rowsFromJson<Map<String, dynamic>>(
       response['images'],
       (row) => row,
@@ -592,7 +642,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   Future<List<Map<String, dynamic>>> getAllImageRows() async {
-    final response = await _get('images');
+    final response = await _get(SessionApi.getAllImages);
     return _rowsFromJson<Map<String, dynamic>>(
       response['images'],
       (row) => row,
@@ -600,7 +650,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   Future<List<Map<String, dynamic>>> getStandaloneImageRows() async {
-    final response = await _get('images/standalone');
+    final response = await _get(SessionApi.getStandaloneImages);
     return _rowsFromJson<Map<String, dynamic>>(
       response['images'],
       (row) => row,
@@ -612,7 +662,11 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     if (imageId <= 0) {
       throw ArgumentError.value(imageId, 'imageId', 'must be positive');
     }
-    final endpoint = 'images/$imageId/thumbnail';
+    final endpoint = _endpointPath(
+      SessionApi.getImageThumbnail,
+      ApiMethod.get,
+      {'imageId': imageId},
+    );
     final response = await _openRawGetWithAuthRefresh(endpoint);
     if (response.statusCode != HttpStatus.ok) {
       final body = await response.transform(utf8.decoder).join();
@@ -653,7 +707,9 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required void Function(double)? onProgress,
     required bool mayResetRange,
   }) async {
-    final endpoint = 'images/$imageId/download';
+    final endpoint = _endpointPath(SessionApi.downloadImage, ApiMethod.get, {
+      'imageId': imageId,
+    });
     var resumeOffset = 0;
     _ImageDownloadMetadata? metadata;
 
@@ -1093,11 +1149,14 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required String deviceId,
     required int intervalMs,
   }) async {
-    await _post('device/heartbeat/start', {
-      'device_type': deviceType.name,
-      'device_id': deviceId,
-      'interval_ms': intervalMs,
-    });
+    await _post(
+      EquipmentApi.startDeviceHeartbeat,
+      body: {
+        'device_type': deviceType.name,
+        'device_id': deviceId,
+        'interval_ms': intervalMs,
+      },
+    );
   }
 
   /// The host reconnects its own devices; a linked client reconnects none
@@ -1107,12 +1166,18 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
   @override
   Future<void> stopDeviceHeartbeat(String deviceId) async {
-    await _post('device/heartbeat/stop', {'device_id': deviceId});
+    await _post(
+      EquipmentApi.stopDeviceHeartbeat,
+      body: {'device_id': deviceId},
+    );
   }
 
   @override
   Future<(int, bool)> getDeviceHealth(String deviceId) async {
-    final response = await _get('device/health/$deviceId');
+    final response = await _get(
+      EquipmentApi.getDeviceHealth,
+      path: {'deviceId': deviceId},
+    );
     final lastComm = response['last_successful_comm'] as int;
     final isHealthy = response['is_healthy'] as bool;
     return (lastComm, isHealthy);
@@ -1121,8 +1186,11 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   @override
   Future<List<int>> getLastRawImageData(String deviceId) async {
     return _retryableRequest(() async {
-      const endpoint = 'imaging/raw-data';
-      final uri = _apiUri('imaging/raw-data', {'deviceId': deviceId});
+      final endpoint = _endpointPath(
+        ImagingApi.getLastRawImageData,
+        ApiMethod.get,
+      );
+      final uri = _apiUri(endpoint, {'deviceId': deviceId});
       final response = await _sendWithAuthRefresh(
         endpoint: endpoint,
         send: (headers) => _http.get(uri, headers: headers),
@@ -1130,7 +1198,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
       if (_isTransientStatusCode(response.statusCode)) {
         throw Exception(
-          'HTTP ${response.statusCode}: Transient failure for GET imaging/raw-data',
+          'HTTP ${response.statusCode}: Transient failure for GET $endpoint',
         );
       }
 
@@ -1186,15 +1254,16 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     // Use the optimized endpoint that saves from server-side stored image
     // No raw pixel data needs to be transferred
     return _retryableRequest(() async {
-      final uri = _apiUri('imaging/save-fits-from-capture');
+      final endpoint = _endpointPath(
+        ImagingApi.saveFitsFromLastCapture,
+        ApiMethod.post,
+      );
+      final uri = _apiUri(endpoint);
 
       final request = await _httpClient.postUrl(uri);
       request.headers.contentType = ContentType.json;
 
-      final headers = _addAuthHeaders(
-        {},
-        endpoint: 'imaging/save-fits-from-capture',
-      );
+      final headers = _addAuthHeaders({}, endpoint: endpoint);
       headers.forEach((key, value) {
         request.headers.set(key, value);
       });
@@ -1240,7 +1309,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
   @override
   Future<void> clearDeviceImage(String deviceId) async {
-    await _delete('imaging/device-image/${Uri.encodeComponent(deviceId)}');
+    await _delete(ImagingApi.clearDeviceImage, path: {'deviceId': deviceId});
   }
 }
 

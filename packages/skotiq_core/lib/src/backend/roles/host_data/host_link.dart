@@ -1,6 +1,4 @@
-import '../../network_backend.dart';
-
-import '../../network_backend.dart' show BackendConnectionState;
+import '../../../models/backend/backend_connection_state.dart';
 
 /// The connection from this client to its imaging host.
 abstract interface class HostLink {

@@ -13,6 +13,7 @@ import 'package:skotiq_desktop/headless/headless_auth_config.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/pairing_handlers.dart'
     show PairingMode;
+import 'package:skotiq_remote_protocol/wire.dart';
 
 void main() {
   group('parseHeadlessAuthConfig — defaults (no CLI args)', () {
@@ -187,11 +188,8 @@ void main() {
       ]);
       final grant = config.fineGrainedTokens['cam'];
       expect(grant, isNotNull);
-      expect(
-        grant!.levelFor(HeadlessResource.camera),
-        HeadlessAccessLevel.control,
-      );
-      expect(grant.levelFor(HeadlessResource.mount), HeadlessAccessLevel.view);
+      expect(grant!.levelFor(ApiResource.camera), HeadlessAccessLevel.control);
+      expect(grant.levelFor(ApiResource.mount), HeadlessAccessLevel.view);
       expect(grant.isAdmin, isFalse);
     });
 

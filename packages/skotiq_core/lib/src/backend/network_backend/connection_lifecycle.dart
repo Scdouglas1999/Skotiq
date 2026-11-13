@@ -90,7 +90,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
   }
 
   Future<RemoteApiCompatibilityResult> _checkServerCompatibility() async {
-    final uri = _apiUri('info');
+    final uri = _apiUri(_endpointPath(SystemApi.info, ApiMethod.get));
     final headers = <String, String>{
       RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
           .clientApiVersion
@@ -302,7 +302,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         queryParameters['since'] = _lastSeenEventSeq!.toString();
         queryParameters['instance'] = _serverInstanceId!;
       }
-      final wsUri = _wsUri('/events', queryParameters);
+      final wsUri = _wsUri(WebSocketApi.eventsLegacyPath, queryParameters);
       _wsChannel = IOWebSocketChannel.connect(wsUri);
       _lastWebSocketMessageAt = DateTime.now();
 

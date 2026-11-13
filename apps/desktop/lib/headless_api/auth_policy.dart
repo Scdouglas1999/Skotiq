@@ -33,81 +33,9 @@ String headlessTokenScopeName(HeadlessTokenScope scope) {
   }
 }
 
-/// The resource axis of a grant. A coarse `view`/`control` token holds every
-/// resource at that level; a fine-grained token names the ones it covers.
-typedef HeadlessResource = ApiResource;
-
-/// Access level on a single [HeadlessResource]. `view` reads state, `control`
+/// Access level on a single [ApiResource]. `view` reads state, `control`
 /// reads + mutates. `none` is the absence of any grant for the resource.
 enum HeadlessAccessLevel { none, view, control }
-
-String headlessResourceName(HeadlessResource resource) => resource.wireName;
-
-HeadlessResource? parseHeadlessResource(String? value) {
-  switch (value?.trim().toLowerCase()) {
-    case 'camera':
-      return HeadlessResource.camera;
-    case 'mount':
-      return HeadlessResource.mount;
-    case 'focuser':
-      return HeadlessResource.focuser;
-    case 'filter-wheel':
-    case 'filterwheel':
-      return HeadlessResource.filterWheel;
-    case 'rotator':
-      return HeadlessResource.rotator;
-    case 'dome':
-      return HeadlessResource.dome;
-    case 'cover':
-      return HeadlessResource.cover;
-    case 'guiding':
-    case 'guider':
-      return HeadlessResource.guiding;
-    case 'safety':
-    case 'weather':
-      return HeadlessResource.safety;
-    case 'switch':
-      return HeadlessResource.switchGear;
-    case 'sequencer':
-      return HeadlessResource.sequencer;
-    case 'framing':
-      return HeadlessResource.framing;
-    case 'calibration':
-      return HeadlessResource.calibration;
-    case 'catalog':
-      return HeadlessResource.catalog;
-    case 'filesystem':
-    case 'files':
-      return HeadlessResource.filesystem;
-    case 'backup':
-      return HeadlessResource.backup;
-    case 'settings':
-      return HeadlessResource.settings;
-    case 'plugins':
-      return HeadlessResource.plugins;
-    case 'devices':
-      return HeadlessResource.devices;
-    case 'mosaic':
-      return HeadlessResource.mosaic;
-    case 'coimaging':
-    case 'co-imaging':
-      return HeadlessResource.coimaging;
-    case 'constellation':
-    // The live collaboration surface (`/api/collaboration/*`) shares the
-    // collaborative `constellation` resource, so a fine-grained token may name
-    // it with either the `collaboration` or `constellation` key.
-    case 'collaboration':
-      return HeadlessResource.constellation;
-    case 'darkroom':
-      return HeadlessResource.darkroom;
-    case 'system':
-      return HeadlessResource.system;
-    case 'info':
-      return HeadlessResource.info;
-    default:
-      return null;
-  }
-}
 
 String headlessAccessLevelName(HeadlessAccessLevel level) {
   switch (level) {
@@ -150,7 +78,7 @@ int _accessRank(HeadlessAccessLevel level) {
 /// route-metadata decision tree, and checked against a presented
 /// [HeadlessAuthGrant].
 class RouteCapability {
-  final HeadlessResource resource;
+  final ApiResource resource;
   final HeadlessAccessLevel level;
 
   /// Requires an admin grant regardless of [resource]/[level].
@@ -167,7 +95,7 @@ class RouteCapability {
   });
 
   const RouteCapability.public()
-    : resource = HeadlessResource.info,
+    : resource = ApiResource.info,
       level = HeadlessAccessLevel.none,
       adminOnly = false,
       public = true;
@@ -179,7 +107,7 @@ class RouteCapability {
 }
 
 /// An immutable capability set granted to a bearer token: an access level per
-/// [HeadlessResource] plus an [isAdmin] flag that permits everything.
+/// [ApiResource] plus an [isAdmin] flag that permits everything.
 ///
 /// Three construction paths, all funnelling through [permits] for enforcement:
 ///   * [HeadlessAuthGrant.fromCoarse] — the back-compat bridge. A legacy
@@ -192,21 +120,21 @@ class RouteCapability {
 ///     by config (`SKOTIQ_SCOPED_TOKEN`), pairing (`requestedScope`), and
 ///     the in-memory paired map so the surfaces never diverge.
 class HeadlessAuthGrant {
-  final UnmodifiableMapView<HeadlessResource, HeadlessAccessLevel> levels;
+  final UnmodifiableMapView<ApiResource, HeadlessAccessLevel> levels;
   final bool isAdmin;
 
   HeadlessAuthGrant._(
-    Map<HeadlessResource, HeadlessAccessLevel> levels,
+    Map<ApiResource, HeadlessAccessLevel> levels,
     this.isAdmin,
   ) : levels = UnmodifiableMapView(levels);
 
   factory HeadlessAuthGrant.admin() => HeadlessAuthGrant._(const {}, true);
 
   factory HeadlessAuthGrant.forResources(
-    Map<HeadlessResource, HeadlessAccessLevel> levels, {
+    Map<ApiResource, HeadlessAccessLevel> levels, {
     bool isAdmin = false,
   }) {
-    final filtered = <HeadlessResource, HeadlessAccessLevel>{};
+    final filtered = <ApiResource, HeadlessAccessLevel>{};
     for (final entry in levels.entries) {
       if (entry.value != HeadlessAccessLevel.none) {
         filtered[entry.key] = entry.value;
@@ -233,13 +161,13 @@ class HeadlessAuthGrant {
     }
   }
 
-  static Map<HeadlessResource, HeadlessAccessLevel> _everyResourceAt(
+  static Map<ApiResource, HeadlessAccessLevel> _everyResourceAt(
     HeadlessAccessLevel level,
   ) {
-    return {for (final r in HeadlessResource.values) r: level};
+    return {for (final r in ApiResource.values) r: level};
   }
 
-  HeadlessAccessLevel levelFor(HeadlessResource resource) {
+  HeadlessAccessLevel levelFor(ApiResource resource) {
     if (isAdmin) return HeadlessAccessLevel.control;
     return levels[resource] ?? HeadlessAccessLevel.none;
   }
@@ -270,18 +198,15 @@ class HeadlessAuthGrant {
       ..sort((a, b) => a.key.index.compareTo(b.key.index));
     if (entries.isEmpty) return 'view';
     final everyControl =
-        entries.length == HeadlessResource.values.length &&
+        entries.length == ApiResource.values.length &&
         entries.every((e) => e.value == HeadlessAccessLevel.control);
     if (everyControl) return 'control';
     final everyView =
-        entries.length == HeadlessResource.values.length &&
+        entries.length == ApiResource.values.length &&
         entries.every((e) => e.value == HeadlessAccessLevel.view);
     if (everyView) return 'view';
     return entries
-        .map(
-          (e) =>
-              '${headlessResourceName(e.key)}:${headlessAccessLevelName(e.value)}',
-        )
+        .map((e) => '${e.key.wireName}:${headlessAccessLevelName(e.value)}')
         .join(',');
   }
 
@@ -296,13 +221,13 @@ class HeadlessAuthGrant {
     final coarse = parseHeadlessTokenScope(trimmed);
     if (coarse != null) return HeadlessAuthGrant.fromCoarse(coarse);
 
-    final map = <HeadlessResource, HeadlessAccessLevel>{};
+    final map = <ApiResource, HeadlessAccessLevel>{};
     for (final part in trimmed.split(',')) {
       final token = part.trim();
       if (token.isEmpty) continue;
       final kv = token.split(':');
       if (kv.length != 2) return null;
-      final resource = parseHeadlessResource(kv[0]);
+      final resource = ApiResource.tryParse(kv[0]);
       final level = parseHeadlessAccessLevel(kv[1]);
       if (resource == null || level == null) return null;
       map[resource] = level;
@@ -360,7 +285,7 @@ class HeadlessAuthPolicy {
   }) {
     final capability = requiredCapabilityFor(route);
     final requiredScope = requiredScopeFor(route);
-    final resourceName = headlessResourceName(capability.resource);
+    final resourceName = capability.resource.wireName;
     final requiredLevelName = capability.adminOnly
         ? 'admin'
         : headlessAccessLevelName(capability.level);

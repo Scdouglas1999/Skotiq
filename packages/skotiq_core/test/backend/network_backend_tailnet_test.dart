@@ -20,6 +20,7 @@ import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart';
 
 import '../fakes/fakes.dart';
+import 'package:skotiq_core/src/models/backend/backend_connection_state.dart';
 
 /// Build a backend with WS auto-connect disabled (the WS path needs a real
 /// socket, which these HTTP-only tests don't provide).

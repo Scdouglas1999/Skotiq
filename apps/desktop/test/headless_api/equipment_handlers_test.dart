@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_desktop/headless_api/handlers/equipment_handlers.dart';
+import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -143,12 +144,11 @@ void main() {
       );
       handlers = EquipmentHandlers(container);
 
-      final response = await handlers.handleGetDeviceHealth(
+      final response = await RouteTable.only(handlers).handler(
         Request(
           'GET',
           Uri.parse('http://localhost/api/device/health/native%3Azwo%3A0'),
         ),
-        'native%3Azwo%3A0',
       );
 
       expect(response.statusCode, HttpStatus.ok);

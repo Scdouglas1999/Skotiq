@@ -12,11 +12,14 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
       throw ArgumentError.value(sequenceId, 'sequenceId', 'must be positive');
     }
     _validateReplayPageRequest(limit: limit, offset: offset);
-    final response = await _get('sequence-runs', {
-      if (sequenceId != null) 'sequenceId': sequenceId.toString(),
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    });
+    final response = await _get(
+      DbReadApi.listSequenceRuns,
+      query: {
+        if (sequenceId != null) 'sequenceId': sequenceId.toString(),
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      },
+    );
     return RemotePage.fromJson(response, RemoteSequenceRun.fromJson);
   }
 
@@ -26,12 +29,15 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     int limit = 200,
     int offset = 0,
   }) async {
-    final response = await _get('notes-journal', {
-      if (equipmentProfileId != null)
-        'equipmentProfileId': equipmentProfileId.toString(),
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    });
+    final response = await _get(
+      DbReadApi.listNotesJournal,
+      query: {
+        if (equipmentProfileId != null)
+          'equipmentProfileId': equipmentProfileId.toString(),
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      },
+    );
     return RemotePage.fromJson(response, RemoteNotesJournalEntry.fromJson);
   }
 
@@ -57,8 +63,8 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     // A create is not idempotent: retrying after an ambiguous timeout could
     // insert the same observation twice. Let the caller retry deliberately.
     final response = await _post(
-      'notes-journal',
-      {
+      DbReadApi.createObservationLog,
+      body: {
         'timestamp': timestamp.toWireTime(),
         'objectName': objectName,
         'ra': ra,
@@ -77,8 +83,7 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
       },
-      null,
-      1,
+      maxAttempts: 1,
     );
     final id = response['id'];
     if (id is! num) {
@@ -88,10 +93,12 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   }
 
   /// DELETE `/api/notes-journal/<id>`.
-  Future<void> deleteObservationLog(int id) => _delete('notes-journal/$id');
+  Future<void> deleteObservationLog(int id) =>
+      _delete(DbReadApi.deleteObservationLog, path: {'id': id});
 
   /// DELETE /api/notes-journal
-  Future<void> deleteAllObservationLogs() => _delete('notes-journal');
+  Future<void> deleteAllObservationLogs() =>
+      _delete(DbReadApi.deleteAllObservationLogs);
 
   /// GET /api/db/notes?targetId=&runId=
   ///
@@ -103,10 +110,13 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     String? targetId,
     int? runId,
   }) async {
-    final response = await _get('db/notes', {
-      if (targetId != null && targetId.isNotEmpty) 'targetId': targetId,
-      if (runId != null) 'runId': runId.toString(),
-    });
+    final response = await _get(
+      DbReadApi.listJournalNotes,
+      query: {
+        if (targetId != null && targetId.isNotEmpty) 'targetId': targetId,
+        if (runId != null) 'runId': runId.toString(),
+      },
+    );
     return RemotePage.fromJson(response, JournalNote.fromJson);
   }
 
@@ -123,8 +133,8 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     // Creating a note is not idempotent because the host assigns its UUID.
     // Avoid duplicating it after an ambiguous timeout.
     final response = await _post(
-      'db/notes',
-      {
+      DbReadApi.createJournalNote,
+      body: {
         'targetId': targetId,
         if (sequenceRunId != null) 'sequenceRunId': sequenceRunId,
         'body': body,
@@ -133,8 +143,7 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
         'attachments': attachments,
         if (sentiment != null) 'sentiment': sentiment,
       },
-      null,
-      1,
+      maxAttempts: 1,
     );
     return _journalNoteFromMutationResponse(response);
   }
@@ -150,21 +159,25 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     bool clearTitle = false,
     bool clearSentiment = false,
   }) async {
-    final response = await _put('db/notes/${Uri.encodeComponent(id)}', {
-      if (body != null) 'body': body,
-      if (title != null) 'title': title,
-      if (tags != null) 'tags': tags,
-      if (attachments != null) 'attachments': attachments,
-      if (sentiment != null) 'sentiment': sentiment,
-      'clearTitle': clearTitle,
-      'clearSentiment': clearSentiment,
-    });
+    final response = await _put(
+      DbReadApi.updateJournalNote,
+      path: {'id': id},
+      body: {
+        if (body != null) 'body': body,
+        if (title != null) 'title': title,
+        if (tags != null) 'tags': tags,
+        if (attachments != null) 'attachments': attachments,
+        if (sentiment != null) 'sentiment': sentiment,
+        'clearTitle': clearTitle,
+        'clearSentiment': clearSentiment,
+      },
+    );
     return _journalNoteFromMutationResponse(response);
   }
 
   /// DELETE `/api/db/notes/<id>`
   Future<void> deleteJournalNote(String id) =>
-      _delete('db/notes/${Uri.encodeComponent(id)}');
+      _delete(DbReadApi.deleteJournalNote, path: {'id': id});
 
   JournalNote _journalNoteFromMutationResponse(Map<String, dynamic> response) {
     final raw = response['note'];
@@ -182,14 +195,17 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     int limit = 200,
     int offset = 0,
   }) async {
-    final response = await _get('guide-rms-history', {
-      if (mountId != null && mountId.trim().isNotEmpty)
-        'mountId': mountId.trim(),
-      if (sinceMs != null) 'sinceMs': sinceMs.toString(),
-      if (untilMs != null) 'untilMs': untilMs.toString(),
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    });
+    final response = await _get(
+      DbReadApi.listGuideRmsHistory,
+      query: {
+        if (mountId != null && mountId.trim().isNotEmpty)
+          'mountId': mountId.trim(),
+        if (sinceMs != null) 'sinceMs': sinceMs.toString(),
+        if (untilMs != null) 'untilMs': untilMs.toString(),
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      },
+    );
     return RemotePage.fromJson(response, RemoteGuideRmsHistoryEntry.fromJson);
   }
 
@@ -200,12 +216,15 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     int limit = 200,
     int offset = 0,
   }) async {
-    final response = await _get('polar-alignment-history', {
-      if (equipmentProfileId != null)
-        'equipmentProfileId': equipmentProfileId.toString(),
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    });
+    final response = await _get(
+      DbReadApi.listPolarAlignmentHistory,
+      query: {
+        if (equipmentProfileId != null)
+          'equipmentProfileId': equipmentProfileId.toString(),
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      },
+    );
     return RemotePage.fromJson(
       response,
       RemotePolarAlignmentHistoryEntry.fromJson,
@@ -215,7 +234,10 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   // Replay scrubber — per-run endpoints.
   Future<RemoteSequenceRunDetail> fetchSequenceRunById(int runId) async {
     _validateReplayRunId(runId);
-    final response = await _get('sequence-runs/$runId');
+    final response = await _get(
+      DbReadApi.getSequenceRunById,
+      path: {'runId': runId},
+    );
     final run = response['run'];
     if (run is! Map) {
       throw StateError(
@@ -240,9 +262,11 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     int runId,
   ) async {
     _validateReplayRunId(runId);
-    final response = await _get('sequence-runs/$runId', {
-      'includeDiffContext': 'true',
-    });
+    final response = await _get(
+      DbReadApi.getSequenceRunById,
+      path: {'runId': runId},
+      query: {'includeDiffContext': 'true'},
+    );
     final raw = response['diffContext'];
     if (raw is! Map) {
       throw StateError(
@@ -281,14 +305,18 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     if (sinceMs != null && untilMs != null && sinceMs > untilMs) {
       throw ArgumentError('sinceMs must not be after untilMs');
     }
-    final response = await _get('sequence-runs/$runId/events', {
-      if (sinceMs != null) 'since': sinceMs.toString(),
-      if (untilMs != null) 'until': untilMs.toString(),
-      if (severityMin != null && severityMin.isNotEmpty)
-        'severityMin': severityMin,
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    });
+    final response = await _get(
+      DbReadApi.getSequenceRunEvents,
+      path: {'runId': runId},
+      query: {
+        if (sinceMs != null) 'since': sinceMs.toString(),
+        if (untilMs != null) 'until': untilMs.toString(),
+        if (severityMin != null && severityMin.isNotEmpty)
+          'severityMin': severityMin,
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      },
+    );
     return RemoteReplayEventsPage.fromJson(response);
   }
 
@@ -299,10 +327,11 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   }) async {
     _validateReplayRunId(runId);
     _validateReplayPageRequest(limit: limit, offset: offset);
-    final response = await _get('sequence-runs/$runId/frames', {
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    });
+    final response = await _get(
+      DbReadApi.getSequenceRunFrames,
+      path: {'runId': runId},
+      query: {'limit': limit.toString(), 'offset': offset.toString()},
+    );
     return RemotePage.fromJson(response, RemoteReplayFrame.fromJson);
   }
 
@@ -327,7 +356,7 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
 
   /// GET /api/plugins
   Future<List<RemotePluginManifest>> listPlugins() async {
-    final response = await _get('plugins');
+    final response = await _get(PluginApi.listPlugins);
     return _rowsFromJson(response['items'], RemotePluginManifest.fromJson);
   }
 
@@ -341,9 +370,9 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     required String filename,
   }) async {
     final response = await _postRaw(
-      'plugins/upload',
-      {'filename': filename},
-      Uint8List.fromList(bytes),
+      PluginApi.uploadPlugin,
+      query: {'filename': filename},
+      bytes: Uint8List.fromList(bytes),
       contentType: 'application/octet-stream',
     );
     final manifest = response['manifest'];
@@ -357,7 +386,10 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
 
   /// POST /api/plugins/{id}/enable
   Future<RemotePluginManifest> enablePlugin(String pluginId) async {
-    final response = await _post('plugins/$pluginId/enable');
+    final response = await _post(
+      PluginApi.enablePlugin,
+      path: {'pluginId': pluginId},
+    );
     final manifest = response['manifest'];
     if (manifest is! Map) {
       throw StateError(
@@ -369,7 +401,10 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
 
   /// POST /api/plugins/{id}/disable
   Future<RemotePluginManifest> disablePlugin(String pluginId) async {
-    final response = await _post('plugins/$pluginId/disable');
+    final response = await _post(
+      PluginApi.disablePlugin,
+      path: {'pluginId': pluginId},
+    );
     final manifest = response['manifest'];
     if (manifest is! Map) {
       throw StateError(
@@ -381,7 +416,7 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
 
   /// DELETE /api/plugins/{id}
   Future<void> uninstallPlugin(String pluginId) async {
-    await _delete('plugins/$pluginId');
+    await _delete(PluginApi.uninstallPlugin, path: {'pluginId': pluginId});
   }
 
   // Log tail: client surface for the headless server's

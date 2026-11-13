@@ -169,6 +169,7 @@ List<SequenceNode> fullNodes() => [
       {
         'condition': {'HfrAbove': 3.5},
         'action': 'Autofocus',
+        'debounce_secs': 45.0,
       },
     ],
     adaptiveExposure: const AdaptiveExposureConfig(

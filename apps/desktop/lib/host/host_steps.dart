@@ -30,9 +30,7 @@ const _services = HostStartupPhase.services;
 
 /// How a process that owns the hardware starts, GUI and daemon alike.
 ///
-/// The two used to be written separately and had drifted apart: each had
-/// services the other silently lacked. A step runs on both unless it names
-/// the one host it is for and says why.
+/// A step runs on both unless it names the one host it is for and says why.
 final List<HostStartupStep> hostStartupSteps = [
   HostStartupStep(
     name: 'local backend',
