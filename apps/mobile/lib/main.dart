@@ -297,7 +297,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(relayReconnectProvider.notifier).state = _reconnectSavedRelay;
-      ref.read(rigConnectProvider.notifier).state = _connectToServer;
+      ref.read(rigConnectProvider.notifier).state = connectToRig;
     });
     _autoConnect();
 

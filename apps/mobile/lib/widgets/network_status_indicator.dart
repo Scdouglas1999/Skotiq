@@ -241,7 +241,6 @@ class _NetworkStatusIndicatorState
     _CombinedConnectionStatus status,
     _TransportTier transport,
   ) {
-    final rig = ref.watch(connectedRigProvider);
     final color = _statusColor(context, status);
     final icon = _statusIcon(status, transport);
 
@@ -264,6 +263,7 @@ class _NetworkStatusIndicatorState
     HostLink? backend,
     _TransportTier transport,
   ) {
+    final rig = ref.watch(connectedRigProvider);
     final color = _statusColor(context, status);
     final icon = _statusIcon(status, transport);
     final theme = Theme.of(context);

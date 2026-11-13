@@ -32,7 +32,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
   /// relay. The relay exposes the remote rig's headless API as a LOCAL
   /// loopback port, so the rest of the connect flow (pairing, HMAC tokens,
   /// the event WebSocket, even TLS if the appliance serves https) reuses the
-  /// existing [_connectToServer] path unchanged — the tunnel is just another
+  /// existing [connectToRig] path unchanged — the tunnel is just another
   /// base URL pointing at 127.0.0.1.
   ///
   /// [relayUrl] is the operator's relay (ws(s)://host[:port]); [applianceId]
@@ -42,7 +42,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
   /// relay row whose appliance bearer is already in secure storage — mirrors
   /// how [SavedServersScreen] reconnects a direct row with a stored token.
   /// `null` for a first-time relay connect (the appliance is paired through
-  /// the normal [_connectToServer] flow). [savedServerDisplayName] feeds the
+  /// the normal [connectToRig] flow). [savedServerDisplayName] feeds the
   /// persisted row's label; defaults to `Relay: <id>` when null.
   @override
   Future<void> _connectViaRelay({
@@ -115,7 +115,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         authRequired: true,
         pairingSupported: true,
         // A saved relay carries its appliance bearer in secure storage —
-        // pass it through so _connectToServer skips re-pairing every night.
+        // pass it through so connectToRig skips re-pairing every night.
         authToken: presetAuthToken,
       );
       // Capture the live backend instance BEFORE the connect attempt. A
@@ -126,7 +126,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       // NetworkBackend` — means a stale prior NetworkBackend session (from a
       // previous rig) cannot be mistaken for a successful relay connect.
       final priorBackend = ref.read(backendProvider);
-      await _connectToServer(relayServer);
+      await connectToRig(relayServer);
 
       // If the connect failed (no backend swap happened), tear the tunnel back
       // down so we don't leak a loopback listener or persist a bogus relay row.
@@ -265,7 +265,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
   }
 
   @override
-  Future<bool> _connectToServer(
+  Future<bool> connectToRig(
     DiscoveredServer server, {
     String? savedServerId,
   }) async {

@@ -36,7 +36,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../services/rig_connection.dart';
 import '../../services/saved_servers_service.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
-import 'package:skotiq_core/services.dart';
 
 /// Async snapshot of the saved-server list — drives the screen state.
 final _savedServersListProvider = FutureProvider.autoDispose<List<SavedServer>>(

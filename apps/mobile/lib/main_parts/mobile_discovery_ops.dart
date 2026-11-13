@@ -2,7 +2,7 @@
 // FIND or NAME a server (auto-discovery, QR scan, manual entry, Tailscale
 // onboarding, the relay-connect dialog, the saved-servers screen) and the
 // code-pairing dialog. Each ultimately hands a resolved
-// [DiscoveredServer] to [_connectToServer] (or routes through
+// [DiscoveredServer] to [connectToRig] (or routes through
 // [_connectViaRelay]) in the (re)connect/disconnect ops mixin.
 //
 // Shared session state lives in [_MobileConnectionState]; this mixin
@@ -36,7 +36,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         );
 
         // Save for future reconnects
-        await _connectToServer(server);
+        await connectToRig(server);
       } else {
         Log.warning('No server found via any method', source: 'Discovery');
         setState(() {
@@ -232,7 +232,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
   /// Each of those now upserts the rig into Saved Servers on a successful
   /// connect, so the new row appears the next time the list is opened.
   ///
-  /// Tapping a saved row connects through [_connectToServer] (registered as
+  /// Tapping a saved row connects through [connectToRig] (registered as
   /// [rigConnectProvider]), which leaves the connection screen on success, so
   /// the list only has to close.
   Future<void> _openSavedServers() async {
@@ -347,7 +347,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     // Defense-in-depth: even when no pairing happened (the QR already carried a
     // token, so the pre-flight pin check above did not run), re-verify the live
     // server identity against the fingerprint baked into the QR before we hand
-    // the connection to _connectToServer. _connectToServer's NetworkBackend
+    // the connection to connectToRig. connectToRig's NetworkBackend
     // also pins via /api/info, but checking here keeps the failure local to the
     // QR flow with a QR-specific message.
     final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
@@ -363,11 +363,11 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       return;
     }
 
-    await _connectToServer(server);
+    await connectToRig(server);
   }
 
   /// Off-site onboarding: collect a Tailscale endpoint via the guided
-  /// setup sheet, then run it through the canonical [_connectToServer]
+  /// setup sheet, then run it through the canonical [connectToRig]
   /// path (which handles /api/info enrichment, pairing, compatibility, and
   /// persistence). This is the primary path when the phone is NOT on the
   /// observatory LAN — discovery finds nothing because Tailscale has no
@@ -422,7 +422,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
 
     // Build a DiscoveredServer carrying the operator's scheme + token so
     // fetchServerInfo probes the right protocol and the pairing branch in
-    // _connectToServer only fires when no token was supplied.
+    // connectToRig only fires when no token was supplied.
     final server = DiscoveredServer(
       name: result.host,
       host: result.host,
@@ -433,7 +433,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       authRequired: result.authToken == null,
       pairingSupported: true,
     );
-    await _connectToServer(server);
+    await connectToRig(server);
   }
 
   Future<void> _connectManually() async {
@@ -519,7 +519,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       return;
     }
 
-    await _connectToServer(server);
+    await connectToRig(server);
   }
 }
 

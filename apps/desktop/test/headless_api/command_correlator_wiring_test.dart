@@ -12,10 +12,8 @@
 // nothing throws, and the correlation feature advertised by /api/docs is
 // dead.
 //
-// Crucially, the existing unit tests over `commandCompletionEventTypes`
-// (command_correlator_test.dart) could NOT catch this: that table was always
-// correct, it was simply never consulted with a registered command. So this test
-// asserts the WIRING rather than the table — it observes the injected
+// The unit tests over `commandCompletionOf` (command_correlator_test.dart)
+// cannot catch this, so this test asserts the WIRING: it observes the injected
 // correlator's own `pendingCount`, which only moves if a handler really called
 // `beginCommand`.
 import 'dart:convert';

@@ -9,7 +9,7 @@
 // invoke are declared abstract here so the mixins type-check independently
 // of application order; each is implemented in exactly one sibling mixin:
 //   * [_pairWithServer] — discovery/pairing ops
-//   * [_connectToServer], [_connectViaRelay], [_closeActiveRelayTunnel] —
+//   * [connectToRig], [_connectViaRelay], [_closeActiveRelayTunnel] —
 //     (re)connect/disconnect ops
 part of '../main.dart';
 
@@ -110,7 +110,7 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   /// Implemented by the (re)connect/disconnect ops mixin. The discovery /
   /// pairing flows hand a resolved [DiscoveredServer] to it; it is also the
   /// [rigConnectProvider] every other connect goes through.
-  Future<bool> _connectToServer(
+  Future<bool> connectToRig(
     DiscoveredServer server, {
     String? savedServerId,
   });
@@ -187,7 +187,7 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
       }
       final target = _lostSessionServer;
       if (target != null) {
-        await _connectToServer(target);
+        await connectToRig(target);
       } else {
         await _autoConnect();
       }
