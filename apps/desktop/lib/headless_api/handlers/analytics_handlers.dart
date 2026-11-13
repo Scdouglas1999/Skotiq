@@ -352,14 +352,18 @@ class AnalyticsHandlers implements RouteSource {
     }
 
     if (payload.containsKey('status')) {
-      final status = requireString(payload, 'status');
-      if (!const {'active', 'completed', 'aborted', 'error'}.contains(status)) {
-        throw BadRequestError(
-          field: 'status',
-          expected: 'active|completed|aborted|error',
-        );
-      }
-      await database.sessionsDao.updateSessionStatus(sessionId, status);
+      await database.sessionsDao.updateSessionStatus(
+        sessionId,
+        _sessionStatus(
+          requireString(payload, 'status'),
+          allowed: const {
+            SessionStatus.active,
+            SessionStatus.completed,
+            SessionStatus.aborted,
+            SessionStatus.error,
+          },
+        ),
+      );
     }
 
     publishHostMutationFromContainer(
@@ -375,13 +379,14 @@ class AnalyticsHandlers implements RouteSource {
     _logInfo('[API] POST /api/sessions/$id/end');
     final sessionId = _parsePathId(id, 'id');
     final payload = await readJsonObject(request);
-    final status = optionalString(payload, 'status') ?? 'completed';
-    if (!const {'completed', 'aborted', 'error'}.contains(status)) {
-      throw BadRequestError(
-        field: 'status',
-        expected: 'completed|aborted|error',
-      );
-    }
+    final status = _sessionStatus(
+      optionalString(payload, 'status') ?? SessionStatus.completed.token,
+      allowed: const {
+        SessionStatus.completed,
+        SessionStatus.aborted,
+        SessionStatus.error,
+      },
+    );
     final database = container.read(databaseProvider);
 
     await database.sessionsDao.endSession(sessionId, status: status);
@@ -391,7 +396,7 @@ class AnalyticsHandlers implements RouteSource {
       entityType: HostMutationEntity.session,
       action: HostMutationAction.updated,
       entityId: sessionId.toString(),
-      extra: {'status': status},
+      extra: {'status': status.token},
     );
     return jsonOk({"status": "ended"});
   }
@@ -476,7 +481,7 @@ class AnalyticsHandlers implements RouteSource {
           break;
       }
 
-      if (img.hfr != null && img.frameType == 'light') {
+      if (img.hfr != null && img.isLight) {
         totalLightHfr += img.hfr!;
         lightHfrCount++;
       }
@@ -650,7 +655,7 @@ class AnalyticsHandlers implements RouteSource {
           .customSelect(
             'SELECT session_id, is_accepted, COUNT(*) AS frames '
             'FROM captured_images '
-            "WHERE frame_type = 'light' AND session_id IN ($placeholders) "
+            'WHERE $lightFrameSql AND session_id IN ($placeholders) '
             'GROUP BY session_id, is_accepted',
             variables: [for (final id in batch) Variable<int>(id)],
             readsFrom: {database.capturedImages},
@@ -769,4 +774,20 @@ class AnalyticsHandlers implements RouteSource {
       'timestamp': residual.timestamp.millisecondsSinceEpoch,
     };
   }
+}
+
+/// The session status [token] names, when a client may set it; anything else
+/// is a bad request.
+SessionStatus _sessionStatus(
+  String token, {
+  required Set<SessionStatus> allowed,
+}) {
+  final status = SessionStatus.tryParse(token);
+  if (status == null || !allowed.contains(status)) {
+    throw BadRequestError(
+      field: 'status',
+      expected: allowed.map((s) => s.token).join('|'),
+    );
+  }
+  return status;
 }

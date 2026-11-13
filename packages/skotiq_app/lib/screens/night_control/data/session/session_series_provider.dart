@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show SeriesChartTone;
 
 import '../../night_control_contracts.dart';
 import 'session_events_provider.dart';
@@ -87,12 +88,12 @@ final nightFrameSeriesProvider = Provider<NightSeriesVm>((ref) {
       SeriesLineVm(
         id: NightSeriesId.hfr,
         points: hfr,
-        tone: SeriesTone.primary,
+        tone: SeriesChartTone.primary,
       ),
       SeriesLineVm(
         id: NightSeriesId.stars,
         points: stars,
-        tone: SeriesTone.secondary,
+        tone: SeriesChartTone.secondary,
         secondaryAxis: true,
       ),
     ],
@@ -173,19 +174,19 @@ final nightTemperatureSeriesProvider = Provider<NightSeriesVm>((ref) {
       SeriesLineVm(
         id: NightSeriesId.focuserTemp,
         points: focuserTemp,
-        tone: SeriesTone.muted,
+        tone: SeriesChartTone.muted,
       ),
       SeriesLineVm(
         id: NightSeriesId.focuserPosition,
         points: position,
-        tone: SeriesTone.primary,
+        tone: SeriesChartTone.primary,
         secondaryAxis: true,
         stepped: true,
       ),
       SeriesLineVm(
         id: NightSeriesId.sensorTemp,
         points: sensor,
-        tone: SeriesTone.secondary,
+        tone: SeriesChartTone.secondary,
         dashed: true,
       ),
     ],
@@ -230,7 +231,7 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
         SeriesLineVm(
           id: NightSeriesId.sensorTemp,
           points: <SeriesPoint>[],
-          tone: SeriesTone.secondary,
+          tone: SeriesChartTone.secondary,
         ),
       ],
     );
@@ -247,7 +248,7 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
           for (final point in history)
             SeriesPoint(point.time, point.temperature),
         ],
-        tone: SeriesTone.secondary,
+        tone: SeriesChartTone.secondary,
       ),
     ],
     from: history.first.time,

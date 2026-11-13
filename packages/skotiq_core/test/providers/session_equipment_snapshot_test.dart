@@ -159,7 +159,7 @@ void main() {
     );
     await sessionsDao.endSession(
       id,
-      status: SequenceRunStatus.stoppedResumable.token,
+      status: SessionStatus.stoppedResumable,
     );
     final quickStart = QuickStartService(
       sessionsDao: sessionsDao,

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/equipment/filter_names.dart';
 import '../../../models/imaging/imaging_models.dart';
 import '../../../models/meridian_flip_settings.dart' show TrackingLimitPolicy;
+import '../../../models/sequence/autofocus_run.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/settings/app_settings.dart' show SafetyFailMode;
 import '../../../services/imaging_service.dart' show ImagingService;
@@ -191,7 +192,7 @@ class SequenceSerializer {
             'name': 'Autofocus (auto, post filter change)',
             'node_type': autofocusRuntimeConfig(
               autofocusSettings,
-              maxDurationSecs: 600,
+              AutofocusRun.fromSettings(autofocusSettings),
             ),
             'enabled': true,
             'children': const <String>[],
@@ -279,19 +280,20 @@ class SequenceSerializer {
     );
   }
 
+  /// The executor's config for [run], with the rest of its settings (filter,
+  /// binning, crop, backlash) from the Autofocus [settings].
   Map<String, dynamic> autofocusRuntimeConfig(
-    AutofocusSettings settings, {
-    AutofocusNode? nodeOverrides,
-    required double maxDurationSecs,
-  }) {
-    final useGlobalBasics = nodeOverrides == null;
-    final method = useGlobalBasics
+    AutofocusSettings settings,
+    AutofocusRun run,
+  ) {
+    final nodeMethod = run.method;
+    final method = nodeMethod == null
         ? switch (settings.curveFitting.trim().toLowerCase()) {
             'hyperbolic' => 'Hyperbolic',
             'parabolic' || 'quadratic' => 'Quadratic',
             _ => 'VCurve',
           }
-        : _autofocusMethodToString(nodeOverrides.method);
+        : _autofocusMethodToString(nodeMethod);
     final backlashEnabled = !settings.backlashCompMethod
         .trim()
         .toLowerCase()
@@ -300,13 +302,9 @@ class SequenceSerializer {
     return {
       'type': 'Autofocus',
       'method': method,
-      'step_size': useGlobalBasics ? settings.stepSize : nodeOverrides.stepSize,
-      'steps_out': useGlobalBasics
-          ? settings.initialOffsetSteps
-          : nodeOverrides.stepsOut,
-      'exposure_duration': useGlobalBasics
-          ? settings.exposureTime
-          : nodeOverrides.exposureDuration,
+      'step_size': run.stepSize,
+      'steps_out': run.stepsOut,
+      'exposure_duration': run.exposureSecs,
       'filter': settings.autofocusFilterName.trim().isEmpty
           ? null
           : settings.autofocusFilterName.trim(),
@@ -321,9 +319,7 @@ class SequenceSerializer {
       ),
       'binning': _autofocusBinningToString(settings.binning),
       'number_of_attempts': settings.numberOfAttempts,
-      'exposures_per_point': useGlobalBasics
-          ? settings.exposuresPerPoint
-          : nodeOverrides.exposuresPerPoint,
+      'exposures_per_point': run.exposuresPerPoint,
       'r_squared_threshold': settings.rSquaredThreshold,
       'failure_hfr_tolerance_ratio': settings.failureHfrToleranceRatio,
       'outer_crop_ratio': settings.outerCropRatio,
@@ -341,7 +337,7 @@ class SequenceSerializer {
       // typed into `backlash_compensation` still outranks this one.
       'measured_backlash_in': _ref.read(measuredFocuserBacklashStepsProvider),
       'disable_guiding_during_af': settings.disableGuidingDuringAf,
-      'max_duration_secs': maxDurationSecs,
+      'max_duration_secs': run.maxDurationSecs,
     };
   }
 
@@ -488,8 +484,7 @@ class SequenceSerializer {
         final settings = _ref.read(autofocusSettingsProvider);
         return autofocusRuntimeConfig(
           settings,
-          nodeOverrides: n.useSettingsDefaults ? null : n,
-          maxDurationSecs: n.maxDurationSecs,
+          AutofocusRun.ofNode(settings, n),
         );
       case DitherNode n:
         return {

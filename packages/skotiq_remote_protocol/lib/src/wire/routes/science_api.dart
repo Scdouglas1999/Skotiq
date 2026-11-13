@@ -96,6 +96,16 @@ enum ScienceApi implements ApiEndpoint {
       resource: ApiResource.system,
       timeout: ApiTimeout.slowRead,
     ),
+  ),
+  scienceReport(
+    ApiRoute.post(
+      '/api/science/session/<sessionId>/report',
+      resource: ApiResource.system,
+      timeout: ApiTimeout.slowRead,
+    ),
+  ),
+  defaultSession(
+    ApiRoute.get('/api/science/default-session', resource: ApiResource.system),
   );
 
   const ScienceApi(this.route);

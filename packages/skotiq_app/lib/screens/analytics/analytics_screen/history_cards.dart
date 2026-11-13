@@ -83,8 +83,8 @@ class _SessionHistoryCard extends ConsumerWidget {
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         SkotiqChip(
-          label: runStatusTokenLabel(session.status),
-          tone: _statusTone(session.status),
+          label: sessionStatusLabel(session.status),
+          tone: sessionStatusTone(session.status),
         ),
       ],
     );
@@ -206,23 +206,6 @@ class _SessionHistoryCard extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  /// A session's status as a chip tone. Status colours mean status (02);
-  /// an unknown status has no tone at all rather than an invented one.
-  static ChipTone _statusTone(String status) {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return ChipTone.success;
-      case 'active':
-        return ChipTone.primary;
-      case 'aborted':
-        return ChipTone.warning;
-      case 'error':
-        return ChipTone.error;
-      default:
-        return ChipTone.neutral;
-    }
   }
 
   static String? _formatIntegrationHours(double seconds) =>

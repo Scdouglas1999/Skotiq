@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -152,7 +153,7 @@ class ScienceReprocessService {
         return byTime != 0 ? byTime : a.id.compareTo(b.id);
       });
     final candidates = lightOnly
-        ? ordered.where((r) => r.frameType.toLowerCase() == 'light').toList()
+        ? ordered.where((r) => r.isLight).toList()
         : ordered;
     final withScience = force
         ? const <int>{}

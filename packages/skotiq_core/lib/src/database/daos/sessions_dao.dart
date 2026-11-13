@@ -1,3 +1,4 @@
+import '../../models/imaging/session_status.dart';
 import 'package:drift/drift.dart';
 
 import '../../backend/roles/host_data/host_records.dart';
@@ -94,7 +95,7 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
           profileId: Value(profileId),
           targetId: Value(targetId),
           sequenceId: Value(sequenceId),
-          status: const Value('active'),
+          status: Value(SessionStatus.active.token),
         ),
       );
     });
@@ -150,7 +151,7 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     final notes = imagingSessions.notes;
     await (update(imagingSessions)..where((s) => s.id.equals(id))).write(
       ImagingSessionsCompanion.custom(
-        status: const Constant('active'),
+        status: Constant(SessionStatus.active.token),
         endTime: const Constant(null),
         notes: CaseWhenExpression(
           cases: [CaseWhen(notes.isNull() | notes.equals(''), then: note)],
@@ -160,11 +161,14 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  Future<void> endSession(int id, {String status = 'completed'}) {
+  Future<void> endSession(
+    int id, {
+    SessionStatus status = SessionStatus.completed,
+  }) {
     return (update(imagingSessions)..where((s) => s.id.equals(id))).write(
       ImagingSessionsCompanion(
         endTime: Value(DateTime.now()),
-        status: Value(status),
+        status: Value(status.token),
       ),
     );
   }
@@ -204,7 +208,7 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     await (update(imagingSessions)..where((s) => s.id.equals(id))).write(
       ImagingSessionsCompanion(
         endTime: Value(endTime),
-        status: const Value('aborted'),
+        status: Value(SessionStatus.aborted.token),
       ),
     );
   }
@@ -280,28 +284,28 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   /// Get all active sessions (for recovery)
   Future<List<ImagingSession>> getActiveSessions() {
     return (select(imagingSessions)
-          ..where((s) => s.status.equals('active'))
+          ..where((s) => s.status.equals(SessionStatus.active.token))
           ..orderBy([(s) => OrderingTerm.desc(s.startTime)]))
         .get();
   }
 
   Stream<List<ImagingSession>> watchActiveSessions() {
     return (select(imagingSessions)
-          ..where((s) => s.status.equals('active'))
+          ..where((s) => s.status.equals(SessionStatus.active.token))
           ..orderBy([(s) => OrderingTerm.desc(s.startTime)]))
         .watch();
   }
 
   /// Update session status only
-  Future<void> updateSessionStatus(int id, String status) {
+  Future<void> updateSessionStatus(int id, SessionStatus status) {
     return (update(imagingSessions)..where((s) => s.id.equals(id))).write(
-      ImagingSessionsCompanion(status: Value(status)),
+      ImagingSessionsCompanion(status: Value(status.token)),
     );
   }
 
-  Future<List<ImagingSession>> getSessionsByStatus(String status) {
+  Future<List<ImagingSession>> getSessionsByStatus(SessionStatus status) {
     return (select(imagingSessions)
-          ..where((s) => s.status.equals(status))
+          ..where((s) => s.status.equals(status.token))
           ..orderBy([(s) => OrderingTerm.desc(s.startTime)]))
         .get();
   }
@@ -362,7 +366,7 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   /// "this process is driving it right now" — and a night still in progress is
   /// not a night to hand off from.
   Future<List<ImagingSession>> getInterruptedSessions() =>
-      getSessionsByStatus(kInterruptedSessionStatus);
+      getSessionsByStatus(SessionStatus.interrupted);
 
   Future<bool> hasIncompleteSessions() async {
     final interrupted = await getInterruptedSessions();

@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/models.dart' show IntegrationCurve;
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -39,36 +38,18 @@ class ImprovementCurvePanel extends StatelessWidget {
     final keepN = rec.keepN.clamp(1, total);
     final gainPct = rec.predictedSnrGainPct;
 
-    final spots = [
-      for (final p in points) FlSpot(p.n.toDouble(), p.snr),
+    final curvePoints = [
+      for (final p in points) Offset(p.n.toDouble(), p.snr),
     ];
-
-    // Kept prefix (1..keepN) and dropped tail (keepN..N) as two segments so the
-    // area fill can be tinted by region. The tail repeats the boundary spot so
-    // the line stays continuous across the cut.
-    final keptSpots = spots.where((s) => s.x <= keepN).toList(growable: false);
-    final tailSpots = spots.where((s) => s.x >= keepN).toList(growable: false);
-
-    final snrValues = points.map((p) => p.snr).toList(growable: false);
-    final minSnr = snrValues.reduce((a, b) => a < b ? a : b);
-    final maxSnr = snrValues.reduce((a, b) => a > b ? a : b);
-    final snrRange = (maxSnr - minSnr).abs() < 1e-6 ? 1.0 : maxSnr - minSnr;
-
-    // Snap the Y axis to a "nice" interval so the left-axis labels are evenly
-    // spaced and never collide at the top: fl_chart draws a label at maxY *and*
-    // at every interval step, so an interval that doesn't divide the range
-    // lands a step-label fractionally below maxY (the original overlap bug).
-    // Rounding minY/maxY to multiples of a nice step makes the top step-label
-    // coincide exactly with maxY — one label, not two stacked.
-    final yInterval = ChartScale.niceStep(snrRange / 5);
-    final minY = (minSnr / yInterval).floorToDouble() * yInterval;
-    var maxY = (maxSnr / yInterval).ceilToDouble() * yInterval;
-    // Guarantee a little headroom above the peak so the curve never touches the
-    // frame and the top label keeps clear air around it.
-    if (maxY - maxSnr < yInterval * 0.05) maxY += yInterval;
-
-    final keptColor = colors.success;
-    final tailColor = colors.warning;
+    final kept = [
+      for (final p in curvePoints)
+        if (p.dx <= keepN) p,
+    ];
+    final tail = [
+      for (final p in curvePoints)
+        if (p.dx >= keepN) p,
+    ];
+    final keepPoint = curvePoints.firstWhere((p) => p.dx == keepN);
 
     return SkotiqPanel(
       child: Padding(
@@ -80,146 +61,47 @@ class ImprovementCurvePanel extends StatelessWidget {
             const SizedBox(height: SkotiqTokens.spaceMd),
             AdaptiveChartContainer(
               preferredHeight: 170,
-              child: LineChart(
-                LineChartData(
-                  minX: 1,
-                  maxX: total.toDouble(),
-                  minY: minY,
-                  maxY: maxY,
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: true,
-                    horizontalInterval: yInterval,
-                    getDrawingHorizontalLine: (_) => FlLine(
-                      color: colors.border.withValues(alpha: 0.3),
-                      strokeWidth: 1,
-                    ),
-                    getDrawingVerticalLine: (_) => FlLine(
-                      color: colors.border.withValues(alpha: 0.3),
-                      strokeWidth: 1,
-                    ),
+              child: SkotiqChart(
+                semanticLabel: 'Predicted SNR against subs kept: keep $keepN '
+                    'of $total',
+                series: <ChartSeries>[
+                  ChartSeries(
+                    points: kept,
+                    label: 'Kept',
+                    color: SkotiqChartColors.seriesGreen,
+                    strokeWidth: 2.5,
+                    filled: true,
                   ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 28,
-                        interval: _axisInterval(total),
-                        getTitlesWidget: (value, meta) => Padding(
-                          padding: const EdgeInsets.only(
-                            top: SkotiqTokens.spaceSm,
-                          ),
-                          child: Text(
-                            value.toInt().toString(),
-                            style: SkotiqTypography.captionSm.copyWith(
-                              color: colors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 44,
-                        interval: yInterval,
-                        getTitlesWidget: (value, meta) => Text(
-                          value.toStringAsFixed(_yLabelDecimals(yInterval)),
-                          style: SkotiqTypography.captionSm.copyWith(
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
+                  ChartSeries(
+                    points: tail,
+                    label: 'Past the cut',
+                    tone: SeriesChartTone.warning,
+                    strokeWidth: 2,
                   ),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: Border.all(color: colors.border),
+                  ChartSeries(
+                    points: [keepPoint],
+                    tone: SeriesChartTone.primary,
+                    kind: ChartSeriesKind.scatter,
+                    dotRadius: 4,
                   ),
-                  extraLinesData: ExtraLinesData(
-                    verticalLines: [
-                      VerticalLine(
-                        x: keepN.toDouble(),
-                        color: colors.primary,
-                        strokeWidth: 1.5,
-                        dashArray: const [4, 4],
-                        label: VerticalLineLabel(
-                          show: true,
-                          alignment: Alignment.topRight,
-                          padding: const EdgeInsets.only(
-                            left: SkotiqTokens.spaceXs,
-                            bottom: SkotiqTokens.spaceXs,
-                          ),
-                          style: SkotiqTypography.captionSm.copyWith(
-                            color: colors.primary,
-                          ),
-                          labelResolver: (_) => 'keep $keepN',
-                        ),
-                      ),
-                    ],
-                  ),
-                  lineBarsData: [
-                    // Kept prefix — green, filled.
-                    LineChartBarData(
-                      spots: keptSpots,
-                      isCurved: true,
-                      preventCurveOverShooting: true,
-                      color: keptColor,
-                      barWidth: 2.5,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(
-                        show: true,
-                        checkToShowDot: (spot, _) => spot.x == keepN.toDouble(),
-                        getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
-                          radius: 4,
-                          color: colors.primary,
-                          strokeColor: colors.surface,
-                          strokeWidth: 2,
-                        ),
-                      ),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: keptColor.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    // Dropped tail — amber, lighter, no end dots.
-                    LineChartBarData(
-                      spots: tailSpots,
-                      isCurved: true,
-                      preventCurveOverShooting: true,
-                      color: tailColor.withValues(alpha: 0.7),
-                      barWidth: 2,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: false),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: tailColor.withValues(alpha: 0.08),
-                      ),
-                    ),
-                  ],
-                  lineTouchData: LineTouchData(
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipColor: (_) => colors.surface,
-                      getTooltipItems: (touchedSpots) => touchedSpots
-                          .map(
-                            (spot) => LineTooltipItem(
-                              'n=${spot.x.toInt()}\nSNR ${spot.y.toStringAsFixed(2)}',
-                              SkotiqTypography.labelQuiet.copyWith(
-                                color: colors.textPrimary,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
+                ],
+                x: ChartAxis(
+                  min: 1,
+                  max: total.toDouble(),
+                  format: (n) => '${n.round()}',
+                  readout: (n) => 'n=${n.round()}',
                 ),
+                y: ChartAxis(
+                  readout: (snr) => 'SNR ${snr.toStringAsFixed(2)}',
+                ),
+                rules: [
+                  ChartRule.x(
+                    keepN.toDouble(),
+                    tone: SeriesChartTone.primary,
+                    dashed: true,
+                    label: 'keep $keepN',
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
@@ -337,14 +219,4 @@ class ImprovementCurvePanel extends StatelessWidget {
       ),
     );
   }
-
-  /// Keep ≤ ~6 bottom-axis labels regardless of sub count.
-  double _axisInterval(int total) {
-    if (total <= 6) return 1;
-    return (total / 6).ceilToDouble();
-  }
-
-  /// One decimal place for sub-unit steps (e.g. 0.5), none for whole steps, so
-  /// labels read cleanly ("20", "40" not "20.0").
-  int _yLabelDecimals(double interval) => interval < 1 ? 1 : 0;
 }

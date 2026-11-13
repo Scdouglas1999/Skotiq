@@ -157,37 +157,16 @@ class _LightCurveChartCard extends StatelessWidget {
     final sorted = lightCurve.toList(growable: false)
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     final start = sorted.first.timestamp;
-    // Negate values for inverted Y-axis (brighter = up = more negative mag).
-    final spots = sorted
-        .map(
-          (point) => FlSpot(
-            point.timestamp.difference(start).inSeconds.toDouble(),
-            -point.differentialMagnitude,
-          ),
-        )
-        .toList(growable: false);
-
-    var minY = spots.first.y;
-    var maxY = spots.first.y;
-    for (final s in spots) {
-      if (s.y < minY) minY = s.y;
-      if (s.y > maxY) maxY = s.y;
-    }
-    // Extend range to include error bar extents so they aren't clipped.
-    for (final point in sorted) {
-      if (point.uncertainty <= 0) continue;
-      final yLow = -(point.differentialMagnitude - point.uncertainty);
-      final yHigh = -(point.differentialMagnitude + point.uncertainty);
-      if (yLow < minY) minY = yLow;
-      if (yLow > maxY) maxY = yLow;
-      if (yHigh < minY) minY = yHigh;
-      if (yHigh > maxY) maxY = yHigh;
-    }
-    // Shared nice axis so the boundary label coincides with a tick instead of
-    // printing a second value beside it.
-    final axis = ChartScale.niceRange(minY, maxY);
-    final maxX = spots.last.x == 0 ? 1.0 : spots.last.x;
-    final xInterval = maxX / 4;
+    final samples = [
+      for (final point in sorted)
+        Offset(
+          point.timestamp.difference(start).inSeconds.toDouble(),
+          point.differentialMagnitude,
+        ),
+    ];
+    final title = filter == null || filter!.isEmpty
+        ? 'Differential Photometry'
+        : 'Differential Photometry, $filter filter';
 
     return SkotiqPanel(
       padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
@@ -198,9 +177,7 @@ class _LightCurveChartCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  filter == null || filter!.isEmpty
-                      ? 'Differential Photometry'
-                      : 'Differential Photometry, $filter filter',
+                  title,
                   style: SkotiqTypography.bodyStrong
                       .copyWith(color: colors.textPrimary),
                 ),
@@ -212,122 +189,30 @@ class _LightCurveChartCard extends StatelessWidget {
           const SizedBox(height: 12),
           AdaptiveChartContainer(
             preferredHeight: 190,
-            child: LineChart(
-              LineChartData(
-                minX: 0,
-                maxX: maxX,
-                minY: axis.min,
-                maxY: axis.max,
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border.all(color: colors.border),
+            child: SkotiqChart(
+              semanticLabel: '$title over ${sorted.length} measurements',
+              series: <ChartSeries>[
+                ChartSeries(
+                  points: samples,
+                  label: 'dMag',
+                  color: colors.primary,
+                  strokeWidth: 2,
                 ),
-                gridData: FlGridData(
-                  drawVerticalLine: true,
-                  horizontalInterval: axis.ticks.step,
-                  verticalInterval: xInterval,
-                  getDrawingHorizontalLine: (_) =>
-                      FlLine(color: colors.border.withValues(alpha: 0.35)),
-                  getDrawingVerticalLine: (_) =>
-                      FlLine(color: colors.border.withValues(alpha: 0.25)),
+                // One dot per measurement with its uncertainty as a bar.
+                ChartSeries(
+                  points: samples,
+                  color: colors.primary,
+                  kind: ChartSeriesKind.scatter,
+                  dotRadius: 2.2,
+                  errors: [
+                    for (final point in sorted)
+                      point.uncertainty > 0 ? point.uncertainty : 0,
+                  ],
                 ),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 24,
-                      interval: xInterval,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          ChartScale.elapsedLabel(value),
-                          style: SkotiqTypography.caption
-                              .copyWith(color: colors.textSecondary),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    axisNameWidget: Text(
-                      'dMag',
-                      style: SkotiqTypography.caption
-                          .copyWith(color: colors.textSecondary),
-                    ),
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 44,
-                      interval: axis.ticks.step,
-                      // Plotted negated so brighter is higher; label with the
-                      // real magnitude. The tick label also folds -0.00 back
-                      // to 0.00 — a negative zero is a rounding artefact, not
-                      // a measurement.
-                      getTitlesWidget: (value, meta) => Text(
-                        axis.ticks.label(-value),
-                        style: SkotiqTypography.caption
-                            .copyWith(color: colors.textSecondary),
-                      ),
-                    ),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    color: colors.primary,
-                    barWidth: 2,
-                    isCurved: false,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
-                        radius: 2.2,
-                        color: colors.primary,
-                        strokeWidth: 0,
-                      ),
-                    ),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                  // Error bars: each is a vertical line segment in chart
-                  // coordinates (2 spots per bar), so alignment with data
-                  // points is exact regardless of axis padding or layout.
-                  for (final point in sorted)
-                    if (point.uncertainty > 0)
-                      LineChartBarData(
-                        spots: [
-                          FlSpot(
-                            point.timestamp
-                                .difference(start)
-                                .inSeconds
-                                .toDouble(),
-                            -(point.differentialMagnitude - point.uncertainty),
-                          ),
-                          FlSpot(
-                            point.timestamp
-                                .difference(start)
-                                .inSeconds
-                                .toDouble(),
-                            -(point.differentialMagnitude + point.uncertainty),
-                          ),
-                        ],
-                        color: colors.primary.withValues(alpha: 0.4),
-                        barWidth: 1.0,
-                        isCurved: false,
-                        dotData: FlDotData(
-                          show: true,
-                          getDotPainter: (spot, _, __, ___) =>
-                              FlDotCirclePainter(
-                            radius: 1.5,
-                            color: colors.primary.withValues(alpha: 0.4),
-                            strokeWidth: 0,
-                          ),
-                        ),
-                        belowBarData: BarAreaData(show: false),
-                      ),
-                ],
-              ),
+              ],
+              x: const ChartAxis(kind: ChartAxisKind.elapsed),
+              // Brighter is a smaller magnitude, so up.
+              y: const ChartAxis(title: 'dMag', inverted: true),
             ),
           ),
         ],

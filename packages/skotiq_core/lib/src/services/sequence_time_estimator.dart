@@ -1,6 +1,8 @@
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
+import '../models/imaging/imaging_models.dart' show AutofocusSettings;
+import '../models/sequence/autofocus_run.dart';
 import '../models/sequence/sequence_models.dart';
 part 'sequence_time_estimator/timing_models.dart';
 part 'sequence_time_estimator/node_durations.dart';
@@ -22,11 +24,23 @@ class SequenceTimeEstimator {
   /// call sites); the no-arg `const` form uses [defaultEstimatorOverhead].
   final SequenceOverheadConfig overhead;
 
+  /// The Autofocus settings: the sweep of every autofocus the executor adds
+  /// and of every Autofocus node that uses them (see [AutofocusRun]).
+  final AutofocusSettings autofocus;
+
   /// Construct with an explicit overhead model. Defaults to
   /// [defaultEstimatorOverhead] (2 s download, 5 s dither, 30 s slew/center,
   /// 120 s meridian-flip base, 10 min cooling), not the
   /// [SequenceOverheadConfig] field defaults.
-  const SequenceTimeEstimator({this.overhead = defaultEstimatorOverhead});
+  const SequenceTimeEstimator({
+    this.overhead = defaultEstimatorOverhead,
+    this.autofocus = const AutofocusSettings(),
+  });
+
+  /// The time one autofocus run the executor adds by itself takes.
+  Duration get addedAutofocusDuration => AutofocusRun.fromSettings(
+    autofocus,
+  ).duration(downloadSecs: overhead.downloadOverheadPerExposureSecs);
 
   // Default timing constants (in seconds unless noted)
 
@@ -344,7 +358,8 @@ class SequenceTimeEstimator {
 
   /// Extra overhead (seconds) from autofocus runs the executor will splice in
   /// at runtime but which never appear as nodes in the sequence tree, so no
-  /// per-node timing entry exists for them.
+  /// per-node timing entry exists for them. Each costs
+  /// [addedAutofocusDuration].
   ///
   /// Two synthetic-AF sources, both driven by app settings (mirroring the
   /// serializer's [_sequenceToJson] injection logic):
@@ -352,11 +367,11 @@ class SequenceTimeEstimator {
   ///   * [autoFocusOnFilterChange] — one AF run is injected after every
   ///     [FilterChangeNode] that is NOT already immediately followed by an
   ///     [AutofocusNode] sibling. We count those filter changes across the
-  ///     whole tree and charge [overhead.autofocusSecs] each.
+  ///     whole tree.
   ///   * [autoFocusEveryMinutes] — the AF-interval trigger fires roughly
   ///     every N minutes of run time. We approximate the count as
-  ///     floor(estimatedTotalMinutes / N) and charge [overhead.autofocusSecs]
-  ///     each. `0` (or negative) disables this term.
+  ///     floor(estimatedTotalMinutes / N). `0` (or negative) disables this
+  ///     term.
   ///
   /// This is read-only: it never mutates the [Sequence] (no synthetic nodes
   /// are inserted), matching how the estimator stays a pure function of the
@@ -368,6 +383,7 @@ class SequenceTimeEstimator {
     Duration? estimatedTotal,
   }) {
     double secs = 0.0;
+    final addedRunSecs = addedAutofocusDuration.inMilliseconds / 1000;
 
     if (autoFocusOnFilterChange) {
       var injectedFilterChangeAf = 0;
@@ -383,14 +399,14 @@ class SequenceTimeEstimator {
           injectedFilterChangeAf++;
         }
       }
-      secs += injectedFilterChangeAf * overhead.autofocusSecs;
+      secs += injectedFilterChangeAf * addedRunSecs;
     }
 
     if (autoFocusEveryMinutes > 0 && estimatedTotal != null) {
       final totalMins = estimatedTotal.inSeconds / 60.0;
       final intervalRuns = (totalMins / autoFocusEveryMinutes).floor();
       if (intervalRuns > 0) {
-        secs += intervalRuns * overhead.autofocusSecs;
+        secs += intervalRuns * addedRunSecs;
       }
     }
 

@@ -1,3 +1,5 @@
+import '../../models/imaging/imaging_models.dart' show FrameType;
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -49,7 +51,7 @@ class ProviderEonRig implements EonRig {
           ..where(
             (t) =>
                 t.capturedAt.isBiggerOrEqualValue(since) &
-                t.frameType.equals('light'),
+                t.frameTypeIs(FrameType.light),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.capturedAt)]))
         .get();

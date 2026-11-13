@@ -304,7 +304,8 @@ class _RunRow extends StatelessWidget {
                           children: [
                             SkotiqChip(
                               label: runStatusTokenLabel(run.status),
-                              tone: _statusTone(run.status),
+                              tone: runStatusTone(
+                                  SequenceRunStatus.tryParse(run.status)),
                               dot: true,
                             ),
                             if (stats != null)
@@ -350,7 +351,7 @@ class _RunRow extends StatelessWidget {
     // A run with no end that is not running was cut off (the host quit or
     // crashed), so its length is not known.
     final length = ended == null
-        ? (run.status == 'running' || run.status == 'paused'
+        ? (SequenceRunStatus.tryParse(run.status)?.isLive == true
             ? 'still running'
             : 'length unknown')
         : DurationFormat.of(
@@ -367,13 +368,6 @@ class _RunRow extends StatelessWidget {
   static String _frames(int count) => count == 1 ? '1 frame' : '$count frames';
 
   /// The tones the Sequencer History gives the same statuses.
-  static ChipTone _statusTone(String status) =>
-      switch (SequenceRunStatus.tryParse(status)) {
-        SequenceRunStatus.completed => ChipTone.success,
-        SequenceRunStatus.failed => ChipTone.error,
-        SequenceRunStatus.aborted => ChipTone.warning,
-        _ => ChipTone.neutral,
-      };
 }
 
 class _LoadMoreRow extends StatelessWidget {

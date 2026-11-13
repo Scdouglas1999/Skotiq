@@ -129,17 +129,17 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
     final l10n = SkotiqLocalizations.of(context);
     final vm = widget.vm;
     final blocked = nightCameraBlockedReason(vm, l10n);
-    final (String stateKey, MetricTone? tone) = switch (vm.coolerState) {
+    final (String stateKey, MetricGridTone? tone) = switch (vm.coolerState) {
       NightCoolerState.notConnected => (
           'nightPanelCoolerNotConnected',
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       NightCoolerState.notReported => ('nightPanelCoolerNotReported', null),
       NightCoolerState.off => ('nightPanelCoolerOff', null),
       NightCoolerState.cooling => ('nightPanelCoolerCooling', null),
       NightCoolerState.atSetpoint => (
           'nightPanelCoolerAtSetpoint',
-          MetricTone.good,
+          MetricGridTone.good,
         ),
       NightCoolerState.warming => ('nightPanelCoolerWarming', null),
     };
@@ -287,7 +287,7 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
                 points: <(DateTime, double?)>[
                   for (final p in line.points) (p.t, p.y),
                 ],
-                tone: nightChartTone(line.tone),
+                tone: line.tone,
                 axis: line.secondaryAxis
                     ? SeriesChartAxis.right
                     : SeriesChartAxis.left,
@@ -382,7 +382,7 @@ class NightFilterSection extends ConsumerWidget {
     return NightPanelSection(
       title: l10n.text('nightPanelFilter'),
       trailing: trailing,
-      trailingTone: filters.connected ? null : MetricTone.warning,
+      trailingTone: filters.connected ? null : MetricGridTone.warning,
       children: <Widget>[
         if (count > 0)
           NightPanelGrid(

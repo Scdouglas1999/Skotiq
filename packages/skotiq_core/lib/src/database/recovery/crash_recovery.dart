@@ -1,3 +1,4 @@
+import '../../models/imaging/session_status.dart';
 import 'package:drift/drift.dart';
 
 import '../../models/darkroom/darkroom_job.dart' show kDarkroomJobMaxAttempts;
@@ -254,7 +255,7 @@ extension _CrashRecovery on SkotiqDatabase {
     print(
       '[skotiq_db] Imaging session${orphans.length == 1 ? '' : 's'} left '
       "open by a previous process, now recorded as "
-      "'$kInterruptedSessionStatus': $named.",
+      "'${SessionStatus.interrupted.token}': $named.",
     );
   }
 

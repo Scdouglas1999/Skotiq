@@ -49,6 +49,7 @@ void main() {
     settingsDao = SettingsDao(db);
     documents = await Directory.systemTemp.createTemp('aavso-amass-test');
     service = AavsoExportService(
+      softwareLabel: 'Skotiq',
       scienceDao: scienceDao,
       settingsDao: settingsDao,
       imagesDao: imagesDao,

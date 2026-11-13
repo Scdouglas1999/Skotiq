@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';

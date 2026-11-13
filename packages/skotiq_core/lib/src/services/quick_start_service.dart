@@ -1,3 +1,4 @@
+import '../models/imaging/session_status.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -310,7 +311,7 @@ class QuickStartService {
         final hasProgress =
             session.successfulExposures > 0 || session.totalIntegrationSecs > 0;
 
-        if (session.status == 'completed' &&
+        if (session.sessionStatus == SessionStatus.completed &&
             sessionAge.inDays <= 7 &&
             hasProgress) {
           contexts.add(await _buildQuickStartContext(session));
@@ -367,7 +368,9 @@ db.ImagingSession? continueSessionCandidate(
   }
   // A run in progress supersedes every earlier one, and is not a run to
   // continue.
-  if (latest == null || latest.status == 'active') return null;
+  if (latest == null || latest.sessionStatus == SessionStatus.active) {
+    return null;
+  }
   if (!isContinuableSessionStatus(latest.status)) return null;
   final endedAt = latest.endTime ?? latest.startTime;
   if (now.difference(endedAt) > kContinueSessionMaxAge) return null;

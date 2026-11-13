@@ -135,13 +135,14 @@
 // }
 // ```
 //
-// The app-side tones below ([MetricTone], [SeriesTone]) carry the same names
+// The app-side tones below ([MetricGridTone], [SeriesChartTone]) carry the same names
 // as the kit's, so the mapping is one switch.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../localization/skotiq_localizations.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone, SeriesChartTone;
 
 part 'contracts/plan_models.dart';
 part 'contracts/session_models.dart';
@@ -241,10 +242,6 @@ void nightOpenPanelTab(WidgetRef ref, NightPanelTab tab) {
   ref.read(nightPanelTabProvider.notifier).state = tab;
   ref.read(nightPanelRevealProvider.notifier).state++;
 }
-
-/// Emphasis for a value, a delta or a row. Maps one to one onto the kit's
-/// `MetricGridTone`.
-enum MetricTone { neutral, good, warning, bad }
 
 /// Copy produced away from a BuildContext.
 ///

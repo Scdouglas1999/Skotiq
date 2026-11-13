@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:convert';
 
 import '../database/daos/images_dao.dart';
@@ -306,7 +307,7 @@ class SessionHandoffService {
                 .toList(growable: false)
           : await _imagesDao!.getImagesForTarget(target.id);
       final lightFrames = images
-          .where((i) => i.frameType == 'light' && i.isAccepted)
+          .where((i) => i.isLight && i.isAccepted)
           .toList(growable: false);
 
       // Per-filter integration across ALL prior sessions.

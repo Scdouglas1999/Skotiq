@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import '../database/daos/images_dao.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/targets_dao.dart';
@@ -86,7 +87,7 @@ extension StackExclusionReasonLabel on StackExclusionReason {
 /// the UI) consume.
 ///
 /// Selection rules (applied in order):
-///  1. Keep only `frameType == 'light'` frames.
+///  1. Keep only light frames.
 ///  2. If [StackAndShareConfig.rejectUnaccepted], drop `isAccepted == false`.
 ///  3. Drop frames whose `qualityScore` is non-null and below
 ///     [StackAndShareConfig.minQualityScore]. (A null score is admitted — the
@@ -166,7 +167,7 @@ class StackLightSelector {
   static int? _soleLightTargetId(List<DbCapturedImage> frames) {
     final targets = {
       for (final frame in frames)
-        if (frame.frameType == 'light') frame.targetId,
+        if (frame.isLight) frame.targetId,
     };
     return targets.length == 1 ? targets.single : null;
   }
@@ -194,7 +195,7 @@ class StackLightSelector {
     DbCapturedImage? referenceRow;
 
     for (final frame in frames) {
-      if (frame.frameType != 'light') {
+      if (!frame.isLight) {
         continue;
       }
 
@@ -340,7 +341,7 @@ class StackLightSelector {
     DbCapturedImage frame,
     StackAndShareConfig config,
   ) {
-    if (frame.frameType != 'light') return null;
+    if (!frame.isLight) return null;
     if (config.rejectUnaccepted && !frame.isAccepted) {
       return StackExclusionReason.rejected;
     }

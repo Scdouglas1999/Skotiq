@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -304,7 +305,7 @@ Future<Map<String, List<DbCapturedImage>>> loadDarkroomTargets(
     for (final t in await db.targetsDao.getAllTargets()) t.id: t.name,
   };
   final targets = <String, List<DbCapturedImage>>{};
-  for (final f in images.where((f) => f.frameType.toLowerCase() == 'light')) {
+  for (final f in images.where((f) => f.isLight)) {
     var name = names[f.targetId];
     if (name == null) {
       try {

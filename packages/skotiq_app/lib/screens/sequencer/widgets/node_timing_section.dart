@@ -111,10 +111,7 @@ class NodeTimingSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hairline, eyebrow, readouts (06 §Sequencer). The old section was a
-        // label between two rules, a bordered breakdown box and a tinted
-        // "Duration: … / Contributes: …" panel — three containers and two
-        // sentences for two numbers.
+        // Hairline, eyebrow, readouts (06 §Sequencer).
         Container(height: 1, color: colors.border),
         const SizedBox(height: SkotiqTokens.spaceMd),
         Text(
@@ -177,38 +174,32 @@ class NodeTimingSection extends ConsumerWidget {
 
     if (node is AutofocusNode) {
       final autofocus = node as AutofocusNode;
-
-      final int stepsOut;
-      final int exposuresPerPoint;
-      final double exposureDuration;
-
-      if (autofocus.useSettingsDefaults) {
-        final afSettings = ref.read(autofocusSettingsProvider);
-        stepsOut = afSettings.initialOffsetSteps;
-        exposuresPerPoint = afSettings.exposuresPerPoint;
-        exposureDuration = afSettings.exposureTime;
-      } else {
-        stepsOut = autofocus.stepsOut;
-        exposuresPerPoint = autofocus.exposuresPerPoint;
-        exposureDuration = autofocus.exposureDuration;
-      }
-
-      final dataPoints = stepsOut * 2 + 1;
+      final run = AutofocusRun.ofNode(
+          ref.watch(autofocusSettingsProvider), autofocus);
+      String seconds(double value) => '${QuantityFormat.trimmed(value)}s';
 
       return [
         _DurationDetail(
-          label: 'Data points',
-          value: '$dataPoints',
+          label: 'Focuser positions',
+          value: '${run.points}',
         ),
         _DurationDetail(
-          label: 'Exposures/point',
-          value: '$exposuresPerPoint x ${exposureDuration}s',
+          label: 'At each',
+          value: '${run.exposuresPerPoint} x ${seconds(run.exposureSecs)}'
+              ' after ${seconds(run.focuserSettleSecs)} settle',
         ),
-        if (autofocus.useSettingsDefaults)
-          const _DurationDetail(
-            label: 'Source',
-            value: 'Global settings',
-          ),
+        _DurationDetail(
+          label: 'Download overhead',
+          value: '~${seconds(run.points *
+              run.exposuresPerPoint *
+              overhead.downloadOverheadPerExposureSecs)}',
+        ),
+        _DurationDetail(
+          label: 'Source',
+          value: autofocus.useSettingsDefaults
+              ? 'Autofocus settings'
+              : 'This step',
+        ),
       ];
     }
 

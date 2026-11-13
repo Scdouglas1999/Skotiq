@@ -40,23 +40,6 @@ String darkroomNightLabel(DateTime evening) {
 
 String darkroomWeekday(DateTime day) => _weekdays[day.weekday - 1];
 
-/// The color a filter's subs are drawn in.
-Color darkroomFilterColor(String filter, SkotiqColors colors) {
-  final series = switch (filter.toUpperCase()) {
-    'L' || 'NOFILTER' => null,
-    'R' => SkotiqChartColors.seriesRed,
-    'G' => SkotiqChartColors.seriesGreen,
-    'B' => SkotiqChartColors.seriesBlue,
-    'HA' => SkotiqChartColors.seriesOrange,
-    'OIII' => SkotiqChartColors.seriesDeepBlue,
-    'SII' => SkotiqChartColors.seriesAmber,
-    _ => SkotiqChartColors.seriesViolet,
-  };
-  return series == null
-      ? colors.textPrimary
-      : SkotiqChartColors.forTheme(series, colors);
-}
-
 /// The hours after the evening's midnight the strip spans, shared by every
 /// night: from the earliest first sub to the latest last sub, on even hours,
 /// inside noon to noon and at least six hours wide.
@@ -322,7 +305,7 @@ class _NightPainter extends CustomPainter {
           const Radius.circular(SkotiqTokens.radiusXs),
         ),
         Paint()
-          ..color = darkroomFilterColor(s.filter, colors)
+          ..color = FilterColors.forName(s.filter, colors: colors)
               .withValues(alpha: dim ? _dimOpacity : _keptOpacity),
       );
     }

@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -286,7 +287,7 @@ class EndOfNightCalibrationCoordinator {
     final frames = await _ref
         .read(imagesDaoProvider)
         .getImagesByProducingRun(producingRunId: '$runId');
-    if (!frames.any((f) => f.frameType.toLowerCase() == 'light')) return false;
+    if (!frames.any((f) => f.isLight)) return false;
     return _start(reason, waitForCompletion: true, forceWarmUp: deferredWarmUp);
   }
 

@@ -1,3 +1,4 @@
+import '../../../models/imaging/session_status.dart';
 import '../../../database/daos/images_dao.dart'
     show ProducingNodeThumbnail, StoredWcsDistortion;
 import '../../../database/database.dart'
@@ -24,7 +25,10 @@ abstract interface class ImagingRecords {
     int? sequenceId,
   });
 
-  Future<void> endSession(int id, {String status = 'completed'});
+  Future<void> endSession(
+    int id, {
+    SessionStatus status = SessionStatus.completed,
+  });
 
   /// Closes every session left `active` with nothing driving it and returns
   /// the ids closed. The host's own bookkeeping.

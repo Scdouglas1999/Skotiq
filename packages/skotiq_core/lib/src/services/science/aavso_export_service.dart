@@ -25,16 +25,15 @@ class AavsoExportService {
   final ImagesDao _imagesDao;
   final Future<Directory> Function() _documentsDirectoryProvider;
 
-  /// Written to the #SOFTWARE header line. Callers should pass
-  /// `ref.read(appVersionLabelProvider)` so the reported version tracks
-  /// version.yaml instead of a hard-coded constant.
+  /// Written to the #SOFTWARE header line: the app and its version
+  /// (`appVersionLabelProvider`). Built once by `aavsoExportServiceProvider`.
   final String _softwareLabel;
 
   AavsoExportService({
     required ScienceDao scienceDao,
     required SettingsDao settingsDao,
     required ImagesDao imagesDao,
-    String softwareLabel = 'Skotiq',
+    required String softwareLabel,
     Future<Directory> Function()? documentsDirectoryProvider,
   }) : _scienceDao = scienceDao,
        _settingsDao = settingsDao,

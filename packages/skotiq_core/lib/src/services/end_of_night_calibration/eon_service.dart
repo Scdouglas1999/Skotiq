@@ -1,3 +1,5 @@
+import '../../models/imaging/imaging_models.dart' show FrameType;
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -619,10 +621,10 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     final groups =
         <(String, int, int?, int?, int, int), List<DbCapturedImage>>{};
     for (final frame in frames) {
-      final type = frame.frameType.toLowerCase();
-      if (type != 'dark' && type != 'bias') continue;
+      final type = frame.recordedFrameType;
+      if (type != FrameType.dark && type != FrameType.bias) continue;
       final key = (
-        type,
+        type!.record,
         (frame.exposureDuration * 1000).round(),
         frame.gain,
         frame.offset,

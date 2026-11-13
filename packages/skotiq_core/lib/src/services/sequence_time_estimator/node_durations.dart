@@ -265,16 +265,10 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       // the budget so the Run Dashboard's "estimated total" shrinks to
       // match expected behaviour.
       SmartExposureNode() => _smartExposureDuration(node),
-      AutofocusNode() => Duration(
-        // The Rust executor's AutofocusConfig has no exposures-per-point
-        // field — the serializer never sends `node.exposuresPerPoint`, and
-        // the runtime captures exactly one exposure per focus point. Estimate
-        // against that authoritative per-point count of 1 so the timeline
-        // matches what actually runs, rather than referencing an unsent
-        // field that would over-estimate whenever the user set it > 1.
-        milliseconds: (((node.stepsOut * 2 + 1) * node.exposureDuration) * 1000)
-            .round(),
-      ),
+      AutofocusNode() => AutofocusRun.ofNode(
+        autofocus,
+        node,
+      ).duration(downloadSecs: overhead.downloadOverheadPerExposureSecs),
       DitherNode() => Duration(
         milliseconds:
             (((node.settleTime > 0 ? node.settleTime : overhead.ditherSecs)) *

@@ -1,7 +1,7 @@
+import '../../../models/imaging/session_status.dart';
 import 'dart:typed_data';
 
 import 'package:skotiq_remote_protocol/wire_models.dart';
-
 
 /// Sessions, captured-image rows and targets in a linked imaging host's
 /// database, as wire rows.
@@ -13,7 +13,10 @@ abstract interface class HostImagingRecords {
 
   Future<int> createSession(Map<String, dynamic> session);
 
-  Future<void> endSession(int id, {String status = 'completed'});
+  Future<void> endSession(
+    int id, {
+    SessionStatus status = SessionStatus.completed,
+  });
 
   Future<List<Map<String, dynamic>>> getAllSessions();
 
