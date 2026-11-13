@@ -8,8 +8,6 @@ import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show LinkVersion;
 
 import 'handler_test_helpers.dart';
 
