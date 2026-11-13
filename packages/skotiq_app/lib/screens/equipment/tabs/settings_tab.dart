@@ -94,11 +94,9 @@ final _tempCoefficient = _Field<double>(
   label: 'Temperature coefficient',
   read: (s) => s.tempCoefficient,
   write: (ref, v) => _settings(ref).setTempCoefficient(v),
-  codec: NumberCodec.of(
-    AppSettingDefs.tempCoefficient,
-    decimals: 1,
-    unit: 'steps/°C',
-  ),
+  // The unit is in the row's subtitle: inside the narrow field it hid the
+  // number.
+  codec: NumberCodec.of(AppSettingDefs.tempCoefficient, decimals: 1),
 );
 
 final _tempCompensationMinSteps = _Field<int>(
@@ -250,6 +248,7 @@ class _FocuserSettingsCard extends ConsumerWidget {
             const SizedBox(height: 12),
             _SettingRow(
               label: _tempCoefficient.label,
+              subtitle: 'Focuser steps per °C',
               child: SettingsField(field: _tempCoefficient, state: settings),
             ),
             const SizedBox(height: 12),
