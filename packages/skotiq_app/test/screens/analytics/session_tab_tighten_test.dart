@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
 import 'package:skotiq_app/screens/analytics/widgets/session_chart.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
@@ -51,8 +50,7 @@ Widget _app(List<DbCapturedImage> frames) => ProviderScope(
         allDbImagesProvider
             .overrideWith((ref) => Stream.value(const <DbCapturedImage>[])),
         allSessionsProvider.overrideWith((ref) => Stream.value([_night])),
-        latestScienceSessionProvider.overrideWith((ref) async => 1),
-        latestScienceProductSessionProvider.overrideWith((ref) async => 1),
+        scienceDefaultSessionProvider.overrideWith((ref) async => 1),
         dbSessionImagesProvider(1).overrideWith((ref) => Stream.value(frames)),
       ],
       child: MaterialApp(

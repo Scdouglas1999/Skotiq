@@ -31,6 +31,7 @@ import '../models/sequencer/host_scheduled_start.dart';
 import '../models/site/location_settings.dart';
 import '../services/adaptive_swap_service.dart';
 import '../services/disk_space_service.dart';
+import '../services/science/period_analysis_service.dart' show PeriodFinding;
 import '../services/end_of_night_calibration/eon_service.dart';
 import '../services/home_assistant/home_assistant_discovery_config.dart';
 import '../services/home_assistant/home_assistant_host_settings.dart';

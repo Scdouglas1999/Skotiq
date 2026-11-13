@@ -637,12 +637,10 @@ class SessionHandlers implements RouteSource {
     required String contentType,
   }) async {
     final sid = _parsePathId(sessionId, 'sessionId');
-    final database = container.read(databaseProvider);
-    final service = SessionExportService(
-      sessionsDao: database.sessionsDao,
-      imagesDao: database.imagesDao,
+    final filePath = await exportAction(
+      container.read(sessionExportServiceProvider),
+      sid,
     );
-    final filePath = await exportAction(service, sid);
     final file = File(filePath);
 
     if (!await file.exists()) {

@@ -65,69 +65,6 @@ class _ScienceSectionKeys {
   final GlobalKey anomalies = GlobalKey();
 }
 
-/// The session this tab falls back to when nothing is live and the user has
-/// not chosen one: the most recent session that actually contains light frames.
-///
-/// Defaulting to `allSessions.first` (simply the newest row) meant a session
-/// that only recorded darks or aborted before its first light left the whole
-/// tab reading "Science idle — waiting for the first captured frame" while
-/// nights of photometry sat one row below it.
-final latestScienceSessionProvider = FutureProvider<int?>(
-  (ref) => ref.watch(_latestScienceSessionProvider),
-);
-
-final _latestScienceSessionProvider = hostRoleProvider<Future<int?>>(
-  here: (ref) async {
-    // Watching the session stream reruns the query whenever a session row is
-    // written, including the status and end time a run sets when it
-    // finishes, which is the moment the answer changes.
-    await ref.watch(allSessionsProvider.future);
-    return ref.read(imagesDaoProvider).getLatestSessionIdWithLightFrames();
-  },
-  // The same question of the host's frames, so both machines open on the
-  // same session.
-  linked: (ref, host) async =>
-      latestSessionIdWithLightFrames(await ref.watch(allDbImagesProvider.future)),
-);
-
-/// The session of the newest light frame that belongs to one, the question
-/// `ImagesDao.getLatestSessionIdWithLightFrames` answers on the host.
-int? latestSessionIdWithLightFrames(Iterable<DbCapturedImage> rows) {
-  DbCapturedImage? newest;
-  for (final row in rows) {
-    if (row.sessionId == null || !row.isLight) {
-      continue;
-    }
-    if (newest == null || row.capturedAt.isAfter(newest.capturedAt)) {
-      newest = row;
-    }
-  }
-  return newest?.sessionId;
-}
-
-/// The most recent session that carries an actual science PRODUCT — a
-/// photometry measurement or a plate-solved frame. Not the same question as
-/// the newest session holding light frames: two test frames shot after a
-/// photometry night are lights, but carry no product.
-///
-/// Ordering comes from [allSessionsProvider] (newest first) rather than from
-/// the product timestamps, so "most recent" means the same thing here as in
-/// the session picker beside it.
-final latestScienceProductSessionProvider = FutureProvider<int?>((ref) async {
-  if (ref.watch(isRemoteModeProvider)) return null;
-  final sessions = await ref.watch(allSessionsProvider.future);
-  if (sessions.isEmpty) return null;
-  final withProducts = <int>{
-    ...await ref.read(scienceDaoProvider).getSessionIdsWithPhotometry(),
-    ...await ref.read(imagesDaoProvider).getSessionIdsWithSolvedFrames(),
-  };
-  if (withProducts.isEmpty) return null;
-  for (final session in sessions) {
-    if (withProducts.contains(session.id)) return session.id;
-  }
-  return null;
-});
-
 class ScienceAnalyticsTab extends ConsumerStatefulWidget {
   const ScienceAnalyticsTab({super.key});
 
@@ -168,9 +105,9 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       return _buildSessionIndexState(colors, sessionsAsync);
     }
     final allSessions = sessionsAsync.valueOrNull ?? const <ImagingSession>[];
-    // A manual pick wins, then the live session, then the newest session that
-    // carries a science product, then the newest holding light frames, and only
-    // then the newest session at all.
+    // A manual pick wins, then the live session, then the session the host's
+    // Science tab opens on (scienceDefaultSessionProvider), and only then the
+    // newest session at all.
     final pickedSessionId =
         allSessions.any((session) => session.id == _selectedSessionId)
             ? _selectedSessionId
@@ -181,16 +118,13 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
     final quickCapturesPinned =
         _selectedSessionId == kQuickCaptureSessionSelection;
     // Hoisted out of the ?? chain so the watches are unconditional.
-    final latestProductSessionId =
-        ref.watch(latestScienceProductSessionProvider).valueOrNull;
-    final latestLightSessionId =
-        ref.watch(latestScienceSessionProvider).valueOrNull;
+    final defaultSessionId =
+        ref.watch(scienceDefaultSessionProvider).valueOrNull;
     final activeSessionId = quickCapturesPinned
         ? null
         : pickedSessionId ??
             liveSessionId ??
-            latestProductSessionId ??
-            latestLightSessionId ??
+            defaultSessionId ??
             allSessions.firstOrNull?.id;
 
     final scienceErrors = <Object>[];

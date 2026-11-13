@@ -39,7 +39,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
     // Watched unconditionally: a watch inside the ?? chain would come and go
     // with the pick and silently drop the dependency.
     final autoSessionId = sessionState.dbSessionId ??
-        ref.watch(latestScienceSessionProvider).valueOrNull;
+        ref.watch(scienceDefaultSessionProvider).valueOrNull;
     final reviewSessionId =
         quickCapturesPinned ? null : (pickedSessionId ?? autoSessionId);
     final reviewSession = allSessions

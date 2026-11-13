@@ -45,7 +45,7 @@ class LombScargleResult {
   });
 
   /// How many full cycles of [bestPeriod] the observations actually cover.
-  double get observedCycles => bestPeriod > 0 ? timeBaseline / bestPeriod : 0.0;
+  double get observedCycles => cyclesCovered(timeBaseline, bestPeriod);
 
   /// Whether the peak is a real period measurement rather than an artefact of
   /// running out of baseline.
@@ -56,8 +56,15 @@ class LombScargleResult {
   /// back. Two cycles is the usual minimum for a period to be considered
   /// measured; below that the honest statement is "the period is at least
   /// this long", not "the period is this long".
-  bool get isPeriodConstrained => observedCycles >= 2.0;
+  bool get isPeriodConstrained => isMeasuredPeriod(observedCycles);
 }
+
+/// Full cycles of [periodDays] a [baselineDays] run covers.
+double cyclesCovered(double baselineDays, double periodDays) =>
+    periodDays > 0 ? baselineDays / periodDays : 0.0;
+
+/// Whether [cycles] observed cycles make a period a measurement.
+bool isMeasuredPeriod(double cycles) => cycles >= 2.0;
 
 /// Results from a Box Least Squares (BLS) transit search.
 class BlsResult {
@@ -126,6 +133,93 @@ class PeriodAnalysisResult {
   final BlsResult bls;
 
   const PeriodAnalysisResult({required this.lombScargle, required this.bls});
+
+  /// What the search found, without its periodograms.
+  PeriodFinding get finding => PeriodFinding(
+    lombScarglePeriodDays: lombScargle.bestPeriod,
+    peakPower: lombScargle.peakPower,
+    falseAlarmProbability: lombScargle.falseAlarmProbability,
+    baselineDays: lombScargle.timeBaseline,
+    searchedMinPeriodDays: lombScargle.searchedMinPeriod,
+    searchedMaxPeriodDays: lombScargle.searchedMaxPeriod,
+    blsPeriodDays: bls.bestPeriod,
+    transitDepthMag: bls.transitDepth,
+    transitDurationDays: bls.transitDuration,
+    signalDetectionEfficiency: bls.signalDetectionEfficiency,
+  );
+}
+
+/// What a period search found: the numbers a science report prints. The
+/// search runs on the screen that shows it and is never stored, so a linked
+/// client sends this to its host with the report request.
+class PeriodFinding {
+  const PeriodFinding({
+    required this.lombScarglePeriodDays,
+    required this.peakPower,
+    required this.falseAlarmProbability,
+    required this.baselineDays,
+    required this.searchedMinPeriodDays,
+    required this.searchedMaxPeriodDays,
+    required this.blsPeriodDays,
+    required this.transitDepthMag,
+    required this.transitDurationDays,
+    required this.signalDetectionEfficiency,
+  });
+
+  factory PeriodFinding.fromJson(Map<String, dynamic> json) {
+    double read(String key) {
+      final value = json[key];
+      if (value is! num || !value.isFinite) {
+        throw FormatException('period.$key must be a finite number');
+      }
+      return value.toDouble();
+    }
+
+    return PeriodFinding(
+      lombScarglePeriodDays: read('lombScarglePeriodDays'),
+      peakPower: read('peakPower'),
+      falseAlarmProbability: read('falseAlarmProbability'),
+      baselineDays: read('baselineDays'),
+      searchedMinPeriodDays: read('searchedMinPeriodDays'),
+      searchedMaxPeriodDays: read('searchedMaxPeriodDays'),
+      blsPeriodDays: read('blsPeriodDays'),
+      transitDepthMag: read('transitDepthMag'),
+      transitDurationDays: read('transitDurationDays'),
+      signalDetectionEfficiency: read('signalDetectionEfficiency'),
+    );
+  }
+
+  final double lombScarglePeriodDays;
+  final double peakPower;
+  final double falseAlarmProbability;
+  final double baselineDays;
+  final double searchedMinPeriodDays;
+  final double searchedMaxPeriodDays;
+  final double blsPeriodDays;
+  final double transitDepthMag;
+  final double transitDurationDays;
+  final double signalDetectionEfficiency;
+
+  /// Cycles of the Lomb-Scargle period the observations span.
+  double get observedCycles =>
+      cyclesCovered(baselineDays, lombScarglePeriodDays);
+
+  /// Whether the period is a measurement rather than a lower bound (see
+  /// [LombScargleResult.isPeriodConstrained]).
+  bool get isPeriodConstrained => isMeasuredPeriod(observedCycles);
+
+  Map<String, dynamic> toJson() => {
+    'lombScarglePeriodDays': lombScarglePeriodDays,
+    'peakPower': peakPower,
+    'falseAlarmProbability': falseAlarmProbability,
+    'baselineDays': baselineDays,
+    'searchedMinPeriodDays': searchedMinPeriodDays,
+    'searchedMaxPeriodDays': searchedMaxPeriodDays,
+    'blsPeriodDays': blsPeriodDays,
+    'transitDepthMag': transitDepthMag,
+    'transitDurationDays': transitDurationDays,
+    'signalDetectionEfficiency': signalDetectionEfficiency,
+  };
 }
 
 /// Service that implements period detection algorithms for variable star

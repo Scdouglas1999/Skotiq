@@ -57,20 +57,19 @@ class SessionExportService {
   final DateTime Function() _now;
 
   /// [nowProvider] supplies the timestamp stamped onto export filenames and
-  /// inside diagnostic dumps. Defaults to [DateTime.now] for backwards
-  /// compatibility; the desktop wiring overrides it with the user's
-  /// chosen [Clock] so exports labelled in the operator's timezone match
-  /// the rest of the session records
+  /// inside diagnostic dumps: the user's chosen clock, so exports labelled in
+  /// the operator's timezone match the rest of the session records. Built
+  /// once by `sessionExportServiceProvider`.
   SessionExportService({
     required SessionsDao sessionsDao,
     required ImagesDao imagesDao,
+    required DateTime Function() nowProvider,
     Future<Directory> Function()? documentsDirectoryProvider,
-    DateTime Function()? nowProvider,
   }) : _sessionsDao = sessionsDao,
        _imagesDao = imagesDao,
        _documentsDirectoryProvider =
            documentsDirectoryProvider ?? resolveSkotiqDocumentsDirectory,
-       _now = nowProvider ?? DateTime.now;
+       _now = nowProvider;
 
   /// Export session images to CSV format
   ///

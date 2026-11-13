@@ -55,7 +55,7 @@ Widget _tab(List<PhotometryMeasurementRow> photometry) {
       allSessionsProvider.overrideWith(
         (ref) => Stream.value([_session(sessionId)]),
       ),
-      latestScienceSessionProvider.overrideWith((ref) async => sessionId),
+      scienceDefaultSessionProvider.overrideWith((ref) async => sessionId),
       sessionPhotometryProvider.overrideWith((ref, id) => Stream.value(
             id == sessionId ? photometry : const <PhotometryMeasurementRow>[],
           )),

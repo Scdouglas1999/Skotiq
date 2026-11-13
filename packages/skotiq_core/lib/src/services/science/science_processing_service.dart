@@ -27,6 +27,7 @@ import 'aperture_photometry.dart';
 import 'fits_header_writer.dart';
 import 'photometric_catalog_service.dart';
 import 'moving_object_linker.dart';
+import 'narrowband_frames.dart';
 import 'mpc_export_service.dart' show mpcBandForFilter;
 import 'science_backend.dart';
 import 'science_status.dart';
@@ -524,6 +525,28 @@ class ScienceProcessingService {
       ),
     );
     return updates;
+  }
+
+  /// Makes [sessionId]'s narrowband line ratios from its newest H-alpha,
+  /// OIII and SII light frames and returns those frames; null, with nothing
+  /// made, when the session lacks one of them.
+  Future<NarrowbandFrames?> generateSessionLineRatios(int sessionId) async {
+    final frames = latestNarrowbandFrames(
+      await _imagesRepo.getImagesForSession(sessionId),
+    );
+    if (frames == null) return null;
+    await generateLineRatios(
+      sessionId: sessionId,
+      set: NarrowbandSet(
+        hAlphaPath: frames.hAlpha.filePath,
+        oiiiPath: frames.oiii.filePath,
+        siiPath: frames.sii.filePath,
+      ),
+      hAlphaImageId: frames.hAlpha.id,
+      oiiiImageId: frames.oiii.id,
+      siiImageId: frames.sii.id,
+    );
+    return frames;
   }
 
   Future<void> generateLineRatios({

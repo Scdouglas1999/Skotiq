@@ -10,8 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart'
-    show latestScienceSessionProvider;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -61,7 +59,7 @@ Widget _app(AnalyticsTab tab) {
       allSessionsProvider.overrideWith((ref) => Stream.value([_unfinished])),
       allDbImagesProvider.overrideWith((ref) => Stream.value(_frames)),
       dbSessionImagesProvider.overrideWith((ref, id) => Stream.value(_frames)),
-      latestScienceSessionProvider.overrideWith((ref) async => 3),
+      scienceDefaultSessionProvider.overrideWith((ref) async => 3),
       standaloneImagesProvider.overrideWith(
         (ref) => Stream.value(const <DbCapturedImage>[]),
       ),

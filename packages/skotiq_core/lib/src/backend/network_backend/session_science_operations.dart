@@ -1146,6 +1146,32 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     );
   }
 
+  Future<int?> scienceDefaultSession() async {
+    final response = await _get(ScienceApi.defaultSession);
+    final sessionId = response['sessionId'];
+    if (sessionId != null && sessionId is! int) {
+      throw const FormatException(
+        'GET /api/science/default-session: sessionId is not a number',
+      );
+    }
+    return sessionId as int?;
+  }
+
+  Future<String> scienceReport(int sessionId, {PeriodFinding? period}) async {
+    final response = await _post(
+      ScienceApi.scienceReport,
+      path: {'sessionId': sessionId},
+      body: {if (period != null) 'period': period.toJson()},
+    );
+    final markdown = response['markdown'];
+    if (markdown is! String) {
+      throw FormatException(
+        'POST /api/science/session/$sessionId/report has no markdown',
+      );
+    }
+    return markdown;
+  }
+
   Future<RemoteDirectoryListing> browseRemoteDirectories({String? path}) async {
     final response = await _get(
       FileSystemApi.browseDirectories,
