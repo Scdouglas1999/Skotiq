@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/file_path_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
@@ -57,11 +58,11 @@ void main() {
           (ref) => _SwappableBackendNotifier(ref, firstBackend),
         ),
         appSettingsProvider.overrideWith(_LoadedAppSettings.new),
-        filePathSettingsPickerProvider.overrideWithValue(
-          (context, {required isRemote, required currentPath}) {
+        hostFoldersProvider.overrideWithValue(FakeHostFolders(
+          onPick: ({required host, required initialPath}) {
             return pickers[pickerCalls++].future;
           },
-        ),
+        )),
         filePathSettingsWriterProvider.overrideWithValue(
           (settingKey, path) async => writes.add((settingKey, path)),
         ),

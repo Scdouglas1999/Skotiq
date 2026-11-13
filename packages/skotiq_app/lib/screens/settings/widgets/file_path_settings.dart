@@ -1,52 +1,27 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../services/host_folders.dart';
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/remote_directory_picker_dialog.dart';
 import '../../../tours/tour_target.dart';
 import 'settings_widgets.dart';
-
-typedef FilePathSettingsPicker = Future<String?> Function(
-  BuildContext context, {
-  required bool isRemote,
-  required String currentPath,
-});
 
 typedef FilePathSettingsWriter = Future<void> Function(
   String settingKey,
   String path,
 );
-
-Future<String?> _pickFilePathSetting(
-  BuildContext context, {
-  required bool isRemote,
-  required String currentPath,
-}) {
-  if (isRemote) {
-    return RemoteDirectoryPickerDialog.show(
-      context,
-      title: 'Select host folder',
-      initialPath: currentPath,
-    );
-  }
-  return getDirectoryPath(confirmButtonText: 'Select');
-}
-
-final filePathSettingsPickerProvider =
-    Provider<FilePathSettingsPicker>((ref) => _pickFilePathSetting);
 
 /// Where [BackupService] actually writes, asked of the service itself so the
 /// row cannot drift from the directory the backups land in.
@@ -87,40 +62,6 @@ final applicationLogPathProvider = FutureProvider<String>((ref) async {
   return p.join(dataRoot.path, 'logs');
 });
 
-/// Make a folder reachable: open it in the desktop file manager, or copy the
-/// path where there is no file manager to open it in.
-typedef BackupFolderRevealer = Future<void> Function(
-  BuildContext context,
-  String path,
-);
-
-Future<void> _revealFolder(BuildContext context, String path) async {
-  // File managers cannot reveal a directory until the first backup creates it.
-  await Directory(path).create(recursive: true);
-  if (Platform.isAndroid || Platform.isIOS) {
-    await Clipboard.setData(ClipboardData(text: path));
-    if (context.mounted) {
-      context.showSuccessSnackBar('Path copied: $path');
-    }
-    return;
-  }
-  if (Platform.isWindows) {
-    await Process.start('explorer', [path], runInShell: true);
-  } else if (Platform.isMacOS) {
-    await Process.start('open', [path], runInShell: true);
-  } else {
-    await Process.start('xdg-open', [path], runInShell: true);
-  }
-}
-
-final backupFolderRevealerProvider =
-    Provider<BackupFolderRevealer>((ref) => _revealFolder);
-
-/// Same action for the application data folder. Kept as its own provider so a
-/// test can drive one row without stubbing the other.
-final appDataFolderRevealerProvider =
-    Provider<BackupFolderRevealer>((ref) => _revealFolder);
-
 /// The folder the operator explicitly chose, or null while backups still follow
 /// the database. Only a chosen folder can be handed back, so this is what
 /// decides whether the row offers "Use default".
@@ -135,24 +76,6 @@ final backupDirectoryWriterProvider = Provider<BackupDirectoryWriter>((ref) {
   return (directoryPath) =>
       ref.read(backupServiceProvider).setBackupDirectory(directoryPath);
 });
-
-/// Answers whether this machine can actually store frames at [path]: null when
-/// the folder is there (or was created), otherwise the reason it is not.
-///
-/// Injected so the typed-path flow is drivable without touching the disk.
-typedef StorageDirectoryProbe = Future<String?> Function(String path);
-
-Future<String?> _probeStorageDirectory(String path) async {
-  try {
-    await Directory(path).create(recursive: true);
-    return null;
-  } catch (error) {
-    return userFacingError(error);
-  }
-}
-
-final storageDirectoryProbeProvider =
-    Provider<StorageDirectoryProbe>((ref) => _probeStorageDirectory);
 
 final filePathSettingsWriterProvider = Provider<FilePathSettingsWriter>((ref) {
   return (settingKey, path) async {
@@ -192,10 +115,11 @@ class FilePathSettings extends ConsumerWidget {
       return;
     }
     try {
-      final result = await ref.read(filePathSettingsPickerProvider)(
+      final result = await ref.read(hostFoldersProvider).pickUsable(
         context,
-        isRemote: isRemoteMode,
-        currentPath: currentPath,
+        host: ref.read(backendProvider).remoteHost?.files,
+        title: isRemoteMode ? 'Select host folder' : 'Select folder',
+        initialPath: currentPath,
       );
 
       if (!context.mounted || result == null) return;
@@ -257,34 +181,45 @@ class FilePathSettings extends ConsumerWidget {
       );
       return;
     }
-    if (!p.isAbsolute(path)) {
-      context.showWarningSnackBar(
-        'Enter a full path, such as ${Platform.isWindows ? r'D:\Astro\Lights' : '/home/you/Astro'}.',
-      );
-      return;
-    }
-
-    if (!isRemoteMode) {
-      final problem = await ref.read(storageDirectoryProbeProvider)(path);
-      if (!context.mounted || host.isStale) {
-        return;
+    final folders = ref.read(hostFoldersProvider);
+    final hostFiles = ref.read(backendProvider).remoteHost?.files;
+    var verdict = await folders.check(path, host: hostFiles);
+    if (!context.mounted || host.isStale) return;
+    if (verdict is FolderMissing && hostFiles == null) {
+      try {
+        await folders.create(path);
+        verdict = await folders.check(path, host: null);
+      } on FileSystemException catch (error) {
+        verdict = FolderRefused(userFacingError(error));
       }
-      if (problem != null) {
+      if (!context.mounted || host.isStale) return;
+    }
+    switch (verdict) {
+      case FolderUsable():
+        break;
+      case FolderRefused(:final reason)
+          when hostFiles == null && !p.isAbsolute(path):
+        context.showWarningSnackBar(reason);
+        return;
+      case FolderMissing() ||
+            FolderRefused() ||
+            FolderUnchecked():
+        final reason = switch (verdict) {
+          FolderRefused(:final reason) || FolderUnchecked(:final reason) =>
+            reason,
+          _ => 'There is no folder there.',
+        };
+        final where = hostFiles == null ? 'this machine' : 'the imaging host';
         final useAnyway = await ConfirmDialog.show(
           context: context,
-          title: 'Use a folder this machine cannot open?',
-          message: 'Skotiq could not create or reach "$path":\n$problem\n\n'
+          title: 'Use a folder $where cannot open?',
+          message: 'Skotiq could not use "$path" on $where:\n$reason\n\n'
               'Store it anyway if the drive or share is simply not mounted '
               'yet. Captures will fail until it is.',
           confirmLabel: 'Store anyway',
           isDestructive: true,
         );
-        if (!useAnyway ||
-            !context.mounted ||
-            host.isStale) {
-          return;
-        }
-      }
+        if (!useAnyway || !context.mounted || host.isStale) return;
     }
 
     await ref.read(filePathSettingsWriterProvider)(settingKey, path);
@@ -293,8 +228,7 @@ class FilePathSettings extends ConsumerWidget {
     }
     context.showSuccessSnackBar(
       isRemoteMode
-          ? 'Image output set to $path on the imaging host — Skotiq '
-              'cannot check that folder from here.'
+          ? 'Image output set to $path on the imaging host.'
           : switch (settingKey) {
               'sequences' => 'Sequences directory set to $path. New '
                   'exports/imports will start here.',
@@ -448,7 +382,7 @@ class _AppDataFolderRow extends ConsumerWidget {
               size: ButtonSize.small,
               onPressed: () async {
                 try {
-                  await ref.read(appDataFolderRevealerProvider)(
+                  await ref.read(hostFoldersProvider).reveal(
                     context,
                     resolved,
                   );
@@ -469,7 +403,7 @@ class _AppDataFolderRow extends ConsumerWidget {
               size: ButtonSize.small,
               onPressed: () async {
                 try {
-                  await ref.read(appDataFolderRevealerProvider)(
+                  await ref.read(hostFoldersProvider).reveal(
                     context,
                     resolvedLogs,
                   );
@@ -561,13 +495,11 @@ class _BackupFolderRow extends ConsumerWidget {
             variant: ButtonVariant.secondary,
             size: ButtonSize.small,
             onPressed: () async {
-              final picked = await ref.read(filePathSettingsPickerProvider)(
+              final picked = await ref.read(hostFoldersProvider).pickUsable(
                 context,
-                isRemote: false,
-                currentPath: switch (resolved) {
-                  null => '',
-                  final path => path,
-                },
+                host: null,
+                title: 'Select backup folder',
+                initialPath: resolved,
               );
               if (picked == null || !context.mounted) return;
               await _move(context, ref, picked);
@@ -591,7 +523,7 @@ class _BackupFolderRow extends ConsumerWidget {
               size: ButtonSize.small,
               onPressed: () async {
                 try {
-                  await ref.read(backupFolderRevealerProvider)(
+                  await ref.read(hostFoldersProvider).reveal(
                     context,
                     resolved,
                   );

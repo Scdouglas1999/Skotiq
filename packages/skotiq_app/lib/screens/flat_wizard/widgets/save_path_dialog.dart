@@ -1,4 +1,3 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -8,44 +7,8 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../services/host_folders.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/remote_directory_picker_dialog.dart';
-
-Future<String?> chooseFlatWizardSavePath({
-  required bool isRemote,
-  required Future<String?> Function() pickLocal,
-  required Future<String?> Function() pickRemote,
-}) =>
-    isRemote ? pickRemote() : pickLocal();
-
-typedef FlatWizardSavePathPicker = Future<String?> Function({
-  required BuildContext context,
-  required bool isRemote,
-  required String? currentPath,
-});
-
-final flatWizardSavePathPickerProvider = Provider<FlatWizardSavePathPicker>((
-  ref,
-) {
-  return ({
-    required BuildContext context,
-    required bool isRemote,
-    required String? currentPath,
-  }) {
-    return chooseFlatWizardSavePath(
-      isRemote: isRemote,
-      pickLocal: () => getDirectoryPath(
-        confirmButtonText: 'Select',
-        initialDirectory: currentPath,
-      ),
-      pickRemote: () => RemoteDirectoryPickerDialog.show(
-        context,
-        title: 'Select host flat-frame folder',
-        initialPath: currentPath,
-      ),
-    );
-  };
-});
 
 class SavePathDialog extends ConsumerStatefulWidget {
   final String? currentPath;
@@ -115,10 +78,14 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
         _pathController.text.isNotEmpty ? _pathController.text : null;
     setState(() => _isBrowsing = true);
     try {
-      final result = await ref.read(flatWizardSavePathPickerProvider)(
-        context: context,
-        isRemote: authority.remoteHost != null,
-        currentPath: current,
+      final host = authority.remoteHost?.files;
+      final result = await ref.read(hostFoldersProvider).pickUsable(
+        context,
+        host: host,
+        title: host == null
+            ? 'Select flat-frame folder'
+            : 'Select host flat-frame folder',
+        initialPath: current,
       );
       if (!_isCurrentBrowse(generation, authority)) return;
       if (result != null) _pathController.text = result;

@@ -169,6 +169,7 @@ class _ScienceJumpNav extends ConsumerWidget {
     try {
       final backend = ref.read(backendProvider);
       final exporter = ref.read(scienceReportExporterProvider);
+      final folders = ref.read(hostFoldersProvider);
       final file = await exportScienceShortcutReport(
         backend: backend,
         sessionId: sessionId,
@@ -192,8 +193,9 @@ class _ScienceJumpNav extends ConsumerWidget {
             action: SnackBarAction(
               label: 'Open folder',
               onPressed: () async {
-                final dir = file.parent.path;
-                await _openInShell(dir);
+                if (context.mounted) {
+                  await folders.reveal(context, file.parent.path);
+                }
               },
             ),
             behavior: SnackBarBehavior.floating,
@@ -210,16 +212,6 @@ class _ScienceJumpNav extends ConsumerWidget {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    }
-  }
-
-  Future<void> _openInShell(String path) async {
-    if (Platform.isWindows) {
-      await Process.start('explorer', [path], runInShell: true);
-    } else if (Platform.isMacOS) {
-      await Process.start('open', [path], runInShell: true);
-    } else if (Platform.isLinux) {
-      await Process.start('xdg-open', [path], runInShell: true);
     }
   }
 }
