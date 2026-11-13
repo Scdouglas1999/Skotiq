@@ -201,6 +201,7 @@ export 'src/providers/centering_service_providers.dart';
 export 'src/providers/color_calibration_service_provider.dart';
 export 'src/providers/imaging_service_providers.dart';
 export 'src/providers/darkroom_build_jobs_provider.dart';
+export 'src/providers/output_locations_provider.dart';
 export 'src/providers/darkroom_build_service_provider.dart';
 export 'src/providers/darkroom_state_store_provider.dart';
 export 'src/providers/device_commands_provider.dart';

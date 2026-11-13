@@ -26,12 +26,9 @@ Future<File> exportScienceShortcutReport({
   if (bytes.isEmpty) {
     throw StateError('The imaging host returned an empty science report.');
   }
-  final documents =
-      await (documentsDirectoryProvider ?? resolveSkotiqDocumentsDirectory)();
-  final exportDirectory = Directory(
-    path.join(documents.path, 'Skotiq', 'exports'),
+  final exportDirectory = await resolveSkotiqExportsDirectory(
+    documents: documentsDirectoryProvider ?? resolveSkotiqDocumentsDirectory,
   );
-  await exportDirectory.create(recursive: true);
   final timestamp = (generatedAt ?? DateTime.now())
       .toIso8601String()
       .replaceAll(':', '-')

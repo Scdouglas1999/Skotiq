@@ -42,19 +42,12 @@ enum ScienceExportDataset {
   transientReport,
 }
 
-/// Where the science-export save dialog OPENS — not where files are written
-/// behind the operator's back.
-///
-/// The suggestion follows the active database directory, while the operator
-/// still chooses the destination. A provider keeps path resolution testable.
-final scienceExportDirectoryProvider = FutureProvider<Directory>((ref) async {
-  final databaseFile = await resolveDefaultDatabaseFile();
-  final exportDir = Directory(path.join(databaseFile.parent.path, 'exports'));
-  if (!await exportDir.exists()) {
-    await exportDir.create(recursive: true);
-  }
-  return exportDir;
-});
+/// Where the science-export save dialog opens: the exports folder every other
+/// export uses ([resolveSkotiqExportsDirectory]). The operator still chooses
+/// the destination.
+final scienceExportDirectoryProvider = FutureProvider<Directory>(
+  (ref) => resolveSkotiqExportsDirectory(),
+);
 
 /// Chooses the destination for a science export. Returns null when the operator
 /// cancels the dialog.

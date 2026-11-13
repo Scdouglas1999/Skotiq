@@ -149,7 +149,7 @@ class DawnAutopilotService {
   final DawnPhotometryResolver _photometry;
   final DeliveryService _delivery;
   final DawnMorningNotifier _notifier;
-  final Future<String> Function() _outputDirectory;
+  final Future<String> Function() _darkroomDirectoryPath;
   final LoggingService? _logger;
 
   /// Where the drafts stage of a session's pass is reported, for the
@@ -219,7 +219,7 @@ class DawnAutopilotService {
     required DawnPhotometryResolver photometry,
     required DeliveryService delivery,
     required DawnMorningNotifier notifier,
-    required Future<String> Function() outputDirectory,
+    required Future<String> Function() darkroomDirectory,
     LoggingService? logger,
     PassReporter? passReporter,
     DateTime Function()? clock,
@@ -233,7 +233,7 @@ class DawnAutopilotService {
        _photometry = photometry,
        _delivery = delivery,
        _notifier = notifier,
-       _outputDirectory = outputDirectory,
+       _darkroomDirectoryPath = darkroomDirectory,
        _logger = logger,
        _passReporter = passReporter,
        _clock = clock ?? DateTime.now;
@@ -2009,8 +2009,7 @@ class DawnAutopilotService {
 
   /// The directory the job's drafts and report land in, created if absent.
   Future<String> _darkroomDirectory() async {
-    final base = await _outputDirectory();
-    final directory = p.join(base, 'darkroom');
+    final directory = await _darkroomDirectoryPath();
     await Directory(directory).create(recursive: true);
     return directory;
   }

@@ -355,11 +355,7 @@ class TransientReportService {
     required String content,
     required String fileName,
   }) async {
-    final docsDir = await resolveSkotiqDocumentsDirectory();
-    final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
-    if (!exportDir.existsSync()) {
-      exportDir.createSync(recursive: true);
-    }
+    final exportDir = await resolveSkotiqExportsDirectory();
     final filePath = path.join(exportDir.path, fileName);
     await File(filePath).writeAsString(content);
     return filePath;

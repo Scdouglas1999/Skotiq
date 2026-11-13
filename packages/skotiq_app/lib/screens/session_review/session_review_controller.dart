@@ -9,7 +9,6 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_core/settings.dart';
 import 'package:path/path.dart' as p;
 
 part 'session_review_controller_parts/_models.dart';
@@ -472,7 +471,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
     state = state.copyWith(integrating: true, clearError: true);
     try {
       final service = _ref.read(masterAccumulationServiceProvider);
-      final outDir = await _outputDir();
+      final outDir = await _mastersFolder();
       final stamp = DateTime.now().millisecondsSinceEpoch;
       final sidecar = p.join(
         outDir,
@@ -517,7 +516,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
     state = state.copyWith(integrating: true, clearError: true);
     try {
       final service = _ref.read(masterAccumulationServiceProvider);
-      final outDir = await _outputDir();
+      final outDir = await _mastersFolder();
       final stamp = DateTime.now().millisecondsSinceEpoch;
       final fits =
           p.join(outDir, '${_safeName(master.name)}_final_$stamp.fits');

@@ -31,12 +31,7 @@ class _AavsoExportButtonState extends ConsumerState<_AavsoExportButton> {
           widget.sessionId,
           targetStarName: targetName.trim(),
         );
-        final docsDir = await resolveSkotiqDocumentsDirectory();
-        final exportDir =
-            Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
-        if (!await exportDir.exists()) {
-          await exportDir.create(recursive: true);
-        }
+        final exportDir = await resolveSkotiqExportsDirectory();
         filePath = path.join(
           exportDir.path,
           'AAVSO_${targetName.trim().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.txt',
