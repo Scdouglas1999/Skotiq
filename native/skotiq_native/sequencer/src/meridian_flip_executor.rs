@@ -2349,7 +2349,7 @@ mod tests {
         SafetyOps, SiteOps,
     };
     use crate::device_ops::{
-        DeviceResult, ExposureRequest, GuidingStatus, ImageData, PlateSolveResult,
+        DeviceError, DeviceResult, ExposureRequest, GuidingStatus, ImageData, PlateSolveResult,
     };
     use async_trait::async_trait;
     use std::sync::atomic::AtomicI32;
@@ -2847,11 +2847,11 @@ mod tests {
             ));
             if self.state.guider_settle_times_out.load(Ordering::Relaxed) {
                 self.state.guider_stopped.store(false, Ordering::Relaxed);
-                return Err(
-                    "Start guiding failed: Operation failed: Guiding did not settle: \
-                            PHD2 settle failed (status 1): timed-out waiting for guider to settle"
-                        .into(),
-                );
+                return Err(DeviceError::Timeout(
+                    "Guiding did not settle: PHD2 settle failed (status 1): timed-out waiting \
+                     for guider to settle"
+                        .to_string(),
+                ));
             }
             self.state.post_flip_calls.lock().unwrap().push("guide");
             let transient_failure = self

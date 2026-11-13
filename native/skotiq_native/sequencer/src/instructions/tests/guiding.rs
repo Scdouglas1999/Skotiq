@@ -704,7 +704,11 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
         ScriptedDomeRotatorOps::new()
             .with_guiding(true)
             .with_guider_rms(0.62)
-            .with_dither_failing("Dither did not settle: PHD2 settle failed (status 1): timed-out waiting for guider to settle"),
+            .with_dither_failing(crate::device_ops::DeviceError::Timeout(
+                "Dither did not settle: PHD2 settle failed (status 1): timed-out waiting for \
+                 guider to settle"
+                    .to_string(),
+            )),
     );
     let (ctx, trigger_state, mut events) = restart_ctx(ops.clone()).await;
     let config = crate::DitherConfig {
@@ -743,6 +747,53 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
     assert!(
         !warnings.iter().any(|w| w.contains("Dither failed")),
         "{warnings:?}"
+    );
+}
+
+/// The guider says a settle ran out by the kind of its error, not its words:
+/// a reworded timeout still finds the star held, and a failure that happens to
+/// say "did not settle" is still a failure.
+#[tokio::test]
+async fn a_settle_that_ran_out_is_known_by_its_kind_not_its_words() {
+    let config = crate::DitherConfig {
+        settle_pixels: 0.5,
+        settle_time: 10.0,
+        settle_timeout: 30.0,
+        ..crate::DitherConfig::default()
+    };
+    let dither_failing = |error: crate::device_ops::DeviceError| {
+        Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_guiding(true)
+                .with_guider_rms(0.62)
+                .with_dither_failing(error),
+        )
+    };
+
+    let (ctx, trigger_state, _events) = restart_ctx(dither_failing(
+        crate::device_ops::DeviceError::Timeout("the guide star took too long".to_string()),
+    ))
+    .await;
+    let result = execute_dither(&config, &ctx, None).await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(
+        trigger_state.read().await.latches.consecutive_dither_failures,
+        0,
+        "a timed-out settle with the star held is a dither: {:?}",
+        result.message
+    );
+
+    let (ctx, trigger_state, _events) = restart_ctx(dither_failing(
+        crate::device_ops::DeviceError::Failed(
+            "Dither did not settle: guiding was stopped while it settled".to_string(),
+        ),
+    ))
+    .await;
+    execute_dither(&config, &ctx, None).await;
+    assert_eq!(
+        trigger_state.read().await.latches.consecutive_dither_failures,
+        1,
+        "a stopped settle is a failed dither whatever it says"
     );
 }
 

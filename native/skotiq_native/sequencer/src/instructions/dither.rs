@@ -87,7 +87,7 @@ pub(crate) async fn dither_once(
     let result = match result {
         Err(error)
             if counts == DitherCounts::OnceStarHeld
-                && is_settle_timeout(&error.to_string())
+                && is_settle_timeout(&error)
                 && star_held_after_settle_ran_out(ctx, settle).await =>
         {
             Ok(())

@@ -696,10 +696,11 @@ mod settle_ran_out_with_the_star_held {
             ScriptedDomeRotatorOps::new()
                 .with_guiding(true)
                 .with_guider_rms(0.62)
-                .with_dither_failing(
+                .with_dither_failing(crate::device_ops::DeviceError::Timeout(
                     "Dither did not settle: PHD2 settle failed (status 1): timed-out waiting \
-                     for guider to settle",
-                ),
+                     for guider to settle"
+                        .to_string(),
+                )),
         )
     }
 

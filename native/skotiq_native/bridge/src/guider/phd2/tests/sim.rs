@@ -26,6 +26,8 @@ struct SimConfig {
     settle_delay: Duration,
     /// The settle result a `guide` reports.
     guide_settle_status: i32,
+    /// The settle result a `dither` reports.
+    dither_settle_status: i32,
     /// Whether PHD2 goes on guiding after a failed settle (a settle timeout).
     guides_after_failed_settle: bool,
     /// Calibration time before a `guide` starts guiding.
@@ -46,6 +48,7 @@ impl Default for SimConfig {
             frame_interval: Duration::from_millis(100),
             settle_delay: Duration::from_millis(200),
             guide_settle_status: 0,
+            dither_settle_status: 0,
             guides_after_failed_settle: false,
             calibration: Duration::ZERO,
             exposure_ms: Some(10),
@@ -255,7 +258,7 @@ impl Sim {
                 let status = if guiding {
                     self.config.guide_settle_status
                 } else {
-                    0
+                    self.config.dither_settle_status
                 };
                 drop(state);
                 self.settle(status, guiding);
@@ -518,8 +521,30 @@ async fn a_stop_ends_a_settle_wait_at_once() {
     let elapsed = began.elapsed();
     finish(done).await;
     assert!(stopped.is_ok(), "{stopped:?}");
-    assert!(started.is_err(), "a stopped start is not a started guider");
+    assert!(
+        matches!(started, Err(SkotiqError::OperationFailed(_))),
+        "a stopped start is not a started guider, nor a slow settle: {started:?}"
+    );
     assert!(elapsed < Duration::from_secs(5), "took {elapsed:?}");
+}
+
+/// A dither whose settle PHD2 reports as failed ran out of time: the run tells
+/// it from a stop or a lost guider by that kind, not by PHD2's words.
+#[tokio::test]
+async fn a_dither_settle_that_runs_out_is_a_timeout() {
+    let _slot = PHD2_TEST_SLOT.lock().await;
+    let (_sim, done) = connect(SimConfig {
+        initial: Capture::Guiding,
+        dither_settle_status: 1,
+        ..SimConfig::default()
+    })
+    .await;
+    let dithered = dither(3.0, false, 2.0, 0.1, 5.0).await;
+    finish(done).await;
+    assert!(
+        matches!(&dithered, Err(SkotiqError::Timeout(text)) if text.contains("timed-out waiting for guider to settle")),
+        "{dithered:?}"
+    );
 }
 
 /// A dither asked for while a restart is settling waits its turn instead of
