@@ -215,7 +215,15 @@ async fn two_attached_bodies_each_open_as_themselves() {
     let found = detect_gphoto2_cameras();
     assert_eq!(found.len(), 2);
 
-    let mut nikon = connected(1, NIKON, NIKON_PORT).await;
+    // As the app opens a body from a scan: by its address, under a name
+    // made from its id.
+    let address = found[1].device_id.strip_prefix("native:gphoto2:").unwrap();
+    let mut nikon = GPhoto2Camera::from_address(address, &format!("gPhoto2 {address}")).unwrap();
+    nikon
+        .connect()
+        .await
+        .expect("connect the Nikon by its address");
+    assert_eq!(nikon.name(), NIKON);
     let canon = connected(0, CANON, CANON_PORT).await;
     let trace = fake.trace();
     assert!(

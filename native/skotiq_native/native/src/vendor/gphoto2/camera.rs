@@ -45,7 +45,12 @@ const PROBE_INTERVAL: Duration = Duration::from_secs(5);
 pub struct GPhoto2Camera {
     /// Camera index from autodetect
     pub(crate) camera_index: usize,
+    /// The model as libgphoto2 names it once connected; before that, the
+    /// name the device was registered under.
     pub(crate) model_name: String,
+    /// The model as a device address carries it (`sanitize_id`), which is
+    /// what identifies the body among the attached cameras.
+    pub(crate) model_key: String,
     /// USB port path
     pub(crate) port_path: String,
     pub(crate) device_id: String,
@@ -276,11 +281,35 @@ pub(crate) fn open_camera(
 }
 
 impl GPhoto2Camera {
+    /// The camera a device address names: `<index>:<port as hex>:<model key>`
+    /// (`build_device_id` without its prefix). An address written before the
+    /// port was recorded, or one whose port does not decode, leaves the port
+    /// empty; one without a model key identifies the model by `name`.
+    pub fn from_address(address: &str, name: &str) -> Result<Self, String> {
+        let mut segments = address.splitn(3, ':');
+        let index = segments
+            .next()
+            .unwrap_or_default()
+            .parse()
+            .map_err(|_| format!("Invalid gPhoto2 camera index in '{address}'"))?;
+        let port = segments
+            .next()
+            .and_then(decode_port_component)
+            .unwrap_or_default();
+        let mut camera = Self::new(index, name, &port);
+        if let Some(key) = segments.next().filter(|k| !k.is_empty()) {
+            camera.model_key = key.to_string();
+        }
+        camera.device_id = format!("native:gphoto2:{address}");
+        Ok(camera)
+    }
+
     /// Create a new gPhoto2 camera instance from a detected camera.
     pub fn new(index: usize, model: &str, port: &str) -> Self {
         Self {
             camera_index: index,
             model_name: model.to_string(),
+            model_key: sanitize_id(model),
             port_path: port.to_string(),
             device_id: build_device_id(index, model, port),
             connected: false,
@@ -421,9 +450,10 @@ impl GPhoto2Camera {
     /// Runs under the SDK lock the caller holds.
     pub(crate) fn open(&mut self, sdk: &GPhoto2Sdk) -> Result<(), DriverError> {
         let detected = detect_cameras_with(sdk);
-        let found = select_camera(&detected, &self.model_name, &self.port_path)?;
+        let found = select_camera(&detected, &self.model_key, &self.port_path)?;
         self.camera_index = found.index;
         self.port_path = found.port.clone();
+        self.model_name = found.model.clone();
 
         let (camera, context) = open_camera(sdk, &self.model_name, &self.port_path)?;
         self.gp_camera = camera;

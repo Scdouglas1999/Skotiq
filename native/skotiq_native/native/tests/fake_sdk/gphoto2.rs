@@ -18,7 +18,8 @@
 // fractional speeds, `bulb` among them only in M or B), Nikon (`shutterspeed`
 // in "0.0040s" form beside `shutterspeed2`, `bulb` toggle, `longexpnr`), Sony
 // (ILCE, `bulb` toggle) and Fujifilm X (no trigger capture, "2m" speeds).
-// A test drives it through the `fake_gp_*` functions.
+// A test drives it through the `fake_gp_*` functions. A process without a test
+// (the app) gets its bodies from FAKE_GPHOTO2_BODIES="model|port|raw file;...".
 #![allow(non_snake_case, non_camel_case_types, clippy::missing_safety_doc)]
 use std::collections::{HashMap, VecDeque};
 use std::ffi::{c_char, c_float, c_int, c_ulong, c_void, CStr, CString};
@@ -278,7 +279,29 @@ struct State {
 static STATE: Mutex<State> = Mutex::new(State { bodies: Vec::new(), trace: Vec::new() });
 
 fn state() -> std::sync::MutexGuard<'static, State> {
+    static FROM_ENV: std::sync::Once = std::sync::Once::new();
+    FROM_ENV.call_once(|| {
+        let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        for body in std::env::var("FAKE_GPHOTO2_BODIES").unwrap_or_default().split(';') {
+            if let [model, port, raw] = body.split('|').collect::<Vec<_>>().as_slice() {
+                attach(&mut st, model, port, raw);
+            }
+        }
+    });
     STATE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+fn attach(st: &mut State, model: &str, port: &str, raw_path: &str) -> c_int {
+    let Some(&(_, maker)) = MODELS.iter().find(|(m, _)| *m == model) else { return GP_ERROR_MODEL_NOT_FOUND };
+    let raw = std::fs::read(raw_path).unwrap_or_default();
+    let values = specs(maker).iter().map(|s| (s.name.to_string(), s.value.to_string())).collect();
+    let shutter_widget = if maker == Maker::Nikon { "shutterspeed2" } else { "shutterspeed" }.to_string();
+    st.bodies.push(Body {
+        model: model.to_string(), maker, port: port.to_string(), attached: true, raw, values, locked: Vec::new(),
+        busy: 0, realtime: false, jpeg_first: false, shutter_widget, open_since: None, events: VecDeque::new(),
+        files: Vec::new(), counter: 0, made: Vec::new(),
+    });
+    GP_OK
 }
 
 fn trace(s: String) {
@@ -320,17 +343,7 @@ pub unsafe extern "C" fn fake_gp_reset() {
 /// Attach a body of `model` on `port`, its captures holding the raw file at `raw_path`.
 #[no_mangle]
 pub unsafe extern "C" fn fake_gp_attach(model: *const c_char, port: *const c_char, raw_path: *const c_char) -> c_int {
-    let model = text(model);
-    let Some(&(_, maker)) = MODELS.iter().find(|(m, _)| *m == model) else { return GP_ERROR_MODEL_NOT_FOUND };
-    let raw = std::fs::read(text(raw_path)).unwrap_or_default();
-    let values = specs(maker).iter().map(|s| (s.name.to_string(), s.value.to_string())).collect();
-    let shutter_widget = if maker == Maker::Nikon { "shutterspeed2" } else { "shutterspeed" }.to_string();
-    state().bodies.push(Body {
-        model, maker, port: text(port), attached: true, raw, values, locked: Vec::new(), busy: 0,
-        realtime: false, jpeg_first: false, shutter_widget, open_since: None, events: VecDeque::new(),
-        files: Vec::new(), counter: 0, made: Vec::new(),
-    });
-    GP_OK
+    attach(&mut state(), &text(model), &text(port), &text(raw_path))
 }
 
 /// Unplug the body on `port` (`new_port` null), or plug it back in on `new_port`.

@@ -545,9 +545,9 @@ fn each_of_two_attached_bodies_opens_as_itself() {
         detected(0, "Canon EOS 6d Mark II", "usb:001,004"),
         detected(1, "Nikon Z6_2", "usb:001,007"),
     ];
-    let nikon = select_camera(&attached, "Nikon Z6_2", "usb:001,007").unwrap();
+    let nikon = select_camera(&attached, "nikon_z6_2", "usb:001,007").unwrap();
     assert_eq!(nikon.port, "usb:001,007");
-    let canon = select_camera(&attached, "Canon EOS 6d Mark II", "usb:001,004").unwrap();
+    let canon = select_camera(&attached, "canon_eos_6d_mark_ii", "usb:001,004").unwrap();
     assert_eq!(canon.port, "usb:001,004");
 }
 
@@ -558,7 +558,7 @@ fn a_replugged_body_is_found_on_its_new_port() {
         detected(1, "Nikon Z6_2", "usb:001,009"),
     ];
     assert_eq!(
-        select_camera(&attached, "Nikon Z6_2", "usb:001,007")
+        select_camera(&attached, "nikon_z6_2", "usb:001,007")
             .unwrap()
             .port,
         "usb:001,009"
@@ -569,14 +569,14 @@ fn a_replugged_body_is_found_on_its_new_port() {
         detected(1, "Nikon Z6_2", "usb:001,009"),
     ];
     assert_eq!(
-        select_camera(&swapped, "Nikon Z6_2", "usb:001,007")
+        select_camera(&swapped, "nikon_z6_2", "usb:001,007")
             .unwrap()
             .port,
         "usb:001,009"
     );
     // Gone, or two of the model and neither on the port: no guess.
     assert!(matches!(
-        select_camera(&attached, "Sony Alpha-A7 III (PC Control)", "usb:001,003"),
+        select_camera(&attached, "sony_alpha-a7_iii__pc_control_", "usb:001,003"),
         Err(DriverError::DeviceNotFound(_))
     ));
     let twins = [
@@ -584,11 +584,11 @@ fn a_replugged_body_is_found_on_its_new_port() {
         detected(1, "Nikon Z6_2", "usb:001,011"),
     ];
     assert!(matches!(
-        select_camera(&twins, "Nikon Z6_2", "usb:001,007"),
+        select_camera(&twins, "nikon_z6_2", "usb:001,007"),
         Err(DriverError::InvalidDevice(_))
     ));
     assert_eq!(
-        select_camera(&twins, "Nikon Z6_2", "usb:001,011")
+        select_camera(&twins, "nikon_z6_2", "usb:001,011")
             .unwrap()
             .index,
         1
@@ -855,4 +855,35 @@ async fn the_installed_libgphoto2_opens_each_camera_on_its_port() {
     let unknown = open_camera(&sdk, "No Such Camera", &ports[0]);
     assert!(matches!(unknown, Err(DriverError::DeviceNotFound(_))));
     std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn a_device_address_names_the_body_by_its_model_key_and_port() {
+    // The app registers a device found in a scan under a name made from its
+    // id, so the model comes from the address, not the name.
+    let id = build_device_id(1, "Nikon Z6_2", "usb:001,007");
+    let address = id.strip_prefix("native:gphoto2:").unwrap();
+    let camera = GPhoto2Camera::from_address(address, &format!("gPhoto2 {address}")).unwrap();
+    assert_eq!(camera.model_key, "nikon_z6_2");
+    assert_eq!(camera.port_path, "usb:001,007");
+    assert_eq!(camera.camera_index, 1);
+    assert_eq!(camera.device_id, id);
+    let attached = [
+        detected(0, "Canon EOS 6d Mark II", "usb:001,004"),
+        detected(1, "Nikon Z6_2", "usb:001,007"),
+    ];
+    assert_eq!(
+        select_camera(&attached, &camera.model_key, &camera.port_path)
+            .unwrap()
+            .model,
+        "Nikon Z6_2"
+    );
+
+    // An address from before the port and model were recorded.
+    let old = GPhoto2Camera::from_address("0", "Canon EOS 6d Mark II").unwrap();
+    assert_eq!(
+        (old.port_path.as_str(), old.model_key.as_str()),
+        ("", "canon_eos_6d_mark_ii")
+    );
+    assert!(GPhoto2Camera::from_address("x:00", "any").is_err());
 }
