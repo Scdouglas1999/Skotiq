@@ -350,7 +350,7 @@ fn a_mono_master_is_refused_rather_than_returned_unchanged() {
             op_id: "color_calibrate",
             op_version: 1,
             channels: 1,
-            expected: "a colour master with 3 channels; combine a per-filter mono master first",
+            expected: "a color master with 3 channels; combine a per-filter mono master first",
         }
     );
     assert_eq!(
@@ -361,7 +361,7 @@ fn a_mono_master_is_refused_rather_than_returned_unchanged() {
             op_id: "color_calibrate",
             op_version: 1,
             channels: 1,
-            expected: "a colour master with 3 channels; combine a per-filter mono master first",
+            expected: "a color master with 3 channels; combine a per-filter mono master first",
         }
     );
 }
@@ -885,7 +885,7 @@ fn a_carried_balance_is_still_refused_on_a_mono_master() {
             op_id: "color_calibrate",
             op_version: 1,
             channels: 1,
-            expected: "a colour master with 3 channels; combine a per-filter mono master first",
+            expected: "a color master with 3 channels; combine a per-filter mono master first",
         }
     );
 }

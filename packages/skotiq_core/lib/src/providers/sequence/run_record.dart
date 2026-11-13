@@ -334,6 +334,14 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
     InstructionProgressDetail detail,
   ) {
     final progress = state.progress;
+    // A step's words between two readings (an autofocus moving to its next
+    // point) carry no fields; the node keeps its last reading until the next.
+    final previous = progress.nodeProgressStructuredDetail[nodeId];
+    if (previous != null &&
+        detail is UnknownInstructionProgressDetail &&
+        detail.kind == kGenericProgressDetailKind) {
+      detail = previous;
+    }
     _setProgress(
       progress.copyWith(
         nodeProgressPercent: {

@@ -187,6 +187,7 @@ impl Dispatcher {
             &RecoveryAction::Recenter,
             "Recenter",
             format!("{name} fired: recenter"),
+            None,
         );
         let autofocus = self
             .rig
@@ -285,12 +286,25 @@ impl Dispatcher {
         } = dispatch;
         let action_str = fired.wire_label();
         let summary = fired.decision_summary(&trigger_name);
+        let stop = fired
+            .parks_and_ends_run()
+            .then(|| crate::decision::RunStop::Trigger {
+                trigger_id: trigger_id.clone(),
+                trigger_name: trigger_name.clone(),
+            });
         let FiredTriggerAction {
             action,
             end_without_parking,
             notify_only,
         } = fired;
-        self.announce(&trigger_id, &trigger_name, &action, &action_str, summary);
+        self.announce(
+            &trigger_id,
+            &trigger_name,
+            &action,
+            &action_str,
+            summary,
+            stop,
+        );
 
         // A notice drives nothing: no in-flight guard, no camera claim.
         if notify_only {
@@ -377,6 +391,7 @@ impl Dispatcher {
         action: &RecoveryAction,
         action_str: &str,
         summary: String,
+        stop: Option<crate::decision::RunStop>,
     ) {
         if matches!(action, RecoveryAction::Continue) {
             tracing::debug!(
@@ -398,7 +413,7 @@ impl Dispatcher {
             trigger_name: trigger_name.to_string(),
             action: action_str.to_string(),
         });
-        self.decisions.send(crate::decision::DecisionEvent::new(
+        let mut row = crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::TriggerFired,
             summary,
             serde_json::json!({
@@ -406,7 +421,9 @@ impl Dispatcher {
                 "trigger_name": trigger_name,
                 "action": action_str,
             }),
-        ));
+        );
+        row.stop = stop;
+        self.decisions.send(row);
     }
 
     async fn run_action(

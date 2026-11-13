@@ -805,9 +805,7 @@ impl Run {
                 );
             }
             NodeStatus::Cancelled => {
-                state.emit(ExecutorEvent::Error {
-                    message: "Sequence cancelled".into(),
-                });
+                state.emit(ExecutorEvent::Cancelled);
                 self.decisions.lifecycle(
                     "cancelled",
                     serde_json::json!({ "elapsed_secs": elapsed_secs }),

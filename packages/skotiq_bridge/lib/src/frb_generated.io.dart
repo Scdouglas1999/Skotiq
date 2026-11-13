@@ -336,6 +336,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SequencerNotice dco_decode_box_autoadd_sequencer_notice(dynamic raw);
 
   @protected
+  SequencerStop dco_decode_box_autoadd_sequencer_stop(dynamic raw);
+
+  @protected
   ShutterStatus dco_decode_box_autoadd_shutter_status(dynamic raw);
 
   @protected
@@ -467,6 +470,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FitsWriteHeader dco_decode_fits_write_header(dynamic raw);
+
+  @protected
+  FlipOutcome dco_decode_flip_outcome(dynamic raw);
 
   @protected
   FocusDataPoint dco_decode_focus_data_point(dynamic raw);
@@ -724,6 +730,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw);
 
   @protected
+  SequencerStop? dco_decode_opt_box_autoadd_sequencer_stop(dynamic raw);
+
+  @protected
   ShutterStatus? dco_decode_opt_box_autoadd_shutter_status(dynamic raw);
 
   @protected
@@ -848,6 +857,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerState dco_decode_sequencer_state(dynamic raw);
+
+  @protected
+  SequencerStop dco_decode_sequencer_stop(dynamic raw);
 
   @protected
   ShutterState dco_decode_shutter_state(dynamic raw);
@@ -1265,6 +1277,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SequencerStop sse_decode_box_autoadd_sequencer_stop(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ShutterStatus sse_decode_box_autoadd_shutter_status(
     SseDeserializer deserializer,
   );
@@ -1426,6 +1443,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FitsWriteHeader sse_decode_fits_write_header(SseDeserializer deserializer);
+
+  @protected
+  FlipOutcome sse_decode_flip_outcome(SseDeserializer deserializer);
 
   @protected
   FocusDataPoint sse_decode_focus_data_point(SseDeserializer deserializer);
@@ -1743,6 +1763,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SequencerStop? sse_decode_opt_box_autoadd_sequencer_stop(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ShutterStatus? sse_decode_opt_box_autoadd_shutter_status(
     SseDeserializer deserializer,
   );
@@ -1905,6 +1930,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerState sse_decode_sequencer_state(SseDeserializer deserializer);
+
+  @protected
+  SequencerStop sse_decode_sequencer_stop(SseDeserializer deserializer);
 
   @protected
   ShutterState sse_decode_shutter_state(SseDeserializer deserializer);
@@ -2471,13 +2499,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  ffi.Pointer<ffi.Int32> cst_encode_box_autoadd_sequencer_notice(
-    SequencerNotice raw,
+  ffi.Pointer<wire_cst_sequencer_notice>
+  cst_encode_box_autoadd_sequencer_notice(SequencerNotice raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_sequencer_notice();
+    cst_api_fill_to_wire_sequencer_notice(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_sequencer_stop> cst_encode_box_autoadd_sequencer_stop(
+    SequencerStop raw,
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
-    return wire.cst_new_box_autoadd_sequencer_notice(
-      cst_encode_sequencer_notice(raw),
-    );
+    final ptr = wire.cst_new_box_autoadd_sequencer_stop();
+    cst_api_fill_to_wire_sequencer_stop(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -3079,13 +3116,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  ffi.Pointer<ffi.Int32> cst_encode_opt_box_autoadd_sequencer_notice(
-    SequencerNotice? raw,
-  ) {
+  ffi.Pointer<wire_cst_sequencer_notice>
+  cst_encode_opt_box_autoadd_sequencer_notice(SequencerNotice? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null
         ? ffi.nullptr
         : cst_encode_box_autoadd_sequencer_notice(raw);
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_sequencer_stop>
+  cst_encode_opt_box_autoadd_sequencer_stop(SequencerStop? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_sequencer_stop(raw);
   }
 
   @protected
@@ -3838,6 +3883,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_sequencer_event> wireObj,
   ) {
     cst_api_fill_to_wire_sequencer_event(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_sequencer_notice(
+    SequencerNotice apiObj,
+    ffi.Pointer<wire_cst_sequencer_notice> wireObj,
+  ) {
+    cst_api_fill_to_wire_sequencer_notice(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_sequencer_stop(
+    SequencerStop apiObj,
+    ffi.Pointer<wire_cst_sequencer_stop> wireObj,
+  ) {
+    cst_api_fill_to_wire_sequencer_stop(apiObj, wireObj.ref);
   }
 
   @protected
@@ -5989,7 +6050,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       return;
     }
     if (apiObj is SequencerEvent_MeridianFlipOutcome) {
-      var pre_outcome = cst_encode_String(apiObj.outcome);
+      var pre_outcome = cst_encode_flip_outcome(apiObj.outcome);
       var pre_target_name = cst_encode_String(apiObj.targetName);
       var pre_new_pier_side = cst_encode_String(apiObj.newPierSide);
       var pre_duration_secs = cst_encode_f_64(apiObj.durationSecs);
@@ -6444,6 +6505,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_notice = cst_encode_opt_box_autoadd_sequencer_notice(
         apiObj.notice,
       );
+      var pre_stop = cst_encode_opt_box_autoadd_sequencer_stop(apiObj.stop);
       wireObj.tag = 33;
       wireObj.kind.DecisionLogged.timestamp_iso = pre_timestamp_iso;
       wireObj.kind.DecisionLogged.category = pre_category;
@@ -6452,6 +6514,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.DecisionLogged.node_id = pre_node_id;
       wireObj.kind.DecisionLogged.sequence_run_id = pre_sequence_run_id;
       wireObj.kind.DecisionLogged.notice = pre_notice;
+      wireObj.kind.DecisionLogged.stop = pre_stop;
+      return;
+    }
+  }
+
+  @protected
+  void cst_api_fill_to_wire_sequencer_notice(
+    SequencerNotice apiObj,
+    wire_cst_sequencer_notice wireObj,
+  ) {
+    if (apiObj is SequencerNotice_AutofocusContinued) {
+      wireObj.tag = 0;
+      return;
+    }
+    if (apiObj is SequencerNotice_RejectStreak) {
+      var pre_consecutive_rejects = cst_encode_u_32(apiObj.consecutiveRejects);
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 1;
+      wireObj.kind.RejectStreak.consecutive_rejects = pre_consecutive_rejects;
+      wireObj.kind.RejectStreak.reason = pre_reason;
+      return;
+    }
+    if (apiObj is SequencerNotice_ProblemNoticed) {
+      var pre_source = cst_encode_String(apiObj.source);
+      var pre_problem = cst_encode_String(apiObj.problem);
+      wireObj.tag = 2;
+      wireObj.kind.ProblemNoticed.source = pre_source;
+      wireObj.kind.ProblemNoticed.problem = pre_problem;
       return;
     }
   }
@@ -6476,6 +6566,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.current_target = cst_encode_opt_String(apiObj.currentTarget);
     wireObj.current_filter = cst_encode_opt_String(apiObj.currentFilter);
     wireObj.message = cst_encode_opt_String(apiObj.message);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_sequencer_stop(
+    SequencerStop apiObj,
+    wire_cst_sequencer_stop wireObj,
+  ) {
+    if (apiObj is SequencerStop_Cancelled) {
+      wireObj.tag = 0;
+      return;
+    }
+    if (apiObj is SequencerStop_Operator) {
+      wireObj.tag = 1;
+      return;
+    }
+    if (apiObj is SequencerStop_Autopilot) {
+      wireObj.tag = 2;
+      return;
+    }
+    if (apiObj is SequencerStop_System) {
+      var pre_origin = cst_encode_String(apiObj.origin);
+      wireObj.tag = 3;
+      wireObj.kind.System.origin = pre_origin;
+      return;
+    }
+    if (apiObj is SequencerStop_Trigger) {
+      var pre_trigger_id = cst_encode_String(apiObj.triggerId);
+      var pre_trigger_name = cst_encode_String(apiObj.triggerName);
+      wireObj.tag = 4;
+      wireObj.kind.Trigger.trigger_id = pre_trigger_id;
+      wireObj.kind.Trigger.trigger_name = pre_trigger_name;
+      return;
+    }
   }
 
   @protected
@@ -7007,6 +7130,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double cst_encode_f_64(double raw);
 
   @protected
+  int cst_encode_flip_outcome(FlipOutcome raw);
+
+  @protected
   int cst_encode_frame_type(FrameType raw);
 
   @protected
@@ -7023,9 +7149,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw);
-
-  @protected
-  int cst_encode_sequencer_notice(SequencerNotice raw);
 
   @protected
   int cst_encode_shutter_state(ShutterState raw);
@@ -7487,6 +7610,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_sequencer_stop(
+    SequencerStop self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_shutter_status(
     ShutterStatus self,
     SseSerializer serializer,
@@ -7698,6 +7827,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     FitsWriteHeader self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_flip_outcome(FlipOutcome self, SseSerializer serializer);
 
   @protected
   void sse_encode_focus_data_point(
@@ -8120,6 +8252,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_sequencer_stop(
+    SequencerStop? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_shutter_status(
     ShutterStatus? self,
     SseSerializer serializer,
@@ -8328,6 +8466,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SequencerState self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_sequencer_stop(SequencerStop self, SseSerializer serializer);
 
   @protected
   void sse_encode_shutter_state(ShutterState self, SseSerializer serializer);
@@ -16642,17 +16783,30 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_sequencer_eventPtr
           .asFunction<ffi.Pointer<wire_cst_sequencer_event> Function()>();
 
-  ffi.Pointer<ffi.Int32> cst_new_box_autoadd_sequencer_notice(int value) {
-    return _cst_new_box_autoadd_sequencer_notice(value);
+  ffi.Pointer<wire_cst_sequencer_notice>
+  cst_new_box_autoadd_sequencer_notice() {
+    return _cst_new_box_autoadd_sequencer_notice();
   }
 
   late final _cst_new_box_autoadd_sequencer_noticePtr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Int32> Function(ffi.Int32)>>(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice',
-      );
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_sequencer_notice> Function()>
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice');
   late final _cst_new_box_autoadd_sequencer_notice =
       _cst_new_box_autoadd_sequencer_noticePtr
-          .asFunction<ffi.Pointer<ffi.Int32> Function(int)>();
+          .asFunction<ffi.Pointer<wire_cst_sequencer_notice> Function()>();
+
+  ffi.Pointer<wire_cst_sequencer_stop> cst_new_box_autoadd_sequencer_stop() {
+    return _cst_new_box_autoadd_sequencer_stop();
+  }
+
+  late final _cst_new_box_autoadd_sequencer_stopPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_sequencer_stop> Function()>
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_stop');
+  late final _cst_new_box_autoadd_sequencer_stop =
+      _cst_new_box_autoadd_sequencer_stopPtr
+          .asFunction<ffi.Pointer<wire_cst_sequencer_stop> Function()>();
 
   ffi.Pointer<ffi.Int32> cst_new_box_autoadd_shutter_status(int value) {
     return _cst_new_box_autoadd_shutter_status(value);
@@ -19118,17 +19272,44 @@ final class wire_cst_SequencerEvent_ExposureCompleted extends ffi.Struct {
   external double duration_secs;
 }
 
+final class wire_cst_SequencerNotice_RejectStreak extends ffi.Struct {
+  @ffi.Uint32()
+  external int consecutive_rejects;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class wire_cst_SequencerNotice_ProblemNoticed extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> problem;
+}
+
+final class SequencerNoticeKind extends ffi.Union {
+  external wire_cst_SequencerNotice_RejectStreak RejectStreak;
+
+  external wire_cst_SequencerNotice_ProblemNoticed ProblemNoticed;
+}
+
+final class wire_cst_sequencer_notice extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external SequencerNoticeKind kind;
+}
+
 final class wire_cst_SequencerEvent_Error extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
 
   @ffi.Int32()
   external int kind;
 
-  external ffi.Pointer<ffi.Int32> notice;
+  external ffi.Pointer<wire_cst_sequencer_notice> notice;
 }
 
 final class wire_cst_SequencerEvent_MeridianFlipOutcome extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> outcome;
+  @ffi.Int32()
+  external int outcome;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> target_name;
 
@@ -19553,6 +19734,29 @@ final class wire_cst_SequencerEvent_PluginNodeProgress extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail_json;
 }
 
+final class wire_cst_SequencerStop_System extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> origin;
+}
+
+final class wire_cst_SequencerStop_Trigger extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger_name;
+}
+
+final class SequencerStopKind extends ffi.Union {
+  external wire_cst_SequencerStop_System System;
+
+  external wire_cst_SequencerStop_Trigger Trigger;
+}
+
+final class wire_cst_sequencer_stop extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external SequencerStopKind kind;
+}
+
 final class wire_cst_SequencerEvent_DecisionLogged extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> timestamp_iso;
 
@@ -19566,7 +19770,9 @@ final class wire_cst_SequencerEvent_DecisionLogged extends ffi.Struct {
 
   external ffi.Pointer<ffi.Int64> sequence_run_id;
 
-  external ffi.Pointer<ffi.Int32> notice;
+  external ffi.Pointer<wire_cst_sequencer_notice> notice;
+
+  external ffi.Pointer<wire_cst_sequencer_stop> stop;
 }
 
 final class SequencerEventKind extends ffi.Union {

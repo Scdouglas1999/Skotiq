@@ -6,10 +6,6 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `default_trust`, `growth_impl`, `merge_delta_impl`, `region_info_impl`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `GrowthArgs`, `GrowthPoint`, `GrowthResult`, `MergeDeltaArgs`, `MergeDeltaResult`, `RegionInfoArgs`, `RegionInfoResult`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-
 /// Summarise a circular region of the atlas (the tiles a cone covers): aggregate
 /// integration time, frame count, coverage depth, and tile tally — the numbers a
 /// "Your Sky" region card shows.

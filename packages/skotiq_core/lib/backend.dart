@@ -21,7 +21,7 @@ export 'src/backend/roles/host_data/host_records.dart';
 // from `package:skotiq_core/bridge_events.dart`.
 export 'src/backend/bridge_events.dart';
 export 'src/backend/sequencer_error_kind.dart';
-export 'src/backend/sequencer_notice.dart';
+
 // Per-frame capture truth carried on FrameAccepted/FrameRejected. Exported so
 // the surfaces that persist or assert on a sequenced frame read the event's
 // key names from one place rather than re-spelling them.
@@ -32,5 +32,5 @@ export 'src/backend/bridge_error_message.dart';
 export 'src/backend/device_connect_exception.dart';
 export 'src/backend/network_backend/host_data/remote_imaging_records.dart';
 export 'src/backend/roles/host_data/imaging_records.dart';
-export 'src/backend/bridge_event_mapper.dart';
+export 'src/backend/bridge_event_codec.dart';
 export 'src/backend/roles/host_data/photometric_transforms.dart';

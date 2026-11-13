@@ -35,6 +35,7 @@ void main() {
         SequencerErrorKind.runHeld: 'Run paused',
         SequencerErrorKind.stepFailed: 'Sequencer error',
         SequencerErrorKind.standalone: 'Operation error',
+        SequencerErrorKind.cancelled: 'Sequence stopped',
       },
     );
   });
@@ -62,6 +63,14 @@ void main() {
     ]) {
       expect(isCriticalEvent(_sequencerError(kind)), isTrue);
     }
+  });
+
+  // Every stop ends the run this way; it is an alarm for nobody.
+  test('a stopped run\'s cancellation is not critical', () {
+    expect(
+      isCriticalEvent(_sequencerError(SequencerErrorKind.cancelled)),
+      isFalse,
+    );
   });
 
   test('progress a hand-started operation publishes at info is not '

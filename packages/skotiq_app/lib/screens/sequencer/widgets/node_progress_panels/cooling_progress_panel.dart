@@ -29,38 +29,23 @@ class _ProgressPanelContainer extends StatelessWidget {
 class _CoolingProgressPanel extends StatelessWidget {
   final SkotiqColors colors;
   final double progressPercent;
-  final String detail;
+
+  /// What the step last read from the camera; null before its first report.
+  final ThermalInstructionProgressDetail? reading;
   final bool isWarming;
 
   const _CoolingProgressPanel({
     required this.colors,
     required this.progressPercent,
-    required this.detail,
+    required this.reading,
     required this.isWarming,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Parse detail string: "Cooling: 15.2°C → -10.0°C (85% power)"
-    // or "At target: -10.3°C (45% power)"
-    final tempMatch = RegExp(r'(-?\d+\.?\d*)°C').allMatches(detail);
-    final powerMatch = RegExp(r'(\d+\.?\d*)% power').firstMatch(detail);
-
-    double? currentTemp;
-    double? targetTemp;
-    double? power;
-
-    if (tempMatch.isNotEmpty) {
-      final temps = tempMatch
-          .map((m) => double.tryParse(m.group(1) ?? ''))
-          .whereType<double>()
-          .toList();
-      if (temps.isNotEmpty) currentTemp = temps[0];
-      if (temps.length > 1) targetTemp = temps[1];
-    }
-    if (powerMatch != null) {
-      power = double.tryParse(powerMatch.group(1) ?? '');
-    }
+    final currentTemp = reading?.currentTempC;
+    final targetTemp = reading?.targetTempC;
+    final power = reading?.coolerPowerPercent;
 
     return _ProgressPanelContainer(
       colors: colors,
@@ -103,7 +88,7 @@ class _CoolingProgressPanel extends StatelessWidget {
               _TempDisplay(
                 colors: colors,
                 label: 'Target',
-                temp: targetTemp ?? currentTemp,
+                temp: targetTemp,
                 isTarget: true,
               ),
               const Spacer(),

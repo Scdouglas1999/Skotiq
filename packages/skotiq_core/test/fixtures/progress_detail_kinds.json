@@ -1,0 +1,13 @@
+{
+  "Exposure": {"frame": 3, "total": 12, "duration_secs": 180.0},
+  "Center": {
+    "attempt": 2,
+    "max_attempts": 3,
+    "last_separation_arcsec": 41.5,
+    "solved_ra_hours": 5.5,
+    "solved_dec_degrees": -5.25
+  },
+  "Autofocus": {"step": 5, "total_steps": 9, "current_hfr": 2.75, "star_count": 41},
+  "Thermal": {"current_temp_c": -4.5, "target_temp_c": -10.0, "cooler_power_percent": 62.0},
+  "MeridianFlipRetry": {"failed_attempt": 2, "max_attempts": 4, "retry_in_secs": 60.0}
+}

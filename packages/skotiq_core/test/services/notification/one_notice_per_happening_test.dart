@@ -80,20 +80,26 @@ void main() {
   final cases = [
     (
       'an autofocus that did not converge',
-      SequencerNotice.autofocusContinued,
+      const SequencerNotice.autofocusContinued(),
       '{"source":"Autofocus trigger \'Refocus\'","reason":"no V-curve minimum"}',
       NotificationCategory.autofocusContinued,
     ),
     (
       'a streak of rejected frames',
-      SequencerNotice.rejectStreak,
+      const SequencerNotice.rejectStreak(
+        consecutiveRejects: 3,
+        reason: 'eccentricity 0.83 exceeds threshold 0.80',
+      ),
       '{"consecutive_rejects":3,"limit":3,'
           '"reason":"eccentricity 0.83 exceeds threshold 0.80"}',
       NotificationCategory.frameRejected,
     ),
     (
       'a quality problem',
-      SequencerNotice.problemNoticed,
+      const SequencerNotice.problemNoticed(
+        source: 'Center',
+        problem: 'Failed to center within 5.0 arcsec.',
+      ),
       '{"source":"Center","problem":"Failed to center within 5.0 arcsec."}',
       NotificationCategory.problemNoticed,
     ),

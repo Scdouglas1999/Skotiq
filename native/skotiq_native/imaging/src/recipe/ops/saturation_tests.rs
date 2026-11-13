@@ -201,7 +201,7 @@ fn a_mono_master_is_refused_rather_than_returned_unchanged() {
             op_id: "saturation",
             op_version: 1,
             channels: 1,
-            expected: "a colour master with 3 channels",
+            expected: "a color master with 3 channels",
         }
     );
 }

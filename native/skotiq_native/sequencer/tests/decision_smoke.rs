@@ -58,12 +58,18 @@ async fn a_row_the_operator_is_notified_from_goes_out_with_logging_off() {
             "Problem noticed — the run continues",
             serde_json::json!({ "source": "Center" }),
         )
-        .with_notice(RunNotice::ProblemNoticed),
+        .with_notice(RunNotice::ProblemNoticed {
+            source: "Center".to_string(),
+            problem: "the frame did not solve".to_string(),
+        }),
     );
     assert!(sent);
     assert_eq!(
         rx.recv().await.expect("notice row delivered").notice,
-        Some(RunNotice::ProblemNoticed)
+        Some(RunNotice::ProblemNoticed {
+            source: "Center".to_string(),
+            problem: "the frame did not solve".to_string(),
+        })
     );
 }
 

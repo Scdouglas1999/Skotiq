@@ -120,6 +120,15 @@ if (-not $SkipFrb) {
     } else {
         Write-Ok "FRB bindings regenerated"
     }
+
+    # The event wire codec is generated from the event unions FRB just wrote.
+    Set-Location (Join-Path $PSScriptRoot "..")
+    dart run packages/skotiq_bridge/tool/generate_event_wire.dart | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Err "Event wire codec generation failed"
+        exit 1
+    }
+    Write-Ok "Event wire codec regenerated"
 } else {
     Write-Warn "Skipping FRB regeneration (SkipFrb flag set)"
 }

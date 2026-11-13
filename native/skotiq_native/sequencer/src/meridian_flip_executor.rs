@@ -38,10 +38,34 @@ use crate::{AutofocusConfig, FlipFailureAction, MeridianFlipConfig};
 /// progress on this string, so it must stay stable.
 pub const MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID: &str = "trigger:meridian_flip";
 
-/// `MeridianFlipOutcome.outcome` sent the moment the mount is verified on its
-/// new pier side, before the flip's centering and guiding are done. The flip's
-/// own verdict (`success`, `failed`, `aborted`) still follows.
-pub const PIER_CHANGED_OUTCOME: &str = "pier_changed";
+/// What a `MeridianFlipOutcome` event reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FlipOutcome {
+    /// The mount is verified on its new pier side; the flip's centering and
+    /// guiding are not done yet and the verdict still follows.
+    PierChanged,
+    Success,
+    Failed,
+    Aborted,
+}
+
+impl FlipOutcome {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::PierChanged => "pier_changed",
+            Self::Success => "success",
+            Self::Failed => "failed",
+            Self::Aborted => "aborted",
+        }
+    }
+}
+
+impl std::fmt::Display for FlipOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 fn side_name(side: PierSide) -> &'static str {
     match side {
@@ -321,7 +345,7 @@ impl MeridianFlipExecutor {
                 new_pier_side,
                 duration_secs,
             } => ExecutorEvent::MeridianFlipOutcome {
-                outcome: "success".to_string(),
+                outcome: FlipOutcome::Success,
                 target_name: ctx.target_name.clone(),
                 new_pier_side: format!("{:?}", new_pier_side),
                 duration_secs: *duration_secs,
@@ -334,7 +358,7 @@ impl MeridianFlipExecutor {
                 error,
                 action_taken,
             } => ExecutorEvent::MeridianFlipOutcome {
-                outcome: "failed".to_string(),
+                outcome: FlipOutcome::Failed,
                 target_name: ctx.target_name.clone(),
                 // A flip whose recovery failed still reached its new side.
                 new_pier_side: format!(
@@ -348,7 +372,7 @@ impl MeridianFlipExecutor {
                 action_taken: Some(format!("{:?}", action_taken)),
             },
             FlipResult::Aborted { reason } => ExecutorEvent::MeridianFlipOutcome {
-                outcome: "aborted".to_string(),
+                outcome: FlipOutcome::Aborted,
                 target_name: ctx.target_name.clone(),
                 new_pier_side: "Unknown".to_string(),
                 duration_secs: 0.0,
@@ -1060,7 +1084,7 @@ impl MeridianFlipExecutor {
         // "next flip" displays do not wait for (or miss) the rest.
         if let Some(tx) = &self.run.event_tx {
             let _ = tx.send(ExecutorEvent::MeridianFlipOutcome {
-                outcome: PIER_CHANGED_OUTCOME.to_string(),
+                outcome: FlipOutcome::PierChanged,
                 target_name: ctx.target_name.clone(),
                 new_pier_side: format!("{:?}", new_pier_side),
                 duration_secs: 0.0,
@@ -2273,6 +2297,11 @@ impl MeridianFlipExecutor {
                 delay_secs,
             } = &event
             {
+                let retry = crate::node::ProgressDetail::MeridianFlipRetry {
+                    failed_attempt: u32::from(*attempt),
+                    max_attempts: u32::from(*max_attempts),
+                    retry_in_secs: *delay_secs,
+                };
                 let _ = tx.send(ExecutorEvent::NodeProgress {
                     node_id: MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID.to_string(),
                     instruction: "MeridianFlip".to_string(),
@@ -2283,11 +2312,8 @@ impl MeridianFlipExecutor {
                     } else {
                         0.0
                     },
-                    detail: format!(
-                        "attempt {}/{} failed, retrying in {:.0}s",
-                        attempt, max_attempts, delay_secs
-                    ),
-                    structured_detail: None,
+                    detail: retry.detail_text(),
+                    structured_detail: Some(Box::new(retry)),
                 });
             }
         }
@@ -3498,7 +3524,7 @@ mod tests {
         let mut outcomes = Vec::new();
         while let Ok(event) = rx.try_recv() {
             if matches!(&event, ExecutorEvent::MeridianFlipOutcome { outcome, .. }
-                if outcome != PIER_CHANGED_OUTCOME)
+                if *outcome != FlipOutcome::PierChanged)
             {
                 outcomes.push(event);
             }
@@ -3556,7 +3582,7 @@ mod tests {
         else {
             unreachable!("filtered above")
         };
-        assert_eq!(outcome, "success");
+        assert_eq!(*outcome, FlipOutcome::Success);
         assert_eq!(target_name, "M42");
         assert_eq!(new_pier_side, "West");
         assert_eq!(*attempts, 1);
@@ -3614,7 +3640,7 @@ mod tests {
         else {
             unreachable!("filtered above")
         };
-        assert_eq!(outcome, "failed");
+        assert_eq!(*outcome, FlipOutcome::Failed);
         assert_eq!(*attempts, 2);
         assert_eq!(failed_steps.len(), 2, "got {failed_steps:?}");
         assert!(error.as_ref().is_some_and(|e| e.contains("Plate solve")));
@@ -4399,11 +4425,20 @@ mod tests {
                 node_id,
                 instruction,
                 detail,
+                structured_detail,
                 ..
             } => {
                 assert_eq!(node_id, MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID);
                 assert_eq!(instruction, "MeridianFlip");
                 assert_eq!(detail, "attempt 2/4 failed, retrying in 60s");
+                assert!(matches!(
+                    structured_detail.as_deref(),
+                    Some(crate::node::ProgressDetail::MeridianFlipRetry {
+                        failed_attempt: 2,
+                        max_attempts: 4,
+                        retry_in_secs,
+                    }) if *retry_in_secs == 60.0
+                ));
             }
             other => panic!("expected NodeProgress, got {other:?}"),
         }
@@ -5133,7 +5168,7 @@ mod tests {
         );
         assert!(!has("Holding"), "{messages:#?}");
 
-        let outcomes: Vec<(String, String)> = std::iter::from_fn(|| rx.try_recv().ok())
+        let outcomes: Vec<(FlipOutcome, String)> = std::iter::from_fn(|| rx.try_recv().ok())
             .filter_map(|event| match event {
                 ExecutorEvent::MeridianFlipOutcome {
                     outcome,
@@ -5146,8 +5181,8 @@ mod tests {
         assert_eq!(
             outcomes,
             vec![
-                (PIER_CHANGED_OUTCOME.to_string(), "East".to_string()),
-                ("success".to_string(), "East".to_string()),
+                (FlipOutcome::PierChanged, "East".to_string()),
+                (FlipOutcome::Success, "East".to_string()),
             ]
         );
         assert_eq!(

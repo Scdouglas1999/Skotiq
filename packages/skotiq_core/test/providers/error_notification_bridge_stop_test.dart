@@ -125,7 +125,7 @@ void main() {
     severity: kind.runContinues ? EventSeverity.warning : EventSeverity.error,
     category: EventCategory.sequencer,
     eventType: 'Error',
-    data: {'message': message, kSequencerErrorKindKey: kind.wireName},
+    data: {'message': message, kSequencerErrorKindKey: encodeSequencerErrorKind(kind)},
   );
 
   test('only a pause reason and a hand-started operation toast here', () async {

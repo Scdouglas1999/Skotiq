@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
@@ -137,10 +138,10 @@ class NightSessionEventsNotifier extends StateNotifier<NightSessionEvents> {
 
   void _onEvent(SkotiqEvent event) {
     final at = _timeOf(event);
-    if (event.category == EventCategory.guiding) {
-      switch (event.eventType) {
-        case 'DitherStarted':
-          final pixels = (event.data['pixels'] as num?)?.toDouble();
+    final payload = typedEventFromWire(event)?.payload;
+    if (payload is sk_events.EventPayload_Guiding) {
+      switch (payload.field0) {
+        case sk_events.GuidingEvent_DitherStarted(:final pixels):
           state = NightSessionEvents(
             autofocusRuns: state.autofocusRuns,
             dithers: _capped(
@@ -149,29 +150,30 @@ class NightSessionEventsNotifier extends StateNotifier<NightSessionEvents> {
             flips: state.flips,
             starLost: state.starLost,
           );
-        case 'StarLost':
+        case sk_events.GuidingEvent_LostStar():
           state = NightSessionEvents(
             autofocusRuns: state.autofocusRuns,
             dithers: state.dithers,
             flips: state.flips,
             starLost: _capped([...state.starLost, at]),
           );
+        default:
       }
       return;
     }
-    if (event.category != EventCategory.sequencer ||
-        event.eventType != 'MeridianFlipOutcome') {
-      return;
-    }
+    if (payload is! sk_events.EventPayload_Sequencer) return;
+    final flip = payload.field0;
+    if (flip is! sk_events.SequencerEvent_MeridianFlipOutcome) return;
     // The flip is marked when the mount reaches its new pier side; its
     // verdict comes after centering and guiding, and may be a failure of
     // those with the mount flipped. A success after a marked pier change is
     // the same flip.
-    final outcome = event.data['outcome'];
-    final pierChanged = outcome == meridianFlipPierChangedOutcome;
+    final pierChanged = flip.outcome == sk_events.FlipOutcome.pierChanged;
     final countedAtPierChange = _flipMarkedAtPierChange;
     _flipMarkedAtPierChange = pierChanged;
-    if (pierChanged || (outcome == 'success' && !countedAtPierChange)) {
+    if (pierChanged ||
+        (flip.outcome == sk_events.FlipOutcome.success &&
+            !countedAtPierChange)) {
       state = NightSessionEvents(
         autofocusRuns: state.autofocusRuns,
         dithers: state.dithers,

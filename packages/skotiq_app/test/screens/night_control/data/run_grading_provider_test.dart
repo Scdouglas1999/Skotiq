@@ -349,17 +349,29 @@ void main() {
     });
   });
 
-  group('FrameGradeEvent.fromTypedData (typed contract)', () {
-    test('round-trips an Accepted payload with every field', () {
-      final grade = FrameGradeEvent.fromTypedData('FrameAccepted', {
-        'frame': 5,
-        'total': 20,
-        'hfr': 2.31,
-        'eccentricity': 0.18,
-        'star_count': 187,
-        'accepted_total': 5,
-        'rejected_total': 0,
-      });
+  group('FrameGradeEvent.fromEvent', () {
+    const capture = FrameCaptureMetadata(
+      gainIsIso: false,
+      exposureSecs: 120,
+      binX: 1,
+      binY: 1,
+      frameType: 'Light',
+    );
+
+    test('reads an accepted frame with every field', () {
+      final grade = FrameGradeEvent.fromEvent(
+        const SequencerEvent.frameAccepted(
+          nodeId: 'n',
+          frame: 5,
+          total: 20,
+          hfr: 2.31,
+          eccentricity: 0.18,
+          starCount: 187,
+          acceptedTotal: 5,
+          rejectedTotal: 0,
+          capture: capture,
+        ),
+      );
       expect(grade, isNotNull);
       expect(grade!.decision, FrameGradeDecision.accepted);
       expect(grade.frame, 5);
@@ -374,19 +386,24 @@ void main() {
       expect(grade.path, isNull);
     });
 
-    test('round-trips a Rejected payload with every field', () {
-      final grade = FrameGradeEvent.fromTypedData('FrameRejected', {
-        'frame': 7,
-        'total': 20,
-        'reason': 'eccentricity 0.81 > 0.65',
-        'hfr': 3.10,
-        'eccentricity': 0.81,
-        'star_count': 92,
-        'reject_path': '/Reject/M101_007.fits',
-        'consecutive_rejects': 2,
-        'accepted_total': 4,
-        'rejected_total': 3,
-      });
+    test('reads a rejected frame with every field', () {
+      final grade = FrameGradeEvent.fromEvent(
+        const SequencerEvent.frameRejected(
+          nodeId: 'n',
+          frame: 7,
+          total: 20,
+          reason: 'eccentricity 0.81 > 0.65',
+          hfr: 3.10,
+          eccentricity: 0.81,
+          starCount: 92,
+          rejectPath: '/Reject/M101_007.fits',
+          consecutiveRejects: 2,
+          acceptedTotal: 4,
+          rejectedTotal: 3,
+          evidence: [],
+          capture: capture,
+        ),
+      );
       expect(grade, isNotNull);
       expect(grade!.decision, FrameGradeDecision.rejected);
       expect(grade.frame, 7);
@@ -400,14 +417,11 @@ void main() {
       expect(grade.rejectedTotal, 3);
     });
 
-    test('returns null for unrelated event types', () {
+    test('is null for any other event', () {
       expect(
-        FrameGradeEvent.fromTypedData(
-            'InstructionProgress', const {'detail': 'foo'}),
-        isNull,
-      );
-      expect(
-        FrameGradeEvent.fromTypedData('NodeStarted', const {}),
+        FrameGradeEvent.fromEvent(
+          const SequencerEvent.nodeStarted(nodeId: 'n', nodeType: 'Exposure'),
+        ),
         isNull,
       );
     });

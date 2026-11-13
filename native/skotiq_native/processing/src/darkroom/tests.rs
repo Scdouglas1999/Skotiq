@@ -1816,3 +1816,101 @@ fn a_cause_is_never_blank_and_never_carries_control_bytes() {
     );
     assert_eq!(readable_cause("no such file"), "no such file");
 }
+
+/// A render that stops at a failing step names the step in fields, so the app
+/// marks it without reading the sentence, and still carries the sentence.
+#[test]
+fn a_failed_step_is_reported_in_fields_beside_its_sentence() {
+    use crate::darkroom::args::FailedStep;
+    use skotiq_imaging::recipe::{OpError, Recipe, RecipeError};
+
+    let recipe = Recipe::from_json(&recipe_json(
+        "r1",
+        "master.fits",
+        json!([crop_step(0, 0, 8, 8, true), stretch_step()]),
+    ))
+    .expect("the recipe must decode");
+    let failure = RecipeError::Step {
+        index: 1,
+        source: Box::new(OpError::Failed {
+            op_id: "stretch",
+            op_version: 1,
+            reason: "the white point is below the black point".to_string(),
+        }),
+    };
+
+    let payload = parse(&FailedStep::err(&recipe, &failure));
+    assert_eq!(payload["kind"], "step_failed");
+    assert_eq!(payload["index"], 1);
+    assert_eq!(payload["opId"], "stretch");
+    assert_eq!(payload["opVersion"], 1);
+    assert_eq!(
+        payload["reason"],
+        "the white point is below the black point"
+    );
+    assert_eq!(
+        payload["message"],
+        "step 2 failed: stretch@1: the white point is below the black point"
+    );
+
+    // A fault that names no operation keeps its own words as the reason.
+    let unnamed = RecipeError::Step {
+        index: 0,
+        source: Box::new(OpError::EmptyImage),
+    };
+    let payload = parse(&FailedStep::err(&recipe, &unnamed));
+    assert_eq!(payload["opId"], "crop");
+    assert_eq!(
+        payload["reason"],
+        "image is empty (zero width/height/channels or no pixel data)"
+    );
+
+    // Any other refusal stays the engine's sentence.
+    assert_eq!(
+        FailedStep::err(&recipe, &RecipeError::Cancelled),
+        "cancelled"
+    );
+}
+
+/// The same through a real render: a color step over a one-channel master is
+/// refused by the operation, and the preview's error is the failed-step
+/// payload naming that step.
+#[test]
+fn a_render_that_fails_at_a_step_returns_the_failed_step_payload() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let master = write_master(dir.path(), "mono.fits", 64, 64, 1);
+    let recipe = recipe_json(
+        "r-fail",
+        "master:mono",
+        json!([
+            crop_step(0, 0, 32, 32, true),
+            {"opId": "color_calibrate", "opVersion": 1, "params": {}, "enabled": true},
+        ]),
+    );
+
+    let error = match darkroom_render_preview(
+        recipe,
+        json!({"masterPath": master.to_string_lossy()}).to_string(),
+    ) {
+        Ok(_) => panic!("a color step cannot run on a one-channel master"),
+        Err(error) => error,
+    };
+
+    let payload = parse(&error);
+    assert_eq!(payload["kind"], "step_failed", "{error}");
+    assert_eq!(payload["index"], 1);
+    assert_eq!(payload["opId"], "color_calibrate");
+    assert_eq!(payload["opVersion"], 1);
+    let message = payload["message"].as_str().expect("the sentence");
+    assert!(
+        message.starts_with("step 2 failed: color_calibrate@1: "),
+        "{message}"
+    );
+    assert_eq!(
+        format!(
+            "step 2 failed: color_calibrate@1: {}",
+            payload["reason"].as_str().expect("the reason")
+        ),
+        message
+    );
+}

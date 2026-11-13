@@ -67,7 +67,7 @@ SkotiqEvent _evt(
   data: data,
 );
 
-/// The eight critical canary events, each as a core-typed [SkotiqEvent]
+/// The seven critical canary events, each as a core-typed [SkotiqEvent]
 /// paired with the [NotificationCategory] it must classify to.
 final _criticalCases =
     <String, ({SkotiqEvent event, NotificationCategory category})>{
@@ -116,21 +116,22 @@ final _criticalCases =
           EventCategory.sequencer,
           'RecoveryGaveUp',
           EventSeverity.critical,
+          {
+            'started_at_iso': '2026-11-12T03:00:00Z',
+            'cause_kind': 'GuideStarLost',
+            'attempt_count': 3,
+            'max_attempts': 3,
+            'retry_interval_secs': 60.0,
+            'max_duration_secs': 900.0,
+            'phase': 'GaveUp',
+            'aborted_by_user': false,
+          },
         ),
         category: NotificationCategory.recoveryGaveUp,
       ),
       'diskSpaceLow': (
         event: _evt(EventCategory.system, 'DiskSpaceLow', EventSeverity.error),
         category: NotificationCategory.diskSpaceLow,
-      ),
-      'autofocusFailed': (
-        event: _evt(
-          EventCategory.sequencer,
-          'NodeCompleted',
-          EventSeverity.error,
-          {'node_type': 'autofocus', 'success': false},
-        ),
-        category: NotificationCategory.autofocusFailed,
       ),
     };
 
@@ -526,8 +527,10 @@ void main() {
       router.attachEventStream(
         Stream.value(
           _evt(EventCategory.imaging, 'ExposureCompleted', EventSeverity.info, {
-            'frame_number': 3,
-            'duration_secs': 120,
+            'frame': 3,
+            'total': 10,
+            'hfr': 2.1,
+            'stars_detected': 120,
           }),
         ),
       );

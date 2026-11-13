@@ -1,17 +1,15 @@
-// The operator's Stop arrives on the wire as a sequencer ERROR carrying the
-// verbatim notice "Sequence cancelled" (native executor, NodeStatus::Cancelled
-// arm). Every surface that reads the raw event stream has to recognise that one
-// string — and NOTHING else — or it either cries wolf over a deliberate stop or
-// swallows a genuine fault whose text merely contains the word "cancelled".
-//
-// The counter-inputs below are strings the stack really emits.
+// A run's stored error text can carry the cancellation notice. Only that exact
+// notice is a stop; a genuine fault whose text merely contains the word
+// "cancelled" stays an error. The counter-inputs below are strings the stack
+// really emits.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show SequencerStop;
 import 'package:skotiq_core/src/models/sequence/run_stop_classification.dart';
 
 void main() {
   group('isSequenceCancelledNotice', () {
-    test('recognises the notice the executor emits, in either spelling', () {
+    test('recognises the notice, in either spelling', () {
       expect(isSequenceCancelledNotice(kSequenceCancelledNotice), isTrue);
       expect(isSequenceCancelledNotice('Sequence cancelled'), isTrue);
       expect(isSequenceCancelledNotice('Sequence canceled'), isTrue);
@@ -46,22 +44,14 @@ void main() {
     });
   });
 
-  // WHO ended the run. The notice above is emitted by every cancellation path,
-  // so only these rows can name a cause — and a surface that reads the notice
-  // alone told an operator asleep at home that the dawn trigger's ParkAndAbort
-  // was "Stopped by request".
-  group('sequenceStopDecision on a fired-trigger row', () {
-    String triggerDetails(String id, String name, String action) =>
-        '{"trigger_id":"$id","trigger_name":"$name","action":"$action"}';
-
-    test('a ParkAndAbort fire is authorship, named by its trigger', () {
-      final decision = sequenceStopDecision(
-        category: kTriggerFiredDecisionCategory,
-        summary: 'Trigger Dawn Approaching fired → ParkAndAbort',
-        detailsJson: triggerDetails(
-          'dawn_approaching',
-          'Dawn Approaching',
-          kParkAndAbortTriggerAction,
+  // WHO ended the run. Every stop sends the same cancellation, so only the
+  // stop rows can name a cause.
+  group('sequenceStopDecisionOf', () {
+    test('a parking trigger is authorship, named by its trigger', () {
+      final decision = sequenceStopDecisionOf(
+        const SequencerStop.trigger(
+          triggerId: 'dawn_approaching',
+          triggerName: 'Dawn Approaching',
         ),
       );
 
@@ -79,39 +69,77 @@ void main() {
       );
     });
 
+    test('a trigger with neither id nor name names nobody', () {
+      expect(
+        sequenceStopDecisionOf(
+          const SequencerStop.trigger(triggerId: ' ', triggerName: ''),
+        ),
+        isNull,
+      );
+    });
+
+    test('the operator, the autopilot and a subsystem are told apart', () {
+      expect(
+        sequenceStopDecisionOf(const SequencerStop.operator_())?.author,
+        SequenceStopAuthor.operatorPress,
+      );
+      expect(
+        sequenceStopDecisionOf(const SequencerStop.autopilot())?.author,
+        SequenceStopAuthor.autopilot,
+      );
+      final system = sequenceStopDecisionOf(
+        const SequencerStop.system(origin: 'rollback'),
+      );
+      expect(system?.author, SequenceStopAuthor.system);
+      expect(system?.origin, 'rollback');
+      expect(
+        sequenceStopDecisionOf(const SequencerStop.system(origin: ''))?.origin,
+        isNull,
+      );
+    });
+
+    test('the cancellation row and a row with no stop name nobody', () {
+      expect(sequenceStopDecisionOf(const SequencerStop.cancelled()), isNull);
+      expect(sequenceStopDecisionOf(null), isNull);
+    });
+  });
+
+  group('sequenceStopTriggerDecision on a TriggerFired event', () {
+    test('a ParkAndAbort fire names its trigger', () {
+      expect(
+        sequenceStopTriggerDecision(
+          triggerId: 'weather_unsafe',
+          triggerName: 'Weather Unsafe',
+          action: kParkAndAbortTriggerAction,
+        )?.originLabel,
+        'the Weather Unsafe trigger',
+      );
+    });
+
     // A dither/autofocus/pause trigger fires mid-run and the run keeps going;
     // reading it as authorship would blame it for whatever ended the run an
-    // hour later.
-    test('a fire whose action leaves the run running names nobody', () {
+    // hour later. "Abort" ends the run without parking and names nobody.
+    test('a fire whose action does not park and end the run names nobody', () {
       for (final action in const [
         'Continue',
         'Pause',
         'Autofocus',
         'NextTarget',
-        'Dither(DitherConfig { pixels: 3.0 })',
+        'Dither',
         'Recenter',
+        'Abort',
+        'Notify',
       ]) {
         expect(
-          sequenceStopDecision(
-            category: kTriggerFiredDecisionCategory,
-            summary: 'Trigger Focus Drift fired → $action',
-            detailsJson: triggerDetails('focus_drift', 'Focus Drift', action),
+          sequenceStopTriggerDecision(
+            triggerId: 'focus_drift',
+            triggerName: 'Focus Drift',
+            action: action,
           ),
           isNull,
-          reason: '$action does not end the run',
+          reason: '$action does not park and end the run',
         );
       }
-    });
-
-    test('a fired-trigger row with no details names nobody', () {
-      expect(
-        sequenceStopDecision(
-          category: kTriggerFiredDecisionCategory,
-          summary: 'Trigger fired',
-          detailsJson: 'not json',
-        ),
-        isNull,
-      );
     });
   });
 

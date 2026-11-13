@@ -6,8 +6,6 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `master_accumulate_op`
-
 /// One-shot batch integration of a sub list into a linear FITS master.
 ///
 /// Pipeline: optional calibration (dark/flat/bias) + cosmetic correction →

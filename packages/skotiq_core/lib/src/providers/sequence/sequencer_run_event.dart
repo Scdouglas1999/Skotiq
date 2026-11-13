@@ -21,7 +21,15 @@
 /// wire format is unchanged.
 library;
 
-import '../../backend/bridge_events.dart' show SequencerErrorKind;
+import '../../backend/bridge_event_codec.dart';
+import '../../backend/bridge_events.dart'
+    show
+        EventPayload_Sequencer,
+        FlipOutcome,
+        SequencerErrorKind,
+        SequencerEvent_DecisionLogged,
+        SequencerStop,
+        decodeFlipOutcome;
 import '../../backend/frame_capture_metadata.dart';
 import '../../backend/sequencer_error_kind.dart';
 import '../../errors/error_text.dart';
@@ -475,11 +483,6 @@ final class HorizonObstructionDetected extends SequencerRunEvent {
   final String? message;
 }
 
-/// [MeridianFlipOutcome.outcome] sent the moment the mount is verified on its
-/// new pier side, before the flip's centering and guiding are done. The flip's
-/// own verdict (`success`, `failed` or `aborted`) still follows.
-const String meridianFlipPierChangedOutcome = 'pier_changed';
-
 final class MeridianFlipOutcome extends SequencerRunEvent {
   const MeridianFlipOutcome({
     required super.eventType,
@@ -495,8 +498,8 @@ final class MeridianFlipOutcome extends SequencerRunEvent {
     this.actionTaken,
   });
 
-  /// `success` / `aborted` / `failed`.
-  final String? outcome;
+  /// Null from a host that sent an outcome this build does not know.
+  final FlipOutcome? outcome;
   final String? targetName;
   final String? newPierSide;
   final int? attempts;
@@ -690,6 +693,7 @@ final class DecisionLogged extends SequencerRunEvent {
     this.detailsJson,
     this.nodeId,
     this.sequenceRunId,
+    this.stop,
   });
 
   final String? timestampIso;
@@ -698,6 +702,9 @@ final class DecisionLogged extends SequencerRunEvent {
   final String? detailsJson;
   final String? nodeId;
   final int? sequenceRunId;
+
+  /// Set on the rows that record a run's stop.
+  final SequencerStop? stop;
 }
 
 /// A sequencer event no consumer here reads (scheduler decisions, photometry,
@@ -830,7 +837,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         eventType: type,
         timestamp: ts,
         severity: sev,
-        kind: sequencerErrorKindOf(event),
+        kind: sequencerErrorOf(event)?.kind ?? SequencerErrorKind.stepFailed,
         message: d.string('message'),
       );
 
@@ -886,7 +893,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         eventType: type,
         timestamp: ts,
         severity: sev,
-        outcome: d.string('outcome'),
+        outcome: decodeFlipOutcome(event.data['outcome']),
         targetName: d.string('target_name'),
         newPierSide: d.string('new_pier_side'),
         attempts: d.integer('attempts'),
@@ -992,6 +999,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         detailsJson: d.string('details_json'),
         nodeId: d.string('node_id'),
         sequenceRunId: d.integer('sequence_run_id'),
+        stop: _decisionStopOf(event),
       );
 
     default:
@@ -1091,3 +1099,11 @@ extension type const _Fields(Map<String, dynamic> data) {
     return v is bool ? v : null;
   }
 }
+
+SequencerStop? _decisionStopOf(SkotiqEvent event) => switch (typedEventFromWire(
+  event,
+)?.payload) {
+  EventPayload_Sequencer(field0: SequencerEvent_DecisionLogged(:final stop)) =>
+    stop,
+  _ => null,
+};

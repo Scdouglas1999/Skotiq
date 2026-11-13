@@ -35,7 +35,7 @@ use skotiq_imaging::recipe::{
     RenderOptions, RenderOutput, StepOutcome,
 };
 
-use crate::darkroom::args::{CancelledRender, CatalogStarArgs};
+use crate::darkroom::args::{CancelledRender, CatalogStarArgs, FailedStep};
 use crate::darkroom::catalog::SuppliedCatalog;
 use crate::darkroom::state::{base_pyramid, registry, render_cache, LoadedMaster};
 use crate::run_cancel::CancelToken;
@@ -173,7 +173,7 @@ pub(crate) fn run_render(
     match render(recipe, base, registry, &mut cache, ctx, options) {
         Ok(output) => Ok(output),
         Err(RecipeError::Cancelled) => Err(CancelledRender::err(token.id(), "render")),
-        Err(other) => Err(other.to_string()),
+        Err(other) => Err(FailedStep::err(recipe, &other)),
     }
 }
 
