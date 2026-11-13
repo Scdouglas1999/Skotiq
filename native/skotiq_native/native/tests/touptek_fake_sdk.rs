@@ -1,15 +1,23 @@
-//! The Touptek driver against the fake ToupTek-family SDK (`TOUPTEK_FAKE_SDK` in
-//! `tests/native_driver_tests.rs`), which models the SDK as its header and manual
+//! The Touptek driver against the fake ToupTek-family SDK
+//! (`tests/fake_sdk/touptek.rs`), which models the SDK as its header and manual
 //! describe it. Each test checks one thing a ToupTek, Altair, OGMA, Omegon or
-//! Risingcam owner relies on. The fake must come first on the loader path:
-//! `tests/fake_sdk_linux/run_touptek_checks.sh` builds it and runs these.
+//! Risingcam owner relies on. The fake keeps one camera's state per process, so
+//! the tests run in one child process, one at a time.
 
-#![cfg(unix)]
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 use skotiq_device::{CameraDriver, DeviceDriver, DriverError, ExposureParams, FrameType};
 use skotiq_device::{ImageData, SubFrame};
 use skotiq_native::vendor::touptek::{self, TouptekCamera};
 use std::time::Duration;
+
+#[test]
+fn touptek_driver_against_the_fake_sdk() {
+    harness::FakeSdk::build("touptek", &[harness::TOUPTEK]).run_ignored("", &[]);
+}
 
 const COOLED_COLOR: usize = 0;
 const UNCOOLED_MONO: usize = 1;
@@ -58,7 +66,7 @@ fn at(image: &ImageData, x: u32, y: u32) -> u32 {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn filter_wheels_and_focusers_on_the_sdk_are_not_listed_as_cameras() {
     let devices = touptek::discover_devices_for_brand("OGMA").await.unwrap();
     let names: Vec<&str> = devices.iter().map(|d| d.name.as_str()).collect();
@@ -66,7 +74,7 @@ async fn filter_wheels_and_focusers_on_the_sdk_are_not_listed_as_cameras() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn a_camera_without_a_thermometer_answers_the_status_read() {
     let mut camera = connected(UNCOOLED_MONO).await;
     let status = camera
@@ -84,7 +92,7 @@ async fn a_camera_without_a_thermometer_answers_the_status_read() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn frames_record_the_sensor_temperature() {
     let mut camera = connected(COOLED_COLOR).await;
     camera.set_cooler(true, Some(-12.5)).await.unwrap();
@@ -94,7 +102,7 @@ async fn frames_record_the_sensor_temperature() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn the_bit_depth_is_the_one_the_frames_are_read_out_in() {
     let mut camera = connected(COOLED_COLOR).await;
     let sensor = camera.get_sensor_info();
@@ -105,7 +113,7 @@ async fn the_bit_depth_is_the_one_the_frames_are_read_out_in() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn an_eight_bit_camera_delivers_its_own_pixels() {
     let mut camera = connected(EIGHT_BIT_MONO).await;
     let sensor = camera.get_sensor_info();
@@ -122,7 +130,7 @@ async fn an_eight_bit_camera_delivers_its_own_pixels() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn the_offset_reaches_the_camera_and_the_frame_records_it() {
     let mut camera = connected(COOLED_COLOR).await;
     assert!(camera.capabilities().can_set_offset);
@@ -157,7 +165,7 @@ async fn the_offset_reaches_the_camera_and_the_frame_records_it() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn a_binned_subframe_covers_the_requested_part_of_the_sensor() {
     let mut camera = connected(COOLED_COLOR).await;
     let full = take(&mut camera, exposure(0.01, 1, None)).await;
@@ -187,7 +195,7 @@ async fn a_binned_subframe_covers_the_requested_part_of_the_sensor() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn a_subframe_the_sensor_cannot_read_is_widened_and_reported_as_read() {
     let mut camera = connected(COOLED_COLOR).await;
     let roi = SubFrame {
@@ -212,7 +220,7 @@ async fn a_subframe_the_sensor_cannot_read_is_widened_and_reported_as_read() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn the_exposure_time_is_the_one_the_sensor_ran() {
     let mut camera = connected(COOLED_COLOR).await;
     assert_eq!(
@@ -231,7 +239,7 @@ async fn the_exposure_time_is_the_one_the_sensor_ran() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn the_cooler_state_is_the_cameras_own() {
     let mut camera = connected(COOLED_COLOR).await;
     // The SDK opens a cooled camera with its cooler on, aiming at the model default (0 C here).
@@ -252,7 +260,7 @@ async fn the_cooler_state_is_the_cameras_own() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn an_abandoned_frame_is_never_delivered_as_the_next_one() {
     let mut camera = connected(COOLED_COLOR).await;
     let first = take(&mut camera, exposure(0.01, 1, None)).await;
@@ -273,7 +281,7 @@ async fn an_abandoned_frame_is_never_delivered_as_the_next_one() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn frames_are_top_row_first_where_the_sdk_defaults_to_upside_down() {
     // The Windows SDK delivers rows bottom first unless told otherwise.
     std::env::set_var("SK_TOUPTEK_UPSIDE_DOWN", "1");
@@ -296,7 +304,7 @@ async fn frames_are_top_row_first_where_the_sdk_defaults_to_upside_down() {
 }
 
 #[tokio::test]
-#[ignore = "needs the fake ToupTek SDK on LD_LIBRARY_PATH: tests/fake_sdk_linux/run_touptek_checks.sh"]
+#[ignore = "run by touptek_driver_against_the_fake_sdk"]
 async fn the_camera_reports_its_serial_number() {
     let mut camera = connected(COOLED_COLOR).await;
     assert_eq!(camera.serial_number().as_deref(), Some("OGMA-COOLED-0001"));

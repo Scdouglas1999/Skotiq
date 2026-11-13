@@ -35,14 +35,16 @@ void main() {
     cd1_2: cd[1],
     cd2_1: cd[2],
     cd2_2: cd[3],
-    aOrder: sip ? f['aOrder'] as int : 0,
-    bOrder: sip ? f['bOrder'] as int : 0,
-    aCoeffs: sip ? doubles(f['a']) : const [],
-    bCoeffs: sip ? doubles(f['b']) : const [],
-    apOrder: sip ? f['apOrder'] as int : 0,
-    bpOrder: sip ? f['bpOrder'] as int : 0,
-    apCoeffs: sip ? doubles(f['ap']) : const [],
-    bpCoeffs: sip ? doubles(f['bp']) : const [],
+    sip: (
+      aOrder: sip ? f['aOrder'] as int : 0,
+      bOrder: sip ? f['bOrder'] as int : 0,
+      aCoeffs: sip ? doubles(f['a']) : const [],
+      bCoeffs: sip ? doubles(f['b']) : const [],
+      apOrder: sip ? f['apOrder'] as int : 0,
+      bpOrder: sip ? f['bpOrder'] as int : 0,
+      apCoeffs: sip ? doubles(f['ap']) : const [],
+      bpCoeffs: sip ? doubles(f['bp']) : const [],
+    ),
   );
   final gaia = [for (final g in f['gaia'] as List) doubles(g)];
   final detections = [for (final d in f['detections'] as List) doubles(d)];

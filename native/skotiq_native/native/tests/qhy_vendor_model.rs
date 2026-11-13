@@ -10,68 +10,13 @@
 
 #![cfg(target_os = "linux")]
 
-use std::path::PathBuf;
-use std::process::Command;
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
 
 #[test]
 fn qhy_driver_against_the_vendor_model() {
-    let out = std::env::temp_dir().join(format!("skotiq-qhy-model-{}", std::process::id()));
-    std::fs::create_dir_all(&out).expect("create the model's directory");
-    let source =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/qhy_vendor_model/libqhyccd.rs");
-    let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".to_string());
-    let built = Command::new(rustc)
-        .args([
-            "--crate-type",
-            "cdylib",
-            "--edition",
-            "2021",
-            "-O",
-            "-A",
-            "warnings",
-        ])
-        .arg(&source)
-        .arg("-o")
-        .arg(out.join("libqhyccd.so"))
-        .output()
-        .expect("run rustc for the QHY model");
-    assert!(
-        built.status.success(),
-        "QHY model build failed:\n{}",
-        String::from_utf8_lossy(&built.stderr)
-    );
-    let test_binary = std::env::current_exe().expect("test binary");
-    let listed = Command::new(&test_binary)
-        .args(["--ignored", "--list", "vendor_model::"])
-        .output()
-        .expect("list the QHY model tests");
-    let names: Vec<String> = String::from_utf8_lossy(&listed.stdout)
-        .lines()
-        .filter_map(|line| line.strip_suffix(": test"))
-        .map(str::to_string)
-        .collect();
-    assert!(!names.is_empty(), "no QHY model test was listed");
-    let mut failures = Vec::new();
-    for name in &names {
-        let run = Command::new(&test_binary)
-            .args(["--ignored", "--exact", name])
-            .env("LD_LIBRARY_PATH", &out)
-            .output()
-            .expect("run a QHY model test");
-        if !run.status.success() {
-            failures.push(format!(
-                "{name}:\n{}{}",
-                String::from_utf8_lossy(&run.stdout),
-                String::from_utf8_lossy(&run.stderr)
-            ));
-        }
-    }
-    let _ = std::fs::remove_dir_all(&out);
-    assert!(
-        failures.is_empty(),
-        "QHY model tests failed:\n{}",
-        failures.join("\n")
-    );
+    harness::FakeSdk::build("qhy_vendor_model", &[harness::QHY_VENDOR_MODEL])
+        .run_each("vendor_model::", &[]);
 }
 
 mod vendor_model {

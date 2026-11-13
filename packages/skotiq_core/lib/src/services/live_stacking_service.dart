@@ -63,6 +63,19 @@ class LiveStackingConfig {
     this.demosaicQuality = 'bilinear',
   });
 
+  /// The same settings as the native stacker takes them.
+  bridge.ApiLiveStackingConfig toBridge() => bridge.ApiLiveStackingConfig(
+    sigmaClipEnabled: sigmaClipEnabled,
+    sigmaClipThreshold: sigmaClipThreshold,
+    maxMatchStars: maxMatchStars,
+    matchRadiusPx: matchRadiusPx,
+    matchFluxTolerance: matchFluxTolerance,
+    minMatchedPairs: minMatchedPairs,
+    sensorMode: sensorMode,
+    bayerPattern: bayerPattern,
+    demosaicQuality: demosaicQuality,
+  );
+
   LiveStackingConfig copyWith({
     bool? sigmaClipEnabled,
     double? sigmaClipThreshold,
@@ -150,6 +163,18 @@ class LiveStackingStats {
     this.lastOtherFilter,
   });
 
+  /// The native stacker's tally.
+  LiveStackingStats.fromBridge(bridge.ApiLiveStackingStats s)
+    : stackedFrameCount = s.stackedFrameCount,
+      totalFramesAttempted = s.totalFramesAttempted,
+      rejectedAlignmentFailures = s.rejectedAlignmentFailures,
+      avgMatchedPairs = s.avgMatchedPairs,
+      avgAlignmentResidual = s.avgAlignmentResidual,
+      totalSigmaRejectedPixels = s.totalSigmaRejectedPixels.toInt(),
+      filter = s.filter,
+      otherFilterFrames = s.otherFilterFrames,
+      lastOtherFilter = s.lastOtherFilter;
+
   /// Why frames were left out of the stack for their filter and what to do
   /// about it; null when none were.
   String? get otherFilterNote {
@@ -211,6 +236,14 @@ class LiveStackingResult {
     required this.data,
     required this.stats,
   });
+
+  /// The native stacker's current stack.
+  LiveStackingResult.fromBridge(bridge.ApiLiveStackingResult r)
+    : width = r.width,
+      height = r.height,
+      channels = r.channels,
+      data = r.data,
+      stats = LiveStackingStats.fromBridge(r.stats);
 }
 
 /// Format a stacked master was written in.
@@ -351,24 +384,12 @@ class LiveStackingService {
       );
     }
 
-    final bridgeConfig = bridge.ApiLiveStackingConfig(
-      sigmaClipEnabled: config.sigmaClipEnabled,
-      sigmaClipThreshold: config.sigmaClipThreshold,
-      maxMatchStars: config.maxMatchStars,
-      matchRadiusPx: config.matchRadiusPx,
-      matchFluxTolerance: config.matchFluxTolerance,
-      minMatchedPairs: config.minMatchedPairs,
-      sensorMode: config.sensorMode,
-      bayerPattern: config.bayerPattern,
-      demosaicQuality: config.demosaicQuality,
-    );
-
     final result = await bridge.apiStackingStart(
       referenceImagePath: referenceImagePath,
-      config: bridgeConfig,
+      config: config.toBridge(),
     );
 
-    return _convertStats(result);
+    return LiveStackingStats.fromBridge(result);
   }
 
   /// Start live stacking from raw pixel data in memory.
@@ -395,26 +416,14 @@ class LiveStackingService {
       );
     }
 
-    final bridgeConfig = bridge.ApiLiveStackingConfig(
-      sigmaClipEnabled: config.sigmaClipEnabled,
-      sigmaClipThreshold: config.sigmaClipThreshold,
-      maxMatchStars: config.maxMatchStars,
-      matchRadiusPx: config.matchRadiusPx,
-      matchFluxTolerance: config.matchFluxTolerance,
-      minMatchedPairs: config.minMatchedPairs,
-      sensorMode: config.sensorMode,
-      bayerPattern: config.bayerPattern,
-      demosaicQuality: config.demosaicQuality,
-    );
-
     final result = await bridge.apiStackingStartFromData(
       width: width,
       height: height,
       data: data,
-      config: bridgeConfig,
+      config: config.toBridge(),
     );
 
-    return _convertStats(result);
+    return LiveStackingStats.fromBridge(result);
   }
 
   /// Add a frame to the stack from a file path.
@@ -437,7 +446,7 @@ class LiveStackingService {
       }
 
       final result = await bridge.apiStackingAddFrame(imagePath: imagePath);
-      return _convertResult(result);
+      return LiveStackingResult.fromBridge(result);
     });
   }
 
@@ -459,7 +468,7 @@ class LiveStackingService {
         height: height,
         data: data,
       );
-      return _convertResult(result);
+      return LiveStackingResult.fromBridge(result);
     });
   }
 
@@ -492,7 +501,7 @@ class LiveStackingService {
       return remote.stackingGetResult();
     }
     final result = await bridge.apiStackingGetResult();
-    return _convertResult(result);
+    return LiveStackingResult.fromBridge(result);
   }
 
   /// Display-ready RGBA8 render of a stacked buffer.
@@ -671,7 +680,7 @@ class LiveStackingService {
       return remote.stackingGetStats();
     }
     final result = await bridge.apiStackingGetStats();
-    return _convertStats(result);
+    return LiveStackingStats.fromBridge(result);
   }
 
   /// Reset the stacker, clearing accumulated data but keeping the reference.
@@ -699,28 +708,4 @@ class LiveStackingService {
   bool get isActive => bridge.apiStackingIsActive();
 
   int get frameCount => bridge.apiStackingFrameCount();
-
-  LiveStackingStats _convertStats(bridge.ApiLiveStackingStats bridgeStats) {
-    return LiveStackingStats(
-      stackedFrameCount: bridgeStats.stackedFrameCount,
-      totalFramesAttempted: bridgeStats.totalFramesAttempted,
-      rejectedAlignmentFailures: bridgeStats.rejectedAlignmentFailures,
-      avgMatchedPairs: bridgeStats.avgMatchedPairs,
-      avgAlignmentResidual: bridgeStats.avgAlignmentResidual,
-      totalSigmaRejectedPixels: bridgeStats.totalSigmaRejectedPixels.toInt(),
-      filter: bridgeStats.filter,
-      otherFilterFrames: bridgeStats.otherFilterFrames,
-      lastOtherFilter: bridgeStats.lastOtherFilter,
-    );
-  }
-
-  LiveStackingResult _convertResult(bridge.ApiLiveStackingResult bridgeResult) {
-    return LiveStackingResult(
-      width: bridgeResult.width,
-      height: bridgeResult.height,
-      channels: bridgeResult.channels,
-      data: bridgeResult.data,
-      stats: _convertStats(bridgeResult.stats),
-    );
-  }
 }

@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/services/flat_library_service.dart';
@@ -16,7 +17,12 @@ void main() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     dao = FlatLibraryDao(db);
     seam = FakePostSessionSeam();
-    service = FlatLibraryService(dao: dao, seam: seam);
+    // The flat paths are not files; their headers state nothing.
+    service = FlatLibraryService(
+      dao: dao,
+      seam: seam,
+      readHeader: (_) async => FrameHeader(const {}),
+    );
   });
 
   tearDown(() async {

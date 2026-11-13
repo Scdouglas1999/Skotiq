@@ -1,13 +1,9 @@
 //! Sky-atlas (Pillar A — "Your Sky") pipeline.
 //!
-//! This module exposes the HEALPix-tiled, out-of-core, **additive** all-sky
-//! accumulator ([`skotiq_imaging::sky_atlas`]) to Dart through the same
-//! **JSON-in / JSON-out** boundary the rest of the post-session / finishing
-//! surface uses (see [`crate::post_session`] for the canonical template and
-//! the rationale: regenerating `flutter_rust_bridge` bindings is heavyweight, so
-//! every knob rides inside the JSON payload and never triggers another regen).
-//!
-//! The keystone is built; this is its bridge. Two entry shapes are exposed:
+//! The work behind the HEALPix-tiled, out-of-core, **additive** all-sky
+//! accumulator ([`skotiq_imaging::sky_atlas`]). Like [`crate::post_session`],
+//! every entry point takes and returns JSON, so a new setting needs no binding
+//! regeneration. Two entry shapes:
 //!
 //! * [`sky_atlas`] — the **dispatcher** matching `docs/skotiq_5_0_contracts.md`
 //!   §2.1, switched on an `"action"` field (`fold` / `finalize` / `tilePng` /

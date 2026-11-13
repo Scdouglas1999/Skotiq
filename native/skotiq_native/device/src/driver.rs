@@ -74,17 +74,36 @@ pub trait ExposureAbort: Send + Sync {
 /// This trait provides all camera operations that native drivers must implement.
 /// Similar to NINA's ICameraDevice interface.
 ///
-/// `heartbeat` and `report` are whole operations with a default body made
-/// of the single calls. A protocol that answers them with its own set of
-/// requests (Alpaca, INDI) overrides them; such a driver is a client of a
-/// server that keeps the state, cheap to clone, and every clone is the same
+/// `heartbeat`, `report` and `describe` are whole operations with a default
+/// body made of the single calls. A protocol that answers them with its own
+/// set of requests (Alpaca, INDI) overrides them; such a driver is a client of
+/// a server that keeps the state, cheap to clone, and every clone is the same
 /// camera.
 #[async_trait]
 pub trait CameraDriver: DeviceDriver {
-    /// What the driver knows of the camera's abilities without asking it. A
-    /// client of a server knows nothing that way and answers through
-    /// [`CameraDriver::report`].
+    /// What the driver keeps of the camera's abilities from its connect. A
+    /// client of a server keeps nothing and answers through
+    /// [`CameraDriver::describe`] and [`CameraDriver::report`].
     fn capabilities(&self) -> CameraCapabilities;
+
+    /// What the camera can do and how its sensor is built, in one
+    /// operation. A range or list the camera does not publish is absent.
+    async fn describe(&self) -> CameraDescription {
+        CameraDescription {
+            capabilities: self.capabilities(),
+            sensor: self.get_sensor_info(),
+            gain_range: self.get_gain_range().await.ok(),
+            offset_range: self.get_offset_range().await.ok(),
+            iso_speeds: self.get_iso_speeds().await.unwrap_or_default(),
+            readout_modes: self.get_readout_modes().await.unwrap_or_default(),
+            cooler_temp_range: self.get_cooler_temp_range().await.ok().flatten(),
+            exposure_range: self.get_exposure_range().await.ok().flatten(),
+            can_abort_exposure: true,
+            can_stop_exposure: false,
+            can_asymmetric_bin: false,
+            sensor_type: None,
+        }
+    }
 
     /// Whether the camera still answers. `Ok(false)`: it says it is not
     /// connected. `Err`: the probe failed.
@@ -161,7 +180,7 @@ pub trait CameraDriver: DeviceDriver {
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError>;
 
-    /// The sensor as the driver knows it without asking the camera; see
+    /// The sensor as the driver keeps it from its connect; see
     /// [`CameraDriver::capabilities`].
     fn get_sensor_info(&self) -> SensorInfo;
 
@@ -359,17 +378,22 @@ pub trait MountDriver: DeviceDriver {
 
     async fn get_tracking(&self) -> Result<bool, DriverError>;
 
+    /// Takes any rate [`MountDriver::tracking_rates`] lists.
     async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError>;
 
     async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError>;
+
+    /// The rates the mount can be set to track at; empty when its rate
+    /// cannot be set.
+    async fn tracking_rates(&self) -> Vec<TrackingRate> {
+        Vec::new()
+    }
 
     async fn can_slew(&self) -> bool;
 
     async fn can_sync(&self) -> bool;
 
     async fn can_pulse_guide(&self) -> bool;
-
-    async fn can_set_tracking_rate(&self) -> bool;
 
     async fn get_side_of_pier(&self) -> Result<PierSide, DriverError>;
 
@@ -422,8 +446,34 @@ pub trait MountDriver: DeviceDriver {
             can_slew: self.can_slew().await,
             can_sync: self.can_sync().await,
             can_pulse_guide: self.can_pulse_guide().await,
-            can_set_tracking_rate: self.can_set_tracking_rate().await,
+            can_set_tracking_rate: !self.tracking_rates().await.is_empty(),
         })
+    }
+
+    /// What the mount can do, in one operation. The default asks the single
+    /// questions a serial mount answers: whether it can park is whether it
+    /// reports a park state, whether tracking can be switched is whether it
+    /// reports tracking, and whether a goto can be stopped is whether it
+    /// reports slewing.
+    async fn describe(&self) -> MountDescription {
+        let can_park = self.can_park().await.unwrap_or(false);
+        let can_slew = self.can_slew().await;
+        MountDescription {
+            can_slew,
+            can_slew_async: can_slew,
+            can_sync: self.can_sync().await,
+            can_park,
+            can_unpark: can_park,
+            can_set_park: self.can_set_park().await.unwrap_or(false),
+            can_find_home: self.can_find_home().await.unwrap_or(false),
+            can_pulse_guide: self.can_pulse_guide().await,
+            can_set_tracking: self.get_tracking().await.is_ok(),
+            tracking_rates: self.tracking_rates().await,
+            can_abort_slew: self.is_slewing().await.is_ok(),
+            is_equatorial: true,
+            axis_count: 2,
+            ..MountDescription::default()
+        }
     }
 
     /// Read the site the mount is configured for.

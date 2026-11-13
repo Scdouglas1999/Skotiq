@@ -3,10 +3,9 @@
 //! This module contains all the functions that can be called from Dart.
 //! Each function is marked with the appropriate flutter_rust_bridge attributes.
 
-// Submodule declarations (api.rs decomposition).
-
 pub mod connection;
 pub mod darkroom;
+pub mod defect_map;
 pub mod depthlock;
 pub mod devices;
 pub mod diagnostics;
@@ -16,15 +15,13 @@ pub mod event_stream;
 pub mod finishing_analyze;
 pub mod finishing_combine;
 pub mod finishing_enhance;
+pub mod frame_file;
 pub mod guiding;
 pub mod heartbeat;
-// `pub(crate)` not `pub`: keep this submodule's name out of the crate-root
-// glob (`pub use api::*` in lib.rs) so it doesn't shadow `crate::hotplug`,
-// the top-level listener module. The single Dart-callable function inside
-// is re-exported by name below.
-pub(crate) mod hotplug;
+pub mod hotplug;
 pub mod imaging;
 pub mod init;
+pub mod live_stacking;
 pub mod mosaic;
 pub mod mount_guard;
 pub mod phd2;

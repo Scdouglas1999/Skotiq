@@ -134,7 +134,7 @@ mod safetymonitor;
 mod switch_device;
 mod weather;
 
-pub use camera::{IndiBayerPattern, IndiCamera, IndiReadoutMode};
+pub use camera::{IndiCamera, IndiReadoutMode};
 pub use client::*;
 pub use covercalibrator::{IndiCalibratorState, IndiCoverCalibrator, IndiCoverState};
 pub use discovery::{

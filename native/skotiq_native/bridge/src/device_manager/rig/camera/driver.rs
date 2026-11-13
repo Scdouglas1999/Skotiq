@@ -7,9 +7,8 @@
 
 use super::{no_preview, Camera, ExposureAborts};
 use crate::device::DriverType;
-use crate::device_capabilities::alpaca::alpaca_camera_capabilities;
-use crate::device_capabilities::indi::indi_capabilities;
-use crate::device_capabilities::types::{CameraCapabilities, DeviceCapabilities};
+use crate::device_capabilities::driver::camera_capabilities;
+use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{RigDriver, Slot};
 use crate::device_manager::DeviceManager;
@@ -30,8 +29,7 @@ struct Protocol {
     name: &'static str,
     /// The protocol inside a sentence: "native SDK", "Alpaca", "INDI".
     in_sentence: &'static str,
-    /// Where a description of the camera comes from, and what a camera
-    /// without live view is said to be driven by.
+    /// What a camera without live view is said to be driven by.
     driver_type: DriverType,
 }
 
@@ -60,18 +58,6 @@ pub(crate) struct DriverCamera {
     /// The driver's way to give up a frame read in flight, when it has one.
     give_up: Option<Arc<dyn ExposureAbort>>,
     protocol: &'static Protocol,
-    description: Description,
-}
-
-/// Where a description of the camera comes from: the driver's own answers,
-/// or the protocol's capability read through the client the driver uses.
-enum Description {
-    Driver,
-    Alpaca(skotiq_alpaca::AlpacaCameraDriver),
-    Indi {
-        client: Arc<RwLock<skotiq_indi::IndiClient>>,
-        device_name: String,
-    },
 }
 
 impl DriverCamera {
@@ -84,12 +70,10 @@ impl DriverCamera {
             driver: Arc::new(Slot::held(driver)),
             aborts: ExposureAborts::new(),
             protocol: &VENDOR,
-            description: Description::Driver,
         }
     }
 
     pub(crate) fn alpaca(device_id: &str, camera: skotiq_alpaca::AlpacaCameraDriver) -> Self {
-        let description = Description::Alpaca(camera.clone());
         Self {
             device_id: device_id.to_string(),
             give_up: None,
@@ -98,7 +82,6 @@ impl DriverCamera {
             })),
             aborts: ExposureAborts::new(),
             protocol: &ALPACA,
-            description,
         }
     }
 
@@ -108,10 +91,6 @@ impl DriverCamera {
         device_name: &str,
     ) -> Self {
         let device_name = device_name.to_string();
-        let description = Description::Indi {
-            client: client.clone(),
-            device_name: device_name.clone(),
-        };
         Self {
             device_id: device_id.to_string(),
             give_up: None,
@@ -120,7 +99,6 @@ impl DriverCamera {
             })),
             aborts: ExposureAborts::new(),
             protocol: &INDI,
-            description,
         }
     }
 
@@ -378,97 +356,16 @@ impl Camera for DriverCamera {
     /// A snapshot: a read the driver refuses mid-transition leaves its field
     /// absent, and the equipment view re-reads on its timer.
     async fn capabilities(&self, device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-        match &self.description {
-            Description::Alpaca(driver) => {
-                return Ok(DeviceCapabilities::Camera(
-                    alpaca_camera_capabilities(driver.camera()).await,
-                ))
-            }
-            Description::Indi {
-                client,
-                device_name,
-            } => return indi_capabilities(client, device_name, device_id).await,
-            Description::Driver => {}
-        }
         let camera = self.driver.read().await.ok_or_else(|| {
             SkotiqError::hardware_error(
                 device_id,
                 format!("{} camera not connected", self.protocol.name),
             )
         })?;
-        let native_caps = camera.capabilities();
-        let sensor_info = camera.get_sensor_info();
-        let gain_range = camera.get_gain_range().await.ok();
-        let iso_speeds = camera.get_iso_speeds().await.unwrap_or_default();
-        let offset_range = camera.get_offset_range().await.ok();
-        // Why: vendor SDK readout-mode enumeration is optional (only ZWO
-        // and QHY expose multi-mode sensors). Empty vec → UI hides the
-        // readout-mode selector, matching cameras that have a single
-        // hard-coded mode.
-        let readout_modes = camera.get_readout_modes().await.unwrap_or_default();
         let status = camera.get_status().await.ok();
-        let cooler_power = status.as_ref().and_then(|s| s.cooler_power);
-        // Why: the CameraDriver trait's get_cooler_temp_range default
-        // returns Ok(None); only drivers that publish the achievable
-        // regulated-cooling range (currently ZWO, via C2) override it.
-        // `.ok().flatten()` collapses a transient SDK error to None
-        // ("range unknown") — the equipment view re-probes on a timer,
-        // and an unknown range simply leaves the setpoint field unclamped
-        // rather than fabricating limits.
-        let (cooler_min_temp_c, cooler_max_temp_c) = camera
-            .get_cooler_temp_range()
-            .await
-            .ok()
-            .flatten()
-            .map_or((None, None), |(min, max)| (Some(min), Some(max)));
-
-        // Same contract as the cooler range: `None` means "this driver
-        // does not publish the limits", never a guessed clamp. Without
-        // these, `exposureMin`/`exposureMax` were always null, so no
-        // client could validate an exposure before submitting it and an
-        // out-of-range request failed deep in the SDK instead of being
-        // refused up front. ZWO publishes them via ASIGetControlCaps.
-        let (exposure_min, exposure_max) = camera
-            .get_exposure_range()
-            .await
-            .ok()
-            .flatten()
-            .map_or((None, None), |(min, max)| (Some(min), Some(max)));
-
-        Ok(DeviceCapabilities::Camera(CameraCapabilities {
-            max_width: sensor_info.width,
-            max_height: sensor_info.height,
-            bit_depth: sensor_info.bit_depth,
-            has_shutter: native_caps.has_shutter,
-            can_set_ccd_temperature: native_caps.can_cool,
-            can_set_cooler: native_caps.can_cool,
-            can_get_cooler_power: cooler_power.is_some(),
-            can_bin: native_caps.can_set_binning,
-            max_bin_x: native_caps.max_bin_x,
-            max_bin_y: native_caps.max_bin_y,
-            can_set_gain: native_caps.can_set_gain,
-            gain_min: gain_range.map(|(min, _)| min),
-            gain_max: gain_range.map(|(_, max)| max),
-            iso_speeds,
-            can_set_offset: native_caps.can_set_offset,
-            offset_min: offset_range.map(|(min, _)| min),
-            offset_max: offset_range.map(|(_, max)| max),
-            can_abort_exposure: true,
-            can_subframe: native_caps.can_subframe,
-            pixel_size_x: Some(sensor_info.pixel_size_x),
-            pixel_size_y: Some(sensor_info.pixel_size_y),
-            is_color: sensor_info.color,
-            bayer_pattern: sensor_info.bayer_pattern.map(|bp| format!("{:?}", bp)),
-            readout_modes: readout_modes.into_iter().map(|m| m.name).collect(),
-            ccd_temperature: status.as_ref().and_then(|s| s.sensor_temp),
-            set_ccd_temperature: status.as_ref().and_then(|s| s.target_temp),
-            cooler_power,
-            cooler_on: status.as_ref().and_then(|s| s.cooler_on),
-            cooler_min_temp_c,
-            cooler_max_temp_c,
-            exposure_min,
-            exposure_max,
-            ..Default::default()
-        }))
+        Ok(DeviceCapabilities::Camera(camera_capabilities(
+            camera.describe().await,
+            status.as_ref(),
+        )))
     }
 }

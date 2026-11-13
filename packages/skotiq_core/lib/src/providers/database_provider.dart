@@ -1,8 +1,10 @@
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'host_role.dart';
 import '../backend/roles/host_data/host_records.dart';
 import '../database/database.dart' as db;
+import '../services/wcs/gnomonic_projection.dart' show SolvedWcs;
+import '../services/wcs/plate_solve_data_from_result.dart'
+    show solvedWcsFromStored;
 import '../database/daos/equipment_profiles_dao.dart';
 import '../database/daos/targets_dao.dart';
 import '../database/daos/sessions_dao.dart';
@@ -231,9 +233,10 @@ final hasCapturedImagesProvider = Provider<AsyncValue<bool>>(
   (ref) => ref.watch(capturedImageRowsProvider).hasAny(ref),
 );
 
-final capturedImageByIdProvider = FutureProvider.family<db.DbCapturedImage?, int>(
-  (ref, imageId) => ref.watch(imagingRecordsProvider).getImageById(imageId),
-);
+final capturedImageByIdProvider =
+    FutureProvider.family<db.DbCapturedImage?, int>(
+      (ref, imageId) => ref.watch(imagingRecordsProvider).getImageById(imageId),
+    );
 
 class CapturedImageWcsData {
   final int id;
@@ -264,6 +267,25 @@ class CapturedImageWcsData {
     this.cd2_2,
     this.sip,
   });
+
+  /// The stored solve over a [width] x [height] frame; null when the frame is
+  /// not solved or the solve is not usable.
+  SolvedWcs? solvedWcs({required int width, required int height}) =>
+      isPlateSolved
+      ? solvedWcsFromStored(
+          raHours: solvedRaHours,
+          decDegrees: solvedDecDegrees,
+          rotationDeg: solvedRotationDegrees,
+          pixelScaleArcsec: solvedPixelScaleArcsecPerPixel,
+          imageWidth: width,
+          imageHeight: height,
+          cd1_1: cd1_1,
+          cd1_2: cd1_2,
+          cd2_1: cd2_1,
+          cd2_2: cd2_2,
+          sip: sip,
+        )
+      : null;
 }
 
 final capturedImageWcsProvider =

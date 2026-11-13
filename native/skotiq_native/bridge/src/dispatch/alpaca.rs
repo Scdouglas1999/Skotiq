@@ -1,9 +1,8 @@
 //! Alpaca (HTTP) driver dispatch helpers.
 //!
 //! Methods in this module are additional impl blocks on `DeviceManager` and
-//! provide Alpaca-only logic for `connect_*` and `perform_*_health_check`. They are invoked from the dispatcher methods in
-//! `crate::device_manager`. No behavior or signature has changed relative to the
-//! previous monolithic `devices.rs`.
+//! provide Alpaca-only logic for `connect_*` and `perform_*_health_check`.
+//! They are invoked from the dispatcher methods in `crate::device_manager`.
 
 use crate::device::{DeviceInfo, DeviceType};
 use crate::device_manager::handle::DeviceHandle;

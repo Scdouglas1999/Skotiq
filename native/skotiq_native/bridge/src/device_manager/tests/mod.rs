@@ -44,12 +44,12 @@ fn simulator_singleton_test_lock() -> &'static Mutex<()> {
     crate::simulator::sim_singleton_test_lock()
 }
 
-/// Releases a simulated device the way `disconnect_device` releases its
-/// driver: through the handle when there is one.
+/// Releases a simulated device the way `disconnect_device` does: through its
+/// handle, and nothing to do when it has none.
 async fn release_simulator(manager: &DeviceManager, info: &DeviceInfo) -> Result<(), String> {
     match manager.handles.remove(&info.id) {
         Some(handle) => handle.disconnect().await.map_err(|e| e.to_string()),
-        None => manager.disconnect_simulator(info).await,
+        None => Ok(()),
     }
 }
 
@@ -195,7 +195,7 @@ async fn install_fake_device(manager: &DeviceManager, id: &str, model: &str, ser
     );
 }
 
-// `connect_simulator` / `disconnect_simulator` must flip the matching
+// Connecting a simulator and disconnecting its handle must flip the matching
 // simulator singleton's `connected` flag, and the heartbeat path for
 // `DriverType::Simulator` must read that flag rather than report healthy
 // unconditionally — otherwise a "connected" simulator has no driver state

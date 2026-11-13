@@ -9,7 +9,7 @@ import '../database/database.dart';
 import '../models/darkroom/darkroom_links.dart';
 import '../models/notification/notification_categories.dart';
 import '../providers/database_provider.dart';
-import 'calibration/fits_header_reader.dart';
+import 'frame_header.dart';
 import 'darkroom_build_service.dart';
 import 'notification_service.dart';
 import '../providers/darkroom_build_service_provider.dart';
@@ -297,11 +297,8 @@ Map<String, List<int>> darkroomBuildLightIds(
 /// `OBJECT`, else its session.
 Future<Map<String, List<DbCapturedImage>>> loadDarkroomTargets(
   SkotiqDatabase db, {
-  DarkroomHeaderReader? readHeader,
+  FrameHeaderReader readHeader = readFrameHeader,
 }) async {
-  final read =
-      readHeader ??
-      ((path) => const FitsHeaderReader().readPrimaryHeader(path));
   final images = await db.imagesDao.getAllImages();
   final names = {
     for (final t in await db.targetsDao.getAllTargets()) t.id: t.name,
@@ -311,7 +308,7 @@ Future<Map<String, List<DbCapturedImage>>> loadDarkroomTargets(
     var name = names[f.targetId];
     if (name == null) {
       try {
-        name = FitsHeaderReader.stringValue(await read(f.filePath), 'OBJECT');
+        name = (await readHeader(f.filePath)).string('OBJECT');
       } catch (e) {
         // Unreadable files stay listed under their session.
         Log.debug(

@@ -16,7 +16,6 @@ use crate::device_manager::rig::RigDriver;
 use crate::device_manager::{accessory, DeviceManager};
 use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
-use crate::simulator::gate;
 use skotiq_device::{AccessoryDriver, CoverCalibratorDriver, DriverError, SwitchDriver};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -196,33 +195,15 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
-        // The simulated camera and mount are the simulator's own state; a
-        // handle for one holds nothing, so an id that never went through
-        // connect gets one here and the simulator's gate answers for it.
-        let handle = self.handles.get(device_id).or_else(|| {
-            (info.driver_type == DriverType::Simulator
-                && matches!(info.device_type, DeviceType::Camera | DeviceType::Mount))
-            .then(|| crate::simulator::driver::handle(&info))
-            .flatten()
-        });
-        handle.and_then(pick).ok_or_else(|| {
-            let noun = device_noun(info.device_type);
-            match (info.driver_type, info.device_type) {
-                // The simulated rig devices answer with the simulator's own
-                // sentence, which the FFI edge shows only for an error that
-                // carries no device id.
-                (DriverType::Simulator, DeviceType::FilterWheel | DeviceType::Focuser) => {
-                    DeviceOpError::not_connected(None, gate::not_connected(&noun))
-                }
-                _ => DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!(
-                        "{} {} not connected",
-                        protocol_label(info.driver_type),
-                        noun
-                    ),
+        self.handles.get(device_id).and_then(pick).ok_or_else(|| {
+            DeviceOpError::not_connected(
+                Some(device_id.to_string()),
+                format!(
+                    "{} {} not connected",
+                    protocol_label(info.driver_type),
+                    device_noun(info.device_type)
                 ),
-            }
+            )
         })
     }
 

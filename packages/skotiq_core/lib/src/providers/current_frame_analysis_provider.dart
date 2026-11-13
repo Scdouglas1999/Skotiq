@@ -21,7 +21,7 @@ import '../services/imaging_service.dart';
 import '../services/plate_solve_service.dart';
 import '../services/wcs/gnomonic_projection.dart';
 import '../services/wcs/plate_solve_data_from_result.dart';
-import '../services/wcs/wcs_sip_codec.dart';
+import '../models/imaging/sip_terms.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
@@ -190,12 +190,6 @@ typedef FrameSolveCd = ({
   double cd2_1,
   double cd2_2,
 });
-
-/// The CD matrix of a native solve result, or null when it reported none.
-FrameSolveCd? frameSolveCdOf(bridge.PlateSolveResult r) =>
-    (r.cd11 == 0 && r.cd12 == 0 && r.cd21 == 0 && r.cd22 == 0)
-    ? null
-    : (cd1_1: r.cd11, cd1_2: r.cd12, cd2_1: r.cd21, cd2_2: r.cd22);
 
 /// Looks up a solution saved with a frame's database row, so a frame that
 /// was solved already (by the science pipeline, or an earlier session) is
@@ -393,17 +387,8 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
           decDegrees: result.dec,
           rotationDeg: result.rotation,
           pixelScaleArcsec: result.pixelScale,
-          cd: frameSolveCdOf(result),
-          sip: encodeSolvedSip(
-            aOrder: result.sipAOrder,
-            bOrder: result.sipBOrder,
-            aCoeffs: result.sipACoeffs.toList(),
-            bCoeffs: result.sipBCoeffs.toList(),
-            apOrder: result.sipApOrder,
-            bpOrder: result.sipBpOrder,
-            apCoeffs: result.sipApCoeffs.toList(),
-            bpCoeffs: result.sipBpCoeffs.toList(),
-          ),
+          cd: result.cdMatrix,
+          sip: encodeSolvedSip(result.sipTerms),
         );
         _lastSolved = solved;
         _put(solved);

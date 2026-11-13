@@ -14,26 +14,10 @@ import 'package:skotiq_core/src/services/calibration_library_service.dart';
 import 'package:skotiq_core/src/services/calibration_master_builder.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/flat_library_service.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 
 import 'post_session_integration_service_test.dart' show FakePostSessionSeam;
 import 'package:skotiq_core/src/providers/calibration_backlog_service_provider.dart';
-
-/// A FITS primary header holding [cards], padded to one 2880-byte block.
-List<int> fitsHeader(Map<String, Object> cards) {
-  String card(String key, Object value) {
-    final v = value is String ? "'$value'" : '$value';
-    return '${key.padRight(8)}= ${v.padLeft(20)}'.padRight(80);
-  }
-
-  final text = StringBuffer()
-    ..write(card('SIMPLE', 'T').replaceFirst("'T'", '  T'))
-    ..write(card('BITPIX', 16))
-    ..write(card('NAXIS', 0));
-  cards.forEach((k, v) => text.write(card(k, v)));
-  text.write('END'.padRight(80));
-  final s = text.toString();
-  return s.padRight(((s.length + 2879) ~/ 2880) * 2880).codeUnits;
-}
 
 void main() {
   late Directory tmp;
@@ -438,8 +422,10 @@ void main() {
     'a master flat built without settings reads them from its frames',
     () async {
       final flat = File('${tmp.path}/flat_L.fits');
-      await flat.writeAsBytes(
-        fitsHeader({
+      final flats = FlatLibraryService(
+        dao: flatDao,
+        seam: seam,
+        readHeader: (path) async => FrameHeader({
           'FILTER': 'L',
           'GAIN': 76.0,
           'OFFSET': 15,
@@ -448,7 +434,6 @@ void main() {
           'CCD-TEMP': -9.5,
         }),
       );
-      final flats = FlatLibraryService(dao: flatDao, seam: seam);
 
       final id = await flats.createMasterFlat(
         flatPaths: [flat.path, flat.path],
