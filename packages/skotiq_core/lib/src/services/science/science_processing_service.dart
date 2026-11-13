@@ -13,7 +13,7 @@ import '../../models/imaging/frame_files.dart';
 import '../../providers/app_version_provider.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
-import '../imaging_records_repository.dart';
+import '../local_imaging_records.dart';
 import '../../providers/science_provider.dart';
 import '../../providers/science_status_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -36,6 +36,7 @@ import '../../providers/science/default_science_backend_provider.dart';
 import '../../providers/science/frame_auto_grader_provider.dart';
 import '../../providers/science/photometric_catalog_service_provider.dart';
 import '../../providers/science/photometric_transform_service_provider.dart';
+import '../../backend/roles/host_data/imaging_records.dart';
 
 part 'science_processing_service/private_helpers.dart';
 part 'science_processing_service/frame_lanes.dart';
@@ -78,8 +79,8 @@ class ScienceProcessingService {
   ScienceProcessingService(this._ref);
 
   ScienceDao get _scienceDao => _ref.read(scienceDaoProvider);
-  ImagingRecordsRepository get _imagesRepo =>
-      _ref.read(imagingRecordsRepositoryProvider);
+  ImagingRecords get _imagesRepo =>
+      _ref.read(imagingRecordsProvider);
   ScienceBackend get _scienceBackend => _ref.read(scienceBackendProvider);
   LoggingService get _logger => _ref.read(loggingServiceProvider);
   ScienceProcessingStatusTracker get _status =>

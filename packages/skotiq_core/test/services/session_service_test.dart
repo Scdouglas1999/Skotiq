@@ -94,7 +94,7 @@ void main() {
 
     logger = LoggingService();
     sessionService = SessionService(
-      records: ImagingRecordsRepository.local(
+      records: LocalImagingRecords(
         sessionsDao: sessionsDao,
         imagesDao: ImagesDao(database),
       ),
@@ -470,7 +470,7 @@ void main() {
 
       // Simulate crash/restart - create new service instance
       final newService = SessionService(
-        records: ImagingRecordsRepository.local(
+        records: LocalImagingRecords(
           sessionsDao: sessionsDao,
           imagesDao: ImagesDao(database),
         ),

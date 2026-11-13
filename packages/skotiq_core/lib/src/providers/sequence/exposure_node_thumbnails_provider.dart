@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/daos/images_dao.dart';
-import '../../services/imaging_records_repository.dart';
+import '../../services/local_imaging_records.dart';
 
 /// Thumbnail — inline frame thumbnails in the sequence tree.
 ///
@@ -21,6 +21,6 @@ final exposureNodeThumbnailsProvider = StreamProvider.autoDispose
         // empty stream so the tree just hides the strip.
         return const Stream<List<ProducingNodeThumbnail>>.empty();
       }
-      final records = ref.watch(imagingRecordsRepositoryProvider);
+      final records = ref.watch(imagingRecordsProvider);
       return records.watchImagesByProducingNode(producingNodeId: nodeId);
     });

@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart' as db;
 import '../../providers/database_provider.dart';
-import '../../services/imaging_records_repository.dart';
+import '../../services/local_imaging_records.dart';
 import '../../providers/science_provider.dart';
 import 'frame_grade_rules.dart';
 import '../../providers/logging_service_provider.dart';
@@ -57,7 +57,7 @@ class FrameAutoGrader {
     if (reason == null) return false;
 
     await _ref
-        .read(imagingRecordsRepositoryProvider)
+        .read(imagingRecordsProvider)
         .rejectImage(image.id, reason);
     _ref
         .read(loggingServiceProvider)

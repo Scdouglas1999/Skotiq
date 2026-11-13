@@ -14,6 +14,8 @@ abstract interface class TargetLibrary {
   Stream<List<DbTarget>> watchAllTargets();
 
   Stream<List<DbTarget>> watchFavoriteTargets();
+
+  Future<List<DbTarget>> getAllTargets();
 }
 
 /// The sequences saved in the imaging host's database.
@@ -37,4 +39,7 @@ abstract interface class RunHistory {
   Stream<List<SequenceRun>> watchAllRuns();
 
   Stream<List<SequenceRun>> watchRunsForSequence(int sequenceId);
+
+  /// Every run, newest first.
+  Future<List<SequenceRun>> getAllRuns();
 }

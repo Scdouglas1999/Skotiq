@@ -27,7 +27,7 @@ void main() {
     sequencesDao = SequencesDao(db);
     checkpointsDao = SequenceCheckpointsDao(db);
     sessionService = SessionService(
-      records: ImagingRecordsRepository.local(
+      records: LocalImagingRecords(
         sessionsDao: sessionsDao,
         imagesDao: ImagesDao(db),
       ),

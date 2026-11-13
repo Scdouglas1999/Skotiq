@@ -502,7 +502,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
   /// mutate an empty companion DB), then refresh the polled session images.
   Future<void> _setAccepted(bool accepted) async {
     try {
-      final repo = ref.read(imagingRecordsRepositoryProvider);
+      final repo = ref.read(imagingRecordsProvider);
       if (accepted) {
         await repo.acceptImage(widget.image.id);
       } else {

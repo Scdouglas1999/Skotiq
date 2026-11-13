@@ -7,9 +7,12 @@ import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/daos/sessions_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
-import 'package:skotiq_core/src/services/imaging_records_repository.dart';
+import 'package:skotiq_core/src/services/local_imaging_records.dart';
 
 import '../fakes/fake_network_client.dart';
+import 'package:skotiq_core/src/backend/network_backend/host_data/remote_host_records.dart';
+import 'package:skotiq_core/src/backend/network_backend/host_data/remote_imaging_records.dart';
+import 'package:skotiq_core/src/backend/roles/host_data/imaging_records.dart';
 
 Map<String, Object?> _imageRow(int id) => {
   'id': id,
@@ -43,17 +46,17 @@ Future<void> _waitUntil(
 }
 
 void main() {
-  group('ImagingRecordsRepository local', () {
+  group('LocalImagingRecords', () {
     late SkotiqDatabase db;
     late SessionsDao sessionsDao;
     late ImagesDao imagesDao;
-    late ImagingRecordsRepository repository;
+    late ImagingRecords repository;
 
     setUp(() {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       sessionsDao = SessionsDao(db);
       imagesDao = ImagesDao(db);
-      repository = ImagingRecordsRepository.local(
+      repository = LocalImagingRecords(
         sessionsDao: sessionsDao,
         imagesDao: imagesDao,
       );
@@ -66,7 +69,7 @@ void main() {
     test('the solved-frame hook runs once per frame however often it is '
         'solved or its stored solve reused', () async {
       final fired = <int>[];
-      final hooked = ImagingRecordsRepository.local(
+      final hooked = LocalImagingRecords(
         sessionsDao: sessionsDao,
         imagesDao: imagesDao,
         onSolvedFrameFold: (id) async => fired.add(id),
@@ -134,10 +137,10 @@ void main() {
     });
   });
 
-  group('ImagingRecordsRepository remote', () {
+  group('RemoteImagingRecords', () {
     late FakeNetworkClient fake;
     late NetworkBackend backend;
-    late ImagingRecordsRepository repository;
+    late ImagingRecords repository;
 
     setUp(() {
       fake = FakeNetworkClient();
@@ -147,7 +150,7 @@ void main() {
         httpClient: fake,
         autoConnectWebSocket: false,
       );
-      repository = ImagingRecordsRepository.remote(backend);
+      repository = RemoteImagingRecords(backend);
     });
 
     tearDown(() => backend.dispose());
@@ -220,7 +223,7 @@ void main() {
         ],
       );
 
-      final runs = await repository.getAllSequenceRunsRemote();
+      final runs = await RemoteHostRecords(backend).getAllRuns();
 
       expect(runs.map((run) => run.id), [3, 2, 1]);
       final requests = fake.requestsFor('/api/sequence-runs');
@@ -259,7 +262,7 @@ void main() {
             ),
           ],
         );
-        final pollingRepository = ImagingRecordsRepository.remote(
+        final pollingRepository = RemoteImagingRecords(
           backend,
           pollInterval: const Duration(milliseconds: 5),
         );

@@ -26,10 +26,10 @@ export 'src/services/phd2_status_poll.dart';
 export 'src/services/phd2_probe.dart'
     show Phd2ProbeOutcome, Phd2ProbeResult, normalizePhd2ProbeHost, probePhd2;
 export 'src/services/device_matching_service.dart';
-export 'src/services/imaging_records_repository.dart'
+export 'src/services/local_imaging_records.dart'
     show
-        ImagingRecordsRepository,
-        imagingRecordsRepositoryProvider,
+        LocalImagingRecords,
+        imagingRecordsProvider,
         SolvedFrameFoldHook,
         applyAtlasFoldDedup;
 export 'src/services/imaging_service.dart';

@@ -1,10 +1,10 @@
 import '../database/daos/targets_dao.dart';
-import 'imaging_records_repository.dart';
 import '../database/database.dart';
 import '../models/campaign_rollup.dart';
 import 'project_tracking_service.dart';
 import 'scheduler/integration_goal_service.dart';
 import '../models/scheduler/integration_goal.dart';
+import '../backend/roles/host_data/imaging_records.dart';
 
 /// Builds a multi-night [CampaignRollup] for one target (Feature B).
 ///
@@ -19,12 +19,12 @@ import '../models/scheduler/integration_goal.dart';
 /// to lowercase internally and surface the most common original-case label
 /// in the rollup so the UI doesn't show 'l' / 'lum' / 'LUM' separately.
 class CampaignRollupService {
-  final ImagingRecordsRepository _records;
+  final ImagingRecords _records;
   final TargetsDao _targetsDao;
   final IntegrationGoalService _goalService;
 
   CampaignRollupService({
-    required ImagingRecordsRepository records,
+    required ImagingRecords records,
     required TargetsDao targetsDao,
     required IntegrationGoalService goalService,
   }) : _records = records,

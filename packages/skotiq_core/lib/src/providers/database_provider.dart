@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'host_role.dart';
 import '../backend/network_backend/host_data/remote_host_records.dart';
 import '../backend/remote_host.dart';
 import '../backend/roles/host_data/host_records.dart';
@@ -33,7 +34,7 @@ import '../database/daos/sky_atlas_dao.dart';
 import '../database/daos/stacked_results_dao.dart';
 import '../database/daos/transient_detections_dao.dart';
 import '../database/daos/tutorial_progress_dao.dart';
-import '../services/imaging_records_repository.dart';
+import '../services/local_imaging_records.dart';
 import 'backend_provider.dart';
 import 'host_settings/host_settings_providers.dart';
 
@@ -173,31 +174,28 @@ final transientDetectionsDaoProvider = Provider<TransientDetectionsDao>((ref) {
 });
 
 /// The saved targets of whichever machine is the imaging host.
-final targetLibraryProvider = Provider<TargetLibrary>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(targetsDaoProvider),
+final targetLibraryProvider = hostRoleProvider<TargetLibrary>(
+  here: (ref) => ref.watch(targetsDaoProvider),
+  linked: (ref, host) => host.records,
 );
 
 /// The saved sequences of whichever machine is the imaging host.
-final sequenceLibraryProvider = Provider<SequenceLibrary>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(sequencesDaoProvider),
+final sequenceLibraryProvider = hostRoleProvider<SequenceLibrary>(
+  here: (ref) => ref.watch(sequencesDaoProvider),
+  linked: (ref, host) => host.records,
 );
 
 /// The equipment profiles of whichever machine is the imaging host.
-final equipmentProfileLibraryProvider = Provider<EquipmentProfileLibrary>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(equipmentProfilesDaoProvider),
-);
+final equipmentProfileLibraryProvider =
+    hostRoleProvider<EquipmentProfileLibrary>(
+      here: (ref) => ref.watch(equipmentProfilesDaoProvider),
+      linked: (ref, host) => host.records,
+    );
 
 /// The recorded sessions of whichever machine is the imaging host.
-final sessionHistoryProvider = Provider<SessionHistory>(
-  (ref) =>
-      ref.watch(backendProvider).remoteHost?.records ??
-      ref.watch(sessionsDaoProvider),
+final sessionHistoryProvider = hostRoleProvider<SessionHistory>(
+  here: (ref) => ref.watch(sessionsDaoProvider),
+  linked: (ref, host) => host.records,
 );
 
 // Convenience providers for watching data
@@ -439,7 +437,7 @@ class RemoteImageRows {
 final capturedImageByIdProvider = FutureProvider.family<db.DbCapturedImage?, int>(
   (ref, imageId) {
     if (ref.watch(backendProvider).remoteHost != null) {
-      return ref.watch(imagingRecordsRepositoryProvider).getImageById(imageId);
+      return ref.watch(imagingRecordsProvider).getImageById(imageId);
     }
     return ref.watch(imagesDaoProvider).getImageById(imageId);
   },

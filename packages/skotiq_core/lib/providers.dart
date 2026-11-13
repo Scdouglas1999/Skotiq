@@ -61,6 +61,7 @@ export 'src/providers/profile_activation_writethrough.dart';
 export 'src/providers/focus_model_profile_data_provider.dart';
 export 'src/providers/guiding_provider.dart';
 export 'src/providers/backend_provider.dart';
+export 'src/providers/host_role.dart';
 export 'src/providers/remote_session_sync_provider.dart';
 export 'src/providers/host_link_provider.dart';
 export 'src/providers/remote_launch_provider.dart';

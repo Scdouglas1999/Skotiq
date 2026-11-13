@@ -2,12 +2,11 @@ import 'package:flutter/foundation.dart' show listEquals;
 
 import '../../../database/database.dart' as db;
 import '../../../models/equipment_profile_remote_mapping.dart';
-import '../../../services/imaging_records_repository.dart'
-    show imagingSessionFromWireJson, wireTimestamp;
 import '../../network_backend.dart';
 import '../../roles/host_data/host_imaging_records.dart';
 import '../../roles/host_data/host_records.dart';
 import 'host_poll.dart';
+import 'wire_rows.dart';
 
 /// Every list here also changes on the host's mutation events, which refresh
 /// it at once; the poll is the safety net.
@@ -76,6 +75,12 @@ final class RemoteHostRecords
     (a, b) => a == b,
     interval: _recordsPollInterval,
   );
+
+  @override
+  Future<List<db.DbTarget>> getAllTargets() => _fetchTargets();
+
+  @override
+  Future<List<db.SequenceRun>> getAllRuns() => _fetchRuns();
 
   Future<List<db.DbTarget>> _fetchTargets() async {
     final targets = await _host.getAllTargets();
