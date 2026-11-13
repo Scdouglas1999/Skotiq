@@ -113,20 +113,22 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
     final exposure = nightParsePositive(_exposure.text);
     final gain = int.tryParse(_gain.text.trim());
     final offset = int.tryParse(_offset.text.trim());
+    final sensitivity = ref.read(cameraSensitivityProvider);
     setState(() {
       _exposureError =
           exposure == null ? l10n.text('nightPanelEnterSeconds') : null;
-      _gainError =
-          gain == null || gain < 0 ? l10n.text('nightPanelEnterWhole') : null;
-      _offsetError = offset == null || offset < 0
+      _gainError = sensitivity.hasGain && (gain == null || gain < 0)
+          ? l10n.text('nightPanelEnterWhole')
+          : null;
+      _offsetError = sensitivity.hasOffset && (offset == null || offset < 0)
           ? l10n.text('nightPanelEnterWhole')
           : null;
     });
     if (exposure == null || _gainError != null || _offsetError != null) return;
     final next = manual.copyWith(
       exposureTime: exposure,
-      gain: gain,
-      offset: offset,
+      gain: sensitivity.hasGain ? gain : null,
+      offset: sensitivity.hasOffset ? offset : null,
     );
     if (next != manual) _update(next);
   }
@@ -202,35 +204,38 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
                           : _seconds(values!.exposureSecs!),
                     ),
             ),
-            const SizedBox(width: kNightPanelRowGap),
-            Expanded(
-              child: editable
-                  ? SensitivityField(
-                      value: manual.gain,
-                      sensitivity: sensitivity,
-                      onChanged: (gain) => _update(manual.copyWith(gain: gain)),
-                      isoField: (context, iso) => _LabeledControl(
-                        label: gainLabel,
-                        child: IsoSpeedPicker(
-                          sensitivity: iso,
-                          value: manual.gain,
-                          dense: true,
-                          onChanged: (gain) =>
-                              _update(manual.copyWith(gain: gain)),
+            if (sensitivity.hasGain) ...<Widget>[
+              const SizedBox(width: kNightPanelRowGap),
+              Expanded(
+                child: editable
+                    ? SensitivityField(
+                        value: manual.gain,
+                        sensitivity: sensitivity,
+                        onChanged: (gain) =>
+                            _update(manual.copyWith(gain: gain)),
+                        isoField: (context, iso) => _LabeledControl(
+                          label: gainLabel,
+                          child: IsoSpeedPicker(
+                            sensitivity: iso,
+                            value: manual.gain,
+                            dense: true,
+                            onChanged: (gain) =>
+                                _update(manual.copyWith(gain: gain)),
+                          ),
                         ),
+                        gainField: (_) => _field(
+                          gainLabel,
+                          _gain,
+                          _gainFocus,
+                          _gainError,
+                        ),
+                      )
+                    : _ReadOnlyField(
+                        label: gainLabel,
+                        value: values?.gain?.toString(),
                       ),
-                      gainField: (_) => _field(
-                        gainLabel,
-                        _gain,
-                        _gainFocus,
-                        _gainError,
-                      ),
-                    )
-                  : _ReadOnlyField(
-                      label: gainLabel,
-                      value: values?.gain?.toString(),
-                    ),
-            ),
+              ),
+            ],
             if (sensitivity.hasOffset) ...<Widget>[
               const SizedBox(width: kNightPanelRowGap),
               Expanded(

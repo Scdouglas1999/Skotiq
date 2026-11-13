@@ -228,56 +228,64 @@ class CapturePanel extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: FormRow.rowGap),
-          FormRow(
-            label: sensitivity.hasOffset
-                ? '${sensitivity.label} / offset'
-                : sensitivity.label,
-            child: Row(
-              children: [
-                Expanded(
-                  child: SensitivityField(
-                    key: TourTarget.imagingGainControl.key,
-                    value: exposureSettings.gain,
-                    sensitivity: sensitivity,
-                    onChanged: (gain) =>
-                        ref.read(manualExposureSettingsUpdaterProvider).update(
-                              exposureSettings.copyWith(gain: gain),
-                            ),
-                    gainField: (_) => InlineNumberField(
-                      value: exposureSettings.gain.toString(),
-                      semanticLabel: 'Gain',
-                      onChanged: (value) {
-                        final parsed = int.tryParse(value);
-                        if (parsed != null && parsed >= 0) {
-                          ref
-                              .read(manualExposureSettingsUpdaterProvider)
-                              .update(exposureSettings.copyWith(gain: parsed));
-                        }
-                      },
+          // A control the camera does not have is left out (some CCDs have
+          // no gain, a DSLR no offset).
+          if (sensitivity.hasGain || sensitivity.hasOffset) ...[
+            const SizedBox(height: FormRow.rowGap),
+            FormRow(
+              label: switch ((sensitivity.hasGain, sensitivity.hasOffset)) {
+                (true, true) => '${sensitivity.label} / offset',
+                (true, false) => sensitivity.label,
+                _ => 'Offset',
+              },
+              child: Row(
+                children: [
+                  if (sensitivity.hasGain)
+                    Expanded(
+                      child: SensitivityField(
+                        key: TourTarget.imagingGainControl.key,
+                        value: exposureSettings.gain,
+                        sensitivity: sensitivity,
+                        onChanged: (gain) => ref
+                            .read(manualExposureSettingsUpdaterProvider)
+                            .update(exposureSettings.copyWith(gain: gain)),
+                        gainField: (_) => InlineNumberField(
+                          value: exposureSettings.gain.toString(),
+                          semanticLabel: 'Gain',
+                          onChanged: (value) {
+                            final parsed = int.tryParse(value);
+                            if (parsed != null && parsed >= 0) {
+                              ref
+                                  .read(manualExposureSettingsUpdaterProvider)
+                                  .update(
+                                      exposureSettings.copyWith(gain: parsed));
+                            }
+                          },
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                if (sensitivity.hasOffset) ...[
-                  const SizedBox(width: SkotiqTokens.spaceSm - 2),
-                  Expanded(
-                    child: InlineNumberField(
-                      value: exposureSettings.offset.toString(),
-                      semanticLabel: 'Offset',
-                      onChanged: (value) {
-                        final parsed = int.tryParse(value);
-                        if (parsed != null && parsed >= 0) {
-                          ref
-                              .read(manualExposureSettingsUpdaterProvider)
-                              .update(exposureSettings.copyWith(offset: parsed));
-                        }
-                      },
+                  if (sensitivity.hasGain && sensitivity.hasOffset)
+                    const SizedBox(width: SkotiqTokens.spaceSm - 2),
+                  if (sensitivity.hasOffset)
+                    Expanded(
+                      child: InlineNumberField(
+                        value: exposureSettings.offset.toString(),
+                        semanticLabel: 'Offset',
+                        onChanged: (value) {
+                          final parsed = int.tryParse(value);
+                          if (parsed != null && parsed >= 0) {
+                            ref
+                                .read(manualExposureSettingsUpdaterProvider)
+                                .update(
+                                    exposureSettings.copyWith(offset: parsed));
+                          }
+                        },
+                      ),
                     ),
-                  ),
                 ],
-              ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: SidePanel.sectionGap),
           const SectionTitle(icon: SkotiqIcons.folder, title: 'Files'),
           FormRow(

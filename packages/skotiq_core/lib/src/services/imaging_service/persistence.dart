@@ -56,6 +56,10 @@ extension _ImagingServicePersistence on ImagingService {
 
     final cameraState = _ref.read(cameraStateProvider);
     final sensitivity = _ref.read(cameraSensitivityProvider);
+    final commanded = sensitivity.commanded(
+      gain: exposureSettings.gain,
+      offset: exposureSettings.offset,
+    );
     final mountState = _ref.read(mountStateProvider);
     final focuserState = _ref.read(focuserStateProvider);
     final rotatorState = _ref.read(rotatorStateProvider);
@@ -101,11 +105,11 @@ extension _ImagingServicePersistence on ImagingService {
       targetId: const drift.Value(null), // Link to target if available
       frameType: drift.Value(exposureSettings.frameType.name),
       exposureDuration: drift.Value(exposureSettings.exposureTime),
-      gain: drift.Value(exposureSettings.gain),
+      // A control the camera does not have (offset on a DSLR, gain on some
+      // CCDs) records none, as the file's header does.
+      gain: drift.Value(commanded.gain),
       gainKind: drift.Value(sensitivity.gainKind.recordName),
-      // A camera without an offset control (a DSLR) records none, as its
-      // file's header does.
-      offset: drift.Value(sensitivity.hasOffset ? exposureSettings.offset : null),
+      offset: drift.Value(commanded.offset),
       binX: drift.Value(exposureSettings.binningX),
       binY: drift.Value(exposureSettings.binningY),
       filter: drift.Value(exposureSettings.filter),
