@@ -46,6 +46,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/sensitivity_field.dart';
 
+import 'node_property_widgets.dart' show NodeNumberInput;
 import 'node_summary.dart';
 
 /// Open the anchored inline editor for [kind] on [node].
@@ -290,20 +291,19 @@ class _EditorSection extends StatelessWidget {
   }
 }
 
-/// A compact numeric field that commits its clamped value on every change and
-/// reformats (snaps to the clamp + canonical text) when focus leaves.
+/// A titled number field for one edit in the inline popover: the inspector's
+/// [NodeNumberInput] (commits once after typing pauses and on blur, clamped),
+/// focused with its text selected.
 ///
-/// [decimals] controls the displayed precision; [allowNegative] permits a
-/// leading `-` (used for cooling temperature). [onCommit] receives the parsed,
-/// clamped value — it does the `updateNode` (+ optional defaults mirror).
-class _NumericFieldEditor extends StatefulWidget {
+/// [onCommit] receives the parsed, clamped value; it does the `updateNode`
+/// (and the optional defaults mirror).
+class _NumericFieldEditor extends StatelessWidget {
   final String title;
   final IconData? icon;
   final double initialValue;
   final double min;
   final double max;
   final int decimals;
-  final bool allowNegative;
   final String? suffix;
   final ValueChanged<double> onCommit;
 
@@ -315,95 +315,23 @@ class _NumericFieldEditor extends StatefulWidget {
     required this.onCommit,
     this.icon,
     this.decimals = 1,
-    this.allowNegative = false,
     this.suffix,
   });
 
   @override
-  State<_NumericFieldEditor> createState() => _NumericFieldEditorState();
-}
-
-class _NumericFieldEditorState extends State<_NumericFieldEditor> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: _format(widget.initialValue));
-    _focusNode = FocusNode()..addListener(_handleFocusChange);
-    // Autofocus + select-all so the user can immediately overtype.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _focusNode.requestFocus();
-      _controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _controller.text.length,
-      );
-    });
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_handleFocusChange);
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _format(double value) => value.toStringAsFixed(widget.decimals);
-
-  double _clamp(double value) => value.clamp(widget.min, widget.max);
-
-  void _handleFocusChange() {
-    if (!_focusNode.hasFocus) {
-      _reformat();
-    }
-  }
-
-  /// Snap the text to the clamped, canonical representation. Called on blur and
-  /// submit so a half-typed or out-of-range value never lingers on screen.
-  void _reformat() {
-    final parsed = double.tryParse(_controller.text.trim());
-    final value = _clamp(parsed ?? widget.initialValue);
-    final text = _format(value);
-    if (_controller.text != text) {
-      _controller.value = TextEditingValue(
-        text: text,
-        selection: TextSelection.collapsed(offset: text.length),
-      );
-    }
-    widget.onCommit(value);
-  }
-
-  void _handleChanged(String raw) {
-    final parsed = double.tryParse(raw.trim());
-    // Commit live only when the text parses to a real number; a transient
-    // empty / "-" / "." state is left for the blur reformat to resolve. We
-    // never guess a value for unparseable input.
-    if (parsed == null) return;
-    widget.onCommit(_clamp(parsed));
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final pattern =
-        widget.allowNegative ? RegExp(r'^-?\d*\.?\d*') : RegExp(r'^\d*\.?\d*');
     return _EditorSection(
-      title: widget.title,
-      icon: widget.icon,
-      child: SkotiqTextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        keyboardType: TextInputType.numberWithOptions(
-          decimal: widget.decimals > 0,
-          signed: widget.allowNegative,
-        ),
-        suffix: widget.suffix,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(pattern),
-        ],
-        onChanged: _handleChanged,
+      title: title,
+      icon: icon,
+      child: NodeNumberInput(
+        colors: SkotiqColors.of(context),
+        value: initialValue,
+        min: min,
+        max: max,
+        decimals: decimals,
+        suffix: suffix,
+        autofocus: true,
+        onChanged: onCommit,
       ),
     );
   }
@@ -540,7 +468,6 @@ class _CoolTargetTempEditor extends ConsumerWidget {
       min: -50,
       max: 30,
       decimals: 1,
-      allowNegative: true,
       suffix: '°C',
       onCommit: (value) => ref
           .read(currentSequenceProvider.notifier)
