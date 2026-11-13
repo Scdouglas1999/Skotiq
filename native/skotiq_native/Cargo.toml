@@ -9,6 +9,7 @@ members = [
     "imaging",
     "phd2",
     "platesolve",
+    "processing",
     "native",
     "updater",
 ]
