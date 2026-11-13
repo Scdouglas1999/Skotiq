@@ -265,11 +265,11 @@ class SafeRigService {
     var result = const SafeRigResult();
     _ensureSameHost(reason, result, failures);
 
-    // Read before the steps below change it: pausing a running sequence must
-    // not make the rig look idle to the park decision.
-    final runWasActive = _isRunActive(
-      _ref.read(sequenceExecutionStateProvider),
-    );
+    // A run whose executor may still image (paused included: weather pauses
+    // it before parking) is the night's run, which the park protects. Read
+    // before the steps below change it: pausing a running sequence must not
+    // make the rig look idle to the park decision.
+    final runWasActive = _ref.read(sequenceExecutionStateProvider).ownsHardware;
 
     // The secondary rig owns a capture loop outside the primary sequencer.
     // Stop it first and wait for its native exposure abort to complete before
@@ -498,17 +498,6 @@ class SafeRigService {
     }
     return result;
   }
-
-  /// Whether a run is in progress that the park protects. A paused run counts:
-  /// it is still the night's run, and weather pauses it before parking.
-  static bool _isRunActive(SequenceExecutionState state) => switch (state) {
-    SequenceExecutionState.running ||
-    SequenceExecutionState.paused ||
-    SequenceExecutionState.recovering ||
-    SequenceExecutionState.stopping ||
-    SequenceExecutionState.stopFailed => true,
-    _ => false,
-  };
 
   /// Issue the dome-shutter close command against [deviceId].
   ///

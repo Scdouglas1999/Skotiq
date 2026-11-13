@@ -28,4 +28,34 @@ void main() {
       expect(container.read(lastEndedRunProvider), isNull);
     },
   );
+
+  test(
+    'records the plan of a run that ends after a failed stop or cleanup',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.listen(lastEndedRunProvider, (_, __) {});
+      container
+          .read(currentSequenceProvider.notifier)
+          .createSequence(name: 'M35');
+      final id = container.read(currentSequenceProvider)!.id;
+      final execution = container.read(runRecordProvider.notifier);
+
+      for (final stuck in [
+        SequenceExecutionState.stopFailed,
+        SequenceExecutionState.cleanupFailed,
+      ]) {
+        execution.setLifecycle(SequenceExecutionState.running);
+        execution.setLifecycle(SequenceExecutionState.stopping);
+        execution.setLifecycle(stuck);
+        expect(container.read(lastEndedRunProvider), isNull);
+        execution.setLifecycle(SequenceExecutionState.idle);
+        expect(
+          container.read(lastEndedRunProvider)?.sequenceId,
+          id,
+          reason: '$stuck',
+        );
+      }
+    },
+  );
 }

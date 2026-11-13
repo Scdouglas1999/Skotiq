@@ -149,15 +149,6 @@ SequenceExecutionState lifecycleOfHostState(String rawState) =>
       _ => SequenceExecutionState.idle,
     };
 
-bool _isLive(SequenceExecutionState state) => switch (state) {
-  SequenceExecutionState.running ||
-  SequenceExecutionState.paused ||
-  SequenceExecutionState.recovering ||
-  SequenceExecutionState.stopping ||
-  SequenceExecutionState.finalizing => true,
-  _ => false,
-};
-
 final runRecordProvider = StateNotifierProvider<RunRecordNotifier, RunRecord>(
   RunRecordNotifier.new,
 );
@@ -200,9 +191,10 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
 
   // Lifecycle.
 
-  /// Move the run to [next]. The progress phase moves with it, and a
-  /// transition into or out of a live state stamps when the run started or
-  /// which plan just ended.
+  /// Move the run to [next]. The progress phase moves with it. Leaving the
+  /// settled states stamps when the run started; returning to them, through
+  /// whatever ending (a failed stop or cleanup included), stamps which plan
+  /// just ended.
   ///
   /// A stopped or dawn-ended run settles in the same `idle` as a plan that
   /// never ran; `lastEnded` is what tells them apart, so the night keeps its
@@ -219,9 +211,9 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
     // the run start and end, this client may not have.
     final ref = _ref;
     if (previous != next && ref != null && !_followsHostRecord(ref)) {
-      if (_isLive(next) && !_isLive(previous)) {
+      if (next.isBusy && previous.canStart) {
         record = record.copyWith(lastEnded: null, startedAt: DateTime.now());
-      } else if (_isLive(previous) && next.canStart) {
+      } else if (previous.isBusy && next.canStart) {
         final sequenceId = ref.read(currentSequenceProvider)?.id;
         if (sequenceId != null) {
           record = record.copyWith(
