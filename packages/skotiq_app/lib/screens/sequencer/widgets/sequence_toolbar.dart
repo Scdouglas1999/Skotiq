@@ -1173,33 +1173,11 @@ class _CanvasBarMeta extends ConsumerWidget {
     final current = sequence;
     if (current == null) return const SizedBox.shrink();
 
-    final estimator = SequenceTimeEstimator(
-      overhead: ref.watch(sequencerOverheadConfigProvider),
-    );
-    // At the site, the targets' windows and the dawn park bound a block that
-    // loops until stopped; without one such a block has no length to add up.
-    final site = ref.watch(appObserverLocationProvider);
-    final parkBeforeDawn = ref.watch(
-      appSettingsProvider.select((s) => s.valueOrNull?.parkBeforeDawn ?? true),
-    );
-    final now = DateTime.now();
     final rootId = current.rootNodeId;
     final openEnd =
         rootId == null ? null : ref.watch(nodeRollupOpenEndProvider(rootId));
-    final totalSecs = estimator
-        .estimateTotalDuration(
-          current,
-          now,
-          latitude: site?.latitude,
-          longitude: site?.longitude,
-          runEndsBy: planRunEndsBy(
-            parkBeforeDawn: parkBeforeDawn,
-            latitude: site?.latitude,
-            longitude: site?.longitude,
-            now: now,
-          ),
-        )
-        .inSeconds;
+    final totalSecs =
+        ref.watch(currentPlanTimingProvider)?.total.inSeconds ?? 0;
     final summary = <String>[
       countLabel(current.targetHeaders.length, 'target'),
       countLabel(visibleInstructionCount(current), 'node'),

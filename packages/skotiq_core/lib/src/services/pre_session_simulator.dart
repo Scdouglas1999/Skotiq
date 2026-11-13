@@ -87,6 +87,8 @@ class PreSessionSimulator {
     DateTime? darkWindowStart,
     DateTime? darkWindowEnd,
     DateTime? runEndsBy,
+    bool autoFocusOnFilterChange = false,
+    int autoFocusEveryMinutes = 0,
     Map<String, int> framesDone = const {},
   }) {
     final analysis = latitude == null || longitude == null
@@ -124,6 +126,8 @@ class PreSessionSimulator {
         start,
         latitude: latitude,
         longitude: longitude,
+        autoFocusOnFilterChange: autoFocusOnFilterChange,
+        autoFocusEveryMinutes: autoFocusEveryMinutes,
         runEndsBy: runEndsBy,
       ),
     );

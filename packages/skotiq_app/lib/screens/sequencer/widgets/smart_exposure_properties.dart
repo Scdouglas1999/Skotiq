@@ -841,37 +841,16 @@ class _EstimateSummary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final integration = node.totalIntegrationSecs;
-    // Wall-clock comes from the SAME estimator that drives the timeline, the
-    // tree-row chip, and the run-dashboard total — built from the shared
-    // overhead model (findings 5/9/16) — so this figure agrees with them
-    // instead of a divergent flat 20% approximation. We locate this node's
-    // entry in the freshly-walked sequence timing (it carries the
-    // download/dither/filter-change overhead the estimator models per plan).
-    final overhead = ref.watch(sequencerOverheadConfigProvider);
-    final sequence = ref.watch(currentSequenceProvider);
-    double wallClock;
-    if (sequence != null) {
-      final estimator = SequenceTimeEstimator(overhead: overhead);
-      final timings =
-          estimator.estimateSequenceTiming(sequence, DateTime.now());
-      final timing = timings.where((t) => t.nodeId == node.id).firstOrNull;
-      if (timing != null) {
-        wallClock = timing.duration.inMilliseconds / 1000.0;
-      } else {
-        // Node not yet in the walked tree (e.g. detached while editing) —
-        // fall back to the integration figure (clamped to budget) so the line
-        // still shows a sensible number rather than vanishing.
-        wallClock = node.integrationBudgetSecs > 0 &&
+    // The node's time in the plan's one timing, with the download, dither and
+    // filter-change overhead of its rows. A node the walk did not reach (one
+    // detached while editing) shows its integration, clamped to its budget.
+    final timing = ref.watch(currentPlanTimingProvider)?.of(node.id);
+    final double wallClock = timing != null
+        ? timing.duration.inMilliseconds / 1000.0
+        : (node.integrationBudgetSecs > 0 &&
                 node.integrationBudgetSecs < integration
             ? node.integrationBudgetSecs
-            : integration;
-      }
-    } else {
-      wallClock = node.integrationBudgetSecs > 0 &&
-              node.integrationBudgetSecs < integration
-          ? node.integrationBudgetSecs
-          : integration;
-    }
+            : integration);
 
     // In loop-until-stopped mode the per-plan counts are ignored, so a fixed
     // "Integration: Xh" figure would be a lie. The total is whatever fits in

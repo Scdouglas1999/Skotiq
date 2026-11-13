@@ -270,34 +270,9 @@ final nightPlanTimingProvider = Provider<NightPlanTiming?>((ref) {
     anchor = ref.watch(nightNowProvider);
   }
 
-  final site = ref.watch(appObserverLocationProvider);
-  final estimator = SequenceTimeEstimator(
-    overhead: ref.watch(sequencerOverheadConfigProvider),
-  );
-  // The dawn park stops the run, so a target's window ends there at latest.
-  final runEndsBy = planRunEndsBy(
-    parkBeforeDawn: ref.watch(
-      appSettingsProvider.select((s) => s.valueOrNull?.parkBeforeDawn ?? true),
-    ),
-    latitude: site?.latitude,
-    longitude: site?.longitude,
-    now: anchor,
-  );
-  final timings = estimator.estimateSequenceTiming(
-    tree.sequence,
-    anchor,
-    latitude: site?.latitude,
-    longitude: site?.longitude,
-    runEndsBy: runEndsBy,
-  );
-  final total = estimator.estimateTotalDuration(
-    tree.sequence,
-    anchor,
-    latitude: site?.latitude,
-    longitude: site?.longitude,
-    runEndsBy: runEndsBy,
-  );
-  return NightPlanTiming(anchor: anchor, timings: timings, total: total);
+  final plan = ref.watch(planTimerProvider).time(tree.sequence, anchor);
+  return NightPlanTiming(
+      anchor: anchor, timings: plan.timings, total: plan.total);
 });
 
 /// When this session's nodes started and finished, from the in-memory event
