@@ -6,7 +6,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
@@ -31,7 +30,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   bool _isStartingGuiding = false;
   bool _isDithering = false;
   bool _configExpanded = false;
-  ProviderSubscription<DeviceService>? _serviceSubscription;
+  ProviderSubscription<Phd2Controller>? _guiderSubscription;
 
   /// A guiding setting's slider position while it is dragged, by setting;
   /// the setting is saved when the drag ends.
@@ -40,8 +39,8 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   @override
   void initState() {
     super.initState();
-    _serviceSubscription = ref.listenManual<DeviceService>(
-      deviceServiceProvider,
+    _guiderSubscription = ref.listenManual<Phd2Controller>(
+      phd2ControllerProvider,
       (previous, next) {
         if (previous == null || identical(previous, next)) return;
         if (mounted) {
@@ -56,45 +55,34 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
 
   @override
   void dispose() {
-    _serviceSubscription?.close();
+    _guiderSubscription?.close();
     super.dispose();
   }
 
   Future<void> _startGuiding() async {
     if (_isStartingGuiding) return;
-    final deviceService = ref.read(deviceServiceProvider);
+    final guider = ref.read(phd2ControllerProvider);
     setState(() => _isStartingGuiding = true);
-    final settle = _settle;
     try {
-      await deviceService.startGuiding(
-        settlePixels: settle.pixels,
-        settleTime: settle.seconds,
-        settleTimeout: settle.timeoutSeconds,
-      );
-      if (_isCurrentService(deviceService)) {
-        ref.read(sessionStateProvider.notifier).setGuiding(true);
-      }
+      await guider.startGuiding();
     } catch (e) {
-      if (mounted && _isCurrentService(deviceService)) {
+      if (_isCurrentGuider(guider)) {
         context.showErrorSnackBar(
             'Failed to start guiding: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentService(deviceService)) {
+      if (_isCurrentGuider(guider)) {
         setState(() => _isStartingGuiding = false);
       }
     }
   }
 
   Future<void> _stopGuiding() async {
-    final deviceService = ref.read(deviceServiceProvider);
+    final guider = ref.read(phd2ControllerProvider);
     try {
-      await deviceService.stopGuiding();
-      if (_isCurrentService(deviceService)) {
-        ref.read(sessionStateProvider.notifier).setGuiding(false);
-      }
+      await guider.stopGuiding();
     } catch (e) {
-      if (mounted && _isCurrentService(deviceService)) {
+      if (_isCurrentGuider(guider)) {
         context
             .showErrorSnackBar('Failed to stop guiding: ${userFacingError(e)}');
       }
@@ -103,33 +91,20 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
 
   Future<void> _dither() async {
     if (_isDithering) return;
-    final deviceService = ref.read(deviceServiceProvider);
+    final guider = ref.read(phd2ControllerProvider);
     setState(() => _isDithering = true);
-    ref.read(sessionStateProvider.notifier).setDithering(true);
-    final settle = _settle;
     try {
-      await deviceService.dither(
-        amount: settle.ditherPixels,
-        raOnly: settle.ditherRaOnly,
-        settlePixels: settle.pixels,
-        settleTime: settle.seconds,
-        settleTimeout: settle.timeoutSeconds,
-      );
+      await guider.dither();
     } catch (e) {
-      if (mounted && _isCurrentService(deviceService)) {
+      if (_isCurrentGuider(guider)) {
         context.showErrorSnackBar('Dither failed: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentService(deviceService)) {
+      if (_isCurrentGuider(guider)) {
         setState(() => _isDithering = false);
-        ref.read(sessionStateProvider.notifier).setDithering(false);
       }
     }
   }
-
-  GuideSettle get _settle => GuideSettle.of(
-        ref.read(appSettingsProvider).valueOrNull ?? const AppSettingsState(),
-      );
 
   Future<void> _saveSetting(String key, Future<void> Function() save) async {
     try {
@@ -173,8 +148,8 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
     );
   }
 
-  bool _isCurrentService(DeviceService service) =>
-      mounted && identical(ref.read(deviceServiceProvider), service);
+  bool _isCurrentGuider(Phd2Controller guider) =>
+      mounted && identical(ref.read(phd2ControllerProvider), guider);
 
   /// Strips stacked `Exception:` / `Operation failed:` prefixes so a guider
   /// failure reads as English. The raw chain arrives as

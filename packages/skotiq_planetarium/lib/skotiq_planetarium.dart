@@ -19,7 +19,6 @@ export 'src/providers/deep_star_providers.dart';
 export 'src/providers/element_refresh_providers.dart';
 
 export 'src/widgets/interactive_sky_view.dart';
-export 'src/widgets/framing_view.dart';
 export 'src/widgets/time_control_panel.dart';
 export 'src/widgets/simulated_time_scope.dart';
 export 'src/widgets/object_details_panel.dart';

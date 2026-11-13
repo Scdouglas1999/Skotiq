@@ -8,6 +8,7 @@ import 'package:skotiq_app/utils/v_curve_chart_data.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Non-blocking autofocus progress overlay that sits at the bottom-right
 /// of the screen and shows live V-curve data as autofocus runs.
@@ -501,8 +502,8 @@ class _AutofocusProgressOverlayState
             Object error,
           ) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Could not cancel autofocus: ${userFacingError(error)}')),
+              context.showErrorSnackBar(
+                'Could not cancel autofocus: ${userFacingError(error)}',
               );
             }
           }),

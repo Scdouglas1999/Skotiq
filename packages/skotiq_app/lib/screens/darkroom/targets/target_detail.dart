@@ -21,6 +21,7 @@ import 'darkroom_targets_providers.dart';
 import 'nights_strip.dart';
 import 'tile_crop.dart';
 import 'package:skotiq_core/providers.dart';
+import '../../../utils/snackbar_helper.dart';
 
 const double _heroHeight = 292;
 
@@ -827,9 +828,7 @@ class _JobBanner extends ConsumerWidget {
                     unawaited(
                       jobs.resume(folder).catchError((Object e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                            SnackBar(content: Text(userFacingError(e))),
-                          );
+                          context.showErrorSnackBar(userFacingError(e));
                         }
                       }),
                     );

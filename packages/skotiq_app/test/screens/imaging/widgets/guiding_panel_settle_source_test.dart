@@ -1,18 +1,17 @@
-// Imaging's guiding panel shows and uses the one settle setting the Guiding
-// screen and Tonight use, in guide-camera pixels. It kept its own copy, 1.0
-// marked in arcseconds, while Tonight read 1.5 px from the setting.
+// Imaging's guiding panel shows the one settle setting the Guiding screen and
+// Tonight use, in guide-camera pixels, and dithers through the one guiding
+// controller, which sends that setting.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/imaging/widgets/guiding_panel.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';
 
-class _MockDeviceService extends Mock implements DeviceService {}
+class _MockGuider extends Mock implements Phd2Controller {}
 
 class _ConnectedGuiderNotifier extends GuiderStateNotifier {
   _ConnectedGuiderNotifier(super.ref) {
@@ -28,19 +27,11 @@ class _ConnectedGuiderNotifier extends GuiderStateNotifier {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the panel shows and uses the settle setting, in pixels', (
+  testWidgets('the panel shows the settle setting, in pixels, and dithers with it', (
     tester,
   ) async {
-    final service = _MockDeviceService();
-    when(
-      () => service.dither(
-        amount: any(named: 'amount'),
-        raOnly: any(named: 'raOnly'),
-        settlePixels: any(named: 'settlePixels'),
-        settleTime: any(named: 'settleTime'),
-        settleTimeout: any(named: 'settleTimeout'),
-      ),
-    ).thenAnswer((_) async {});
+    final guider = _MockGuider();
+    when(() => guider.dither()).thenAnswer((_) async {});
 
     final handle = await pumpAppScreen(
       tester,
@@ -51,7 +42,7 @@ void main() {
         ),
       ),
       extraOverrides: [
-        deviceServiceProvider.overrideWithValue(service),
+        phd2ControllerProvider.overrideWithValue(guider),
         guiderStateProvider.overrideWith(_ConnectedGuiderNotifier.new),
       ],
       settle: false,
@@ -78,14 +69,6 @@ void main() {
 
     await tester.tap(find.text('Dither'));
     await tester.pump();
-    verify(
-      () => service.dither(
-        amount: 10,
-        raOnly: true,
-        settlePixels: 2.5,
-        settleTime: 20,
-        settleTimeout: 90,
-      ),
-    ).called(1);
+    verify(() => guider.dither()).called(1);
   });
 }

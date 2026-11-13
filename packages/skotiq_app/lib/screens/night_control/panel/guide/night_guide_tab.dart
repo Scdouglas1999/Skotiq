@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -399,18 +398,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     }
   }
 
-  /// Calibrates when the guider needs it, then guides with the settle
-  /// settings the run uses.
-  Future<void> _guide() {
-    final settle = GuideSettle.of(
-      ref.read(appSettingsProvider).valueOrNull ?? const AppSettingsState(),
-    );
-    return ref.read(phd2ControllerProvider).startGuiding(
-          settlePixels: settle.pixels,
-          settleTime: settle.seconds,
-          settleTimeout: settle.timeoutSeconds,
-        );
-  }
+  Future<void> _guide() => ref.read(phd2ControllerProvider).startGuiding();
 
   Future<void> _run(String id, Future<void> Function() command) async {
     final l10n = context.l10n;

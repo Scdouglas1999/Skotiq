@@ -9,6 +9,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../utils/snackbar_helper.dart';
 
 /// Identifies the destination the user picked in the add-to-sequence dialog.
 @immutable
@@ -217,13 +218,9 @@ Future<bool> addFramedTargetToExistingSequence({
   /// Report a failure the user can act on instead of closing in silence.
   void reportNotAdded() {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Could not add ${target.name.isEmpty ? 'the target' : target.name} '
-          'to the sequence. Open the Sequencer and add it there.',
-        ),
-      ),
+    context.showErrorSnackBar(
+      'Could not add ${target.name.isEmpty ? 'the target' : target.name} '
+      'to the sequence. Open the Sequencer and add it there.',
     );
   }
 
@@ -273,15 +270,13 @@ Future<bool> addFramedTargetToExistingSequence({
       return true;
     } on SequenceLockedException catch (lockErr) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(lockErr.message)));
+        context.showInfoSnackBar(lockErr.message);
       }
       return false;
     }
   } on SequenceLockedException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      context.showInfoSnackBar(e.message);
     }
     return false;
   } on NoActiveSequenceException catch (e) {
@@ -289,8 +284,7 @@ Future<bool> addFramedTargetToExistingSequence({
     // path and the current/saved paths guarantee a loaded sequence. Surface
     // rather than silently no-op if the invariant is ever broken.
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      context.showInfoSnackBar(e.message);
     }
     return false;
   } catch (e) {
@@ -299,14 +293,10 @@ Future<bool> addFramedTargetToExistingSequence({
     // exception goes to the zone handler and the user is shown nothing at all
     // while the dialog closes as if the target had been added.
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not add '
-            '${target.name.isEmpty ? 'the target' : target.name} '
-            'to the sequence: ${userFacingError(e)}',
-          ),
-        ),
+      context.showErrorSnackBar(
+        'Could not add '
+        '${target.name.isEmpty ? 'the target' : target.name} '
+        'to the sequence: ${userFacingError(e)}',
       );
     }
     return false;

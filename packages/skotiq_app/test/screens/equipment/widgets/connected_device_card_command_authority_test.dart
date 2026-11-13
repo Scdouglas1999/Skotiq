@@ -6,12 +6,11 @@ import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart'
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';
 
-class _MockDeviceService extends Mock implements DeviceService {}
+class _MockGuider extends Mock implements Phd2Controller {}
 
 class _ConnectedGuiderNotifier extends GuiderStateNotifier {
   _ConnectedGuiderNotifier(super.ref) {
@@ -65,8 +64,8 @@ void main() {
       (tester) async {
     final backendA = mockBackend();
     final backendB = mockBackend();
-    final serviceA = _MockDeviceService();
-    final serviceB = _MockDeviceService();
+    final serviceA = _MockGuider();
+    final serviceB = _MockGuider();
     final oldStart = Completer<void>();
     when(() => serviceA.startGuiding()).thenAnswer((_) => oldStart.future);
     when(() => serviceB.startGuiding()).thenAnswer((_) async {});
@@ -81,7 +80,7 @@ void main() {
           (ref) => backendNotifier = _SwitchableBackendNotifier(ref, backendA),
         ),
         guiderStateProvider.overrideWith(_ConnectedGuiderNotifier.new),
-        deviceServiceProvider.overrideWith((ref) {
+        phd2ControllerProvider.overrideWith((ref) {
           final backend = ref.watch(backendProvider);
           return identical(backend, backendA) ? serviceA : serviceB;
         }),
@@ -111,8 +110,8 @@ void main() {
       'running', (tester) async {
     final backendA = mockBackend();
     final backendB = mockBackend();
-    final serviceA = _MockDeviceService();
-    final serviceB = _MockDeviceService();
+    final serviceA = _MockGuider();
+    final serviceB = _MockGuider();
     final oldStart = Completer<void>();
     final newStart = Completer<void>();
     when(() => serviceA.startGuiding()).thenAnswer((_) => oldStart.future);
@@ -128,7 +127,7 @@ void main() {
           (ref) => backendNotifier = _SwitchableBackendNotifier(ref, backendA),
         ),
         guiderStateProvider.overrideWith(_ConnectedGuiderNotifier.new),
-        deviceServiceProvider.overrideWith((ref) {
+        phd2ControllerProvider.overrideWith((ref) {
           final backend = ref.watch(backendProvider);
           return identical(backend, backendA) ? serviceA : serviceB;
         }),

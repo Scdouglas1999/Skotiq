@@ -457,19 +457,13 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
       Navigator.of(context).pop();
       final uiState = ref.read(observingListNotifierProvider);
       if (id != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Added $_objectName to list')),
-        );
+        context.showInfoSnackBar('Added $_objectName to list');
       } else if (uiState.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(uiState.errorMessage!)),
-        );
+        context.showInfoSnackBar(uiState.errorMessage!);
       } else if (uiState.statusMessage != null) {
         // No row written and no error: the benign "already in this list"
         // outcome. Say so instead of closing silently.
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(uiState.statusMessage!)),
-        );
+        context.showInfoSnackBar(uiState.statusMessage!);
       }
     }
   }
@@ -484,9 +478,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
       if (mounted) {
         final uiState = ref.read(observingListNotifierProvider);
         if (uiState.errorMessage != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(uiState.errorMessage!)),
-          );
+          context.showInfoSnackBar(uiState.errorMessage!);
         }
       }
       return;

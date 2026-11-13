@@ -9,7 +9,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' hide FramingView;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -37,6 +37,7 @@ import 'widgets/week_forecast_strip.dart';
 import '../../router/planner_route.dart';
 import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
+import '../../utils/snackbar_helper.dart';
 
 export '../../router/planner_route.dart' show PlannerTab, DiscoverView;
 // File split: the rest of this library lives in `planner_screen_parts/`.

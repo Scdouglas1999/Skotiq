@@ -669,39 +669,39 @@ class Phd2Controller {
     double settleTimeout,
   ) => math.max(settleTimeout, settleTime + 1.0);
 
-  static void _validateSettle({
-    required double settlePixels,
-    required double settleTime,
-    required double settleTimeout,
-  }) {
-    if (!settlePixels.isFinite || settlePixels < 0.05 || settlePixels > 20) {
-      throw RangeError('settlePixels must be between 0.05 and 20.');
-    }
-    if (!settleTime.isFinite || settleTime < 0 || settleTime > 120) {
-      throw RangeError.range(settleTime, 0, 120, 'settleTime');
-    }
-    if (!settleTimeout.isFinite || settleTimeout < 1 || settleTimeout > 600) {
-      throw RangeError.range(settleTimeout, 1, 600, 'settleTimeout');
-    }
-  }
+  /// The settle and dither values every guiding command uses: the
+  /// guiding settings, whichever screen sent the command.
+  GuideSettle get _settle => GuideSettle.of(
+    ref.read(appSettingsProvider).valueOrNull ?? const AppSettingsState(),
+  );
 
-  Future<void> startGuiding({
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) {
+  /// Calibrates when the guider needs it, then guides and waits for the
+  /// settle. The one start of guiding every screen uses.
+  Future<void> startGuiding() {
     return _commandGate.runPositive('start', () async {
-      _validateSettle(
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-      );
+      final settle = _settle;
       _warnIfMountNotTracking();
-      await backend.guiderStartGuiding(
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: _effectiveSettleTimeout(settleTime, settleTimeout),
+      final operations = ref.read(activeOperationsProvider.notifier);
+      final operationId = operations.startOperation(
+        type: OperationType.guideSettle,
+        description: 'Starting guiding and settling',
+        currentStep: 'Calibrating...',
       );
+      try {
+        await backend.guiderStartGuiding(
+          settlePixels: settle.pixels,
+          settleTime: settle.seconds,
+          settleTimeout: _effectiveSettleTimeout(
+            settle.seconds,
+            settle.timeoutSeconds,
+          ),
+        );
+      } finally {
+        operations.completeOperation(
+          OperationType.guideSettle,
+          operationId: operationId,
+        );
+      }
     });
   }
 
@@ -740,22 +740,9 @@ class Phd2Controller {
     });
   }
 
-  Future<void> dither({
-    double amount = 5.0,
-    bool raOnly = false,
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) {
+  Future<void> dither() {
     return _commandGate.runPositive('dither', () async {
-      _validateSettle(
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-      );
-      if (!amount.isFinite || amount < 0.1 || amount > 100) {
-        throw RangeError('amount must be between 0.1 and 100.');
-      }
+      final settle = _settle;
       final guiderState = ref.read(guiderStateProvider);
       // PHD2 rejects dither outside the Guiding state with an opaque RPC
       // error; pre-check so the user (and the sequencer log) gets an
@@ -766,13 +753,29 @@ class Phd2Controller {
           '(PHD2 must be in the Guiding state to accept a dither).',
         );
       }
-      await backend.guiderDither(
-        amount: amount,
-        raOnly: raOnly,
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: _effectiveSettleTimeout(settleTime, settleTimeout),
+      final operations = ref.read(activeOperationsProvider.notifier);
+      final operationId = operations.startOperation(
+        type: OperationType.dither,
+        description: 'Dithering ${settle.ditherPixels.toStringAsFixed(1)} px',
+        currentStep: 'Moving...',
       );
+      try {
+        await backend.guiderDither(
+          amount: settle.ditherPixels,
+          raOnly: settle.ditherRaOnly,
+          settlePixels: settle.pixels,
+          settleTime: settle.seconds,
+          settleTimeout: _effectiveSettleTimeout(
+            settle.seconds,
+            settle.timeoutSeconds,
+          ),
+        );
+      } finally {
+        operations.completeOperation(
+          OperationType.dither,
+          operationId: operationId,
+        );
+      }
     });
   }
 

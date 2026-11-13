@@ -288,18 +288,13 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       );
       if (!loaded || !context.mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.l10n.text(
-              'plannerDraftCreated',
-              params: {
-                'target': target.targetName,
-                'exposure': planTonightSequenceSummary(built),
-              },
-            ),
-          ),
-          backgroundColor: colors.success,
+      context.showSuccessSnackBar(
+        context.l10n.text(
+          'plannerDraftCreated',
+          params: {
+            'target': target.targetName,
+            'exposure': planTonightSequenceSummary(built),
+          },
         ),
       );
 
@@ -308,12 +303,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       context.go(AppRoute.tonight.path);
     } on SmartNightBuildException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: colors.error,
-        ),
-      );
+      context.showErrorSnackBar(e.message);
     }
   }
 

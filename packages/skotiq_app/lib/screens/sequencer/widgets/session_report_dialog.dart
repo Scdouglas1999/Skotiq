@@ -21,6 +21,7 @@ import '../../../widgets/run_status/run_status_presentation.dart';
 import 'notes_panel.dart';
 import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 part 'session_report_dialog/header_overview.dart';
 part 'session_report_dialog/target_conditions.dart';
 part 'session_report_dialog/recovery_insights.dart';
@@ -667,11 +668,9 @@ class _ReportBody extends ConsumerWidget {
     final markdown = service.renderMarkdown(report);
     await Clipboard.setData(ClipboardData(text: markdown));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Session report copied as Markdown'),
-        duration: Duration(seconds: 2),
-      ),
+    context.showInfoSnackBar(
+      'Session report copied as Markdown',
+      duration: Duration(seconds: 2),
     );
   }
 
@@ -724,21 +723,17 @@ class _ReportBody extends ConsumerWidget {
       final file = File(p.join(dir.path, filename));
       await file.writeAsString(text);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Report exported to ${file.path}'),
-          duration: const Duration(seconds: 6),
-          action: SnackBarAction(
-            label: 'Copy path',
-            onPressed: () => Clipboard.setData(ClipboardData(text: file.path)),
-          ),
+      context.showInfoSnackBar(
+        'Report exported to ${file.path}',
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Copy path',
+          onPressed: () => Clipboard.setData(ClipboardData(text: file.path)),
         ),
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: ${userFacingError(e)}')),
-      );
+      context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
     }
   }
 }

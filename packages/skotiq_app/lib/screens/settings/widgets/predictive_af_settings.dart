@@ -23,6 +23,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Settings page: "Autofocus → Predictive". Surfaces the auto-learn toggle,
 /// the confidence thresholds, the drift-detection knobs, and a viewer that
@@ -467,10 +468,8 @@ class _ModelViewer extends StatelessWidget {
                     onReload();
                   } catch (error) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Re-train failed: ${userFacingError(error)}')),
+                      context.showErrorSnackBar(
+                        'Re-train failed: ${userFacingError(error)}',
                       );
                     }
                   }
@@ -484,19 +483,13 @@ class _ModelViewer extends StatelessWidget {
                     if (!context.mounted || json == null) return;
                     await Clipboard.setData(ClipboardData(text: json));
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Copied ${model.filterName} model JSON to clipboard',
-                        ),
-                      ),
+                    context.showInfoSnackBar(
+                      'Copied ${model.filterName} model JSON to clipboard',
                     );
                   } catch (error) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Export failed: ${userFacingError(error)}')),
+                      context.showErrorSnackBar(
+                        'Export failed: ${userFacingError(error)}',
                       );
                     }
                   }

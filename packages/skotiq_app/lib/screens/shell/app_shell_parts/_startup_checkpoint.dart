@@ -294,6 +294,7 @@ Future<AppStartupCheckpointOutcome> runAppCheckpointRecovery({
 bool appCloseHasActiveOperations({
   required bool sequenceOwnsHardware,
   required bool sessionBusy,
+  required Phd2State guider,
   required bool cameraBusy,
   required bool mountBusy,
   required bool flatWizardBusy,
@@ -301,6 +302,7 @@ bool appCloseHasActiveOperations({
 }) {
   return sequenceOwnsHardware ||
       sessionBusy ||
+      guider.inGuideSession ||
       cameraBusy ||
       mountBusy ||
       flatWizardBusy ||

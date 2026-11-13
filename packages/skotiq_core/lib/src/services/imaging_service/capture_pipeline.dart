@@ -202,13 +202,16 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         // timed-out exposure returned; a site west of the host pushed it into
         // the past and the check stopped firing at all.
         final exposureStartedAt = _ref.read(clockProvider).nowUtc();
+        final commanded = _ref
+            .read(cameraSensitivityProvider)
+            .commanded(gain: settings.gain, offset: settings.offset);
         try {
           await backend.cameraStartExposure(
             deviceId: deviceId,
             exposureTime: settings.exposureTime,
             frameType: settings.frameType,
-            gain: settings.gain,
-            offset: settings.offset,
+            gain: commanded.gain,
+            offset: commanded.offset,
             binX: settings.binningX,
             binY: settings.binningY,
           );

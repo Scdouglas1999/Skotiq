@@ -15,6 +15,7 @@ import 'collaborative_sky_format.dart';
 import 'collaborative_sky_providers.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/planner_route.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// The per-panel detail for one collaborative mosaic: the claimable panel
 /// grid, who has claimed/uploaded each panel (the attribution that credits every
@@ -394,14 +395,10 @@ class _JoinMosaicButtonState extends ConsumerState<_JoinMosaicButton> {
       // this mosaic is now stale.
       invalidateCollaborativeMosaicStateFor(ref);
       if (!wasLinked) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Joined '
-              '${widget.mosaic.name.isEmpty ? 'mosaic' : widget.mosaic.name}'
-              ' — claim open panels to contribute.',
-            ),
-          ),
+        messenger.showInfoSnackBar(
+          'Joined '
+          '${widget.mosaic.name.isEmpty ? 'mosaic' : widget.mosaic.name}'
+          ' — claim open panels to contribute.',
         );
       }
       await navigator.push(
@@ -411,9 +408,7 @@ class _JoinMosaicButtonState extends ConsumerState<_JoinMosaicButton> {
       );
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingError(error))),
-      );
+      messenger.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _joining = false);
     }

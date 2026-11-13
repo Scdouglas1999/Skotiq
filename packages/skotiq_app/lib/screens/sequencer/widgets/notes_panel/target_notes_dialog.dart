@@ -218,10 +218,9 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
                 ),
               );
               if (created != null && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Note saved'),
-                      duration: Duration(seconds: 2)),
+                context.showInfoSnackBar(
+                  'Note saved',
+                  duration: Duration(seconds: 2),
                 );
               }
             },

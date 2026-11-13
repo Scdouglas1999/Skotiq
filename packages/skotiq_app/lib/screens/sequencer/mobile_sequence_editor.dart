@@ -43,6 +43,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'widgets/node_palette.dart';
 import 'widgets/node_properties_panel.dart';
 import '../../widgets/run_status/recovery_banner.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Touch-friendly sequence authoring surface for the mobile companion app.
 ///
@@ -200,13 +201,9 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
       // instead of guessing — the desktop editor's `moveNode` API is
       // available, but invoking it from a drag-drop without confirmation
       // would change the tree shape silently.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Drag within the same group only. Cross-group moves are not '
-            'supported on phone yet — tap to edit instead.',
-          ),
-        ),
+      context.showInfoSnackBar(
+        'Drag within the same group only. Cross-group moves are not '
+        'supported on phone yet — tap to edit instead.',
       );
       return;
     }
@@ -222,9 +219,7 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
           .read(currentSequenceProvider.notifier)
           .reorderNodes(src.parentId, oldChildIndex, newChildIndex);
     } on SequenceLockedException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot reorder while running: ${e.message}')),
-      );
+      context.showErrorSnackBar('Cannot reorder while running: ${e.message}');
     }
   }
 
@@ -245,22 +240,18 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
     try {
       ref.read(currentSequenceProvider.notifier).removeNode(node.id);
     } on SequenceLockedException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot delete while running: ${e.message}')),
-      );
+      context.showErrorSnackBar('Cannot delete while running: ${e.message}');
       return;
     }
 
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
-    messenger.showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 8),
-        content: Text('Deleted "${node.name}"'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () => _restoreSubtree(snapshot),
-        ),
+    messenger.showInfoSnackBar(
+      'Deleted "${node.name}"',
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: 'Undo',
+        onPressed: () => _restoreSubtree(snapshot),
       ),
     );
   }
@@ -313,9 +304,7 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
         notifier.addNode(child, parentId: parentId);
       }
     } on SequenceLockedException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot undo while running: ${e.message}')),
-      );
+      context.showErrorSnackBar('Cannot undo while running: ${e.message}');
     }
   }
 
@@ -447,9 +436,7 @@ class _MobileNodeRow extends StatelessWidget {
       confirmDismiss: canEdit
           ? null
           : (_) async {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Cannot delete while running')),
-              );
+              context.showErrorSnackBar('Cannot delete while running');
               return false;
             },
       background: Container(
@@ -775,9 +762,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    context.showInfoSnackBar(message);
   }
 
   Future<void> _tryNow() async {

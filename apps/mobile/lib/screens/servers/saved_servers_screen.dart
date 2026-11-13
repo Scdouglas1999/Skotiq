@@ -35,6 +35,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../services/saved_servers_service.dart';
+import 'package:skotiq_app/utils/snackbar_helper.dart';
 
 /// Async snapshot of the saved-server list — drives the screen state.
 final _savedServersListProvider = FutureProvider.autoDispose<List<SavedServer>>(
@@ -673,13 +674,11 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
   }
 
   void _showSnack(String message, {bool isError = false}) {
-    final colors = Theme.of(context).extension<SkotiqColors>()!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? colors.error : null,
-      ),
-    );
+    if (isError) {
+      context.showErrorSnackBar(message);
+    } else {
+      context.showInfoSnackBar(message);
+    }
   }
 }
 

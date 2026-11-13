@@ -109,10 +109,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     final autofocusState = ref.read(autofocusOverlayProvider);
     final hasActiveOperations = appCloseHasActiveOperations(
       sequenceOwnsHardware: sequenceState.ownsHardware,
-      sessionBusy: sessionState.isCapturing ||
-          sessionState.isAutofocusing ||
-          sessionState.isDithering ||
-          sessionState.isGuiding,
+      sessionBusy: sessionState.isCapturing || sessionState.isAutofocusing,
+      guider: ref.read(phd2StateProvider),
       cameraBusy: cameraState.isExposing ||
           cameraState.isCooling ||
           cameraState.isWarming ||

@@ -11,6 +11,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/accessible_dropdown.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'target_constraints_editor/constraint_rows.dart';
 part 'target_constraints_editor/constraint_fields.dart';
@@ -106,12 +107,8 @@ class _TargetConstraintsEditorState
 
   void _showAuthorityChanged() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'The imaging host changed. Reopen the constraint editor.',
-        ),
-      ),
+    context.showInfoSnackBar(
+      'The imaging host changed. Reopen the constraint editor.',
     );
   }
 

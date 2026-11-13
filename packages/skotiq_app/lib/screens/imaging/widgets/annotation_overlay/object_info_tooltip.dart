@@ -39,13 +39,11 @@ class ObjectInfoTooltip extends ConsumerWidget {
 
     final uiState = ref.read(observingListNotifierProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(uiState.errorMessage ??
-              uiState.statusMessage ??
-              'Added ${object.name}'),
-          duration: const Duration(seconds: 2),
-        ),
+      context.showInfoSnackBar(
+        uiState.errorMessage ??
+uiState.statusMessage ??
+'Added ${object.name}',
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -74,12 +72,9 @@ class ObjectInfoTooltip extends ConsumerWidget {
     );
 
     if (added && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Created sequence target for ${object.commonName ?? object.name}'),
-          duration: const Duration(seconds: 2),
-        ),
+      context.showInfoSnackBar(
+        'Created sequence target for ${object.commonName ?? object.name}',
+        duration: const Duration(seconds: 2),
       );
     }
   }

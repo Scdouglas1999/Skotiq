@@ -12,12 +12,10 @@ import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'package:skotiq_app/utils/plan_tonight_sequencer_helper.dart';
 import '../../widgets/add_target_to_sequence_flow.dart';
 import 'framing_altaz.dart';
-import 'framing_hips_layer_wiring.dart';
 import 'framing_search_provider.dart';
 import '../../tours/tour_target.dart';
-import 'widgets/optical_config_panel.dart';
 import '../../router/app_routes.dart';
-import 'widgets/framing_canvas.dart';
+import 'widgets/framing_sky_canvas.dart';
 import 'widgets/framing_actions_panel.dart';
 import 'widgets/framing_sidebar.dart';
 
@@ -159,7 +157,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
     // for the adaptive split: full-screen on desktop minus the controls panel,
     // and the dominant region on a phone (controls collapse to a sheet /
     // side-by-side split per AdaptivePanelLayout).
-    final canvas = _buildCanvas(colors, framingState, equipmentResult);
+    final canvas = FramingSkyCanvas(canvasKey: TourTarget.framingCanvas.key);
 
     // The controls / target sidebar content. Identical on every tier — only its
     // container changes (a fixed side column on desktop/tablet, a bottom sheet
@@ -202,95 +200,6 @@ class _FramingViewState extends ConsumerState<FramingView> {
           ),
         ],
       ),
-    );
-  }
-
-  /// The dominant survey/HiPS canvas plus its overlay chrome (optical-config
-  /// panel toggle and survey attribution badge).
-  Widget _buildCanvas(
-    SkotiqColors colors,
-    FramingState framingState,
-    AsyncValue<FramingEquipmentResult> equipmentResult,
-  ) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: FramingCanvas(
-            key: TourTarget.framingCanvas.key,
-            colors: colors,
-            framingState: framingState,
-            equipmentResult: equipmentResult.valueOrNull,
-            onPan: (dx, dy, canvasSize) {
-              ref
-                  .read(framingProvider.notifier)
-                  .pan(dx, dy, canvasSize: canvasSize);
-            },
-            onRotate: (angle) {
-              ref.read(framingProvider.notifier).setRotation(angle);
-            },
-            onAimChanged: (raHours, decDegrees) {
-              ref.read(framingProvider.notifier).setAim(raHours, decDegrees);
-            },
-            onCanvasResized: (canvasSize) {
-              ref.read(framingProvider.notifier).onCanvasResized(canvasSize);
-            },
-          ),
-        ),
-        // GPU HiPS framing attribution chrome. The streamed tile
-        // mosaic itself is composed INSIDE FramingCanvas's Stack — above
-        // the single-cutout survey snapshot and UNDER the grid / FOV /
-        // equipment overlays — so the imagery never hides the FOV
-        // reticle. This wiring only adds the survey attribution credit
-        // badge as top chrome (a licence requirement), self-positioning
-        // in the canvas's bottom band and gated internally by
-        // hipsFramingActiveProvider, so it contributes nothing when the
-        // feature is off or the survey has no verified HiPS pyramid.
-        const Positioned.fill(child: FramingHipsLayerWiring()),
-        if (framingState.showOpticalConfigPanel)
-          const Positioned(
-            top: 16,
-            left: 16,
-            child: OpticalConfigPanel(),
-          )
-        else
-          Positioned(
-            top: 16,
-            left: 16,
-            child: Tooltip(
-              message: 'Show optical config panel',
-              child: Material(
-                color: colors.surface,
-                borderRadius: SkotiqTokens.borderRadiusInline8,
-                child: InkWell(
-                  borderRadius: SkotiqTokens.borderRadiusInline8,
-                  onTap: () {
-                    ref
-                        .read(framingProvider.notifier)
-                        .setOpticalConfigPanelVisible(true);
-                  },
-                  child: Container(
-                    // ≥48px touch target so the show-config affordance is
-                    // tappable on a phone (the inner icon stays 16px).
-                    constraints: const BoxConstraints(
-                      minWidth: SkotiqTokens.minTouchTarget,
-                      minHeight: SkotiqTokens.minTouchTarget,
-                    ),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: colors.border),
-                      borderRadius: SkotiqTokens.borderRadiusInline8,
-                    ),
-                    child: Icon(
-                      SkotiqIcons.aperture,
-                      size: 16,
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 

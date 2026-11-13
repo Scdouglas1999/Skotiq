@@ -10,7 +10,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/cooled_camera_guard.dart';
@@ -269,38 +268,25 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         // the offer still works after the operator navigates away.
         final container = ProviderScope.containerOf(context, listen: false);
         final deletedOn = AsyncScopes(container.read, backendProvider).begin();
-        final colors = SkotiqColors.of(context);
         final l10n = context.l10n;
         messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.text('equipmentProfileDeleted',
-                params: {'name': deletedProfile.name})),
-            duration: const Duration(seconds: 6),
-            // `persist` defaults to `action != null` in Flutter 3.44
-            // (SnackBar's constructor), and ScaffoldMessenger's timer returns
-            // without hiding when it is set — so `duration` was inert and this
-            // bar sat over the status bar (profile, device states, focuser
-            // position, temperature, clock, LST) until the app was restarted.
-            // An undo offer is not a modal: honour the 6 s window and give the
-            // operator an explicit ✕ as well.
-            persist: false,
-            showCloseIcon: true,
-            action: SnackBarAction(
-              label: context.l10n.text('commonUndo'),
-              onPressed: () {
-                unawaited(restoreDeletedProfile(
-                  deletedProfile,
-                  container: container,
-                  messenger: messenger,
-                  colors: colors,
-                  l10n: l10n,
-                  localExportJson: deletedProfileJson,
-                  epochAtDelete: epochAtDelete,
-                  deletedOn: deletedOn,
-                ));
-              },
-            ),
+        messenger.showInfoSnackBar(
+          context.l10n.text('equipmentProfileDeleted',
+              params: {'name': deletedProfile.name}),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: context.l10n.text('commonUndo'),
+            onPressed: () {
+              unawaited(restoreDeletedProfile(
+                deletedProfile,
+                container: container,
+                messenger: messenger,
+                l10n: l10n,
+                localExportJson: deletedProfileJson,
+                epochAtDelete: epochAtDelete,
+                deletedOn: deletedOn,
+              ));
+            },
           ),
         );
       }
@@ -476,34 +462,24 @@ Future<void> restoreDeletedProfile(
   EquipmentProfileModel deletedProfile, {
   required ProviderContainer container,
   required ScaffoldMessengerState messenger,
-  required SkotiqColors colors,
   required SkotiqLocalizations l10n,
   required String? localExportJson,
   required int epochAtDelete,
   required AsyncScope<SkotiqBackend> deletedOn,
 }) async {
-  void report(String message, Color background) {
+  if (container.read(profileMutationEpochProvider) != epochAtDelete) {
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: background,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-  }
-
-  if (container.read(profileMutationEpochProvider) != epochAtDelete) {
-    report('Undo expired — profiles changed after the delete.', colors.warning);
+      ..showWarningSnackBar(
+          'Undo expired — profiles changed after the delete.');
     return;
   }
 
   if (deletedOn.isStale) {
-    report(
-      'Undo expired — the connected imaging host changed.',
-      colors.warning,
-    );
+    messenger
+      ..hideCurrentSnackBar()
+      ..showWarningSnackBar(
+          'Undo expired — the connected imaging host changed.');
     return;
   }
 
@@ -537,11 +513,13 @@ Future<void> restoreDeletedProfile(
     container.read(profileMutationEpochProvider.notifier).state++;
     container.read(selectedEquipmentProfileIdProvider.notifier).state =
         restoredId;
-    report(l10n.text('equipmentProfileRestored'), colors.success);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSuccessSnackBar(l10n.text('equipmentProfileRestored'));
   } catch (e) {
-    report(
-      l10n.text('equipmentRestoreFailed', params: {'error': userFacingError(e)}),
-      colors.error,
-    );
+    messenger
+      ..hideCurrentSnackBar()
+      ..showErrorSnackBar(l10n.text('equipmentRestoreFailed',
+          params: {'error': userFacingError(e)}));
   }
 }

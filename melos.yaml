@@ -164,7 +164,7 @@ scripts:
 
   audit:architecture:
     run: dart run tools/production/architecture_rules_audit.dart
-    description: Enforce package/crate dependency direction, no backend class checks outside the backend files, no cross-package src/ imports, no new per-node-type dispatch outside the node table, and no provider imports from skotiq_core's backend, database, models and services layers; each failure names where the change goes instead
+    description: Enforce package/crate dependency direction, no backend class checks outside the backend files, no cross-package src/ imports, no new per-node-type dispatch outside the node table, no provider imports from skotiq_core's backend, database, models and services layers, and no snackbar shown outside the app's feedback helper; each failure names where the change goes instead
 
   audit:architecture:self-test:
     run: dart run tools/production/architecture_rules_audit_self_test.dart

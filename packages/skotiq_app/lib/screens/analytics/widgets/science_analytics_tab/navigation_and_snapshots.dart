@@ -156,12 +156,9 @@ class _ScienceJumpNav extends ConsumerWidget {
   Future<void> _exportReport(
       BuildContext context, WidgetRef ref, int sessionId) async {
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Generating science report…'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
+    messenger.showInfoSnackBar(
+      'Generating science report…',
+      duration: Duration(seconds: 2),
     );
     try {
       final backend = ref.read(backendProvider);
@@ -184,31 +181,23 @@ class _ScienceJumpNav extends ConsumerWidget {
           subject: 'Skotiq science report',
         );
       } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Saved to ${file.path}'),
-            action: SnackBarAction(
-              label: 'Open folder',
-              onPressed: () async {
-                if (context.mounted) {
-                  await folders.reveal(context, file.parent.path);
-                }
-              },
-            ),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 6),
+        messenger.showInfoSnackBar(
+          'Saved to ${file.path}',
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Open folder',
+            onPressed: () async {
+              if (context.mounted) {
+                await folders.reveal(context, file.parent.path);
+              }
+            },
           ),
         );
       }
     } catch (e) {
       if (!context.mounted) return;
       messenger.clearSnackBars();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Export failed: ${userFacingError(e)}'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      messenger.showErrorSnackBar('Export failed: ${userFacingError(e)}');
     }
   }
 }

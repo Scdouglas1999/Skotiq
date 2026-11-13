@@ -20,6 +20,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../editors/integration_goals_editor.dart';
 import '../../sequencer/widgets/smart_night_dialog.dart';
 import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'projects_tab_content/project_header.dart';
 part 'projects_tab_content/progress_widgets.dart';
@@ -103,11 +104,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
   bool _blockedOnRemote() {
     if (ref.read(backendProvider).remoteHost == null) return false;
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Projects are managed on the imaging host.'),
-        ),
-      );
+      context.showInfoSnackBar('Projects are managed on the imaging host.');
     }
     return true;
   }
@@ -119,9 +116,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       await ref.read(activeProjectIdProvider.notifier).setActiveProject(id);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save the active project.')),
-        );
+        context.showErrorSnackBar('Could not save the active project.');
       }
     } finally {
       if (mounted) setState(() => _changingProject = false);
@@ -130,9 +125,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
 
   void _showProjectError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    context.showInfoSnackBar(message);
   }
 
   bool _beginProjectMutation() {
@@ -519,10 +512,8 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       }
 
       if (progress == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Select a project before planning in Smart Night.'),
-          ),
+        context.showInfoSnackBar(
+          'Select a project before planning in Smart Night.',
         );
         return;
       }
@@ -537,13 +528,9 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
           .map((t) => t.targetId)
           .toList(growable: false);
       if (incompleteIds.isEmpty) {
-        final colors = SkotiqColors.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('"${active.name}" has no incomplete targets left to '
-                'plan — every target has met its integration goals.'),
-            backgroundColor: colors.success,
-          ),
+        context.showSuccessSnackBar(
+          '"${active.name}" has no incomplete targets left to '
+'plan — every target has met its integration goals.',
         );
         return;
       }

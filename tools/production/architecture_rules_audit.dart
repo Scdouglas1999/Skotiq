@@ -29,6 +29,10 @@ import 'src/audit_scope.dart';
 ///                       utils/, tours/, localization/ and the route table
 ///                       in router/) import no screen and none of the files
 ///                       that put the app together.
+///   app-feedback        A snackbar is shown through skotiq_app's
+///                       utils/snackbar_helper.dart, which places it clear of
+///                       the shell's bottom chrome; no other library code
+///                       calls `showSnackBar`.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -318,6 +322,16 @@ const _appSharedInstead =
     'something a screen declares, move that declaration down beside it (a '
     'route or tab enum goes in router/), or pass the value in.';
 
+const _snackbarHelper = '${_appLib}utils/snackbar_helper.dart';
+
+const _appFeedbackInstead =
+    'Show it with context.showInfoSnackBar, showSuccessSnackBar, '
+    'showWarningSnackBar or showErrorSnackBar from utils/snackbar_helper.dart '
+    '(the same methods exist on a ScaffoldMessengerState kept across an '
+    'await). The helper keeps the snackbar off the shell\'s bottom bar and any '
+    'bar the screen declares, colors it by its tone and keeps it up long '
+    'enough to read.';
+
 void main(List<String> args) {
   final scope = AuditScope.fromArgs(args);
   final baselinePath = argValue(args, '--baseline') ?? _defaultBaselinePath;
@@ -343,6 +357,7 @@ void main(List<String> args) {
   violations.addAll(_checkRustDirection());
   violations.addAll(_checkCoreBarrels(dartFiles));
   violations.addAll(_checkAppShared(dartFiles));
+  violations.addAll(_checkAppFeedback(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);
   final srcImportSites = _srcImportSites(dartPackages, dartFiles);
@@ -504,6 +519,11 @@ enum _Rule {
     'app-shared',
     'A shared folder of skotiq_app imports no screen.',
     _appSharedInstead,
+  ),
+  appFeedback(
+    'app-feedback',
+    'A snackbar is shown through the one feedback helper.',
+    _appFeedbackInstead,
   );
 
   const _Rule(this.id, this.summary, this.instead);
@@ -938,6 +958,37 @@ String? _coreTarget(String from, String uri) {
   }
   final path = segments.join('/');
   return path.startsWith(_coreLib) ? path : null;
+}
+
+// ---------------------------------------------------------------------------
+// app-feedback
+
+final _showSnackBarCall = RegExp(r'\.showSnackBar\s*\(');
+
+/// Library code of skotiq_app and the apps, where a snackbar reaches a user.
+bool _isAppLibrary(String path) =>
+    path.startsWith(_appLib) ||
+    RegExp(r'^apps/[^/]+/lib/').hasMatch(path);
+
+List<_Violation> _checkAppFeedback(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!_isAppLibrary(path) || path == _snackbarHelper) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final code = lines[i].split('//').first;
+      if (!_showSnackBarCall.hasMatch(code)) continue;
+      out.add(
+        _Violation(
+          _Rule.appFeedback,
+          '$path:${i + 1}',
+          'calls showSnackBar directly',
+          _appFeedbackInstead,
+        ),
+      );
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../sequence_mutator_helper.dart';
 import '../sequence_fold_model.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Canonical confirmation + delete helper for sequencer nodes.
 ///
@@ -94,12 +95,9 @@ Future<bool> confirmAndDeleteSequenceNode({
     // SequenceLockedException is the expected case (the sequence started
     // running between dialog open and confirm).
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete "${node.name}": ${userFacingError(error)}'),
-          backgroundColor: resolvedColors.error,
-          duration: const Duration(seconds: 4),
-        ),
+      context.showErrorSnackBar(
+        'Failed to delete "${node.name}": ${userFacingError(error)}',
+        duration: const Duration(seconds: 4),
       );
     }
     return false;

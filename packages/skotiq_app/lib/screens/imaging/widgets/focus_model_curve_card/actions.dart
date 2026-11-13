@@ -249,9 +249,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    context.showInfoSnackBar(message);
   }
 }
 

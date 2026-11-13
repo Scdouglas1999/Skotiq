@@ -209,11 +209,9 @@ class _StatusRow extends StatelessWidget {
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: copyable));
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Error copied to clipboard'),
-                    duration: Duration(seconds: 2),
-                  ),
+                context.showInfoSnackBar(
+                  'Error copied to clipboard',
+                  duration: Duration(seconds: 2),
                 );
               },
               size: IconButtonSize.sm,

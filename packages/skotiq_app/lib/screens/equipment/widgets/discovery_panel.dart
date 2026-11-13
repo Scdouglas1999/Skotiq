@@ -254,9 +254,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       // A failed rescan must say so: silence here is indistinguishable from a
       // scan that ran and found nothing.
       if (_isCurrentOperation(rescan, rescanning: true)) {
-        messenger?.showSnackBar(
-          SnackBar(content: Text('Rescan failed: ${userFacingError(e)}')),
-        );
+        messenger?.showErrorSnackBar('Rescan failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(rescan, rescanning: true)) {

@@ -10,6 +10,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/accessible_dropdown.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// The integration-goals editor for one target in a dialog, offering the
 /// active profile's filters. Plan > Projects and Analytics > Projects open it,
@@ -116,7 +117,6 @@ class _IntegrationGoalsEditorState
     final targetId = widget.targetId;
     final operationGeneration = ++_operationGeneration;
     final messenger = ScaffoldMessenger.of(context);
-    final errorColor = SkotiqColors.of(context).error;
     setState(() => _busy = true);
     try {
       await service.upsert(IntegrationGoal(
@@ -139,7 +139,7 @@ class _IntegrationGoalsEditorState
       return true;
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        _showGoalErrorOn(messenger, errorColor, 'Failed to add goal: ${userFacingError(e)}');
+        messenger.showErrorSnackBar('Failed to add goal: ${userFacingError(e)}');
       }
       return false;
     } finally {
@@ -165,7 +165,6 @@ class _IntegrationGoalsEditorState
     final targetId = widget.targetId;
     final operationGeneration = ++_operationGeneration;
     final messenger = ScaffoldMessenger.of(context);
-    final errorColor = SkotiqColors.of(context).error;
     setState(() => _busy = true);
     try {
       await service.upsert(goal.copyWith(
@@ -183,7 +182,7 @@ class _IntegrationGoalsEditorState
       ref.invalidate(allIntegrationGoalsProvider);
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        _showGoalErrorOn(messenger, errorColor, 'Failed to update goal: ${userFacingError(e)}');
+        messenger.showErrorSnackBar('Failed to update goal: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
@@ -206,7 +205,6 @@ class _IntegrationGoalsEditorState
     final targetId = widget.targetId;
     final operationGeneration = ++_operationGeneration;
     final messenger = ScaffoldMessenger.of(context);
-    final errorColor = SkotiqColors.of(context).error;
     setState(() => _busy = true);
     try {
       await service.delete(goal.id!);
@@ -221,7 +219,7 @@ class _IntegrationGoalsEditorState
       ref.invalidate(allIntegrationGoalsProvider);
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        _showGoalErrorOn(messenger, errorColor, 'Failed to delete goal: ${userFacingError(e)}');
+        messenger.showErrorSnackBar('Failed to delete goal: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
@@ -796,25 +794,6 @@ class _AddGoalRowState extends State<_AddGoalRow> {
 String _goalFilterLabel(String filter) =>
     filter.trim().isEmpty ? 'No filter' : filter;
 
-void _showGoalError(BuildContext context, String message) {
-  _showGoalErrorOn(
-    ScaffoldMessenger.of(context),
-    SkotiqColors.of(context).error,
-    message,
-  );
-}
-
-void _showGoalErrorOn(
-  ScaffoldMessengerState messenger,
-  Color errorColor,
-  String message,
-) {
-  messenger.showSnackBar(
-    SnackBar(
-      content: Text(message),
-      backgroundColor: errorColor,
-      duration: const Duration(seconds: 4),
-    ),
-  );
-}
+void _showGoalError(BuildContext context, String message) =>
+    context.showErrorSnackBar(message);
 

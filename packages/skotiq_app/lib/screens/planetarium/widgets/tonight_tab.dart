@@ -16,6 +16,7 @@ import '../planetarium_screen.dart';
 import 'sidebar_shared_widgets.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/planner_route.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class TonightTab extends ConsumerWidget {
   final SkotiqColors colors;
@@ -74,9 +75,7 @@ class TonightTab extends ConsumerWidget {
     );
 
     if (added && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added $displayName to sequence')),
-      );
+      context.showInfoSnackBar('Added $displayName to sequence');
     }
   }
 

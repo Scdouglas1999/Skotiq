@@ -355,10 +355,8 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
   void _onRollback(String restored, String attempted, Object error) {
     if (!mounted) return;
     _showStoredPath();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Could not use that path: ${userFacingError(error)}'),
-      ),
+    context.showErrorSnackBar(
+      'Could not use that path: ${userFacingError(error)}',
     );
   }
 
@@ -370,10 +368,8 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
       await Future<void>.sync(widget.onBrowse);
     } catch (error) {
       if (mounted && generation == _browseGeneration) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  'Could not update this path: ${userFacingError(error)}')),
+        context.showErrorSnackBar(
+          'Could not update this path: ${userFacingError(error)}',
         );
       }
     } finally {

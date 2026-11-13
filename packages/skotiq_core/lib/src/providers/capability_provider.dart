@@ -89,6 +89,25 @@ final cameraSensitivityProvider = Provider<ExposureSensitivity>((ref) {
   );
 });
 
+/// Whether the connected imaging camera has a cooler. With no camera
+/// connected, or before its capabilities arrive, it reads as having one, so
+/// a cooler card shows its "not connected" state rather than vanishing.
+final cameraHasCoolerProvider = Provider<bool>((ref) {
+  final deviceId = ref.watch(
+    cameraStateProvider.select(
+      (state) => state.connectionState == DeviceConnectionState.connected
+          ? state.deviceId
+          : null,
+    ),
+  );
+  if (deviceId == null || deviceId.isEmpty) return true;
+  return ref
+          .watch(cameraCapabilitiesProvider(deviceId))
+          .valueOrNull
+          ?.canSetCooler ??
+      true;
+});
+
 /// Provider to fetch mount capabilities for a device
 /// Returns null if the device is not connected or doesn't support capabilities
 final mountCapabilitiesProvider =

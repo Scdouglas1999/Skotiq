@@ -125,7 +125,7 @@ class _SettingsFieldNoticeState extends State<SettingsFieldNotice> {
       // No overlay to float in (a bare test host): a snackbar still tells.
       ScaffoldMessenger.maybeOf(context)
         ?..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+        ..showInfoSnackBar(message);
       return;
     }
     _portal.show();

@@ -13,11 +13,7 @@ class _TransientSettingsDialogState
       await action();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not save the alert settings.'),
-          ),
-        );
+        context.showErrorSnackBar('Could not save the alert settings.');
       }
     }
   }

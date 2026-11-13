@@ -17,6 +17,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/accessible_dropdown.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class SecondaryRigCard extends ConsumerWidget {
   const SecondaryRigCard({super.key});
@@ -266,8 +267,8 @@ class SecondaryRigCard extends ConsumerWidget {
           .start(const SecondaryRigStartContext());
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not start secondary rig: ${userFacingError(e)}')),
+        context.showErrorSnackBar(
+          'Could not start secondary rig: ${userFacingError(e)}',
         );
       }
     }
@@ -278,8 +279,8 @@ class SecondaryRigCard extends ConsumerWidget {
       await ref.read(secondaryRigControllerProvider).stop();
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not stop secondary rig: ${userFacingError(e)}')),
+        context.showErrorSnackBar(
+          'Could not stop secondary rig: ${userFacingError(e)}',
         );
       }
     }

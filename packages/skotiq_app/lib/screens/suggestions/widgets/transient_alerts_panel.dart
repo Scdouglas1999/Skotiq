@@ -9,6 +9,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/transient_type_style.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'transient_alerts_panel_parts/_alert_tiles.dart';
 part 'transient_alerts_panel_parts/_settings_dialog.dart';
@@ -21,9 +22,7 @@ Future<void> _runAlertStateAction(
     await action();
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update this alert.')),
-      );
+      context.showErrorSnackBar('Could not update this alert.');
     }
   }
 }

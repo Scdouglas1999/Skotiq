@@ -25,6 +25,7 @@ import 'annotation_status_colors.dart';
 import 'annotation_quick_settings.dart';
 import 'annotation_object_list.dart';
 import 'imaging_side_panel.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'annotation_panel_parts/status_widgets.dart';
 part 'annotation_panel_parts/objects_panel.dart';

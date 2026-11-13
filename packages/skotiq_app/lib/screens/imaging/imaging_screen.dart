@@ -63,28 +63,25 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
   /// The page header's `panel-right` toggle.
   bool _sidePanelCollapsed = false;
 
-  // Local snapshot state. The Loop is the host's (see
-  // [manualCaptureControllerProvider]); every window reads it from
-  // [manualLoopStatusProvider].
-  bool _isSnapshotting = false;
-  bool _singleCapturePreviewReady = false;
-  bool _isStoppingSnapshot = false;
-  ImagingService? _manualCaptureService;
-
-  /// The controller of a loop this screen started, so leaving the screen
-  /// stops it: a loop must not keep exposing after its Stop control goes.
-  ManualCaptureController? _startedLoop;
+  /// The controller of a snapshot or loop this screen started, so leaving
+  /// the screen stops it: a capture must not keep exposing after its Stop
+  /// control goes.
+  ManualCaptureController? _startedCapture;
 
   bool get _isLooping => ref.read(manualLoopStatusProvider).looping;
 
-  /// A frame is being taken: this window's snapshot, or an exposure the
-  /// other end of the link (or a sequence) is running.
+  /// A frame is being taken: a manual snapshot, or an exposure the other
+  /// end of the link (or a sequence) is running.
   bool get _isSingleCapture =>
-      _isSnapshotting ||
+      ref.read(manualCaptureControllerProvider).isSnapshot ||
       (!_isLooping && ref.read(cameraStateProvider).isExposing);
 
+  bool get _isSavingCapture =>
+      ref.read(manualCaptureControllerProvider).snapshotPreviewReady;
+
   bool get _isStoppingCapture =>
-      _isStoppingSnapshot || ref.read(manualLoopStatusProvider).stopping;
+      ref.read(manualCaptureControllerProvider).isStopping ||
+      ref.read(manualLoopStatusProvider).stopping;
 
   /// Measured lift, in logical pixels, that a floating snackbar needs in order
   /// to clear the capture controls this layout is showing — the distance from
@@ -98,8 +95,6 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
     setState(() => _captureBarHeight = height);
   }
 
-  void _update(VoidCallback callback) => setState(callback);
-
   @override
   void initState() {
     super.initState();
@@ -112,18 +107,10 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
 
   @override
   void dispose() {
-    if (_isSnapshotting && _manualCaptureService != null) {
-      // A snapshot belongs to this screen. ImagingService targets the
-      // backend/device admitted at start. ConsumerState.ref is already
-      // invalid while Riverpod unmounts this element, so retain the service
-      // admitted by the active action.
-      _manualCaptureService!.cancelExposure();
-    }
-    // A Loop this screen started must not keep exposing after navigation
-    // removes the Stop control the operator used to start it. Stopped after
-    // the unmount, since stopping changes state this screen still watches.
-    final startedLoop = _startedLoop;
-    if (startedLoop != null) scheduleMicrotask(startedLoop.stop);
+    // Stopped after the unmount, since stopping changes state this screen
+    // still watches.
+    final startedCapture = _startedCapture;
+    if (startedCapture != null) scheduleMicrotask(startedCapture.stop);
     super.dispose();
   }
 
@@ -139,6 +126,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
     // The loop and any exposure in flight decide what Snapshot and Loop
     // offer, in this window and the one at the other end of the link.
     ref.watch(manualLoopStatusProvider);
+    ref.watch(manualCaptureControllerProvider);
     ref.watch(cameraStateProvider.select((s) => s.isExposing));
 
     final colors = context.skotiqColors;
@@ -388,7 +376,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                 onSectionSelected: _selectSection,
                 isLooping: _isLooping,
                 isSingleCapture: _isSingleCapture,
-                isSavingCapture: _singleCapturePreviewReady,
+                isSavingCapture: _isSavingCapture,
                 isStoppingCapture: _isStoppingCapture,
                 onSnapshot: _takeSnapshot,
                 onToggleLoop: _toggleLoop,
@@ -449,7 +437,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                 child: ImagingCaptureBar(
                   isLooping: _isLooping,
                   isSingleCapture: _isSingleCapture,
-                  isSavingCapture: _singleCapturePreviewReady,
+                  isSavingCapture: _isSavingCapture,
                   isStoppingCapture: _isStoppingCapture,
                   onSnapshot: _takeSnapshot,
                   onToggleLoop: _toggleLoop,

@@ -376,320 +376,261 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
               color: colors.isRedNight
                   ? colors.background
                   : SkotiqColors.dark.background,
-              child: Stack(
-                children: [
-                  if (currentImage != null)
-                    Positioned.fill(
-                      child: ImageDisplayWidget(
-                        imageData: currentImage,
-                        zoomLevel: zoomLevel,
-                        panOffset: panOffset,
-                      ),
-                    )
-                  else
-                    Positioned.fill(
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: StarFieldPainter(colors: colors),
+              // The overlay painters draw in image coordinates, which run
+              // past the canvas once the frame is zoomed in; clipped here so
+              // they never paint over the toolbar and banners around it.
+              child: ClipRect(
+                child: Stack(
+                  children: [
+                    if (currentImage != null)
+                      Positioned.fill(
+                        child: ImageDisplayWidget(
+                          imageData: currentImage,
+                          zoomLevel: zoomLevel,
+                          panOffset: panOffset,
+                        ),
+                      )
+                    else
+                      Positioned.fill(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: StarFieldPainter(colors: colors),
+                              ),
                             ),
-                          ),
-                          // While an exposure is in flight the progress
-                          // overlay owns the centre of the canvas, so the
-                          // empty state stands down. Drawing both stacked
-                          // "32%" on top of "No Image" and told the operator
-                          // to "take a snapshot or start a capture loop"
-                          // directly above a countdown for the capture already
-                          // running.
-                          //
-                          // Centered when there's room; on very short preview
-                          // heights (e.g. a phone held in landscape) the
-                          // message scrolls instead of overflowing the canvas.
-                          if (!isExposing)
-                            SingleChildScrollView(
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minHeight: constraints.maxHeight,
-                                ),
-                                child: Center(
-                                  // The bottom of this canvas is spoken for by
-                                  // the capture bar and the histogram, so the
-                                  // prompt centres in the space actually free.
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      bottom: _cornerReadoutBandHeight,
-                                    ),
-                                    // The empty state sits ON the canvas, and
-                                    // the canvas is image-anchored dark in
-                                    // every theme (05 §14). Left on the app
-                                    // palette its ink was light-theme grey on
-                                    // near-black — the same grey-on-grey that
-                                    // got a white glass over a black frame
-                                    // rejected.
-                                    child: SkotiqImageSurface(
-                                      child: EmptyState(
-                                        icon: isConnected
-                                            ? SkotiqIcons.imageOff
-                                            : SkotiqIcons.cameraOff,
-                                        title: isConnected
-                                            ? 'No frames yet'
-                                            : 'No camera connected',
-                                        body: isConnected
-                                            ? 'Take a snapshot or start a loop '
-                                                'and the frame appears here.'
-                                            : 'Connect a camera in Equipment '
-                                                'to start imaging.',
+                            // While an exposure is in flight the progress
+                            // overlay owns the centre of the canvas, so the
+                            // empty state stands down. Drawing both stacked
+                            // "32%" on top of "No Image" and told the operator
+                            // to "take a snapshot or start a capture loop"
+                            // directly above a countdown for the capture already
+                            // running.
+                            //
+                            // Centered when there's room; on very short preview
+                            // heights (e.g. a phone held in landscape) the
+                            // message scrolls instead of overflowing the canvas.
+                            if (!isExposing)
+                              SingleChildScrollView(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight: constraints.maxHeight,
+                                  ),
+                                  child: Center(
+                                    // The bottom of this canvas is spoken for by
+                                    // the capture bar and the histogram, so the
+                                    // prompt centres in the space actually free.
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: _cornerReadoutBandHeight,
+                                      ),
+                                      // The empty state sits ON the canvas, and
+                                      // the canvas is image-anchored dark in
+                                      // every theme (05 §14). Left on the app
+                                      // palette its ink was light-theme grey on
+                                      // near-black — the same grey-on-grey that
+                                      // got a white glass over a black frame
+                                      // rejected.
+                                      child: SkotiqImageSurface(
+                                        child: EmptyState(
+                                          icon: isConnected
+                                              ? SkotiqIcons.imageOff
+                                              : SkotiqIcons.cameraOff,
+                                          title: isConnected
+                                              ? 'No frames yet'
+                                              : 'No camera connected',
+                                          body: isConnected
+                                              ? 'Take a snapshot or start a loop '
+                                                  'and the frame appears here.'
+                                              : 'Connect a camera in Equipment '
+                                                  'to start imaging.',
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                  if (showCrosshair && currentImage != null)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: CrosshairOverlayPainter(
-                          // 06 puts the reticle in primary 35-50%; the two
-                          // tokens that bracket that band are opacityStrong
-                          // (axes) and opacitySelectedRing (the ring itself,
-                          // set inside the painter).
-                          color: colors.primary.withValues(
-                            alpha: SkotiqTokens.opacityStrong,
+                    if (showCrosshair && currentImage != null)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: CrosshairOverlayPainter(
+                            // 06 puts the reticle in primary 35-50%; the two
+                            // tokens that bracket that band are opacityStrong
+                            // (axes) and opacitySelectedRing (the ring itself,
+                            // set inside the painter).
+                            color: colors.primary.withValues(
+                              alpha: SkotiqTokens.opacityStrong,
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                  if (gridType == GridType.pixel && currentImage != null)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: GridOverlayPainter(
-                          color: colors.primary.withValues(alpha: 0.2),
+                    if (gridType == GridType.pixel && currentImage != null)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: GridOverlayPainter(
+                            color: colors.primary.withValues(alpha: 0.2),
+                          ),
                         ),
                       ),
-                    ),
 
-                  if (gridType == GridType.celestial &&
-                      currentImage != null &&
-                      currentSkySolution.plateSolve != null)
-                    Positioned.fill(
-                      child: IgnorePointer(
+                    if (gridType == GridType.celestial &&
+                        currentImage != null &&
+                        currentSkySolution.plateSolve != null)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(
+                            painter: CelestialGridPainter(
+                              plateSolve: currentSkySolution.plateSolve!,
+                              zoomLevel: displayScale,
+                              imageOffset: imageOffset,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    if (showStarOverlay &&
+                        currentImage != null &&
+                        starDetectionResult != null &&
+                        starDetectionResult.stars.isNotEmpty)
+                      Positioned.fill(
                         child: CustomPaint(
-                          painter: CelestialGridPainter(
-                            plateSolve: currentSkySolution.plateSolve!,
+                          painter: StarOverlayPainter(
+                            stars: starDetectionResult.stars,
+                            color: colors.accent.withValues(alpha: 0.8),
                             zoomLevel: displayScale,
                             imageOffset: imageOffset,
                           ),
                         ),
                       ),
-                    ),
 
-                  if (showStarOverlay &&
-                      currentImage != null &&
-                      starDetectionResult != null &&
-                      starDetectionResult.stars.isNotEmpty)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: StarOverlayPainter(
-                          stars: starDetectionResult.stars,
-                          color: colors.accent.withValues(alpha: 0.8),
+                    if (currentImage != null)
+                      Positioned.fill(
+                        child: AnnotationOverlayWrapper(
                           zoomLevel: displayScale,
                           imageOffset: imageOffset,
+                          imageSize: Size(currentImage.width.toDouble(),
+                              currentImage.height.toDouble()),
+                          colors: colors,
+                          previewViewportWidth: viewportSize.width,
+                          onPanToObject: (imagePoint) {
+                            // Pan delta that centres the image point in the
+                            // PREVIEW, not on the screen: imageToViewport works
+                            // in preview-local coordinates, so measuring the
+                            // centre off MediaQuery threw the object off by
+                            // half the surrounding chrome — the wider the
+                            // window, the further the miss.
+                            final previewCenter = Offset(
+                              viewportSize.width / 2,
+                              viewportSize.height / 2,
+                            );
+                            final currentScreenPos = imageToViewport(
+                              imagePoint: imagePoint,
+                              imageOffset: imageOffset,
+                              zoomLevel: displayScale,
+                            );
+                            final delta = previewCenter - currentScreenPos;
+                            onPanUpdate(delta);
+                          },
                         ),
                       ),
-                    ),
 
-                  if (currentImage != null)
-                    Positioned.fill(
-                      child: AnnotationOverlayWrapper(
+                    // Catalog overlay (F5-CATALOG-OVERLAY): live projection of
+                    // Messier / NGC / IC / bright stars from the planetarium
+                    // catalog through the solved WCS. Independent of the
+                    // existing annotation pipeline.
+                    if (currentImage != null)
+                      Positioned.fill(
+                        child: CatalogOverlayWidget(
+                          wcs: currentSkySolution.catalogWcs,
+                          zoomLevel: displayScale,
+                          imageOffset: imageOffset,
+                          imageSize: Size(currentImage.width.toDouble(),
+                              currentImage.height.toDouble()),
+                          frameSolve: frameSolve,
+                        ),
+                      ),
+
+                    if (currentImage != null)
+                      Positioned.fill(
+                        child: CustomAnnotationDrawingLayer(
+                          zoomLevel: displayScale,
+                          imageOffset: imageOffset,
+                          imageSize: Size(currentImage.width.toDouble(),
+                              currentImage.height.toDouble()),
+                        ),
+                      ),
+
+                    // DepthLock regions: the two rectangles being drawn right
+                    // now, and every saved goal that lands on this frame. Above
+                    // the annotation layer because while its tool is active it
+                    // owns the drag, and below the HUD because it is part of the
+                    // picture rather than chrome over it.
+                    if (currentImage != null)
+                      Positioned.fill(
+                        child: DepthLockRegionLayer(
+                          zoomLevel: displayScale,
+                          imageOffset: imageOffset,
+                          imageSize: Size(currentImage.width.toDouble(),
+                              currentImage.height.toDouble()),
+                          geometry:
+                              ref.watch(depthLockSelectionProvider).geometry,
+                        ),
+                      ),
+
+                    if (currentImage != null)
+                      _CompassScaleBarOverlay(
                         zoomLevel: displayScale,
-                        imageOffset: imageOffset,
-                        imageSize: Size(currentImage.width.toDouble(),
-                            currentImage.height.toDouble()),
-                        colors: colors,
-                        previewViewportWidth: viewportSize.width,
-                        onPanToObject: (imagePoint) {
-                          // Pan delta that centres the image point in the
-                          // PREVIEW, not on the screen: imageToViewport works
-                          // in preview-local coordinates, so measuring the
-                          // centre off MediaQuery threw the object off by
-                          // half the surrounding chrome — the wider the
-                          // window, the further the miss.
-                          final previewCenter = Offset(
-                            viewportSize.width / 2,
-                            viewportSize.height / 2,
-                          );
-                          final currentScreenPos = imageToViewport(
-                            imagePoint: imagePoint,
-                            imageOffset: imageOffset,
-                            zoomLevel: displayScale,
-                          );
-                          final delta = previewCenter - currentScreenPos;
-                          onPanUpdate(delta);
-                        },
+                        plateSolve: currentSkySolution.plateSolve,
+                        bottomLeftOccupied: readoutsVisible,
+                        bottomRightOccupied: histogramVisible,
+                        bottomLeftLift: _bottomCornerOffset(
+                              canvasWidth: viewportSize.width,
+                              captureBarWidth: widget.captureBarWidth,
+                              cornerWidth: _bottomLeftReadoutsWidth,
+                            ) -
+                            _hudInset,
+                        bottomRightLift: _bottomCornerOffset(
+                              canvasWidth: viewportSize.width,
+                              captureBarWidth: widget.captureBarWidth,
+                              cornerWidth: HistogramHud.width,
+                            ) -
+                            _hudInset,
                       ),
-                    ),
 
-                  // Catalog overlay (F5-CATALOG-OVERLAY): live projection of
-                  // Messier / NGC / IC / bright stars from the planetarium
-                  // catalog through the solved WCS. Independent of the
-                  // existing annotation pipeline.
-                  if (currentImage != null)
-                    Positioned.fill(
-                      child: CatalogOverlayWidget(
-                        wcs: currentSkySolution.catalogWcs,
-                        zoomLevel: displayScale,
-                        imageOffset: imageOffset,
-                        imageSize: Size(currentImage.width.toDouble(),
-                            currentImage.height.toDouble()),
-                        frameSolve: frameSolve,
-                      ),
-                    ),
-
-                  if (currentImage != null)
-                    Positioned.fill(
-                      child: CustomAnnotationDrawingLayer(
-                        zoomLevel: displayScale,
-                        imageOffset: imageOffset,
-                        imageSize: Size(currentImage.width.toDouble(),
-                            currentImage.height.toDouble()),
-                      ),
-                    ),
-
-                  // DepthLock regions: the two rectangles being drawn right
-                  // now, and every saved goal that lands on this frame. Above
-                  // the annotation layer because while its tool is active it
-                  // owns the drag, and below the HUD because it is part of the
-                  // picture rather than chrome over it.
-                  if (currentImage != null)
-                    Positioned.fill(
-                      child: DepthLockRegionLayer(
-                        zoomLevel: displayScale,
-                        imageOffset: imageOffset,
-                        imageSize: Size(currentImage.width.toDouble(),
-                            currentImage.height.toDouble()),
-                        geometry:
-                            ref.watch(depthLockSelectionProvider).geometry,
-                      ),
-                    ),
-
-                  if (currentImage != null)
-                    _CompassScaleBarOverlay(
-                      zoomLevel: displayScale,
-                      plateSolve: currentSkySolution.plateSolve,
-                      bottomLeftOccupied: readoutsVisible,
-                      bottomRightOccupied: histogramVisible,
-                      bottomLeftLift: _bottomCornerOffset(
-                            canvasWidth: viewportSize.width,
-                            captureBarWidth: widget.captureBarWidth,
-                            cornerWidth: _bottomLeftReadoutsWidth,
-                          ) -
-                          _hudInset,
-                      bottomRightLift: _bottomCornerOffset(
-                            canvasWidth: viewportSize.width,
-                            captureBarWidth: widget.captureBarWidth,
-                            cornerWidth: HistogramHud.width,
-                          ) -
-                          _hudInset,
-                    ),
-
-                  if (currentImage != null &&
-                      scienceOverlaysEnabled &&
-                      scienceOverlay.showPsfHeatmap &&
-                      psfTiles.isNotEmpty)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: SciencePsfOverlayPainter(
-                            tiles: psfTiles,
-                            imageOffset: imageOffset,
-                            zoomLevel: displayScale,
-                            imageWidth: currentImage.width.toDouble(),
-                            imageHeight: currentImage.height.toDouble(),
-                            colors: colors,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  if (currentImage != null &&
-                      residualVectors.isNotEmpty &&
-                      (annotationShowResiduals ||
-                          (scienceOverlaysEnabled &&
-                              scienceOverlay.showResidualVectors)))
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: ScienceResidualOverlayPainter(
-                            vectors: residualVectors,
-                            imageOffset: imageOffset,
-                            zoomLevel: displayScale,
-                            colors: colors,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  if (currentImage != null &&
-                      scienceOverlaysEnabled &&
-                      scienceOverlay.showUniformityMap &&
-                      uniformityTiles.isNotEmpty)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: ScienceUniformityOverlayPainter(
-                            tiles: uniformityTiles,
-                            imageOffset: imageOffset,
-                            zoomLevel: displayScale,
-                            imageWidth: currentImage.width.toDouble(),
-                            imageHeight: currentImage.height.toDouble(),
-                            opacity: scienceVizPrefs.overlayOpacity,
-                            colors: colors,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  if (currentImage != null &&
-                      scienceOverlaysEnabled &&
-                      (scienceOverlay.showClipHighMap ||
-                          scienceOverlay.showClipLowMap))
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: ScienceClipOverlayPainter(
-                            highTiles: scienceOverlay.showClipHighMap
-                                ? clipHighTiles
-                                : const <ScienceTileMetricRow>[],
-                            lowTiles: scienceOverlay.showClipLowMap
-                                ? clipLowTiles
-                                : const <ScienceTileMetricRow>[],
-                            imageOffset: imageOffset,
-                            zoomLevel: displayScale,
-                            imageWidth: currentImage.width.toDouble(),
-                            imageHeight: currentImage.height.toDouble(),
-                            opacity: scienceVizPrefs.overlayOpacity,
-                            colors: colors,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  if (currentImage != null &&
-                      scienceOverlaysEnabled &&
-                      scienceOverlay.showMovingObjectTracks &&
-                      projectedMovingTracks.isNotEmpty)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: RepaintBoundary(
+                    if (currentImage != null &&
+                        scienceOverlaysEnabled &&
+                        scienceOverlay.showPsfHeatmap &&
+                        psfTiles.isNotEmpty)
+                      Positioned.fill(
+                        child: IgnorePointer(
                           child: CustomPaint(
-                            painter: ScienceMovingTrackOverlayPainter(
-                              tracks: projectedMovingTracks,
+                            painter: SciencePsfOverlayPainter(
+                              tiles: psfTiles,
+                              imageOffset: imageOffset,
+                              zoomLevel: displayScale,
+                              imageWidth: currentImage.width.toDouble(),
+                              imageHeight: currentImage.height.toDouble(),
+                              colors: colors,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    if (currentImage != null &&
+                        residualVectors.isNotEmpty &&
+                        (annotationShowResiduals ||
+                            (scienceOverlaysEnabled &&
+                                scienceOverlay.showResidualVectors)))
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(
+                            painter: ScienceResidualOverlayPainter(
+                              vectors: residualVectors,
                               imageOffset: imageOffset,
                               zoomLevel: displayScale,
                               colors: colors,
@@ -697,207 +638,271 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                           ),
                         ),
                       ),
-                    ),
 
-                  if (isExposing)
-                    Positioned.fill(
-                      child: ExposureProgressOverlay(
-                        progress: exposureProgress,
-                        colors: colors,
-                        isAborting: widget.isStoppingCapture,
-                      ),
-                    ),
-
-                  // Top-right science chrome column: the Night Narrator
-                  // ticker (surface #2) over the Science HUD panel. Both fade
-                  // with the rest of the corner readouts on idle. The ticker
-                  // self-gates (hidden when its feed has nothing recent to
-                  // say — sessionless manual captures read the sessionless
-                  // bucket rather than going dark)
-                  // and the HUD self-gates on advanced mode, so this column
-                  // occupies zero height until there is something to show and
-                  // the two stack without overlapping when both are present.
-                  if (viewportSize.height > 120)
-                    Positioned(
-                      top: _hudInset,
-                      right: _hudInset,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: Responsive.previewOverlayMaxWidth(
-                            viewportSize.width,
-                          ),
-                          maxHeight: viewportSize.height - 72,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const NarratorTicker(),
-                            if (scienceMode.scienceHudVisible) ...[
-                              const SizedBox(height: SkotiqTokens.spaceSm),
-                              Flexible(
-                                child: SingleChildScrollView(
-                                  child: ScienceHudPanel(colors: colors),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // Top-left: the one frame-info pill (Imaging.dc.html) —
-                  // what the frame is, when it landed, HFR and stars, and the
-                  // badges that qualify the same frame: the raw-load state,
-                  // calibration, and the accept / reject verdict. They used to
-                  // be four separate glass boxes spread over three corners.
-                  if (currentImage != null)
-                    Positioned(
-                      top: _hudInset,
-                      left: _hudInset,
-                      child: _readout(
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: math.max(
-                              0,
-                              viewportSize.width - 2 * _hudInset,
+                    if (currentImage != null &&
+                        scienceOverlaysEnabled &&
+                        scienceOverlay.showUniformityMap &&
+                        uniformityTiles.isNotEmpty)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(
+                            painter: ScienceUniformityOverlayPainter(
+                              tiles: uniformityTiles,
+                              imageOffset: imageOffset,
+                              zoomLevel: displayScale,
+                              imageWidth: currentImage.width.toDouble(),
+                              imageHeight: currentImage.height.toDouble(),
+                              opacity: scienceVizPrefs.overlayOpacity,
+                              colors: colors,
                             ),
                           ),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.topLeft,
-                            child: FrameInfoPill(
-                              eccentricity: frameEccentricity,
-                              trailing: <Widget>[
-                                if (currentImage.rawLoadStatus !=
-                                    RawLoadStatus.idle)
-                                  RawPreviewStatusBadge(
-                                    status: currentImage.rawLoadStatus,
-                                    colors: colors,
+                        ),
+                      ),
+
+                    if (currentImage != null &&
+                        scienceOverlaysEnabled &&
+                        (scienceOverlay.showClipHighMap ||
+                            scienceOverlay.showClipLowMap))
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(
+                            painter: ScienceClipOverlayPainter(
+                              highTiles: scienceOverlay.showClipHighMap
+                                  ? clipHighTiles
+                                  : const <ScienceTileMetricRow>[],
+                              lowTiles: scienceOverlay.showClipLowMap
+                                  ? clipLowTiles
+                                  : const <ScienceTileMetricRow>[],
+                              imageOffset: imageOffset,
+                              zoomLevel: displayScale,
+                              imageWidth: currentImage.width.toDouble(),
+                              imageHeight: currentImage.height.toDouble(),
+                              opacity: scienceVizPrefs.overlayOpacity,
+                              colors: colors,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    if (currentImage != null &&
+                        scienceOverlaysEnabled &&
+                        scienceOverlay.showMovingObjectTracks &&
+                        projectedMovingTracks.isNotEmpty)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              painter: ScienceMovingTrackOverlayPainter(
+                                tracks: projectedMovingTracks,
+                                imageOffset: imageOffset,
+                                zoomLevel: displayScale,
+                                colors: colors,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    if (isExposing)
+                      Positioned.fill(
+                        child: ExposureProgressOverlay(
+                          progress: exposureProgress,
+                          colors: colors,
+                          isAborting: widget.isStoppingCapture,
+                        ),
+                      ),
+
+                    // Top-right science chrome column: the Night Narrator
+                    // ticker (surface #2) over the Science HUD panel. Both fade
+                    // with the rest of the corner readouts on idle. The ticker
+                    // self-gates (hidden when its feed has nothing recent to
+                    // say — sessionless manual captures read the sessionless
+                    // bucket rather than going dark)
+                    // and the HUD self-gates on advanced mode, so this column
+                    // occupies zero height until there is something to show and
+                    // the two stack without overlapping when both are present.
+                    if (viewportSize.height > 120)
+                      Positioned(
+                        top: _hudInset,
+                        right: _hudInset,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: Responsive.previewOverlayMaxWidth(
+                              viewportSize.width,
+                            ),
+                            maxHeight: viewportSize.height - 72,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const NarratorTicker(),
+                              if (scienceMode.scienceHudVisible) ...[
+                                const SizedBox(height: SkotiqTokens.spaceSm),
+                                Flexible(
+                                  child: SingleChildScrollView(
+                                    child: ScienceHudPanel(colors: colors),
                                   ),
-                                // Only reports true when the saved file path
-                                // ended up at `_cal.fits`, so an uncalibrated
-                                // frame never wears the badge.
-                                _CalibratedBadge(colors: colors),
-                                SubQualityVerdict(
-                                  eccentricity: frameEccentricity,
                                 ),
                               ],
-                            ),
+                            ],
                           ),
                         ),
-                        visible: readoutsVisible,
                       ),
-                    ),
 
-                  // Bottom-right, opt-in (Overlays → Histogram): the histogram.
-                  //
-                  // The capture bar is centred on the same edge. On a wide
-                  // canvas the two clear each other; on a narrow one the bar
-                  // reaches the corner and would be drawn ON the histogram, so
-                  // the histogram steps up above it. Glass never overlaps
-                  // glass — a readout you cannot read is worse than one that
-                  // moved.
-                  Positioned(
-                    bottom: _bottomCornerOffset(
-                      canvasWidth: viewportSize.width,
-                      captureBarWidth: widget.captureBarWidth,
-                      cornerWidth: HistogramHud.width,
-                    ),
-                    right: _hudInset,
-                    child: _readout(
-                      const HistogramHud(),
-                      visible: histogramVisible,
-                    ),
-                  ),
+                    // Top-left: the one frame-info pill (Imaging.dc.html) —
+                    // what the frame is, when it landed, HFR and stars, and the
+                    // badges that qualify the same frame: the raw-load state,
+                    // calibration, and the accept / reject verdict. They used to
+                    // be four separate glass boxes spread over three corners.
+                    if (currentImage != null)
+                      Positioned(
+                        top: _hudInset,
+                        left: _hudInset,
+                        child: _readout(
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: math.max(
+                                0,
+                                viewportSize.width - 2 * _hudInset,
+                              ),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.topLeft,
+                              child: FrameInfoPill(
+                                eccentricity: frameEccentricity,
+                                trailing: <Widget>[
+                                  if (currentImage.rawLoadStatus !=
+                                      RawLoadStatus.idle)
+                                    RawPreviewStatusBadge(
+                                      status: currentImage.rawLoadStatus,
+                                      colors: colors,
+                                    ),
+                                  // Only reports true when the saved file path
+                                  // ended up at `_cal.fits`, so an uncalibrated
+                                  // frame never wears the badge.
+                                  _CalibratedBadge(colors: colors),
+                                  SubQualityVerdict(
+                                    eccentricity: frameEccentricity,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          visible: readoutsVisible,
+                        ),
+                      ),
 
-                  // Bottom-left: the science calibration chip over the live
-                  // "Guiding" indicator. Both self-gate on their own
-                  // providers, so on most frames this corner is empty. The
-                  // accept / reject verdict that used to lead this stack now
-                  // rides in the frame-info pill, beside the frame it grades.
-                  //
-                  // Deliberately NOT wrapped in IgnorePointer: the children
-                  // expose hover tooltips (GuidingActiveChip's RMS-units note)
-                  // and a tap target (FrameScienceChip) that an IgnorePointer
-                  // would silently kill. They absorb the pointer only within
-                  // their own compact footprint; the rest of the canvas keeps
-                  // its pan / zoom gestures.
-                  //
-                  // The capture bar shares this edge too. On a 1536 px window
-                  // the bar's left end reached x=360 and drew over the
-                  // Guiding chip ("Guiding RMS 0." with the value under
-                  // Snapshot), so the stack steps up over the bar when the
-                  // slack beside it cannot hold the chips' measured width.
-                  if (currentImage != null)
+                    // Bottom-right, opt-in (Overlays → Histogram): the histogram.
+                    //
+                    // The capture bar is centred on the same edge. On a wide
+                    // canvas the two clear each other; on a narrow one the bar
+                    // reaches the corner and would be drawn ON the histogram, so
+                    // the histogram steps up above it. Glass never overlaps
+                    // glass — a readout you cannot read is worse than one that
+                    // moved.
                     Positioned(
                       bottom: _bottomCornerOffset(
                         canvasWidth: viewportSize.width,
                         captureBarWidth: widget.captureBarWidth,
-                        cornerWidth: _bottomLeftReadoutsWidth,
+                        cornerWidth: HistogramHud.width,
                       ),
-                      left: _hudInset,
+                      right: _hudInset,
                       child: _readout(
-                        MeasuredWidth(
-                          onWidth: (width) {
-                            if (!mounted || width == _bottomLeftReadoutsWidth) {
-                              return;
-                            }
-                            setState(() => _bottomLeftReadoutsWidth = width);
-                          },
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: Responsive.previewOverlayMaxWidth(
-                                viewportSize.width,
+                        const HistogramHud(),
+                        visible: histogramVisible,
+                      ),
+                    ),
+
+                    // Bottom-left: the science calibration chip over the live
+                    // "Guiding" indicator. Both self-gate on their own
+                    // providers, so on most frames this corner is empty. The
+                    // accept / reject verdict that used to lead this stack now
+                    // rides in the frame-info pill, beside the frame it grades.
+                    //
+                    // Deliberately NOT wrapped in IgnorePointer: the children
+                    // expose hover tooltips (GuidingActiveChip's RMS-units note)
+                    // and a tap target (FrameScienceChip) that an IgnorePointer
+                    // would silently kill. They absorb the pointer only within
+                    // their own compact footprint; the rest of the canvas keeps
+                    // its pan / zoom gestures.
+                    //
+                    // The capture bar shares this edge too. On a 1536 px window
+                    // the bar's left end reached x=360 and drew over the
+                    // Guiding chip ("Guiding RMS 0." with the value under
+                    // Snapshot), so the stack steps up over the bar when the
+                    // slack beside it cannot hold the chips' measured width.
+                    if (currentImage != null)
+                      Positioned(
+                        bottom: _bottomCornerOffset(
+                          canvasWidth: viewportSize.width,
+                          captureBarWidth: widget.captureBarWidth,
+                          cornerWidth: _bottomLeftReadoutsWidth,
+                        ),
+                        left: _hudInset,
+                        child: _readout(
+                          MeasuredWidth(
+                            onWidth: (width) {
+                              if (!mounted || width == _bottomLeftReadoutsWidth) {
+                                return;
+                              }
+                              setState(() => _bottomLeftReadoutsWidth = width);
+                            },
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: Responsive.previewOverlayMaxWidth(
+                                  viewportSize.width,
+                                ),
+                              ),
+                              child: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FrameScienceChip(),
+                                  SizedBox(height: SkotiqTokens.spaceXs),
+                                  GuidingActiveChip(),
+                                ],
                               ),
                             ),
-                            child: const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                FrameScienceChip(),
-                                SizedBox(height: SkotiqTokens.spaceXs),
-                                GuidingActiveChip(),
-                              ],
-                            ),
                           ),
+                          visible: readoutsVisible,
                         ),
-                        visible: readoutsVisible,
                       ),
-                    ),
 
-                  // Mini annotation object chips, in the row under the
-                  // frame-info pill so the two never overlap.
-                  if (currentImage != null)
-                    Positioned(
-                      top: _belowPillTop,
-                      left: 8,
-                      right: 8,
-                      child: AnnotationMiniChips(colors: colors),
-                    ),
-
-                  // The annotation status card and the re-annotate
-                  // suggestion used to float over the top-left of the frame.
-                  // They live in the Annotations section of the side panel
-                  // now: a setup problem gets ONE banner in ONE place (02
-                  // rule 5), and the canvas belongs to the photons.
-
-                  // Custom annotation drawing palette — docked bottom-centre
-                  // just above the bottom histogram/stats strip, and shown
-                  // ONLY while annotate/draw mode is active so it never floats
-                  // over an idle frame. Opened via the off-canvas toolbar's
-                  // "Annotate" toggle.
-                  if (currentImage != null &&
-                      ref.watch(customAnnotationDrawModeActiveProvider))
-                    Positioned(
-                      bottom: 110,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: CustomAnnotationToolbar(colors: colors),
+                    // Mini annotation object chips, in the row under the
+                    // frame-info pill so the two never overlap.
+                    if (currentImage != null)
+                      Positioned(
+                        top: _belowPillTop,
+                        left: 8,
+                        right: 8,
+                        child: AnnotationMiniChips(colors: colors),
                       ),
-                    ),
-                ],
+
+                    // The annotation status card and the re-annotate
+                    // suggestion used to float over the top-left of the frame.
+                    // They live in the Annotations section of the side panel
+                    // now: a setup problem gets ONE banner in ONE place (02
+                    // rule 5), and the canvas belongs to the photons.
+
+                    // Custom annotation drawing palette — docked bottom-centre
+                    // just above the bottom histogram/stats strip, and shown
+                    // ONLY while annotate/draw mode is active so it never floats
+                    // over an idle frame. Opened via the off-canvas toolbar's
+                    // "Annotate" toggle.
+                    if (currentImage != null &&
+                        ref.watch(customAnnotationDrawModeActiveProvider))
+                      Positioned(
+                        bottom: 110,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: CustomAnnotationToolbar(colors: colors),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

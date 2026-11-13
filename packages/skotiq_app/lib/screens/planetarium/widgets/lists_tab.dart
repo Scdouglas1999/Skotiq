@@ -14,6 +14,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/count_label.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class ListsTab extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -362,9 +363,7 @@ class _CreateObservingListDialogState
       setState(() => _saving = false);
       final message = ref.read(observingListNotifierProvider).errorMessage ??
           'Could not create the observing list';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      context.showInfoSnackBar(message);
       return;
     }
 
@@ -691,9 +690,7 @@ class _ExportToSequenceButtonState
 
       if (items.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('List is empty, nothing to export.')),
-          );
+          context.showInfoSnackBar('List is empty, nothing to export.');
         }
         return;
       }
@@ -746,13 +743,9 @@ class _ExportToSequenceButtonState
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Created sequence "${widget.listName}" with '
-              '${countLabel(items.length, 'target')}',
-            ),
-          ),
+        context.showInfoSnackBar(
+          'Created sequence "${widget.listName}" with '
+          '${countLabel(items.length, 'target')}',
         );
       }
     } catch (error) {
@@ -772,10 +765,8 @@ class _ExportToSequenceButtonState
         final cleanupDetail = rollbackError == null
             ? ''
             : ' The partial sequence could not be removed: $rollbackError';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not create sequence: $error.$cleanupDetail'),
-          ),
+        context.showErrorSnackBar(
+          'Could not create sequence: $error.$cleanupDetail',
         );
       }
     } finally {

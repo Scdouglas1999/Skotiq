@@ -167,7 +167,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                   subtitle: 'For DSLR and mirrorless cameras. The raw file is '
                       'kept exactly as the camera made it; the archive file '
                       '(the format above) also records the telescope, mount '
-                      'and site.',
+                      'and site. Loop frames you choose to save are always '
+                      'saved as the archive file only, even with "Camera raw '
+                      'only".',
                   trailing: SettingsDropdown(
                     value: settings.cameraFileSaving,
                     items: [

@@ -240,26 +240,28 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                           ),
                     ),
                   ),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  SizedBox(
-                    width: sensitivity is IsoSensitivity
-                        ? ImagingCaptureBar._isoWidth
-                        : _fieldWidth,
-                    child: SensitivityField(
-                      sensitivity: sensitivity,
-                      value: exposureSettings.gain,
-                      labelled: true,
-                      onChanged: (int gain) => ref
-                          .read(manualExposureSettingsUpdaterProvider)
-                          .update(exposureSettings.copyWith(gain: gain)),
-                      gainField: (_) => _GainField(
+                  if (sensitivity.hasGain) ...<Widget>[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    SizedBox(
+                      width: sensitivity is IsoSensitivity
+                          ? ImagingCaptureBar._isoWidth
+                          : _fieldWidth,
+                      child: SensitivityField(
+                        sensitivity: sensitivity,
                         value: exposureSettings.gain,
+                        labelled: true,
                         onChanged: (int gain) => ref
                             .read(manualExposureSettingsUpdaterProvider)
                             .update(exposureSettings.copyWith(gain: gain)),
+                        gainField: (_) => _GainField(
+                          value: exposureSettings.gain,
+                          onChanged: (int gain) => ref
+                              .read(manualExposureSettingsUpdaterProvider)
+                              .update(exposureSettings.copyWith(gain: gain)),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   if (filterState.filterNames.isNotEmpty) ...<Widget>[
                     const SizedBox(width: SkotiqTokens.spaceSm),
                     SizedBox(

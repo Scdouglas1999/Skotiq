@@ -93,11 +93,8 @@ class _FilterOffsetsStrip extends ConsumerWidget {
     if (hostScope.isStale ||
         activeProfileId != profileId ||
         currentProfileId != profileId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'The imaging host or profile changed. Offset edit canceled.'),
-        ),
+      context.showInfoSnackBar(
+        'The imaging host or profile changed. Offset edit canceled.',
       );
       return;
     }

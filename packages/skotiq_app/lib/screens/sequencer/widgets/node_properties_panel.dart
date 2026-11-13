@@ -33,6 +33,7 @@ import 'smart_exposure_properties.dart';
 import 'target_coordinates.dart';
 import 'target_node_properties.dart';
 import 'target_scheduler_properties.dart';
+import '../../../utils/snackbar_helper.dart';
 
 // File split: the per-node property widgets, input primitives, dispatcher,
 // and timing section live in `node_properties_panel_parts/`. The public

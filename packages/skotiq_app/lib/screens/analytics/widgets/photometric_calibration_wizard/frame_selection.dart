@@ -376,13 +376,9 @@ extension _PhotometricWizardFrameSelection
               ),
               onTap: () {
                 if (filterMismatch) {
-                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${img.fileName} uses filter $frameFilter; this '
-                        'calibration is for ${_filterName.trim()}.',
-                      ),
-                    ),
+                  context.showInfoSnackBar(
+                    '${img.fileName} uses filter $frameFilter; this '
+                    'calibration is for ${_filterName.trim()}.',
                   );
                   return;
                 }

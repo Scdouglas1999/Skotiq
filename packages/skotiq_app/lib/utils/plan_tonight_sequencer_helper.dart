@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 import '../widgets/auto_build_options_dialog.dart';
 import 'held_future.dart';
+import 'snackbar_helper.dart';
 
 Future<SingleTargetSequenceResult> buildPlanTonightTargetSequence({
   required WidgetRef ref,
@@ -357,9 +358,7 @@ Future<bool> addPlanTonightTargetToSequencer({
     );
   } on SmartNightBuildException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
     }
     return false;
   }
@@ -423,9 +422,7 @@ Future<bool> addFramedTargetToSequencer({
     );
   } on SmartNightBuildException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
     }
     return false;
   }
@@ -515,14 +512,10 @@ Future<bool> _addFramedMosaicToSequencer({
   );
   if (!context.mounted) return false;
   if (fov == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Cannot build mosaic: equipment FOV is unavailable. Configure a '
-          'camera + focal length in your active profile (or use custom '
-          'equipment in framing) and try again.',
-        ),
-      ),
+    context.showErrorSnackBar(
+      'Cannot build mosaic: equipment FOV is unavailable. Configure a '
+      'camera + focal length in your active profile (or use custom '
+      'equipment in framing) and try again.',
     );
     return false;
   }
@@ -539,12 +532,8 @@ Future<bool> _addFramedMosaicToSequencer({
   final validation = mosaicService.validateMosaic(config);
   if (!validation.isValid) {
     if (!context.mounted) return false;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Mosaic configuration invalid: ${validation.errors.join("; ")}',
-        ),
-      ),
+    context.showInfoSnackBar(
+      'Mosaic configuration invalid: ${validation.errors.join("; ")}',
     );
     return false;
   }
@@ -617,9 +606,7 @@ Future<bool> _loadMosaicNodesIntoEditor({
       return true;
     } on SequenceLockedException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        context.showInfoSnackBar(e.message);
       }
       return false;
     }
@@ -668,9 +655,7 @@ Future<bool> _loadMosaicNodesIntoEditor({
     return loadReplacing();
   } on SequenceLockedException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
     }
     return false;
   }
@@ -806,9 +791,7 @@ Future<bool> loadPlanTonightSequenceIntoEditor({
       return true;
     } on SequenceLockedException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        context.showInfoSnackBar(e.message);
       }
       return false;
     }
@@ -836,9 +819,7 @@ Future<bool> loadPlanTonightSequenceIntoEditor({
     return loadReplacing();
   } on SequenceLockedException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
     }
     return false;
   }

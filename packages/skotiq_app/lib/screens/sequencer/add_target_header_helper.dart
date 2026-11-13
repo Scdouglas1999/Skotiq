@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Shared helper for adding a target header to the current sequence.
 ///
@@ -64,9 +65,7 @@ Future<bool> addTargetHeaderWithPrompt({
       // Cannot edit while running/paused/stopping. Surface to the user
       // via the standard snackbar pipe — the calling screen does not
       // need to know about execution state.
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
       return false;
     }
   }
