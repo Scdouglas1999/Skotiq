@@ -26,6 +26,21 @@ enum Phd2State {
   unknown,
 }
 
+extension Phd2StateSession on Phd2State {
+  /// The guider is in a guide session: calibrating, guiding, settling,
+  /// paused, or holding through a lost star. An unknown state counts, since
+  /// it may be any of those.
+  bool get inGuideSession => switch (this) {
+    Phd2State.calibrating ||
+    Phd2State.guiding ||
+    Phd2State.settling ||
+    Phd2State.paused ||
+    Phd2State.lostLock ||
+    Phd2State.unknown => true,
+    Phd2State.stopped || Phd2State.selected || Phd2State.looping => false,
+  };
+}
+
 /// PHD2 guiding state — canonical home for the guiding-screen state machine.
 /// `stopped` matches `Phd2State.stopped`: connected to PHD2 but not actively
 /// looping/calibrating/guiding.

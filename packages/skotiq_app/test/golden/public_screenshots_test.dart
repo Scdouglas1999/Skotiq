@@ -625,7 +625,6 @@ class _ActiveSession extends SessionStateNotifier {
       rejectedExposures: 2,
       totalIntegrationSecs: 12900,
       currentFilter: 'Ha',
-      isGuiding: true,
       isCapturing: true,
       avgHfr: 2.13,
       avgGuidingRmsRa: 0.31,

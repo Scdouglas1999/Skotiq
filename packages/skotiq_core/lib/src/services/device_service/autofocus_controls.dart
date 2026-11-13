@@ -441,7 +441,7 @@ extension _DeviceServiceAutofocusControls on DeviceService {
               'Resuming guiding after autofocus run',
               source: 'DeviceService',
             );
-            await startGuiding();
+            await _ref.read(phd2ControllerProvider).startGuiding();
           } catch (e) {
             final loggingService = _ref.read(loggingServiceProvider);
             loggingService.warning(

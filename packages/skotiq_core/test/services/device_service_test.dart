@@ -1905,9 +1905,7 @@ void main() {
     addTearDown(configuredContainer.dispose);
     final service = configuredContainer.read(deviceServiceProvider);
 
-    await expectLater(service.startGuiding(), throwsException);
     await expectLater(service.stopGuiding(), throwsException);
-    await expectLater(service.dither(), throwsException);
 
     verifyNever(
       () => mockBackend.guiderStartGuiding(

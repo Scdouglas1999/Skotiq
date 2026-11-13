@@ -134,8 +134,8 @@
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, loggingServiceProvider, mountStateProvider, notificationServiceProvider, sequenceExecutionStateProvider, uiNotificationProvider."
       },
       "services/device_service.dart": {
-        "count": 23,
-        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, settingsDaoProvider."
+        "count": 24,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider."
       },
       "services/diagnostic_dump_service.dart": {
         "count": 14,

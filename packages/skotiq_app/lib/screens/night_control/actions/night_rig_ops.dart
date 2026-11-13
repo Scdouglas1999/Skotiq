@@ -317,11 +317,7 @@ class ServiceNightRigOps implements NightRigOps {
       }
     });
     try {
-      await _guider.startGuiding(
-        settlePixels: settle.pixels,
-        settleTime: settle.seconds,
-        settleTimeout: settle.timeoutSeconds,
-      );
+      await _guider.startGuiding();
       // Calibration can precede the first settle, so allow it a few minutes
       // on top of PHD2's own settle timeout.
       await settled.future.timeout(
@@ -335,16 +331,7 @@ class ServiceNightRigOps implements NightRigOps {
   }
 
   @override
-  Future<void> dither() {
-    final settle = _settle;
-    return _guider.dither(
-      amount: settle.ditherPixels,
-      raOnly: settle.ditherRaOnly,
-      settlePixels: settle.pixels,
-      settleTime: settle.seconds,
-      settleTimeout: settle.timeoutSeconds,
-    );
-  }
+  Future<void> dither() => _guider.dither();
 
   @override
   Future<String?> flip() async {

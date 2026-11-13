@@ -7,6 +7,7 @@ import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../providers/database_provider.dart' show settingsDaoProvider;
+import '../providers/guiding_provider.dart' show phd2ControllerProvider;
 import '../providers/focuser_backlash_provider.dart'
     show
         focuserBacklashCalibrationSettingsProvider,
@@ -628,29 +629,7 @@ class DeviceService {
   Future<void> setFilterWheelNames(List<String> names) =>
       _trackInFlight(() => _setFilterWheelNames(names));
 
-  Future<void> startGuiding({
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) => _startGuiding(
-    settlePixels: settlePixels,
-    settleTime: settleTime,
-    settleTimeout: settleTimeout,
-  );
   Future<void> stopGuiding() => _stopGuiding();
-  Future<void> dither({
-    double amount = 5.0,
-    bool raOnly = false,
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) => _dither(
-    amount: amount,
-    raOnly: raOnly,
-    settlePixels: settlePixels,
-    settleTime: settleTime,
-    settleTimeout: settleTimeout,
-  );
   Future<void> startSequence() => _startSequence();
   Future<void> stopSequence() => _stopSequence();
   Future<void> pauseSequence() => _pauseSequence();

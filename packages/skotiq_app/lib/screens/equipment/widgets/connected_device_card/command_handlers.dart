@@ -327,16 +327,16 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
   Future<void> _handleToggleGuiding(bool currentlyGuiding) async {
     final command = _beginDeviceCommand();
     if (command == null) return;
-    final deviceService = ref.read(deviceServiceProvider);
+    final guider = ref.read(phd2ControllerProvider);
     final deviceId = ref.read(guiderStateProvider).deviceId;
     try {
       if (currentlyGuiding) {
-        await deviceService.stopGuiding();
+        await guider.stopGuiding();
         if (mounted && _isCurrentDevice(command, deviceId)) {
           context.showSuccessSnackBar('Guiding stopped');
         }
       } else {
-        await deviceService.startGuiding();
+        await guider.startGuiding();
         if (mounted && _isCurrentDevice(command, deviceId)) {
           context.showSuccessSnackBar('Guiding started');
         }
