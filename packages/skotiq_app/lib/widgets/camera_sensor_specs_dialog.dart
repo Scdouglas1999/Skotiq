@@ -481,7 +481,7 @@ class _CameraSensorSpecsDialogState
   static const int _profileGainFallback = 100;
 
   Future<List<CameraHardwareSpec>> _loadExisting() async {
-    final hostPlanning = ref.read(backendProvider).remoteHost?.planning;
+    final hostPlanning = ref.read(linkedHostPlanningProvider);
     final raw = hostPlanning != null
         ? (await hostPlanning.getSmartNightSettings())[
             HardwareSpecsService.cameraOverridesSettingKey]

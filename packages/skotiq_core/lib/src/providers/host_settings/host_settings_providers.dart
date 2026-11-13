@@ -1,11 +1,10 @@
+import '../linked_host.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/remote_host.dart';
 import '../../database/database.dart' show SkotiqDatabase;
 import '../../models/backend/host_mutation_event.dart';
-import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import '../settings_provider.dart';
 import 'host_settings_store.dart';
@@ -58,9 +57,10 @@ class SettingsRowChanges {
 /// The imaging host's key/value settings, or null when this app owns the
 /// hardware itself.
 final hostSettingsStoreProvider = Provider<HostSettingsStore?>((ref) {
-  final host = ref.watch(backendProvider).remoteHost;
-  if (host == null) return null;
-  final store = HostSettingsStore(host.rigSettings, () => host.events);
+  final rigSettings = ref.watch(linkedHostRigSettingsProvider);
+  final events = ref.watch(linkedHostEventsProvider);
+  if (rigSettings == null || events == null) return null;
+  final store = HostSettingsStore(rigSettings, events);
   final changes = store.changes.listen((keys) {
     ref.read(settingsStoreRevisionProvider.notifier).state++;
     ref.read(settingsRowChangesProvider).announce(keys);

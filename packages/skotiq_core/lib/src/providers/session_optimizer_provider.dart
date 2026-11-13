@@ -1,19 +1,16 @@
+import 'host_role.dart';
 import 'async_scope.dart';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show TwilightTimes;
 
-import '../backend/skotiq_backend.dart';
-import '../database/daos/guide_rms_history_dao.dart';
 import '../models/planning/target_suggestion.dart';
 import '../services/science/science_camera_auto_config.dart';
 import '../services/smart_night/exposure_calculator.dart';
 import '../services/smart_night/hardware_specs_service.dart';
 import '../services/session_optimizer_service.dart';
 import '../services/smart_night_service.dart';
-import '../backend/remote_host.dart';
-import 'backend_provider.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
 import 'camera_sensor_specs_provider.dart';
 import 'database_provider.dart';
@@ -56,12 +53,9 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
   final opticalConfig = ref.watch(opticalConfigProvider);
   final profile = ref.watch(activeEquipmentProfileProvider);
   final effectiveFilters = ref.watch(effectiveFiltersProvider);
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.history;
   final guideStats = await _weightedGuideRmsForMount(
     profile?.mountId,
-    backend: backend,
-    localDao: remote != null ? null : ref.watch(guideRmsHistoryDaoProvider),
+    recentSamples: ref.watch(_recentGuideRmsProvider),
   );
 
   final focalLength = opticalConfig?.focalLength ?? profile?.focalLength;
@@ -317,6 +311,39 @@ double? _readDoubleSetting(Map<String, String> settings, String key) {
   return parsed;
 }
 
+typedef _RecentGuideRms =
+    Future<List<({double totalRmsArcsec, DateTime recordedAt})>> Function(
+      String mountId,
+    );
+
+/// A mount's last 20 guiding runs, from the history of the machine that
+/// guided.
+final _recentGuideRmsProvider = hostRoleProvider<_RecentGuideRms>(
+  here: (ref) {
+    final dao = ref.watch(guideRmsHistoryDaoProvider);
+    return (mountId) async => [
+      for (final sample in await dao.recentForMount(mountId, limit: 20))
+        (
+          totalRmsArcsec: sample.totalRmsArcsec,
+          recordedAt: sample.recordedAt,
+        ),
+    ];
+  },
+  linked: (_, host) => (mountId) async {
+    final page = await host.history.fetchGuideRmsHistory(
+      mountId: mountId,
+      limit: 20,
+    );
+    return [
+      for (final sample in page.items)
+        (
+          totalRmsArcsec: sample.totalRmsArcsec,
+          recordedAt: sample.recordedAt,
+        ),
+    ];
+  },
+);
+
 class _GuideRmsStats {
   final double? rmsArcsec;
   final int sampleCount;
@@ -326,40 +353,14 @@ class _GuideRmsStats {
 
 Future<_GuideRmsStats> _weightedGuideRmsForMount(
   String? mountId, {
-  required SkotiqBackend backend,
-  required GuideRmsHistoryDao? localDao,
+  required _RecentGuideRms recentSamples,
 }) async {
   final trimmedMountId = mountId?.trim();
   if (trimmedMountId == null || trimmedMountId.isEmpty) {
     return const _GuideRmsStats();
   }
 
-  final List<({double totalRmsArcsec, DateTime recordedAt})> samples;
-  final remote = backend.remoteHost?.history;
-  if (remote != null) {
-    final page = await remote.fetchGuideRmsHistory(
-      mountId: trimmedMountId,
-      limit: 20,
-    );
-    samples = page.items
-        .map(
-          (sample) => (
-            totalRmsArcsec: sample.totalRmsArcsec,
-            recordedAt: sample.recordedAt,
-          ),
-        )
-        .toList(growable: false);
-  } else {
-    final rows = await localDao!.recentForMount(trimmedMountId, limit: 20);
-    samples = rows
-        .map(
-          (sample) => (
-            totalRmsArcsec: sample.totalRmsArcsec,
-            recordedAt: sample.recordedAt,
-          ),
-        )
-        .toList(growable: false);
-  }
+  final samples = await recentSamples(trimmedMountId);
   if (samples.isEmpty) {
     return const _GuideRmsStats();
   }

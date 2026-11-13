@@ -185,7 +185,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
-    final isRemote = backend.remoteHost != null;
+    final isRemote = ref.watch(isRemoteModeProvider);
     final isDisconnected = backend.hasNoHost;
     final canCreateProject = !isRemote && !isDisconnected;
     final panels = _calculatePanels();

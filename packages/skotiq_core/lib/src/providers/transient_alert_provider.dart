@@ -1,3 +1,4 @@
+import 'linked_host.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -12,7 +13,6 @@ import '../services/notification/secrets_store.dart';
 import '../services/transients/transient_alert_mapper.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
-import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'notification_router_provider.dart';
 import 'science_provider.dart';

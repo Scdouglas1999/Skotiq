@@ -226,8 +226,7 @@ class MobileSequenceHooks {
       await existing.dispose();
     }
 
-    final backend = _ref.read(backendProvider);
-    if (backend.remoteHost == null) {
+    if (!_ref.read(isRemoteModeProvider)) {
       // Local backend (FfiBackend) or DisconnectedBackend — no remote
       // server to listen to. Receiver stays null until the user pairs.
       return;

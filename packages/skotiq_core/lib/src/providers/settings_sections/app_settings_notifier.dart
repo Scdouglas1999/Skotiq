@@ -180,8 +180,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// rows locally and patch the state, so the host's in-memory settings and
   /// its database agree.
   Future<void> applyHostStoreRows(Map<String, String> rows) async {
-    final backend = ref.read(backendProvider);
-    if (backend.remoteHost != null) {
+    if (ref.read(isRemoteModeProvider)) {
       throw StateError('applyHostStoreRows is host-only.');
     }
     final unknown = rows.keys.where((k) => !hostStoreKeys.contains(k));
@@ -493,7 +492,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     // Device-local display prefs always persist to the local store, even
     // on a linked client — they are this device's rendering choice.
     final isDeviceLocalDisplay = AppSettingsCodec.clientOwnKeys.contains(key);
-    final dao = (backend.remoteHost != null && !isDeviceLocalDisplay)
+    final dao = (ref.read(isRemoteModeProvider) && !isDeviceLocalDisplay)
         ? null
         : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(key, generation, () async {
@@ -502,7 +501,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         throw StateError('The settings host changed before saving $key.');
       }
       _requireLoadedSettings('saving $key');
-      if (backend.remoteHost != null && hostStoreKeys.contains(key)) {
+      if (ref.read(isRemoteModeProvider) && hostStoreKeys.contains(key)) {
         await _writeHostStoreRows({key: value}, backend, generation);
         return;
       }
@@ -575,7 +574,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   Future<void> _saveSettings(Map<String, String> settings) {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final dao = backend.remoteHost != null
+    final dao = ref.read(isRemoteModeProvider)
         ? null
         : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(
@@ -587,7 +586,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           throw StateError('The settings host changed before saving.');
         }
         _requireLoadedSettings('saving ${settings.keys.join(', ')}');
-        if (backend.remoteHost != null) {
+        if (ref.read(isRemoteModeProvider)) {
           final storeRows = {
             for (final entry in settings.entries)
               if (hostStoreKeys.contains(entry.key)) entry.key: entry.value,
@@ -753,7 +752,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// setters / `_writeRemoteSettings` instead.)
   Future<void> applyRemoteSettings(models.AppSettings remote) async {
     final backend = ref.read(backendProvider);
-    if (backend.remoteHost != null) {
+    if (ref.read(isRemoteModeProvider)) {
       throw StateError(
         'applyRemoteSettings is host-only; refusing to relay a full snapshot '
         'through a remote client.',

@@ -1,3 +1,4 @@
+import '../linked_host.dart';
 import '../async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -123,7 +124,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
     }
 
     final backend = ref.read(backendProvider);
-    if (backend.remoteHost == null) return;
+    if (!ref.read(isRemoteModeProvider)) return;
 
     final operation = _persistRemoteSequence(
       ref,
@@ -175,7 +176,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
       return;
     }
     final backend = ref.read(backendProvider);
-    final runState = backend.remoteHost?.runState;
+    final runState = ref.read(linkedHostRunStateProvider);
     if (runState == null || !ref.read(canEditSequenceProvider)) {
       syncState.writePending = false;
       return;
@@ -259,8 +260,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
   });
 
   ref.listen<Sequence?>(currentSequenceProvider, (previous, next) {
-    final backend = ref.read(backendProvider);
-    if (backend.remoteHost == null) return;
+    if (!ref.read(isRemoteModeProvider)) return;
     if (!identical(next, syncState.appliedFromHost) &&
         ref.read(canEditSequenceProvider)) {
       syncState.writePending = true;

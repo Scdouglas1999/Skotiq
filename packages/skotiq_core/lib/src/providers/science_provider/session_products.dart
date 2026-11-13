@@ -472,11 +472,10 @@ final scienceRawSettingsProvider =
     });
 
 final scienceRawSettingsActionsProvider = Provider((ref) {
-  final backend = ref.watch(backendProvider);
   return ScienceRawSettingsActions(
     ref,
     rows: ref.read(_scienceSettingRowsProvider),
-    localCameraAutoConfig: backend.remoteHost == null
+    localCameraAutoConfig: !ref.watch(isRemoteModeProvider)
         ? ref.read(scienceCameraAutoConfigProvider)
         : null,
   );

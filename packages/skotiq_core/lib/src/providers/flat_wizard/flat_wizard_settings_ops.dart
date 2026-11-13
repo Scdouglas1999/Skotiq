@@ -179,8 +179,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       return;
     }
 
-    final backend = ref.read(backendProvider);
-    final remote = backend.remoteHost?.calibrationFrames;
+    final remote = ref.read(linkedHostCalibrationFramesProvider);
     final db = ref.read(databaseProvider);
     final profileId = ref.read(activeEquipmentProfileProvider)?.id;
     final row = _filterPreferences();

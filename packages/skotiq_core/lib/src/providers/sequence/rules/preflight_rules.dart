@@ -1,3 +1,4 @@
+import '../../linked_host.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
@@ -10,8 +11,6 @@ import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../services/dark_library_coverage_service.dart';
-import '../../../backend/remote_host.dart';
-import '../../backend_provider.dart';
 import '../../capability_provider.dart';
 import '../../dark_library_provider.dart';
 import '../../equipment/camera_state_provider.dart';
@@ -172,8 +171,7 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
     // darks. Pull the host's real library over the wire instead and map the
     // remote rows into DarkLibraryEntry so the coverage evaluator agrees with
     // the master; keep the local DAO path on the host.
-    final backend = ref.read(backendProvider);
-    final remote = backend.remoteHost?.calibrationFrames;
+    final remote = ref.read(linkedHostCalibrationFramesProvider);
     final List<DarkLibraryEntry> entries;
     if (remote != null) {
       final remoteDarks = await remote.listDarks();

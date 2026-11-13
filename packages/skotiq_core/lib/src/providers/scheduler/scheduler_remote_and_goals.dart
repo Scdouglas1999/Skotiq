@@ -35,8 +35,7 @@ class SchedulerRemoteSnapshot {
 
 final schedulerRemoteSnapshotProvider =
     FutureProvider.autoDispose<SchedulerRemoteSnapshot>((ref) async {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.planning;
+      final remote = ref.watch(linkedHostPlanningProvider);
       if (remote == null) {
         throw StateError('Remote scheduler state requires a network backend');
       }

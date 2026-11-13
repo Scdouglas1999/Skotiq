@@ -1,11 +1,10 @@
+import 'host_role.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 
 import '../models/backend/device_capabilities.dart';
 import '../services/disk_space_guard.dart';
 import '../services/disk_space_service.dart';
-import '../backend/remote_host.dart';
-import 'backend_provider.dart';
 import 'capability_provider.dart';
 import 'equipment_provider.dart';
 import 'sequence_provider.dart';
@@ -40,35 +39,35 @@ final diskSpaceGuardProvider = Provider<DiskSpaceGuardService>((ref) {
 final captureDirDiskSpaceProvider = StreamProvider.autoDispose<DiskSpaceInfo?>((
   ref,
 ) async* {
-  // Remote host: the capture directory lives on the HOST filesystem, so ask
-  // the host over the API. A local `df` against the host's path resolves on
-  // the CLIENT filesystem and can only fail.
-  final backend = ref.watch(backendProvider);
-  final remote = backend.remoteHost?.files;
-  if (remote != null) {
-    yield await remote.getHostCaptureDiskSpace();
-    while (true) {
-      await Future<void>.delayed(const Duration(seconds: 10));
-      yield await remote.getHostCaptureDiskSpace();
-    }
-  }
-
-  final settings = await ref.watch(appSettingsProvider.future);
-  final path = settings.imageOutputPath;
-  if (path.isEmpty) {
-    yield null;
-    return;
-  }
-  final guard = ref.watch(diskSpaceGuardProvider);
-
-  // Emit an initial sample immediately so the UI doesn't sit in a loading
-  // state for 10s on first build, then keep polling.
-  yield await guard.sample(path);
-  while (true) {
-    await Future<void>.delayed(const Duration(seconds: 10));
-    yield await guard.sample(path);
-  }
+  yield* ref.watch(_captureDiskSamplesProvider)(ref);
 });
+
+/// A sample now and one every 10 s after: of this machine's capture folder,
+/// or the one the linked host reports for its own.
+final _captureDiskSamplesProvider =
+    hostRoleProvider<Stream<DiskSpaceInfo?> Function(Ref ref)>(
+      here: (_) => (ref) async* {
+        final settings = await ref.watch(appSettingsProvider.future);
+        final path = settings.imageOutputPath;
+        if (path.isEmpty) {
+          yield null;
+          return;
+        }
+        final guard = ref.watch(diskSpaceGuardProvider);
+        yield await guard.sample(path);
+        while (true) {
+          await Future<void>.delayed(const Duration(seconds: 10));
+          yield await guard.sample(path);
+        }
+      },
+      linked: (_, host) => (_) async* {
+        yield await host.files.getHostCaptureDiskSpace();
+        while (true) {
+          await Future<void>.delayed(const Duration(seconds: 10));
+          yield await host.files.getHostCaptureDiskSpace();
+        }
+      },
+    );
 
 /// The capture folder's free space as shown ("252 GiB"), or null before the
 /// first sample.

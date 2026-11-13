@@ -25,6 +25,7 @@
 //     hook is installed by `installCapabilityRefreshOnConnect(ref)`, which
 //     should be wired during app bootstrap.
 
+import '../host_role.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,16 +111,13 @@ typedef DomeCapabilityFetcher =
 /// The fetcher returns `null` on "capability unknown" and throws on
 /// catastrophic failure — the same contract as the other backend.getXCapabilities
 /// methods.
-final domeCapabilityFetcherProvider = Provider<DomeCapabilityFetcher>((ref) {
-  final host = ref.watch(backendProvider).remoteHost?.devices;
-  if (host != null) {
-    return host.getDomeCapabilities;
-  }
-  return (deviceId) async {
+final domeCapabilityFetcherProvider = hostRoleProvider<DomeCapabilityFetcher>(
+  here: (_) => (deviceId) async {
     final caps = await bridge_diag.apiGetDomeCapabilities(deviceId: deviceId);
     return _fromBridgeDomeCapabilities(caps);
-  };
-});
+  },
+  linked: (_, host) => host.devices.getDomeCapabilities,
+);
 
 /// Dome capabilities for [deviceId].
 ///
@@ -277,14 +275,8 @@ typedef CoverCalibratorCapabilityFetcher =
     Future<CoverCalibratorCapabilitySnapshot?> Function(String deviceId);
 
 final coverCalibratorCapabilityFetcherProvider =
-    Provider<CoverCalibratorCapabilityFetcher>((ref) {
-      final host = ref.watch(backendProvider).remoteHost?.devices;
-      if (host != null) {
-        return (deviceId) async => CoverCalibratorCapabilitySnapshot.fromJson(
-          await host.getCoverStatus(deviceId),
-        );
-      }
-      return (deviceId) async {
+    hostRoleProvider<CoverCalibratorCapabilityFetcher>(
+      here: (_) => (deviceId) async {
         final caps = await bridge_diag.apiGetCoverCalibratorCapabilities(
           deviceId: deviceId,
         );
@@ -298,8 +290,12 @@ final coverCalibratorCapabilityFetcherProvider =
           brightness: caps.brightness,
           maxBrightness: caps.maxBrightness,
         );
-      };
-    });
+      },
+      linked: (_, host) =>
+          (deviceId) async => CoverCalibratorCapabilitySnapshot.fromJson(
+            await host.devices.getCoverStatus(deviceId),
+          ),
+    );
 
 final equipmentCoverCalibratorCapabilitiesProvider =
     FutureProvider.family<CoverCalibratorCapabilitySnapshot?, String>((

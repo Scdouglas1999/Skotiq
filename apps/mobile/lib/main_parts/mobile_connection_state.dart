@@ -296,7 +296,7 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
           _disconnectGraceTimer ??= Timer(_connectionGracePeriod, () async {
             if (!mounted) return;
             final current = ref.read(backendProvider);
-            if (current.remoteHost == null ||
+            if (!ref.read(isRemoteModeProvider) ||
                 linkedHost.link.connectionState ==
                     BackendConnectionState.connected) {
               return;

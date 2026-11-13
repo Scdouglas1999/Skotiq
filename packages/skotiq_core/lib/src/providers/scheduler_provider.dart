@@ -1,3 +1,4 @@
+import 'linked_host.dart';
 import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -217,8 +218,7 @@ final schedulerPreviewDecisionProvider =
       // provider is invalidated by the on-connect hydrate and by scheduler
       // events (hydrateRemoteSessionState / _applySequencerEvent), so the banner
       // tracks the host live rather than computing a wrong local answer.
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.planning;
+      final remote = ref.watch(linkedHostPlanningProvider);
       if (remote != null) {
         return remote.getSchedulerPreview();
       }

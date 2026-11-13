@@ -1,3 +1,4 @@
+import 'linked_host.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -161,7 +162,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
        _clock = clock ?? DateTime.now,
        super(WeatherSafetyState.initial()) {
     final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.weather;
+    final remote = _ref.read(linkedHostWeatherProvider);
     if (remote != null) {
       _startRemoteStatusPolling();
       return;
@@ -765,8 +766,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       actions: WeatherSafetyActions.safe,
     );
 
-    final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.weather;
+    final remote = _ref.read(linkedHostWeatherProvider);
     if (remote != null) {
       unawaited(
         remote
@@ -839,8 +839,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       ),
       clearSnooze: true,
     );
-    final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.weather;
+    final remote = _ref.read(linkedHostWeatherProvider);
     if (remote == null) {
       _logOperatorWeatherAction('Weather verdict override ended');
       unawaited(_pushOperatorClear(0, 'Override ended'));

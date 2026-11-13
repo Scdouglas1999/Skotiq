@@ -30,7 +30,7 @@ final skotiqEventsProvider = StreamProvider<SkotiqEvent>((ref) {
   // Remote clients receive the same typed bridge events as local FFI
   // backends by reconstructing `EventPayload_*` variants from the
   // collapsed envelope on `NetworkBackend.eventStream` (WebSocket).
-  if (backend.remoteHost != null) {
+  if (ref.watch(isRemoteModeProvider)) {
     // `HostStateChanged` is a host-mutation SYNC envelope (applied separately
     // by applyHostEventOnClient), NOT a Rust telemetry event. The typed bridge
     // mapper has no case for it, so its `default` arm turns every one into a

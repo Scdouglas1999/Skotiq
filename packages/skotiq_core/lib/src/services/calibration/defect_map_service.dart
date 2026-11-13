@@ -1,8 +1,8 @@
+import '../../providers/linked_host.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../../models/defect_map.dart';
-import '../../providers/backend_provider.dart';
 import '../../backend/remote_host.dart';
 
 /// Service for the defect-map / bad-pixel cosmetic correction pipeline.
@@ -20,7 +20,7 @@ class DefectMapService {
 
   /// The linked host's defect maps, or null when the rig is this machine.
   HostCalibrationTools? get _remote =>
-      _ref.read(backendProvider).remoteHost?.calibrationTools;
+      _ref.read(linkedHostCalibrationToolsProvider);
 
   /// Build a defect map for `cameraId` from the supplied dark / bias
   /// frame paths. At least

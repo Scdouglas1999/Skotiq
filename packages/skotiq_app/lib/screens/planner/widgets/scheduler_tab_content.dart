@@ -292,13 +292,12 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
 
   @override
   Widget build(BuildContext context) {
-    final backend = ref.watch(backendProvider);
     late final SchedulerStatus status;
     late final SchedulerDecision? decision;
     late final SchedulerConfig authoritativeConfig;
     late final SchedulerStartReadiness? remoteReadiness;
 
-    if (backend.remoteHost != null) {
+    if (ref.watch(isRemoteModeProvider)) {
       final remoteAsync = ref.watch(schedulerRemoteSnapshotProvider);
       final remote = remoteAsync.valueOrNull;
       if (remote == null) {

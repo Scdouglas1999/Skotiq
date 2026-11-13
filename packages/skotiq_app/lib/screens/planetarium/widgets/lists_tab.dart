@@ -680,7 +680,7 @@ class _ExportToSequenceButtonState
     setState(() => _exporting = true);
     final backend = ref.read(backendProvider);
     final sequencesDao =
-        backend.remoteHost != null ? null : ref.read(sequencesDaoProvider);
+        ref.read(isRemoteModeProvider) ? null : ref.read(sequencesDaoProvider);
     int? sequenceId;
     try {
       // Read items through the remote-aware provider so a slave exports the

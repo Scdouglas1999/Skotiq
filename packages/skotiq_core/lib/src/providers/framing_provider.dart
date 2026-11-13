@@ -1,3 +1,4 @@
+import 'linked_host.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -182,8 +183,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
 
     _rememberLastFramedTarget(target);
 
-    final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.pointing;
+    final remote = _ref.read(linkedHostPointingProvider);
     if (remote != null) {
       _queueTargetPush(
         remote,
@@ -217,8 +217,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
     loadSurveyImage();
     _rememberLastFramedTarget(target);
 
-    final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.pointing;
+    final remote = _ref.read(linkedHostPointingProvider);
     if (remote != null) {
       _queueTargetPush(
         remote,
@@ -239,7 +238,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
     _targetPushTail = _targetPushTail.then((_) async {
       if (!mounted ||
           revision != _targetPushRevision ||
-          !identical(remote, _ref.read(backendProvider).remoteHost?.pointing)) {
+          !identical(remote, _ref.read(linkedHostPointingProvider))) {
         return;
       }
       await _pushTargetToHost(
@@ -275,8 +274,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
     loadSurveyImage();
     _rememberLastFramedTarget(target);
 
-    final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.pointing;
+    final remote = _ref.read(linkedHostPointingProvider);
     if (remote != null) {
       _queueTargetPush(
         remote,

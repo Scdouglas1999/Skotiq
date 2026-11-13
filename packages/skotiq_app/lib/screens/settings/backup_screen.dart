@@ -186,7 +186,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       _loadError = null;
     });
     try {
-      final hostBackups = backend.remoteHost?.backups;
+      final hostBackups = ref.read(linkedHostBackupsProvider);
       final entries = hostBackups != null
           ? parseRemoteBackupList(await hostBackups.listBackups())
           : await Future.wait(

@@ -1,8 +1,8 @@
+import 'host_role.dart';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart';
@@ -31,16 +31,28 @@ import '../services/logging_service.dart';
 final rigCameraSettingsProvider = FutureProvider<Map<String, String>>((
   ref,
 ) async {
-  final hostSettings = ref.watch(backendProvider).remoteHost?.rigSettings;
-  if (hostSettings != null) {
-    final values = await Future.wait([
-      hostSettings.getScienceSettings(),
-      hostSettings.getSmartNightSettings(),
-    ]);
-    return {...values[0], ...values[1]};
-  }
-  return ref.watch(allSettingsProvider.future);
+  return ref.watch(_rigCameraSettingRowsProvider)(ref);
 });
+
+final _rigCameraSettingRowsProvider =
+    hostRoleProvider<Future<Map<String, String>> Function(Ref ref)>(
+      here: (_) =>
+          (ref) => ref.watch(allSettingsProvider.future),
+      linked: (_, host) => (_) async {
+        final values = await Future.wait([
+          host.rigSettings.getScienceSettings(),
+          host.rigSettings.getSmartNightSettings(),
+        ]);
+        return {...values[0], ...values[1]};
+      },
+    );
+
+/// The table that remembers camera geometry: this machine's, and none on a
+/// linked client, whose host remembers it.
+final _rememberedGeometryRowsProvider = hostRoleProvider<SettingsDao?>(
+  here: (ref) => ref.watch(settingsDaoProvider),
+  linked: (_, _) => null,
+);
 
 /// The resolver. Overridden in tests to pin a database.
 final cameraSensorSpecResolverProvider = Provider<CameraSensorSpecResolver>(
@@ -85,9 +97,7 @@ final activeCameraSensorSpecsProvider =
           : (profile?.cameraName ?? deviceName);
 
       final backend = ref.watch(backendProvider);
-      final settingsDao = backend.remoteHost != null
-          ? null
-          : ref.watch(settingsDaoProvider);
+      final settingsDao = ref.watch(_rememberedGeometryRowsProvider);
       final gain = connected
           ? (driverGain ?? profile?.defaultGain)
           : profile?.defaultGain;

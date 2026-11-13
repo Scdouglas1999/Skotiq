@@ -34,3 +34,17 @@ Provider<Role> hostRoleProvider<Role>({
   final host = ref.watch(remoteHostProvider);
   return host == null ? here(ref) : linked(ref, host);
 }, name: name);
+
+/// Declares something only a linked client has, such as the link itself, the
+/// host's log or its update: the host's [half], or null where the imaging
+/// host is this process and the card, banner or action does not exist.
+///
+/// Every such half is declared in `linked_host.dart`. Data that both sides
+/// keep is a [hostRoleProvider], not a null test on one of these.
+Provider<Half?> linkedOnlyProvider<Half>(
+  Half Function(RemoteHost host) half, {
+  String? name,
+}) => Provider<Half?>((ref) {
+  final host = ref.watch(remoteHostProvider);
+  return host == null ? null : half(host);
+}, name: name);

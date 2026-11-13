@@ -132,7 +132,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       // down so we don't leak a loopback listener or persist a bogus relay row.
       final swappedBackend = ref.read(backendProvider);
       if (!mounted ||
-          swappedBackend.remoteHost == null ||
+          !ref.read(isRemoteModeProvider) ||
           identical(swappedBackend, priorBackend)) {
         await _closeActiveRelayTunnel();
         return;

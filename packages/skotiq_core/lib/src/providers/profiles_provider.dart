@@ -1,3 +1,4 @@
+import 'linked_host.dart';
 import 'package:drift/drift.dart';
 import 'dart:convert';
 

@@ -49,9 +49,8 @@ class NotificationRoutingSettings extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    final backend = ref.watch(backendProvider);
 
-    if (backend.remoteHost != null) {
+    if (ref.watch(isRemoteModeProvider)) {
       return const Column(
         children: [
           SettingsSection(

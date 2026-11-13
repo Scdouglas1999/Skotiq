@@ -10,6 +10,7 @@
 // `notificationRouterProvider`) so discovery runs without any UI
 // surface depending on it.
 
+import 'linked_host.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -20,8 +21,6 @@ import '../models/notification/transport_configs.dart';
 import '../services/home_assistant/home_assistant_discovery_config.dart';
 import '../services/home_assistant/home_assistant_discovery_service.dart';
 import '../services/home_assistant/home_assistant_host_settings.dart';
-import '../backend/remote_host.dart';
-import 'backend_provider.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'notification_router_provider.dart';
@@ -71,10 +70,10 @@ final homeAssistantConfigProvider =
 /// preserves the intentional per-device notification-router configuration.
 final remoteHomeAssistantHostSettingsProvider =
     FutureProvider.autoDispose<HomeAssistantHostSettings?>((ref) async {
-      final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.rigSettings;
-      if (remote == null) return null;
-      final subscription = backend.eventStream.listen((event) {
+      final remote = ref.watch(linkedHostRigSettingsProvider);
+      final events = ref.watch(linkedHostEventsProvider);
+      if (remote == null || events == null) return null;
+      final subscription = events().listen((event) {
         if (event.eventType == hostStateChangedEventType &&
             event.data['entityType'] == HostMutationEntity.settings &&
             event.data['namespace'] == 'home-assistant') {

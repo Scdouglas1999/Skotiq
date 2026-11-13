@@ -1,3 +1,4 @@
+import 'linked_host.dart';
 import 'async_scope.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
@@ -249,7 +250,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (stopping != null) await stopping;
 
     final backend = _ref.read(backendProvider);
-    final remote = backend.remoteHost?.liveStack;
+    final remote = _ref.read(linkedHostLiveStackProvider);
     if (remote == null) {
       state = state.copyWith(
         status: LiveStackingStatus.error,
@@ -403,7 +404,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
     final generation = ++_sessionGeneration;
     _sessionAuthority = authority;
-    final remote = authority.remoteHost?.liveStack;
+    final remote = _ref.read(linkedHostLiveStackProvider);
     _remoteSessionBackend = remote;
     final service = remote != null ? null : _service;
     _sessionService = service;

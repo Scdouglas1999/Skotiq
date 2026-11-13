@@ -1,3 +1,4 @@
+import 'linked_host.dart';
 import 'async_scope.dart';
 import '../errors/error_text.dart';
 import 'dart:async';
@@ -63,7 +64,7 @@ class DefectMapQuery {
 final defectMapStatusProvider =
     FutureProvider.family<DefectMapStatus?, DefectMapQuery>((ref, query) async {
       final backend = ref.watch(backendProvider);
-      final remote = backend.remoteHost?.calibrationFrames;
+      final remote = ref.watch(linkedHostCalibrationFramesProvider);
       if (remote != null) {
         final subscription = backend.eventStream.listen((event) {
           if (event.eventType == hostStateChangedEventType &&
