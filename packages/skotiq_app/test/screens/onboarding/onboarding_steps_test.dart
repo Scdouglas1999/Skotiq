@@ -20,6 +20,7 @@ import 'package:skotiq_app/screens/onboarding/steps/summary_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/welcome_step.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_app/services/site_detection.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -280,7 +281,7 @@ void main() {
             onboardingApproximateLocationProvider.overrideWithValue(
               approximateLocation ?? () async => null,
             ),
-            onboardingSiteLocatorProvider.overrideWithValue(
+            siteLocatorProvider.overrideWithValue(
               locator ??
                   ({
                     required bool allowWifiScan,

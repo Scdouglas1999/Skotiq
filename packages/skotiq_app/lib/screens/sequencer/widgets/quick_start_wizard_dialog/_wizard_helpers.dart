@@ -474,7 +474,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
         activeProfile.id != null &&
         _coolingTemp.isFinite &&
         activeProfile.defaultCoolingTemp != _coolingTemp) {
-      await equipmentProfiles.updateProfile(
+      await equipmentProfiles.saveProfile(
         activeProfile.copyWith(defaultCoolingTemp: _coolingTemp),
       );
     }

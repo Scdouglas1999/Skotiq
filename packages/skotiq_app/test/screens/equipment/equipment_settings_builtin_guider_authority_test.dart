@@ -21,8 +21,11 @@ class _SwappableBackendNotifier extends BackendNotifier {
 BuiltinGuiderConfig _config({required int gain}) =>
     BuiltinGuiderConfig.defaults.copyWith(gain: gain);
 
-TextField _gainField(WidgetTester tester) => tester.widget<TextField>(
-      find.byKey(const ValueKey('builtin-guider-gain')),
+EditableText _gainField(WidgetTester tester) => tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('builtin-guider-gain')),
+        matching: find.byType(EditableText),
+      ),
     );
 
 Future<void> _pumpFrames(WidgetTester tester, [int count = 4]) async {
@@ -62,12 +65,12 @@ void main() {
 
     backendNotifier.switchTo(hostB);
     await _pumpFrames(tester);
-    expect(_gainField(tester).controller!.text, '222');
+    expect(_gainField(tester).controller.text, '222');
 
     hostALoad.complete(_config(gain: 111));
     await _pumpFrames(tester);
 
-    expect(_gainField(tester).controller!.text, '222');
+    expect(_gainField(tester).controller.text, '222');
     expect(find.textContaining('gain 222'), findsOneWidget);
   });
 
@@ -112,12 +115,12 @@ void main() {
 
     backendNotifier.switchTo(hostB);
     await _pumpFrames(tester);
-    expect(_gainField(tester).controller!.text, '222');
+    expect(_gainField(tester).controller.text, '222');
 
     hostAWrite.complete();
     await _pumpFrames(tester);
 
-    expect(_gainField(tester).controller!.text, '222');
+    expect(_gainField(tester).controller.text, '222');
     expect(find.textContaining('gain 222'), findsOneWidget);
     verifyNever(() => hostB.builtinGuiderSetConfig(any()));
   });
@@ -137,15 +140,15 @@ void main() {
       settle: false,
     );
     await _pumpFrames(tester);
-    expect(_gainField(tester).controller!.text, '321');
+    expect(_gainField(tester).controller.text, '321');
 
     final reset = find.byKey(const ValueKey('builtin-guider-reset'));
     await tester.ensureVisible(reset);
     await tester.tap(reset);
     await _pumpFrames(tester);
 
-    expect(_gainField(tester).controller!.text, '321');
+    expect(_gainField(tester).controller.text, '321');
     expect(find.textContaining('gain 321'), findsOneWidget);
-    expect(find.textContaining('Failed to reset settings'), findsOneWidget);
+    expect(find.textContaining('Could not reset the guider settings'), findsOneWidget);
   });
 }

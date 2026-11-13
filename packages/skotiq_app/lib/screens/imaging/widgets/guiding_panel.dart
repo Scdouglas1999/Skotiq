@@ -10,7 +10,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
-import '../../../widgets/help/field_help_label.dart';
+import '../../../widgets/builtin_guider_config_form.dart';
 import 'panel_widgets.dart';
 import '../../../utils/guide_distance.dart';
 

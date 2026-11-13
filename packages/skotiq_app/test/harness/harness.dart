@@ -6,6 +6,7 @@
 // TestBackendNotifier for a custom override) can still import the
 // individual file directly.
 
+export 'fake_host_folders.dart';
 export 'mock_backend.dart' show MockBackend, mockBackend;
 export 'mock_database.dart' show mockDatabase, inMemoryDatabaseOverride;
 export 'pump_app_screen.dart'

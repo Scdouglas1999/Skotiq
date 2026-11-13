@@ -5,8 +5,7 @@
 // Owns:
 //   * Camera: defaultGain, defaultOffset
 //   * Mount: enableMeridianFlip
-//   * Focuser: tempCompensation, tempCoefficient, tempCompensationMinSteps,
-//     backlashCompensation
+//   * Focuser: tempCompensation, tempCoefficient, tempCompensationMinSteps
 //   * Guider: ditherScale, settleThreshold, settleTimeout, settleTime,
 //     ditherRaOnly
 //
@@ -71,34 +70,21 @@ extension EquipmentSettingsSection on AppSettingsNotifier {
   Future<void> setFlatCalibrationAttempts(int value) =>
       _set(AppSettingDefs.flatCalibrationAttempts, value);
 
-  Future<void> setBacklashCompensation(int value) =>
-      _set(AppSettingDefs.backlashCompensation, value);
-
-  /// Persist the focuser temperature-compensation configuration — the enable
-  /// toggle, the steps/°C coefficient, and the backlash steps — in ONE batched
-  /// transaction so the focuser configuration dialog can never persist a
-  /// partial change.
+  /// Persist the focuser temperature-compensation configuration and the
+  /// backlash figure in force (`afBacklashIn`) in ONE batched transaction, so
+  /// the focuser configuration dialog never persists a partial change: the
+  /// in-memory state is patched only after the write resolves.
   ///
-  /// All three keys go through one [_saveSettings], and [_patchState] runs
-  /// only after that write resolves, so a mid-write failure leaves state
-  /// unchanged and the dialog retryable rather than persisting an
-  /// inconsistent trio.
-  ///
-  /// Callers validate `tempCoefficient` is finite (the continuous compensator
-  /// multiplies it by a temperature delta and rounds — a NaN/∞ coefficient
-  /// would throw there) and `backlashCompensation` is within 0..10000 (the
-  /// canonical device/backlash limit used by the autofocus settings) before
-  /// invoking. Negative and zero coefficients are intentionally allowed: zero
-  /// is the documented "track temperature but do not move" state and the
-  /// default is a negative -12 steps/°C.
+  /// Negative and zero coefficients are allowed: zero is the documented "track
+  /// temperature but do not move" state and the default is -12 steps/°C.
   Future<void> setFocuserCompensationConfig({
     required bool tempCompensation,
     required double tempCoefficient,
-    required int backlashCompensation,
+    required int backlashIn,
   }) => _setAll([
     AppSettingDefs.tempCompensation.to(tempCompensation),
     AppSettingDefs.tempCoefficient.to(tempCoefficient),
-    AppSettingDefs.backlashCompensation.to(backlashCompensation),
+    AppSettingDefs.afBacklashIn.to(backlashIn),
   ]);
 
   // Guider defaults

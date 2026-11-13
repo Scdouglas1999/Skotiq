@@ -122,7 +122,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       );
       final profileId = await ref
           .read(equipmentProfilesProvider.notifier)
-          .createProfile(name: name);
+          .saveProfile(EquipmentProfileModel(name: name));
       await ref.read(profileServiceProvider).updateProfileDevices(profileId, {
         widget.deviceType: device.activeDeviceId,
       });

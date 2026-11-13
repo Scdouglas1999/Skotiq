@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/location_settings.dart';
 import 'package:skotiq_app/widgets/site/place_search.dart';
+import 'package:skotiq_app/services/site_detection.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';

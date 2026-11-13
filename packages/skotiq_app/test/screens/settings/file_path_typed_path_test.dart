@@ -8,12 +8,24 @@
 // not mounted yet and, from a tablet, cannot reach the imaging host's disk.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_app/screens/settings/widgets/file_path_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 
 import '../../harness/harness.dart';
+
+class _Folders extends FakeHostFolders {
+  _Folders(this.reveals, {super.onCheck});
+
+  final List<(String, String)>? reveals;
+
+  @override
+  Future<void> reveal(BuildContext context, String path) async =>
+      reveals?.add(('reveal', path));
+}
 
 class _LoadedAppSettings extends AppSettingsNotifier {
   @override
@@ -43,12 +55,15 @@ Future<HarnessHandle> _pump(
       backupDirectoryOverrideProvider.overrideWith((ref) async => null),
       applicationDataPathProvider.overrideWith((ref) async => '/appdata'),
       applicationLogPathProvider.overrideWith((ref) async => '/support/logs'),
-      storageDirectoryProbeProvider
-          .overrideWithValue((path) async => probeFailure),
-      if (reveals != null)
-        appDataFolderRevealerProvider.overrideWithValue(
-          (context, path) async => reveals.add(('reveal', path)),
-        ),
+      hostFoldersProvider.overrideWithValue(_Folders(
+        reveals,
+        // The full-path rule is the real one; the disk is faked.
+        onCheck: (path, host) async => !p.isAbsolute(path)
+            ? await const HostFolders().check(path, host: host)
+            : probeFailure == null
+                ? const FolderUsable()
+                : FolderRefused(probeFailure),
+      )),
     ],
   );
   await tester.pump();

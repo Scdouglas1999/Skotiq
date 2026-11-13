@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +10,7 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
+import '../../../services/site_detection.dart';
 import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/geolocation_consent.dart';
@@ -37,23 +37,6 @@ typedef ApproximateLocationLookup = Future<(double, double, String?)?>
 final onboardingApproximateLocationProvider =
     Provider<ApproximateLocationLookup>(
   (ref) => GeolocationService.fetchLocation,
-);
-
-/// The lookup behind "Use my current location": the three positioning tiers
-/// — the platform's location service, a Wi-Fi scan resolved by a positioning
-/// service, then the public-IP estimate — with what each one did, so the
-/// confirmation can say how precise the answer is and the step can offer the
-/// one failure the operator can fix. Injected so the consent, radio-power and
-/// elevation rules can be driven in tests without a network or a GPS.
-typedef SiteLocator = Future<PositioningAttempt> Function({
-  required bool allowWifiScan,
-  required bool allowIp,
-  bool mayEnableWifiRadio,
-  String? googleApiKey,
-});
-
-final onboardingSiteLocatorProvider = Provider<SiteLocator>(
-  (ref) => GeolocationService.locate,
 );
 
 /// Observing-site step.
@@ -336,114 +319,54 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   static double _roundLookup(double value) =>
       double.parse(value.toStringAsFixed(4));
 
-  /// Resolve this machine's position and write the coordinates, mirroring
-  /// Settings → Location's "Detect location" affordance — including its three
-  /// rules. It asks before anything leaves the machine, naming each tier that
-  /// will run (once per session, shared with Settings). It refuses to leave a
-  /// stored elevation attached to a position it does not belong to. And it
-  /// changes nothing about the machine unasked: [mayEnableWifiRadio] is set
-  /// only by the explicit "Turn Wi-Fi on for a precise fix" offer, and the
-  /// radio goes back off afterwards. A host switch mid-read never applies
-  /// the reading to the replacement host.
-  Future<void> _useDeviceLocation(
-    AppSettingsState settings, {
-    bool mayEnableWifiRadio = false,
-  }) async {
+  /// "Use my current location": [detectSite], then the fields show what was
+  /// stored.
+  Future<void> _useDeviceLocation({bool mayEnableWifiRadio = false}) async {
     if (_locating) return;
-    final googleKey = ref.read(googleGeolocationKeyProvider).value ?? '';
-    final consented = await ensureGeolocationConsent(
-      context,
-      ref,
-      outcome: kGeolocationWritesSiteOutcome,
-      googleKeyPresent: googleKey.isNotEmpty,
-    );
-    if (!consented || !mounted) return;
-    final host = ref.backendScope();
-    setState(() => _locating = true);
     try {
-      final attempt = await ref.read(onboardingSiteLocatorProvider)(
-        allowWifiScan: true,
-        allowIp: true,
+      final detection = await detectSite(
+        context,
+        ref,
         mayEnableWifiRadio: mayEnableWifiRadio,
-        googleApiKey: googleKey.isEmpty ? null : googleKey,
+        onLookingUp: () => setState(() => _locating = true),
       );
-      if (!mounted || host.isStale) {
-        return;
-      }
-      setState(() => _wifiRadioOffersPrecision = attempt.canRetryWithWifi);
-      final location = attempt.fix;
-      if (location == null) {
-        context.showWarningSnackBar(
-          '${attempt.failureMessage} Enter your coordinates below, or skip and '
-          'set the site later in Settings → Location.',
-        );
-        return;
-      }
-      final name = location.locationName;
-      final lat = _roundLookup(location.latitude);
-      final lon = _roundLookup(location.longitude);
-      // Only a site already on record can lend a stale elevation; on a first
-      // run the field holds whatever the operator has just typed, which is
-      // theirs to keep.
-      final hasStoredSite = settings.hasObserverLocation;
-      final keepElevation = !hasStoredSite ||
-          _kmBetween(settings.latitude, settings.longitude, lat, lon) <=
-              _sameSiteRadiusKm;
-      await ref.read(appSettingsProvider.notifier).updateLocation(
-            latitude: lat,
-            longitude: lon,
-            elevation: keepElevation ? null : 0,
+      if (detection == null || !mounted) return;
+      setState(
+        () => _wifiRadioOffersPrecision = detection.attempt.canRetryWithWifi,
+      );
+      switch (detection) {
+        case SiteNotFound(:final attempt):
+          context.showWarningSnackBar(
+            '${attempt.failureMessage} Enter your coordinates below, or skip '
+            'and set the site later in Settings → Location.',
           );
-      if (!mounted || host.isStale) return;
-      _latController.text = _trimNumber(lat);
-      _lonController.text = _trimNumber(lon);
-      if (!keepElevation) _elevController.clear();
-      setState(() {
-        _latError = null;
-        _lonError = null;
-        if (!keepElevation) _elevError = null;
-      });
-      _publishBlockingReason();
-      final where = name ?? '${_trimNumber(lat)}°, ${_trimNumber(lon)}°';
-      context.showSuccessSnackBar(
-        'Coordinates set to $where. ${location.explanation}'
-        '${keepElevation ? '' : ' Elevation cleared — enter the elevation '
-            'for this site.'}'
-        // The wizard has no map and no place search, so the nudge points at
-        // the fields directly below instead of an affordance that is not
-        // here yet.
-        '${location.isPrecise ? '' : attempt.canRetryWithWifi ? ' Turn Wi-Fi on for a precise fix.' : ' Correct the coordinates below if it is off.'}',
-      );
+        case SiteDetected(:final latitude, :final longitude, :final fix):
+          _latController.text = _trimNumber(latitude);
+          _lonController.text = _trimNumber(longitude);
+          if (!detection.keptElevation) _elevController.clear();
+          setState(() {
+            _latError = null;
+            _lonError = null;
+            if (!detection.keptElevation) _elevError = null;
+          });
+          _publishBlockingReason();
+          context.showSuccessSnackBar(
+            'Coordinates set to ${detection.where}. ${fix.explanation}'
+            '${detection.keptElevation ? '' : ' Elevation cleared — enter the '
+                'elevation for this site.'}'
+            // The wizard has no map and no place search, so the nudge points
+            // at the fields directly below.
+            '${fix.isPrecise ? '' : detection.attempt.canRetryWithWifi ? ' Turn Wi-Fi on for a precise fix.' : ' Correct the coordinates below if it is off.'}',
+          );
+      }
     } catch (error) {
-      if (mounted && host.isCurrent) {
-        context.showErrorSnackBar('Could not read device location: ${userFacingError(error)}');
+      if (mounted) {
+        context.showErrorSnackBar(
+            'Could not read device location: ${userFacingError(error)}');
       }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
-  }
-
-  /// How far a resolved position may sit from the stored one before the stored
-  /// elevation is treated as belonging to a different place. Matches
-  /// Settings → Location; an IP estimate is accurate to roughly a city.
-  static const double _sameSiteRadiusKm = 25;
-
-  /// Great-circle distance in kilometres.
-  static double _kmBetween(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const earthRadiusKm = 6371.0;
-    double toRad(double deg) => deg * math.pi / 180.0;
-    final dLat = toRad(lat2 - lat1);
-    final dLon = toRad(lon2 - lon1);
-    final a = math.pow(math.sin(dLat / 2), 2) +
-        math.cos(toRad(lat1)) *
-            math.cos(toRad(lat2)) *
-            math.pow(math.sin(dLon / 2), 2);
-    return earthRadiusKm * 2 * math.asin(math.min(1.0, math.sqrt(a)));
   }
 
   /// The IP estimate, presented as a suggestion with its provenance and its
@@ -544,7 +467,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                       size: ButtonSize.small,
                       isLoading: _locating,
                       onPressed:
-                          _locating ? null : () => _useDeviceLocation(settings),
+                          _locating ? null : () => _useDeviceLocation(),
                     ),
                   ),
                 ],
@@ -566,10 +489,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                     onPressed: _locating
                         ? null
                         : () => unawaited(
-                              _useDeviceLocation(
-                                settings,
-                                mayEnableWifiRadio: true,
-                              ),
+                              _useDeviceLocation(mayEnableWifiRadio: true),
                             ),
                   ),
                 ),

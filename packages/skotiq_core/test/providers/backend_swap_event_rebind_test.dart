@@ -339,6 +339,10 @@ void main() {
       when(
         () => oldBackend.builtinGuiderGetConfig(),
       ).thenAnswer((_) => configGate.future);
+      const newHostConfig = BuiltinGuiderConfig(gain: 321);
+      when(
+        () => newBackend.builtinGuiderGetConfig(),
+      ).thenAnswer((_) async => newHostConfig);
 
       final container = buildContainer();
       final fetch = container
@@ -353,7 +357,11 @@ void main() {
       await fetch;
       await _pump();
 
-      expect(container.read(builtinGuiderConfigProvider).isLoading, isTrue);
+      expect(
+        container.read(builtinGuiderConfigProvider).valueOrNull,
+        newHostConfig,
+        reason: 'the new host is read; the old host\'s late answer is dropped',
+      );
     },
   );
 }

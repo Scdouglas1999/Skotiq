@@ -91,17 +91,17 @@ void main() {
             .setFocuserCompensationConfig(
               tempCompensation: true,
               tempCoefficient: 2.5,
-              backlashCompensation: 500,
+              backlashIn: 500,
             );
 
         expect(await _storedValue(database, 'temp_compensation'), 'true');
         expect(await _storedValue(database, 'temp_coefficient'), '2.5');
-        expect(await _storedValue(database, 'backlash_compensation'), '500');
+        expect(await _storedValue(database, 'af_backlash_in'), '500');
 
         final state = container.read(appSettingsProvider).requireValue;
         expect(state.tempCompensation, isTrue);
         expect(state.tempCoefficient, 2.5);
-        expect(state.backlashCompensation, 500);
+        expect(state.afBacklashIn, 500);
       },
     );
   });
@@ -192,7 +192,7 @@ void main() {
               .setFocuserCompensationConfig(
                 tempCompensation: true,
                 tempCoefficient: 2.5,
-                backlashCompensation: 500,
+                backlashIn: 500,
               ),
           throwsA(isA<Exception>()),
         );
@@ -209,13 +209,13 @@ void main() {
             .setFocuserCompensationConfig(
               tempCompensation: true,
               tempCoefficient: 2.5,
-              backlashCompensation: 500,
+              backlashIn: 500,
             );
 
         final after = container.read(appSettingsProvider).requireValue;
         expect(after.tempCompensation, isTrue);
         expect(after.tempCoefficient, 2.5);
-        expect(after.backlashCompensation, 500);
+        expect(after.afBacklashIn, 500);
       },
     );
   });

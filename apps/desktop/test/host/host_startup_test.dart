@@ -86,7 +86,6 @@ void main() {
       final daemon = stepsOf(HostKind.daemon);
 
       expect(daemon.difference(gui), {
-        'sequencer checkpoints',
         'open plan',
         'always-on services',
         'disk-space watchdog',
@@ -100,6 +99,7 @@ void main() {
           'update receiver',
           'equipment auto-connect',
           'Darkroom work',
+          'sequencer checkpoints',
         ]),
       );
     });

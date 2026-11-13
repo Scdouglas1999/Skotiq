@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -10,40 +9,13 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/remote_directory_picker_dialog.dart';
-
-typedef OnboardingCaptureDirectoryPicker = Future<String?> Function(
-  BuildContext context, {
-  required bool isRemote,
-  required String? initialPath,
-});
-
-typedef OnboardingCaptureDirectoryValidator = Future<String?> Function(
-  String path,
-);
+import '../../../services/host_folders.dart';
 
 typedef OnboardingCaptureDirectoryWriter = Future<void> Function(String path);
 
 /// Makes the folder a first run suggests and returns its path, or null where
 /// there is no sensible default (no home directory, a phone).
 typedef OnboardingDefaultCaptureDirectory = Future<String?> Function();
-
-Future<String?> _pickCaptureDirectory(
-  BuildContext context, {
-  required bool isRemote,
-  required String? initialPath,
-}) {
-  if (isRemote) {
-    return RemoteDirectoryPickerDialog.show(
-      context,
-      title: 'Choose capture folder on host',
-      initialPath: initialPath,
-    );
-  }
-  return file_selector.getDirectoryPath(
-    confirmButtonText: 'Use this folder',
-  );
-}
 
 /// Resolve a leading `~` against this machine's home directory.
 ///
@@ -57,22 +29,6 @@ String expandCaptureDirHome(String path) {
   if (home == null || home.trim().isEmpty) return path;
   if (path == '~') return home;
   return '$home${Platform.pathSeparator}${path.substring(2)}';
-}
-
-/// The one line the step shows when the write probe fails.
-///
-/// [FileSystemException.message] is the generic dart:io phrase — a folder the
-/// user has no permission on reports "Cannot open file", which names no cause
-/// and suggests no remedy. The reason they can act on ("Permission denied",
-/// "Read-only file system", "No space left on device") only ever lives in
-/// [OSError.message], so lead with that and keep the generic phrase as the
-/// fallback for the platforms that supply no errno.
-@visibleForTesting
-String describeCaptureDirWriteFailure(FileSystemException error) {
-  final reason = error.osError?.message.trim() ?? '';
-  return reason.isEmpty
-      ? 'Not writable: ${error.message}'
-      : 'Not writable: $reason';
 }
 
 /// The pictures folder the XDG user-dirs file in [configDir] names, if any.
@@ -112,32 +68,6 @@ Future<String?> prepareDefaultCaptureDirectory() async {
         : null,
   );
 }
-
-Future<String?> _validateCaptureDirectory(String path) async {
-  if (path.trim().isEmpty) return 'Pick a folder to continue.';
-  final dir = Directory(path);
-  if (!await dir.exists()) return 'That folder does not exist.';
-  final probe = File(
-    '${dir.path}${Platform.pathSeparator}.skotiq_write_probe',
-  );
-  try {
-    await probe.writeAsString('probe');
-    await probe.delete();
-    return null;
-  } on FileSystemException catch (error) {
-    return describeCaptureDirWriteFailure(error);
-  } catch (error) {
-    return 'Validation failed: ${userFacingError(error)}';
-  }
-}
-
-final onboardingCaptureDirectoryPickerProvider =
-    Provider<OnboardingCaptureDirectoryPicker>((ref) => _pickCaptureDirectory);
-
-final onboardingCaptureDirectoryValidatorProvider =
-    Provider<OnboardingCaptureDirectoryValidator>(
-  (ref) => _validateCaptureDirectory,
-);
 
 /// No suggestion unless the app installs [prepareDefaultCaptureDirectory]
 /// (see `appProviderOverrides`), so a test never makes folders in the home
@@ -341,7 +271,6 @@ class _OnboardingCaptureDirStepState
   /// retyped.
   Future<void> _commitTypedPath(String raw) async {
     _editDebounce?.cancel();
-    final isRemote = ref.read(isRemoteModeProvider);
     final path = _resolve(raw);
     final current = ref.read(onboardingDraftProvider).captureDirectory?.trim();
     if (path.isEmpty || path == current) return;
@@ -356,32 +285,13 @@ class _OnboardingCaptureDirStepState
       _checkDetail = null;
     });
     try {
-      // Remote paths belong to the host, which is the only thing that can
-      // answer for them; _verify already routes that question correctly.
-      // It has to run as PART of this commit, not as a new operation: a
-      // _verify that allocated its own generation left this one stale, so the
-      // guard below fired on its own helper and the host-approved path was
-      // never written to the draft. Staying `_validating` for the whole round
-      // trip also keeps the box disabled, which is what stops the focus-loss
-      // listener firing a second identical question at the host.
-      if (isRemote) {
-        await _verify(path, operation: generation);
-        if (!_isCurrent(generation, authority)) return;
-        if (_check == _FolderCheck.writable && _checkedPath == path) {
-          await ref.read(onboardingCaptureDirectoryWriterProvider)(path);
-        }
-        return;
-      }
-      final error =
-          await ref.read(onboardingCaptureDirectoryValidatorProvider)(path);
+      // Part of this commit, not a new operation, so its result is this
+      // commit's; staying `_validating` keeps the box disabled for the round
+      // trip, which stops the focus-loss listener asking a second time.
+      await _verify(path, operation: generation);
       if (!_isCurrent(generation, authority)) return;
-      setState(() {
-        _validating = false;
-        _checkedPath = path;
-        _check = error == null ? _FolderCheck.writable : _FolderCheck.failed;
-        _checkDetail = error;
-      });
-      if (error == null) {
+      setState(() => _validating = false);
+      if (_check == _FolderCheck.writable && _checkedPath == path) {
         await ref.read(onboardingCaptureDirectoryWriterProvider)(path);
       }
     } catch (error) {
@@ -410,7 +320,6 @@ class _OnboardingCaptureDirStepState
   /// still has a draft write to do) must share its generation, or it supersedes
   /// itself and discards its own result.
   Future<void> _verify(String path, {int? operation}) async {
-    final isRemote = ref.read(isRemoteModeProvider);
     final authority = ref.read(backendProvider);
     final generation = operation ?? ++_operationGeneration;
     setState(() {
@@ -421,43 +330,14 @@ class _OnboardingCaptureDirStepState
 
     _FolderCheck outcome;
     String? detail;
-    if (isRemote) {
-      if (authority.remoteHost case final linkedHost?) {
-        try {
-          final result = await linkedHost.files.validateRemoteDirectory(
+    try {
+      (outcome, detail) = _describe(await ref.read(hostFoldersProvider).check(
             path,
-            mustExist: true,
-            mustBeWritable: true,
-          );
-          if (result['valid'] == true) {
-            outcome = _FolderCheck.writable;
-            detail = null;
-          } else {
-            final reason = result['error'];
-            outcome = _FolderCheck.failed;
-            detail = reason is String && reason.trim().isNotEmpty
-                ? reason.trim()
-                : 'The host rejected this folder.';
-          }
-        } catch (error) {
-          outcome = _FolderCheck.unverified;
-          detail = 'Could not ask the imaging host about this folder: ${userFacingError(error)}';
-        }
-      } else {
-        outcome = _FolderCheck.unverified;
-        detail = 'This folder is on the imaging host, which is not connected '
-            'right now.';
-      }
-    } else {
-      try {
-        final error =
-            await ref.read(onboardingCaptureDirectoryValidatorProvider)(path);
-        outcome = error == null ? _FolderCheck.writable : _FolderCheck.failed;
-        detail = error;
-      } catch (error) {
-        outcome = _FolderCheck.unverified;
-        detail = 'Could not check this folder: ${userFacingError(error)}';
-      }
+            host: authority.remoteHost?.files,
+          ));
+    } catch (error) {
+      outcome = _FolderCheck.unverified;
+      detail = 'Could not check this folder: ${userFacingError(error)}';
     }
 
     if (!_isCurrent(generation, authority)) return;
@@ -467,9 +347,20 @@ class _OnboardingCaptureDirStepState
     });
   }
 
+  /// The step's verdict for a [FolderCheck]. Onboarding makes no folder: a
+  /// missing one is the operator's to create or correct.
+  static (_FolderCheck, String?) _describe(FolderCheck verdict) =>
+      switch (verdict) {
+        FolderUsable() => (_FolderCheck.writable, null),
+        FolderMissing() => (_FolderCheck.failed, 'That folder does not exist.'),
+        FolderRefused(:final reason) => (_FolderCheck.failed, reason),
+        FolderUnchecked(:final reason) => (_FolderCheck.unverified, reason),
+      };
+
   Future<void> _pickDirectory() async {
-    final isRemote = ref.read(isRemoteModeProvider);
     final authority = ref.read(backendProvider);
+    final hostFiles = authority.remoteHost?.files;
+    final folders = ref.read(hostFoldersProvider);
     final generation = ++_operationGeneration;
     setState(() {
       _selecting = true;
@@ -478,10 +369,14 @@ class _OnboardingCaptureDirStepState
       _checkDetail = null;
     });
     try {
-      final selected = await ref.read(onboardingCaptureDirectoryPickerProvider)(
+      final selected = await folders.pick(
         context,
-        isRemote: isRemote,
+        host: hostFiles,
+        title: hostFiles == null
+            ? 'Choose capture folder'
+            : 'Choose capture folder on host',
         initialPath: ref.read(onboardingDraftProvider).captureDirectory,
+        confirmLabel: 'Use this folder',
       );
       if (selected == null || !_isCurrent(generation, authority)) return;
 
@@ -489,23 +384,18 @@ class _OnboardingCaptureDirStepState
         _selecting = false;
         _validating = true;
       });
-      // Remote paths are validated by the host inside the picker dialog, which
-      // only returns a path after `validateRemoteDirectory(mustExist,
-      // mustBeWritable)` passes — so a returned remote path is already checked
-      // and re-asking would double the round-trip.
-      final error = isRemote
-          ? null
-          : await ref.read(onboardingCaptureDirectoryValidatorProvider)(
-              selected,
-            );
+      // The host's folder browser only returns a folder it has checked.
+      final (outcome, detail) = hostFiles != null
+          ? (_FolderCheck.writable, null)
+          : _describe(await folders.check(selected, host: null));
       if (!_isCurrent(generation, authority)) return;
       setState(() {
         _validating = false;
         _checkedPath = selected;
-        _check = error == null ? _FolderCheck.writable : _FolderCheck.failed;
-        _checkDetail = error;
+        _check = outcome;
+        _checkDetail = detail;
       });
-      if (error == null) {
+      if (outcome == _FolderCheck.writable) {
         await ref.read(onboardingCaptureDirectoryWriterProvider)(selected);
       }
     } catch (error) {

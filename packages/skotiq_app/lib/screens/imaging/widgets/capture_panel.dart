@@ -1,4 +1,3 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,12 +9,12 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
+import '../../../services/host_folders.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
-import '../../../widgets/remote_directory_picker_dialog.dart';
 import '../../../tours/tour_target.dart';
 import '../../../widgets/sensitivity_field.dart';
 import '../../night_control/panel/camera/camera_panel_vm.dart'
@@ -26,34 +25,7 @@ import '../../../router/analytics_route.dart';
 
 final parkMountOnEndProvider = StateProvider<bool>((ref) => false);
 
-typedef CaptureSavePathPicker = Future<String?> Function(
-  BuildContext context, {
-  required bool isRemote,
-  required String? initialPath,
-});
-
 typedef CaptureSavePathWriter = Future<void> Function(String path);
-
-Future<String?> _pickCaptureSavePath(
-  BuildContext context, {
-  required bool isRemote,
-  required String? initialPath,
-}) {
-  if (isRemote) {
-    return RemoteDirectoryPickerDialog.show(
-      context,
-      title: 'Select host capture folder',
-      initialPath: initialPath,
-    );
-  }
-  return getDirectoryPath(
-    confirmButtonText: 'Select',
-    initialDirectory: initialPath,
-  );
-}
-
-final captureSavePathPickerProvider =
-    Provider<CaptureSavePathPicker>((ref) => _pickCaptureSavePath);
 
 final captureSavePathWriterProvider = Provider<CaptureSavePathWriter>((ref) {
   return ref.read(appSettingsProvider.notifier).setImageOutputPath;
@@ -672,9 +644,12 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
     final initialPath = _normalizeInitialPath(widget.currentPath);
     setState(() => _busy = true);
     try {
-      final result = await ref.read(captureSavePathPickerProvider)(
+      final result = await ref.read(hostFoldersProvider).pickUsable(
         context,
-        isRemote: widget.isRemote,
+        host: ref.read(backendProvider).remoteHost?.files,
+        title: widget.isRemote
+            ? 'Select host capture folder'
+            : 'Select capture folder',
         initialPath: initialPath,
       );
       if (result == null || operation.isStale) return;

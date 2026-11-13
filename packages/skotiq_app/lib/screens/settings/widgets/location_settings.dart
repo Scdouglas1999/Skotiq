@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
@@ -17,6 +16,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
+import '../../../services/site_detection.dart';
 import '../../../widgets/geolocation_consent.dart';
 import '../../../widgets/site/place_search.dart';
 import '../../../tours/tour_target.dart';
@@ -28,22 +28,6 @@ part 'location_settings_parts/_timezone_data.dart';
 typedef HorizonImportPicker = Future<file_selector.XFile?> Function();
 typedef HorizonImportReader = Future<String> Function(
   file_selector.XFile file,
-);
-
-/// Resolves this machine's position through the three positioning tiers —
-/// the platform's location service, a Wi-Fi scan resolved by a positioning
-/// service, then the public-IP estimate — and reports what each one did.
-/// Injected so the consent, radio-power and write flows can be driven in
-/// tests without a network, a GPS or a wireless card.
-typedef SiteLocator = Future<PositioningAttempt> Function({
-  required bool allowWifiScan,
-  required bool allowIp,
-  bool mayEnableWifiRadio,
-  String? googleApiKey,
-});
-
-final siteLocatorProvider = Provider<SiteLocator>(
-  (ref) => GeolocationService.locate,
 );
 
 Future<file_selector.XFile?> _pickHorizonImport() {
@@ -384,7 +368,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     size: ButtonSize.small,
                     isLoading: _detecting,
                     onPressed:
-                        _detecting ? null : () => _detectLocation(settings),
+                        _detecting ? null : () => _detectLocation(),
                   ),
                   isLast: !_wifiRadioOffersPrecision,
                 ),
@@ -402,10 +386,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       isLoading: _detecting,
                       onPressed: _detecting
                           ? null
-                          : () => _detectLocation(
-                                settings,
-                                mayEnableWifiRadio: true,
-                              ),
+                          : () => _detectLocation(mayEnableWifiRadio: true),
                     ),
                     isLast: true,
                   ),
@@ -632,30 +613,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     );
   }
 
-  /// How far the resolved position may sit from the stored one before the
-  /// stored elevation is treated as belonging to a different place. An IP
-  /// estimate is accurate to roughly a city (~10 km), so a fix inside this
-  /// radius is plausibly the same observing site.
-  static const double _sameSiteRadiusKm = 25;
-
-  /// Great-circle distance in kilometres.
-  static double _kmBetween(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const earthRadiusKm = 6371.0;
-    double toRad(double deg) => deg * math.pi / 180.0;
-    final dLat = toRad(lat2 - lat1);
-    final dLon = toRad(lon2 - lon1);
-    final a = math.pow(math.sin(dLat / 2), 2) +
-        math.cos(toRad(lat1)) *
-            math.cos(toRad(lat2)) *
-            math.pow(math.sin(dLon / 2), 2);
-    return earthRadiusKm * 2 * math.asin(math.min(1.0, math.sqrt(a)));
-  }
-
   void _onPlaceSearchChanged() {
     if (mounted) setState(() {});
   }
@@ -698,92 +655,38 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     );
   }
 
-  /// Resolve this machine's position, with consent, and never leave the
-  /// site in a state that does not exist.
-  ///
-  /// Three rules. ASK before the lookup, once per session, naming each tier
-  /// that will run: the Wi-Fi tier sends the names of the networks around the
-  /// house and the IP tier sends a public address, and this app is often run
-  /// on an isolated observatory network. NEVER mix a new fix with a stale
-  /// elevation: carrying the old value through gives a site that does not
-  /// exist, feeding refraction and horizon maths. And never CHANGE the
-  /// machine unasked — [mayEnableWifiRadio] is set only by the explicit "Turn
-  /// Wi-Fi on for a precise fix" row, and the radio is switched back off
-  /// afterwards.
-  Future<void> _detectLocation(
-    AppSettingsState rendered, {
-    bool mayEnableWifiRadio = false,
-  }) async {
+  /// Detect location, with consent: see [detectSite] for its rules.
+  Future<void> _detectLocation({bool mayEnableWifiRadio = false}) async {
     if (_detecting) return;
-    final googleKey = ref.read(googleGeolocationKeyProvider).value ?? '';
-    // Shared with the first-run wizard's site step, which fires the same
-    // service: one dialog means the two surfaces cannot describe the outbound
-    // request differently, or one of them forget to ask.
-    final consented = await ensureGeolocationConsent(
-      context,
-      ref,
-      outcome: kGeolocationWritesSiteOutcome,
-      googleKeyPresent: googleKey.isNotEmpty,
-    );
-    if (!consented || !mounted) return;
-
-    setState(() => _detecting = true);
     try {
-      final actionAuthority = ref.read(backendProvider);
-      // Re-read rather than trust the value this row was built with: the
-      // operator can edit the elevation while the consent dialog is up, and
-      // the same-site comparison below has to be against what is stored now.
-      final settings = ref.read(appSettingsProvider).value ?? rendered;
-      final attempt = await ref.read(siteLocatorProvider)(
-        allowWifiScan: true,
-        allowIp: true,
+      final detection = await detectSite(
+        context,
+        ref,
         mayEnableWifiRadio: mayEnableWifiRadio,
-        googleApiKey: googleKey.isEmpty ? null : googleKey,
+        onLookingUp: () => setState(() => _detecting = true),
       );
-      if (!mounted || !identical(ref.read(backendProvider), actionAuthority)) {
-        if (mounted) {
+      if (detection == null || !mounted) return;
+      setState(
+        () => _wifiRadioOffersPrecision = detection.attempt.canRetryWithWifi,
+      );
+      switch (detection) {
+        case SiteNotFound(:final attempt):
           context.showWarningSnackBar(
-            'The imaging host changed while reading the device location. Try '
-            'again on the current host.',
+            '${attempt.failureMessage} Search for a place by name, or enter '
+            'coordinates.',
           );
-        }
-        return;
-      }
-      setState(() => _wifiRadioOffersPrecision = attempt.canRetryWithWifi);
-
-      final location = attempt.fix;
-      if (location == null) {
-        context.showWarningSnackBar(
-          '${attempt.failureMessage} Search for a place by name, or enter '
-          'coordinates.',
-        );
-        return;
-      }
-
-      final lat = location.latitude;
-      final lon = location.longitude;
-      final movedKm =
-          _kmBetween(settings.latitude, settings.longitude, lat, lon);
-      final keepElevation = movedKm <= _sameSiteRadiusKm;
-      await ref.read(appSettingsProvider.notifier).updateLocation(
-            latitude: lat,
-            longitude: lon,
-            // Clearing beats inheriting: an elevation from another site is a
-            // wrong number the app would use, while 0 m is the app's own
-            // "not set" value and is called out in the message below.
-            elevation: keepElevation ? settings.elevation : 0,
+        case SiteDetected():
+          final elevation =
+              ref.read(appSettingsProvider).value?.elevation ?? 0;
+          context.showSuccessSnackBar(
+            'Coordinates set to ${detection.where}. '
+            '${detection.fix.explanation} '
+            '${detection.keptElevation ? 'Elevation kept at '
+                '${elevation.toStringAsFixed(0)} m.' : 'Elevation cleared to '
+                '0 m — enter the elevation for this site.'} '
+            '${_refinementNudge(detection.attempt)}',
           );
-      if (!mounted) return;
-      final where = location.locationName ??
-          '${lat.toStringAsFixed(4)}, '
-              '${lon.toStringAsFixed(4)}';
-      context.showSuccessSnackBar(
-        'Coordinates set to $where. ${location.explanation} '
-        '${keepElevation ? 'Elevation kept at '
-            '${settings.elevation.toStringAsFixed(0)} m.' : 'Elevation '
-            'cleared to 0 m — enter the elevation for this site.'} '
-        '${_refinementNudge(attempt)}',
-      );
+      }
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(

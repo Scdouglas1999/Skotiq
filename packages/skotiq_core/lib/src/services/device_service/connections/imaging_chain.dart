@@ -131,7 +131,7 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       defaultOffset: rec.defaultOffset ?? activeProfile.defaultOffset,
     );
     final notifier = _ref.read(equipmentProfilesProvider.notifier);
-    await notifier.updateProfile(updated);
+    await notifier.saveProfile(updated);
     return true;
   }
 

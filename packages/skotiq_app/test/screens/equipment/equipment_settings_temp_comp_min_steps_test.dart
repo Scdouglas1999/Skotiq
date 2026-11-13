@@ -31,6 +31,16 @@ void main() {
     expect(tester.widget<EditableText>(field).controller.text, '5');
 
     await tester.enterText(field, '12');
+    // Typing alone writes nothing; the value is saved when the field is done.
+    await tester.pump();
+    expect(
+      handle.container
+          .read(appSettingsProvider)
+          .valueOrNull
+          ?.tempCompensationMinSteps,
+      5,
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
