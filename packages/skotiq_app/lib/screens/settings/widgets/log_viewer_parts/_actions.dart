@@ -150,14 +150,14 @@ extension _LogViewerActions on _LogViewerState {
     );
   }
 
-  String _renderVisibleEntries(SkotiqBackend backend, List<LogEntry> logs) {
+  String _renderVisibleEntries(HostLink? hostLink, List<LogEntry> logs) {
     final output = StringBuffer();
-    output.writeln(backend.remoteHost != null
+    output.writeln(hostLink != null
         ? '=== Skotiq Log Export (remote) ==='
         : '=== Skotiq Log Export (entries on screen) ===');
     output.writeln('Exported: ${DateTime.now().toIso8601String()}');
-    if (backend.remoteHost case final linkedHost?) {
-      output.writeln('Host: ${linkedHost.link.address}');
+    if (hostLink != null) {
+      output.writeln('Host: ${hostLink.address}');
     }
     output.writeln('Entries: ${logs.length}');
     output.writeln('');
@@ -173,9 +173,10 @@ extension _LogViewerActions on _LogViewerState {
     // empty; the entries on-screen were fetched from the host. Export those
     // in-memory entries instead of the (empty) local buffer.
     final host = ref.backendScope();
+    final hostLink = ref.read(linkedHostLinkProvider);
     final logs = List<LogEntry>.unmodifiable(_filteredLogs);
     final loggingService =
-        host.value.remoteHost != null ? null : ref.read(loggingServiceProvider);
+        hostLink != null ? null : ref.read(loggingServiceProvider);
 
     // A remote session has no local history to offer, so there is nothing to
     // choose between; locally the two scopes differ by three orders of
@@ -211,7 +212,7 @@ extension _LogViewerActions on _LogViewerState {
         await loggingService!.exportLogs(target.path);
       } else {
         await File(target.path)
-            .writeAsString(_renderVisibleEntries(host.value, logs));
+            .writeAsString(_renderVisibleEntries(hostLink, logs));
       }
 
       if (!mounted || !_isCurrentAction(token, host)) return;
@@ -246,15 +247,15 @@ extension _LogViewerActions on _LogViewerState {
   Future<void> _downloadLogFile() async {
     if (_isActionBusy) return;
     final host = ref.backendScope();
-    final linkedHost = host.value.remoteHost;
-    if (linkedHost == null) return;
+    final hostLogs = ref.read(linkedHostLogsProvider);
+    if (hostLogs == null) return;
     final token = Object();
     _actionToken = token;
     setState(() => _isDownloadingFile = true);
     try {
       final List<RemoteLogFileInfo> files;
       try {
-        files = await linkedHost.logs.listServerLogFiles();
+        files = await hostLogs.listServerLogFiles();
       } catch (e) {
         if (mounted && _isCurrentAction(token, host)) {
           context.showErrorSnackBar(
@@ -275,7 +276,7 @@ extension _LogViewerActions on _LogViewerState {
       final outcome = await downloadFileToDevice(
         fileName: selected.name,
         tempKey: 'log',
-        fetch: (localPath, onProgress) => linkedHost.logs.downloadServerLogFile(
+        fetch: (localPath, onProgress) => hostLogs.downloadServerLogFile(
           selected.name,
           localPath,
           onProgress: onProgress,
@@ -372,10 +373,11 @@ extension _LogViewerActions on _LogViewerState {
   Future<void> _confirmClearLogs() async {
     if (_isActionBusy) return;
     final host = ref.backendScope();
+    final hostLogs = ref.read(linkedHostLogsProvider);
     final token = Object();
     _actionToken = token;
     setState(() => _isClearing = true);
-    final message = host.value.remoteHost != null
+    final message = hostLogs != null
         ? 'This permanently deletes the remote host’s server log files. '
             'This action cannot be undone.'
         : 'This permanently deletes old local log files. This action cannot '
@@ -441,7 +443,7 @@ extension _LogViewerActions on _LogViewerState {
         );
         return;
       }
-      await _clearLogs(host, token);
+      await _clearLogs(host, hostLogs, token);
     } finally {
       if (mounted && identical(_actionToken, token)) {
         _actionToken = null;
@@ -452,20 +454,21 @@ extension _LogViewerActions on _LogViewerState {
 
   Future<void> _clearLogs(
     AsyncScope<SkotiqBackend> host,
+    HostLogs? hostLogs,
     Object token,
   ) async {
     // Log tail — Clear on a remote session must target the
     // server's log files; otherwise the operator presses Clear and sees
     // no change because we're clearing the local (already-empty) buffer.
     try {
-      if (host.value.remoteHost case final linkedHost?) {
-        await linkedHost.logs.clearServerLogs();
+      if (hostLogs != null) {
+        await hostLogs.clearServerLogs();
       } else {
         await ref.read(loggingServiceProvider).clearLogs();
       }
       if (!mounted || !_isCurrentAction(token, host)) return;
       _refreshLogs();
-      if (host.value.remoteHost != null) {
+      if (hostLogs != null) {
         context.showInfoSnackBar(
           'Server log files cleared',
           duration: Duration(seconds: 2),

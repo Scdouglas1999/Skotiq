@@ -34,21 +34,19 @@ class _CapturedImagesSettingsState
   bool _loading = false;
   String? _error;
   final Map<int, Uint8List> _thumbCache = {};
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  ProviderSubscription<HostImagingRecords?>? _hostSubscription;
 
   /// Frame list loads (the newest wins) and thumbnail reads; a host change
   /// drops what the old host answers.
   late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
-  RemoteHost? get _backend {
-    return ref.read(backendProvider).remoteHost;
-  }
+  HostImagingRecords? get _records => ref.read(linkedHostImagingRecordsProvider);
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    _hostSubscription = ref.listenManual<HostImagingRecords?>(
+      linkedHostImagingRecordsProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
         _hostScopes.cancelAll();
@@ -56,9 +54,9 @@ class _CapturedImagesSettingsState
           _rows = const [];
           _thumbCache.clear();
           _error = null;
-          _loading = next.remoteHost != null;
+          _loading = next != null;
         });
-        if (next.remoteHost != null) unawaited(_refresh());
+        if (next != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,14 +66,14 @@ class _CapturedImagesSettingsState
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     super.dispose();
   }
 
   Future<void> _refresh() async {
     final load = _hostScopes.beginLatest();
-    final backend = load.value.remoteHost;
-    if (backend == null) {
+    final records = _records;
+    if (records == null) {
       if (!mounted) return;
       setState(() {
         _rows = const [];
@@ -90,7 +88,7 @@ class _CapturedImagesSettingsState
       _error = null;
     });
     try {
-      final rows = await backend.imagingRecords.getAllImageRows();
+      final rows = await records.getAllImageRows();
       if (load.isStale) return;
       setState(() {
         _rows = rows;
@@ -138,11 +136,11 @@ class _CapturedImagesSettingsState
     final cached = _thumbCache[id];
     if (cached != null) return cached;
     final read = _hostScopes.begin();
-    final backend = read.value.remoteHost;
-    if (backend == null) {
+    final records = _records;
+    if (records == null) {
       throw StateError('No remote imaging host is connected');
     }
-    final bytes = await backend.imagingRecords.getImageThumbnail(id);
+    final bytes = await records.getImageThumbnail(id);
     if (read.isStale) {
       throw StateError('The imaging host changed while loading the thumbnail');
     }
@@ -153,13 +151,13 @@ class _CapturedImagesSettingsState
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final backend = _backend;
+    final records = ref.watch(linkedHostImagingRecordsProvider);
 
     return SettingsPage(
       title: 'Captured images',
       description: 'Browse frames captured on the connected appliance',
       children: [
-        if (backend == null)
+        if (records == null)
           _info(colors, LucideIcons.info,
               'Connect to a remote appliance to browse its captured frames.')
         else ...[

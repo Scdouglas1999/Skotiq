@@ -171,7 +171,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
       final path = await ref.read(plateSolverPathPickerProvider)(
         context: context,
         kind: kind,
-        isRemote: choice.value.remoteHost != null,
+        isRemote: ref.read(isRemoteModeProvider),
         currentPath: currentPath,
       );
       if (path == null || choice.isStale) return;

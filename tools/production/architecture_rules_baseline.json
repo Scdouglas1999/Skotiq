@@ -285,61 +285,9 @@
   },
   "hostStore": {
     "allowed": {
-      "apps/mobile": {
-        "count": 13,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/analytics": {
-        "count": 1,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/connection": {
-        "count": 8,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/equipment": {
-        "count": 2,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
       "skotiq_app/screens/night_control": {
-        "count": 3,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/planetarium": {
-        "count": 3,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/planner": {
-        "count": 12,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/sequencer": {
-        "count": 3,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/session_replay": {
-        "count": 2,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/settings": {
-        "count": 42,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/screens/shell": {
-        "count": 3,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/services": {
         "count": 1,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/startup": {
-        "count": 3,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
-      },
-      "skotiq_app/widgets": {
-        "count": 3,
-        "reason": "A `remoteHost` read that was in the tree when the host-store rule was added (2026-11-12): a data read to move onto a host role (hostRoleProvider), or a yes/no question to move onto isRemoteModeProvider. The count only goes down."
+        "reason": "hostNightHistoryProvider in Tonight's data layer reads the host's night history through remoteHost; it moves onto linkedHostNightProvider with that layer's rework. The count only goes down."
       }
     }
   }

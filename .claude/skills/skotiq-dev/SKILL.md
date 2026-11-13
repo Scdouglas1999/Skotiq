@@ -197,14 +197,22 @@ Copy a converted role: `backend/roles/host_data/observing_lists_store.dart` (loc
    member only the host does (its own bookkeeping) is a no-op on the remote side, said in its doc.
 2. Only the host has it: `Host<X>` interface listing the `NetworkBackend` methods, which
    `NetworkBackend` implements, and a getter on `RemoteHost`; the remote side of a role takes the
-   `Host<X>` it needs. A yes/no question that is not about data ("are the host's files on this
-   machine") reads `isRemoteModeProvider`.
+   `Host<X>` it needs. Its provider is one line in `providers/linked_host.dart`
+   (`linkedOnlyProvider`), null where the host is this process: a card, banner or action that exists
+   only for a linked host watches it and builds nothing on null, and a class that does the work
+   itself here and forwards it to the host otherwise is handed the half by its provider (a
+   constructor parameter, null = here). A yes/no question that is not about data ("are the host's
+   files on this machine") reads `isRemoteModeProvider`; code holding the backend itself asks
+   `backend.linksToHost`.
 3. The host side is an API endpoint (3.2). Do not add members to `SkotiqBackend`; a non-future member
    of a role needs an override in `disconnected_backend.dart`
    (`test/backend/disconnected_backend_contract_test.dart`).
 4. Async work started for one host is dropped when the host changes: take a scope
    (`AsyncScopes.begin()`, `ref.backendScope()`) and check `isStale` after each await. Listen to the
-   role provider, not to `backendProvider`.
+   role or half provider, not to `backendProvider`: a `backendProvider` listener runs before Riverpod
+   marks the providers derived from the backend changed, so a role, a half or `isRemoteModeProvider`
+   read inside it (or in a function it calls) is still the previous host's. Where the switch must
+   happen before anything else runs, use `ref.listenAcrossHosts` (`providers/host_role.dart`).
 5. Drive it twice: local, and as a linked client of a headless host; switch hosts with the screen open.
 
 ## 4. Invariants

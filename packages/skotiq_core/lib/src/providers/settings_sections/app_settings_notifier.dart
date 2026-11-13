@@ -393,7 +393,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       });
     }
 
-    if (ref.read(isRemoteModeProvider)) {
+    if (backend.linksToHost) {
       // Subscribe BEFORE the GET so an event that lands between the
       // POST acknowledgment and the GET's response can be re-applied
       // when the future resolves.
@@ -492,7 +492,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     // Device-local display prefs always persist to the local store, even
     // on a linked client — they are this device's rendering choice.
     final isDeviceLocalDisplay = AppSettingsCodec.clientOwnKeys.contains(key);
-    final dao = (ref.read(isRemoteModeProvider) && !isDeviceLocalDisplay)
+    final dao = (backend.linksToHost && !isDeviceLocalDisplay)
         ? null
         : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(key, generation, () async {
@@ -501,11 +501,11 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         throw StateError('The settings host changed before saving $key.');
       }
       _requireLoadedSettings('saving $key');
-      if (ref.read(isRemoteModeProvider) && hostStoreKeys.contains(key)) {
+      if (backend.linksToHost && hostStoreKeys.contains(key)) {
         await _writeHostStoreRows({key: value}, backend, generation);
         return;
       }
-      if (ref.read(isRemoteModeProvider) && !isDeviceLocalDisplay) {
+      if (backend.linksToHost && !isDeviceLocalDisplay) {
         final current = _requireLoadedSettings('saving $key');
         final updated = _applySettingsMap(current, {key: value});
         await _writeRemoteSettings(
@@ -536,7 +536,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       // remote-write concern and would wrongly reject host-only keys
       // (`start_minimized`, `database_path`, `horizon_profile_json`, ...).
     });
-    if (ref.read(isRemoteModeProvider) && !isDeviceLocalDisplay) {
+    if (backend.linksToHost && !isDeviceLocalDisplay) {
       _trackPendingRemoteWrite([key], write);
     }
     return write;
@@ -574,7 +574,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   Future<void> _saveSettings(Map<String, String> settings) {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final dao = ref.read(isRemoteModeProvider)
+    final dao = backend.linksToHost
         ? null
         : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(
@@ -586,7 +586,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           throw StateError('The settings host changed before saving.');
         }
         _requireLoadedSettings('saving ${settings.keys.join(', ')}');
-        if (ref.read(isRemoteModeProvider)) {
+        if (backend.linksToHost) {
           final storeRows = {
             for (final entry in settings.entries)
               if (hostStoreKeys.contains(entry.key)) entry.key: entry.value,
@@ -629,7 +629,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // `setImageOutputPath`).
       },
     );
-    if (ref.read(isRemoteModeProvider)) {
+    if (backend.linksToHost) {
       _trackPendingRemoteWrite(settings.keys, write);
     }
     return write;
@@ -752,7 +752,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// setters / `_writeRemoteSettings` instead.)
   Future<void> applyRemoteSettings(models.AppSettings remote) async {
     final backend = ref.read(backendProvider);
-    if (ref.read(isRemoteModeProvider)) {
+    if (backend.linksToHost) {
       throw StateError(
         'applyRemoteSettings is host-only; refusing to relay a full snapshot '
         'through a remote client.',

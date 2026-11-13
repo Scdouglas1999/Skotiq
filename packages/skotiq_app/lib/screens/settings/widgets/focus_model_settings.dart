@@ -33,32 +33,30 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   String? _error;
   Object? _clearToken;
   bool _clearConfirmationOpen = false;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  ProviderSubscription<HostFocusModels?>? _hostSubscription;
 
   /// Model loads (the newest wins) and clears on the host; a host change
   /// drops what the old host answers.
   late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
-  RemoteHost? get _backend {
-    return ref.read(backendProvider).remoteHost;
-  }
+  HostFocusModels? get _focusModels => ref.read(linkedHostFocusModelsProvider);
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    _hostSubscription = ref.listenManual<HostFocusModels?>(
+      linkedHostFocusModelsProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
         _hostScopes.cancelAll();
         setState(() {
           _model = null;
           _error = null;
-          _loading = next.remoteHost != null;
+          _loading = next != null;
           _clearToken = null;
           _clearConfirmationOpen = false;
         });
-        if (next.remoteHost != null) unawaited(_refresh());
+        if (next != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,14 +66,14 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     super.dispose();
   }
 
   Future<void> _refresh() async {
     final load = _hostScopes.beginLatest();
-    final backend = load.value.remoteHost;
-    if (backend == null) {
+    final focusModels = _focusModels;
+    if (focusModels == null) {
       if (!mounted) return;
       setState(() {
         _model = null;
@@ -89,7 +87,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
       _error = null;
     });
     try {
-      final model = await backend.focusModels.getFocusModel();
+      final model = await focusModels.getFocusModel();
       if (load.isStale) return;
       setState(() {
         _model = model;
@@ -110,8 +108,8 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   Future<void> _clear() async {
     if (_loading || _clearToken != null || _clearConfirmationOpen) return;
     final clear = _hostScopes.begin();
-    final backend = clear.value.remoteHost;
-    if (backend == null) return;
+    final focusModels = _focusModels;
+    if (focusModels == null) return;
     setState(() => _clearConfirmationOpen = true);
     final bool confirmed;
     try {
@@ -138,7 +136,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     final token = Object();
     setState(() => _clearToken = token);
     try {
-      await backend.focusModels.clearFocusModelData();
+      await focusModels.clearFocusModelData();
       if (mounted && _isCurrentClear(clear, token)) {
         context.showSuccessSnackBar('Focus model data cleared');
       }
@@ -157,7 +155,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final backend = _backend;
+    final focusModels = ref.watch(linkedHostFocusModelsProvider);
     final model = _model;
     final hasModel = model?['hasModel'] == true;
     final m = model?['model'] as Map<String, dynamic>?;
@@ -166,7 +164,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
       title: 'Focus model',
       description: 'Temperature-compensation focus model on the connected rig',
       children: [
-        if (backend == null)
+        if (focusModels == null)
           _info(colors, LucideIcons.info,
               'Connect to a remote appliance to view its focus model.')
         else ...[

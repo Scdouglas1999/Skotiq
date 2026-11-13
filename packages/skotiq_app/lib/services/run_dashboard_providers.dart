@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -217,22 +215,10 @@ Map<String, double> _computeGoalSecs(Sequence? sequence) {
 final runDashboardSessionIntegrationProvider =
     FutureProvider.family<RunDashboardSessionIntegration, int>(
         (ref, sessionId) async {
-  final backend = ref.watch(backendProvider);
-  // On a remote-client slave the local captured_images table is never
-  // populated, so the host's accruing per-filter totals are only reachable
-  // over the wire. Pull the same session rows the host serialized
-  // (`image.toJson()`) and run the identical accepted/total accumulation so
-  // the Filter Integration panel ticks up live instead of stuck at zero.
-  // Keep the FutureProvider re-evaluated on the dashboard's existing refresh
-  // ticks (callers re-read it) so the slave's totals stay fresh.
-  final List<DbCapturedImage> images;
-  if (backend.remoteHost case final linkedHost?) {
-    final rows = await linkedHost.imagingRecords.getSessionImageRows(sessionId);
-    images = rows.map(DbCapturedImage.fromJson).toList();
-  } else {
-    final dao = ref.watch(imagesDaoProvider);
-    images = await dao.getImagesForSession(sessionId);
-  }
+  // A linked client's session rows are the host's; the dashboard's refresh
+  // ticks re-read this provider so the totals stay current.
+  final images =
+      await ref.watch(imagingRecordsProvider).getImagesForSession(sessionId);
   final accepted = <String, double>{};
   final total = <String, double>{};
   for (final img in images) {

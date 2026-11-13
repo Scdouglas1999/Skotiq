@@ -133,11 +133,11 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
   }) async {
     if (_schedulerActionBusy) return;
     final command = _hostScopes.beginLatest(#schedulerAction);
-    final backend = command.value;
+    final hostPlanning = ref.read(linkedHostPlanningProvider);
     setState(() => _schedulerActionBusy = true);
     try {
       if (action == 'start') {
-        final readiness = backend.remoteHost != null
+        final readiness = hostPlanning != null
             ? (await ref.read(schedulerRemoteSnapshotProvider.future)).readiness
             : ref.read(schedulerStartReadinessProvider);
         if (readiness.blocked ||
@@ -149,11 +149,11 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
           );
         }
       }
-      if (backend.remoteHost case final linkedHost?) {
+      if (hostPlanning != null) {
         if (action == 'start' && allowWarnings) {
-          await linkedHost.planning.controlScheduler(action, confirmWarnings: true);
+          await hostPlanning.controlScheduler(action, confirmWarnings: true);
         } else {
-          await linkedHost.planning.controlScheduler(action);
+          await hostPlanning.controlScheduler(action);
         }
       } else {
         // Pause and Stop must remain available for an already-running engine
@@ -213,18 +213,17 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
 
   void _applySchedulerConfig(SchedulerConfig config) {
     final host = _hostScopes.begin();
-    final backend = host.value;
-    final localStore = backend.remoteHost != null
-        ? null
-        : ref.read(schedulerConfigStoreProvider);
+    final hostPlanning = ref.read(linkedHostPlanningProvider);
+    final localStore =
+        hostPlanning != null ? null : ref.read(schedulerConfigStoreProvider);
     final localEngine =
-        backend.remoteHost != null ? null : ref.read(schedulerEngineProvider);
+        hostPlanning != null ? null : ref.read(schedulerEngineProvider);
     setState(() => _requestedConfig = config);
 
     // Local changes are reflected immediately while their durable writes are
     // serialized. Remote changes remain optimistic in this widget until the
     // host confirms the same full config.
-    if (backend.remoteHost == null) {
+    if (hostPlanning == null) {
       ref.read(schedulerConfigUserDirtyProvider.notifier).state = true;
       localEngine!.updateConfig(config);
     }
@@ -232,8 +231,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     _configSaveTail = _configSaveTail.then((_) async {
       try {
         SchedulerConfig confirmed;
-        if (backend.remoteHost case final linkedHost?) {
-          final response = await linkedHost.planning.updateSchedulerConfig(
+        if (hostPlanning != null) {
+          final response = await hostPlanning.updateSchedulerConfig(
             config.toStorageJson().cast<String, dynamic>(),
           );
           confirmed = SchedulerRemoteSnapshot.fromJson(response).config;
@@ -255,7 +254,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
           _confirmedConfig = confirmed;
           if (_requestedConfig == config) _requestedConfig = null;
         });
-        if (backend.remoteHost != null) {
+        if (hostPlanning != null) {
           ref.invalidate(schedulerRemoteSnapshotProvider);
         }
         _configSaveErrorVisible = false;
@@ -263,12 +262,12 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
         if (mounted && host.isCurrent) {
           if (_requestedConfig == config) {
             final rollback = _confirmedConfig ?? SchedulerConfig.defaults;
-            if (backend.remoteHost == null) {
+            if (hostPlanning == null) {
               localEngine!.updateConfig(rollback);
             }
             setState(() => _requestedConfig = null);
           }
-          if (backend.remoteHost != null) {
+          if (hostPlanning != null) {
             ref.invalidate(schedulerRemoteSnapshotProvider);
           }
         }

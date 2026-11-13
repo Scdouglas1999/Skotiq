@@ -50,7 +50,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
   List<LogEntry> _filteredLogs = [];
   List<LogEntry> _allLogs = [];
   Set<String> _availableSources = {};
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  ProviderSubscription<HostLogs?>? _hostSubscription;
 
   /// Log reads from the host; a host change drops the ones still answering.
   late final _hostReads = ref.backendScopes(alive: () => mounted);
@@ -67,8 +67,10 @@ class _LogViewerState extends ConsumerState<LogViewer>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    // The logs half, not the backend: a backend listener runs before the
+    // half is rebuilt and would read the previous host's log.
+    _hostSubscription = ref.listenManual<HostLogs?>(
+      linkedHostLogsProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
         _hostReads.cancelAll();
@@ -115,7 +117,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     _refreshTimer?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
@@ -129,13 +131,13 @@ class _LogViewerState extends ConsumerState<LogViewer>
     // path is preserved for FFI / disconnected backends.
     final read = _hostReads.begin();
     final request = ++_nextRefreshRequest;
-    if (read.value.remoteHost case final linkedHost?) {
+    if (ref.read(linkedHostLogsProvider) case final hostLogs?) {
       // Fire-and-forget refresh; the user's filters apply once the
       // response lands. Errors silently fall back to whatever was last
       // rendered — surfaced via the SnackBars on Clear/Export so the
       // operator still gets feedback when the action they triggered
       // failed.
-      linkedHost.logs.fetchRecentServerLogs(limit: 500).then((logs) {
+      hostLogs.fetchRecentServerLogs(limit: 500).then((logs) {
         if (read.isStale || request < _lastAppliedRequest) return;
         _lastAppliedRequest = request;
         setState(() {

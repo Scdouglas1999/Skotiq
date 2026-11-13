@@ -68,29 +68,38 @@ final hostCloudPushConfiguredProvider = FutureProvider<bool>((ref) async {
 /// deliver", which is the honest answer — an alert really would not arrive.
 final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
   ref,
-) async {
-  final backend = ref.watch(backendProvider);
-
-  if (backend.hasNoHost) {
+) {
+  if (ref.watch(backendProvider).hasNoHost) {
     return PushDeliveryTargets.none;
   }
+  return ref.watch(_pushDeliveryTargetsReadProvider)(ref);
+});
 
-  if (backend.remoteHost case final linkedHost?) {
-    try {
-      return await linkedHost.notifications.getPushDeliveryTargets();
-    } catch (e) {
-      // An unreachable/older host cannot be shown as "delivery works".
-      // Logged because "host unreachable" and "host has no push targets"
-      // render identically in settings, and only the first is actionable.
-      Log.warning(
-        'Could not query push delivery targets from the host; reporting no '
-        'delivery targets: $e',
-        source: 'PushDeliveryTargets',
-      );
-      return PushDeliveryTargets.none;
-    }
+/// The phones the imaging host can reach: the linked host's own count, or the
+/// tokens paired with this machine.
+final _pushDeliveryTargetsReadProvider =
+    hostRoleProvider<Future<PushDeliveryTargets> Function(Ref ref)>(
+  here: (_) => _pairedHere,
+  linked: (_, host) => (_) => _pairedWithHost(host.notifications),
+);
+
+Future<PushDeliveryTargets> _pairedWithHost(HostNotifications host) async {
+  try {
+    return await host.getPushDeliveryTargets();
+  } catch (e) {
+    // An unreachable/older host cannot be shown as "delivery works".
+    // Logged because "host unreachable" and "host has no push targets"
+    // render identically in settings, and only the first is actionable.
+    Log.warning(
+      'Could not query push delivery targets from the host; reporting no '
+      'delivery targets: $e',
+      source: 'PushDeliveryTargets',
+    );
+    return PushDeliveryTargets.none;
   }
+}
 
+Future<PushDeliveryTargets> _pairedHere(Ref ref) async {
   try {
     final db = ref.watch(pushPairingDatabaseProvider);
     final tokens = await db.getAllPushTokens();
@@ -115,7 +124,7 @@ final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
       cloudDeliveryConfigured: cloudConfigured,
     );
   } catch (e) {
-    // Same reasoning as the remote branch: a failed pairing-database read must
+    // Same reasoning as the host's count: a failed pairing-database read must
     // not be presented as "no phones registered", which is what the settings
     // row would otherwise say about a rig that does have devices paired.
     Log.warning(
@@ -125,4 +134,4 @@ final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
     );
     return PushDeliveryTargets.none;
   }
-});
+}

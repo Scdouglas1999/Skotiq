@@ -155,6 +155,22 @@ class TargetLibraryService {
     );
   }
 
+  /// Saved targets matching [query]: the linked host searches its own
+  /// library, this machine its database.
+  Future<List<db.DbTarget>> searchTargets(String query) async {
+    _ensureSameHost();
+    final host = _hostRecords;
+    final List<db.DbTarget> rows;
+    if (host != null) {
+      final json = await host.searchTargets(query);
+      rows = json.map(db.DbTarget.fromJson).toList();
+    } else {
+      rows = await _ref.read(targetsDaoProvider).searchTargets(query);
+    }
+    _ensureSameHost();
+    return rows;
+  }
+
   Future<List<db.DbTarget>> _loadTargets() async {
     final host = _hostRecords;
     if (host != null) {

@@ -24,13 +24,15 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
   /// Status loads (the newest one wins) and pushes sent to the host; what
   /// the old host answers after a host change is dropped.
   late final _hostScopes = ref.backendScopes(alive: () => mounted);
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  ProviderSubscription<HostCloudSync?>? _hostSubscription;
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    // The cloud-sync half, not the backend: a backend listener runs before
+    // the half is rebuilt and would load from the previous host.
+    _hostSubscription = ref.listenManual<HostCloudSync?>(
+      linkedHostCloudSyncProvider,
       (previous, next) {
         if (previous == null || identical(previous, next)) return;
         _load(authorityChanged: true);
@@ -41,7 +43,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     super.dispose();
   }
 
@@ -58,11 +60,11 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       });
     }
     try {
-      final linkedHost = load.value.remoteHost;
-      if (linkedHost == null) {
+      final cloudSync = ref.read(linkedHostCloudSyncProvider);
+      if (cloudSync == null) {
         throw StateError('The imaging host is not connected.');
       }
-      final status = await linkedHost.cloudSync.getCloudSyncStatus();
+      final status = await cloudSync.getCloudSyncStatus();
       if (load.isStale) return;
       setState(() {
         _status = status;
@@ -87,8 +89,8 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
   Future<void> _pushNow() async {
     if (_pushing) return;
     final push = _hostScopes.begin();
-    final linkedHost = push.value.remoteHost;
-    if (linkedHost == null) {
+    final cloudSync = ref.read(linkedHostCloudSyncProvider);
+    if (cloudSync == null) {
       setState(() => _error = 'The imaging host is not connected.');
       return;
     }
@@ -97,7 +99,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       _error = null;
     });
     try {
-      final result = await linkedHost.cloudSync.pushCloudSyncNow();
+      final result = await cloudSync.pushCloudSyncNow();
       if (!mounted || push.isStale) return;
       if (!result.success) {
         setState(() {

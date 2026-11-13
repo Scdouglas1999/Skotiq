@@ -11,7 +11,6 @@ import 'dart:async';
 import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -426,10 +425,9 @@ class NightActionController extends Notifier<ManualActionState>
     _update(clearError: true);
     // On a client the host holds the schedule and starts the run itself, so
     // it fires even if this computer sleeps or loses the link before dark.
-    final backend = ref.read(backendProvider);
-    if (backend.remoteHost case final linkedHost?) {
+    if (ref.read(linkedHostCalibrationToolsProvider) case final hostTools?) {
       try {
-        final at = await linkedHost.calibrationTools.armHostStartAtDark();
+        final at = await hostTools.armHostStartAtDark();
         ref.read(hostScheduledStartProvider.notifier).state = at;
         _log.info(
             'Start at dark armed on the imaging host for '
@@ -468,11 +466,10 @@ class NightActionController extends Notifier<ManualActionState>
   @override
   void cancelArmedStart() {
     if (ref.read(nightArmedStartProvider) == null) return;
-    final backend = ref.read(backendProvider);
-    if (backend.remoteHost case final linkedHost?) {
+    if (ref.read(linkedHostNightProvider) case final hostNight?) {
       unawaited(() async {
         try {
-          await linkedHost.night.cancelHostScheduledStart();
+          await hostNight.cancelHostScheduledStart();
           ref.read(hostScheduledStartProvider.notifier).state = null;
           _log.info('Start at dark canceled on the imaging host',
               source: _logSource);

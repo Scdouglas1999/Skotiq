@@ -17,7 +17,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/skotiq_app.dart' show SkotiqSplashGate;
 import 'package:skotiq_app/widgets/remote_directory_picker_dialog.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -61,9 +60,9 @@ final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
   final prefs = await ref.watch(mobilePreferencesProvider.future);
   if (prefs.firstRunCompleted) return FirstRunSetupNeeds.none;
 
+  final hostCatalogs = ref.watch(linkedHostCatalogsProvider);
+  if (hostCatalogs == null) return FirstRunSetupNeeds.none;
   final backend = ref.watch(backendProvider);
-  final linkedHost = backend.remoteHost;
-  if (linkedHost == null) return FirstRunSetupNeeds.none;
 
   Future<bool> missing(String what, Future<bool> Function() check) async {
     try {
@@ -90,7 +89,7 @@ final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
     ),
     missing(
       'catalogs',
-      () async => !(await linkedHost.catalogs.getCatalogStatus()).catalogs.any(
+      () async => !(await hostCatalogs.getCatalogStatus()).catalogs.any(
         (c) => c.isInstalled,
       ),
     ),
@@ -254,8 +253,9 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     if (_loadingBootstrapData) return;
     _loadingBootstrapData = true;
     final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
-    if (linkedHost == null) {
+    final hostFiles = ref.read(linkedHostFilesProvider);
+    final hostCatalogs = ref.read(linkedHostCatalogsProvider);
+    if (hostFiles == null || hostCatalogs == null) {
       if (mounted) {
         setState(() {
           _loadingBootstrapData = false;
@@ -276,7 +276,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       if (widget.needs.missingImageOutputPath && !_outputPathCommitted)
         () async {
           try {
-            await linkedHost.files.browseRemoteDirectories();
+            await hostFiles.browseRemoteDirectories();
           } catch (e) {
             // Only a refusal changes the step; any other failure is reported
             // by the field when the folder is saved.
@@ -292,7 +292,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         }(),
       () async {
         try {
-          catalogs = await linkedHost.catalogs.listAvailableCatalogs();
+          catalogs = await hostCatalogs.listAvailableCatalogs();
         } catch (e, st) {
           catalogError = userFacingError(e);
           Log.error(
@@ -350,8 +350,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
   Future<void> _commitImageOutputPath() async {
     if (_busy) return;
     final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
-    if (linkedHost == null) return;
+    final hostFiles = ref.read(linkedHostFilesProvider);
+    if (hostFiles == null) return;
     final path = _customPathController.text.trim();
     if (path.isEmpty) {
       showApiError(
@@ -365,7 +365,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     }
     setState(() => _busy = true);
     try {
-      final validation = await linkedHost.files.validateRemoteDirectory(
+      final validation = await hostFiles.validateRemoteDirectory(
         path,
         mustExist: true,
         mustBeWritable: true,
@@ -412,8 +412,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
 
   Future<void> _commitCatalogs() async {
     if (_busy) return;
-    final linkedHost = ref.read(backendProvider).remoteHost;
-    if (linkedHost == null) return;
+    final hostCatalogs = ref.read(linkedHostCatalogsProvider);
+    if (hostCatalogs == null) return;
     if (_catalogsToInstall.isEmpty) {
       setState(() => _activeStep = 2);
       return;
@@ -426,7 +426,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     };
     for (final name in _catalogsToInstall.toList(growable: false)) {
       try {
-        await linkedHost.catalogs.downloadCatalog(name);
+        await hostCatalogs.downloadCatalog(name);
         startedAny = true;
         if (!mounted) return;
         setState(() => _catalogsInFlight.add(name));

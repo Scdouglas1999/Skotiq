@@ -250,10 +250,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   Future<AppStartupCheckpointOutcome> _performCheckpointCheck() async {
     try {
       final backend = ref.read(sequencerBackendProvider);
+      final hostControl = ref.read(linkedHostControlProvider);
+      final hostLink = ref.read(linkedHostLinkProvider);
 
       // The host's start-up set where its checkpoints are before this
       // window showed.
-      if (await hostRunHoldsCheckpoint(backend)) {
+      if (await hostRunHoldsCheckpoint(hostControl)) {
         return AppStartupCheckpointOutcome.noRecovery;
       }
 
@@ -278,11 +280,11 @@ class _AppShellState extends ConsumerState<AppShell> {
                 // A linked client asks again when the prompt's turn comes:
                 // the host may have started a run while other startup
                 // prompts were up, and its checkpoint is then that run's.
-                if (await hostRunHoldsCheckpoint(backend)) {
+                if (await hostRunHoldsCheckpoint(hostControl)) {
                   return AppCheckpointRecoveryChoice.later;
                 }
                 if (!mounted) return null;
-                final remoteHost = backend.remoteHost?.link.serverHost;
+                final remoteHost = hostLink?.serverHost;
                 BuildContext? dialogContext;
                 // The prompt describes the checkpoint at the moment it
                 // opened. Once a run starts (on a linked client: on the host)

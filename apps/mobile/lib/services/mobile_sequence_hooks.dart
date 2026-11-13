@@ -33,6 +33,7 @@ class MobileSequenceHooks {
   StreamSubscription<Map<String, dynamic>>? _pushNotificationSubscription;
   MobileEventNotifier? _eventNotifier;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  ProviderSubscription<HostNotifications?>? _hostNotificationsSubscription;
 
   // LAN UDP push notification receiver. Lifecycle is tied to the
   // backend — created when the mobile pairs (NetworkBackend with a saved
@@ -119,10 +120,15 @@ class MobileSequenceHooks {
       next,
     ) {
       _setupEventNotifier();
-      _setupPushNotificationListener();
     });
+    // The host's pushes follow its notifications half: a backend listener
+    // runs before the half is rebuilt and would still see the old host.
+    _hostNotificationsSubscription = _ref.listen<HostNotifications?>(
+      linkedHostNotificationsProvider,
+      (_, next) => _setupPushNotificationListener(next),
+    );
 
-    _setupPushNotificationListener();
+    _setupPushNotificationListener(_ref.read(linkedHostNotificationsProvider));
 
     // Mark fully wired so anything awaiting [waitUntilInitialized] can
     // safely proceed. Code that depends on the foreground service or
@@ -162,14 +168,11 @@ class MobileSequenceHooks {
   ///
   /// Only activates when connected via NetworkBackend (i.e., mobile controlling
   /// a remote desktop). Push notifications are displayed as local notifications.
-  void _setupPushNotificationListener() {
+  void _setupPushNotificationListener(HostNotifications? hostNotifications) {
     _pushNotificationSubscription?.cancel();
     _pushNotificationSubscription = null;
-    final backend = _ref.read(backendProvider);
-    if (backend.remoteHost case final linkedHost?) {
-      _pushNotificationSubscription = linkedHost
-          .notifications
-          .pushNotificationStream
+    if (hostNotifications != null) {
+      _pushNotificationSubscription = hostNotifications.pushNotificationStream
           .listen(
             (data) {
               Log.info(
@@ -568,6 +571,8 @@ class MobileSequenceHooks {
     _pushNotificationSubscription = null;
     _backendSubscription?.close();
     _backendSubscription = null;
+    _hostNotificationsSubscription?.close();
+    _hostNotificationsSubscription = null;
     await _eventNotifier?.stop();
     _eventNotifier = null;
     // tear down the LAN UDP receiver. dispose() closes the
