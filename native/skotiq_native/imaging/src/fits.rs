@@ -643,22 +643,14 @@ pub(crate) fn read_header_measured<R: Read>(
             header.history.push(text);
         } else if &buffer[8..10] == b"= " {
             let raw_after = String::from_utf8_lossy(&buffer[10..]);
-            let (value_part, comment_part) = split_value_and_comment(raw_after.as_ref());
-            let value = parse_fits_value(value_part)?;
-            let key_owned = keyword.to_string();
-            if matches!(&value, FitsValue::String(s) if s.ends_with(LONG_STRING_CONTINUATION))
-                && value_part.starts_with('\'')
-            {
-                open_long_string = Some(key_owned.clone());
-            }
-            header.keywords.insert(key_owned.clone(), value);
-            if !header.keyword_order.contains(&key_owned) {
-                header.keyword_order.push(key_owned.clone());
-            }
-            if let Some(comment) = comment_part {
-                let trimmed = comment.trim().to_string();
-                if !trimmed.is_empty() {
-                    header.keyword_comments.insert(key_owned, trimmed);
+            open_long_string = insert_value_card(&mut header, keyword.to_string(), &raw_after)?;
+        } else if keyword == HIERARCH_KEYWORD {
+            let raw_after = String::from_utf8_lossy(&buffer[8..]);
+            if let Some((name, value_text)) = raw_after.split_once('=') {
+                let name = name.split_whitespace().collect::<Vec<_>>().join(" ");
+                if !name.is_empty() {
+                    open_long_string =
+                        insert_value_card(&mut header, name.to_ascii_uppercase(), value_text)?;
                 }
             }
         }
@@ -687,6 +679,30 @@ pub(crate) fn read_header_measured<R: Read>(
     }
 
     Ok((header, (header_bytes + padding) as u64))
+}
+
+/// Store the value and inline comment of a card under `key`. Returns `key`
+/// when the value is a string ending in `&`, which the next CONTINUE card may
+/// carry on.
+fn insert_value_card(
+    header: &mut FitsHeader,
+    key: String,
+    raw_after: &str,
+) -> Result<Option<String>, FitsError> {
+    let (value_part, comment_part) = split_value_and_comment(raw_after);
+    let value = parse_fits_value(value_part)?;
+    let open = matches!(&value, FitsValue::String(s) if s.ends_with(LONG_STRING_CONTINUATION))
+        && value_part.starts_with('\'');
+    header.keywords.insert(key.clone(), value);
+    if !header.keyword_order.contains(&key) {
+        header.keyword_order.push(key.clone());
+    }
+    if let Some(comment) = comment_part.map(str::trim).filter(|c| !c.is_empty()) {
+        header
+            .keyword_comments
+            .insert(key.clone(), comment.to_string());
+    }
+    Ok(open.then_some(key))
 }
 
 /// Add one CONTINUE card's piece to the string value of `key`, whose text so
@@ -979,9 +995,10 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
             .filter_map(|key| header.keywords.get(key).map(|value| (key.as_str(), value)))
     };
 
-    if header_cards()
-        .any(|(_, value)| matches!(value, FitsValue::String(s) if string_value_pieces(s).len() > 1))
-    {
+    if header_cards().any(|(key, value)| {
+        is_valid_keyword(key)
+            && matches!(value, FitsValue::String(s) if string_value_pieces(s).len() > 1)
+    }) {
         write_value_card(
             &mut writer,
             LONG_STRING_KEYWORD,
@@ -992,6 +1009,10 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
 
     for (key, value) in header_cards() {
         let comment = header.keyword_comments.get(key).map(|s| s.as_str());
+        if !is_valid_keyword(key) {
+            write_foreign_name_card(&mut writer, key, value, comment)?;
+            continue;
+        }
         match value {
             FitsValue::String(s) => {
                 write_string_cards(&mut writer, key, s, comment)?;
@@ -1466,12 +1487,18 @@ fn value_card_record(
     }
     record[start..start + value_len].copy_from_slice(&value_bytes[..value_len]);
 
-    // Inline comment. Why: FITS 4.4.2.3 — the format is `value / comment` with at
-    // least one space on each side of the `/`. Truncate (never wrap) to fit 80 bytes.
+    put_inline_comment(&mut record, start + value_len, comment);
+    Ok(record)
+}
+
+/// Write `comment` after the value ending at `value_end`, as ` / comment`.
+///
+/// FITS 4.4.2.3 — the format is `value / comment` with at least one space on
+/// each side of the `/`. Truncated (never wrapped) to fit 80 bytes.
+fn put_inline_comment(record: &mut [u8; 80], value_end: usize, comment: Option<&str>) {
     if let Some(comment_text) = comment {
         let trimmed = comment_text.trim();
         if !trimmed.is_empty() {
-            let value_end = start + value_len;
             // Need " / " (3 bytes) plus at least one comment byte.
             if value_end + 4 <= 80 {
                 let separator = b" / ";
@@ -1488,8 +1515,48 @@ fn value_card_record(
             }
         }
     }
+}
 
-    Ok(record)
+/// Keyword of a card whose name is not a FITS keyword (the ESO HIERARCH
+/// convention, read by astropy and cfitsio): `HIERARCH <name> = <value>`.
+const HIERARCH_KEYWORD: &str = "HIERARCH";
+
+/// Write a card whose name is no FITS keyword: longer than eight characters,
+/// or with spaces or other characters a keyword cannot hold, as a foreign XISF
+/// file or a HIERARCH header carries.
+///
+/// It is written `HIERARCH <name> = <value> / <comment>` when the name is
+/// printable ASCII without `=` and name and value fit one card. Otherwise it
+/// becomes a COMMENT line `<name> = <value> / <comment>`, which any length
+/// fits, so one foreign card never costs the file.
+fn write_foreign_name_card<W: Write>(
+    writer: &mut W,
+    name: &str,
+    value: &FitsValue,
+    comment: Option<&str>,
+) -> Result<(), FitsError> {
+    let value_text = match value {
+        FitsValue::Comment(text) => return write_text_card(writer, "COMMENT", text),
+        other => value_card_text(other),
+    };
+    let name = name.trim();
+    let card = format!("{HIERARCH_KEYWORD} {name} = {value_text}");
+    let hierarch_name = !name.is_empty()
+        && name
+            .bytes()
+            .all(|byte| (0x20..0x7f).contains(&byte) && byte != b'=');
+    if hierarch_name && card.len() <= CARD_LEN {
+        let mut record = [b' '; 80];
+        record[..card.len()].copy_from_slice(card.as_bytes());
+        put_inline_comment(&mut record, card.len(), comment);
+        writer.write_all(&record)?;
+        return Ok(());
+    }
+    let line = match comment.map(str::trim).filter(|c| !c.is_empty()) {
+        Some(comment) => format!("{name} = {value_text} / {comment}"),
+        None => format!("{name} = {value_text}"),
+    };
+    write_text_card(writer, "COMMENT", &line)
 }
 
 /// Parsed Bayer geometry from a FITS header, accounting for subframe offsets.

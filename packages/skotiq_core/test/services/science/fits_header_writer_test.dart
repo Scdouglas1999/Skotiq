@@ -220,6 +220,55 @@ void main() {
     );
   });
 
+  test(
+    'a string longer than one card is refused before the file is touched',
+    () async {
+      final f = await _writeFixture(tempDir, name: 'long.fits');
+      final before = await f.readAsBytes();
+      final error = await writer
+          .updateKeywords(f.path, [
+            FitsKeywordWrite.string('MAGZPBND', 'V' * 69),
+          ])
+          .then<Object?>((_) => null, onError: (Object e) => e);
+      expect(error, isA<ArgumentError>());
+      expect('$error', contains('longer than one card'));
+      expect(await f.readAsBytes(), before);
+      // 68 characters is the most one card holds, and is written whole.
+      await writer.updateKeywords(f.path, [
+        FitsKeywordWrite.string('MAGZPBND', 'V' * 68),
+      ]);
+      expect(_firstCardFor(f, 'MAGZPBND'), "MAGZPBND= '${'V' * 68}'");
+    },
+  );
+
+  test('replacing a continued string drops its CONTINUE cards', () async {
+    final cards = <String>[
+      _card('SIMPLE', '                   T'),
+      _card('BITPIX', '                  16'),
+      _card('NAXIS', '                   2'),
+      _card('NAXIS1', '                  10'),
+      _card('NAXIS2', '                  10'),
+      "OBJECT  = 'Sh2-155 Cave Nebula and the dark lanes of the Cepheus Bubbl&'",
+      "CONTINUE  'e, panel 3 of 4'",
+      _card('EXPTIME', '               300.0'),
+      'END',
+    ].map((c) => c.padRight(_cardSize)).toList();
+    while (cards.length < _cardsPerBlock) {
+      cards.add(' ' * _cardSize);
+    }
+    final f = File('${tempDir.path}${Platform.pathSeparator}continued.fits');
+    await f.writeAsBytes([...cards.join().codeUnits, ...Uint8List(_blockSize)]);
+
+    await writer.updateKeywords(f.path, [
+      FitsKeywordWrite.string('OBJECT', 'Sh2-155'),
+    ]);
+
+    final after = _readHeaderCards(f).map((c) => c.trimRight()).toList();
+    expect(after, contains("OBJECT  = 'Sh2-155 '"));
+    expect(after.where((c) => c.startsWith('CONTINUE')), isEmpty);
+    expect(after.where((c) => c.startsWith('EXPTIME')), hasLength(1));
+  });
+
   test('non-finite float values are refused', () async {
     final f = await _writeFixture(tempDir, name: 'nan.fits');
     expect(
