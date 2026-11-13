@@ -9,6 +9,7 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'centering_request.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
@@ -231,49 +232,14 @@ class PlanetariumHandlers implements RouteSource {
     final payload = await readJsonObject(request);
     final ra = requireDouble(payload, 'ra', min: 0, max: 24);
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
-    final maxIterations =
-        optionalInt(payload, 'maxIterations', min: 1, max: 20) ?? 5;
-    final toleranceArcsec =
-        optionalDouble(payload, 'toleranceArcsec', min: 0.1, max: 3600) ?? 30.0;
-    final exposureTime =
-        optionalDouble(payload, 'exposureTime', min: 0.01, max: 600) ?? 3.0;
-    final binning = optionalInt(payload, 'binning', min: 1, max: 16) ?? 2;
-    final gain = optionalInt(payload, 'gain', min: 0);
-    final offset = optionalInt(payload, 'offset', min: 0);
-    // Default from Settings -> Plate Solving -> "Sync mount when centering".
-    // Without the sync every correction re-issues the slew that produced the
-    // mis-pointed frame, so centering cannot converge.
-    final storedSyncMount = await container
-        .read(databaseProvider)
-        .settingsDao
-        .getSetting('centering_sync_mount');
-    final syncMount =
-        optionalBool(payload, 'syncMount') ?? storedSyncMount != 'false';
-
+    final centering = await centeringForRequest(container, payload);
     final centeringService = container.read(centeringServiceProvider);
-
-    final config = CenteringConfig(
-      maxIterations: maxIterations,
-      toleranceArcsec: toleranceArcsec,
-      exposureTime: exposureTime,
-      binning: binning,
-      gain: gain,
-      offset: offset,
-      syncMount: syncMount,
-    );
-
-    final database = container.read(databaseProvider);
-    final timeoutStr =
-        await database.settingsDao.getSetting('plate_solve_timeout') ?? '60';
-    final solverConfig = PlateSolverConfig(
-      timeoutSeconds: int.tryParse(timeoutStr) ?? 60,
-    );
 
     final result = await centeringService.centerOnTarget(
       targetRa: ra,
       targetDec: dec,
-      solverConfig: solverConfig,
-      config: config,
+      solverConfig: centering.solver,
+      config: centering.config,
     );
 
     return jsonOk({

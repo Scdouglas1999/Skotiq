@@ -357,6 +357,71 @@ void main() {
     });
   });
 
+  testWidgets(
+      'the page keeps its place when the solver setup reloads after a save',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1280, 700);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    // A linked client's save sets the host's answer, which the detection and
+    // preference providers watch: they reload, as they do after every save
+    // that reaches a host.
+    Future<T> reloadSlowly<T>(Ref ref, T value) async {
+      ref.watch(hostPlateSolverSetupProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      return value;
+    }
+
+    final container = ProviderContainer(
+      overrides: [
+        inMemoryDatabaseOverride(),
+        plateSolverDetectionProvider.overrideWith(
+          (ref) => reloadSlowly(ref, const PlateSolverDetection()),
+        ),
+        plateSolverPreferenceProvider.overrideWith(
+          (ref) => reloadSlowly(ref, const PlateSolverPreference()),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const PlateSolvingSettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final scrollable = find.byType(Scrollable).first;
+    await tester.drag(scrollable, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    final scrolledTo = tester.state<ScrollableState>(scrollable).position.pixels;
+    expect(scrolledTo, greaterThan(0));
+
+    container.read(hostPlateSolverSetupProvider.notifier).state = (
+      detection: const PlateSolverDetection(),
+      preference: const PlateSolverPreference(choice: PlateSolverChoice.astap),
+    );
+    await tester.pump();
+    expect(find.text('Get started in 3 steps'), findsOneWidget,
+        reason: 'the page stays on screen while its providers reload');
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      tester.state<ScrollableState>(find.byType(Scrollable).first)
+          .position
+          .pixels,
+      scrolledTo,
+    );
+  });
+
   testWidgets('remote Browse edits and saves a path on the imaging host',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
