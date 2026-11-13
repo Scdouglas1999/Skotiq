@@ -12,6 +12,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../services/command_action_result.dart';
+import '../../../services/mount_command_service.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
@@ -556,12 +557,10 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             if (context.mounted) {
               context.showInfoSnackBar('Slewing to ${target.targetName}…');
             }
-            try {
-              final deviceService = ref.read(deviceServiceProvider);
-              await deviceService.slewMountToCoordinates(
-                target.raHours,
-                target.decDegrees,
-              );
+            final result = await ref
+                .read(mountCommandServiceProvider)
+                .slewTo(target.raHours, target.decDegrees, showFeedback: false);
+            if (result.isSuccess) {
               logger.info(
                 'Slew to ${target.targetName} commanded.',
                 source: 'Sequencer',
@@ -569,14 +568,12 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               if (context.mounted) {
                 context.showInfoSnackBar('Mount is on ${target.targetName}.');
               }
-            } catch (e) {
+            } else {
               logger.error(
-                'Slew to ${target.targetName} failed: $e',
+                'Slew to ${target.targetName} failed: ${result.message}',
                 source: 'Sequencer',
               );
-              if (context.mounted) {
-                context.showErrorSnackBar('Failed to slew: ${userFacingError(e)}');
-              }
+              if (context.mounted) context.showCommandActionResult(result);
             }
           }
 
