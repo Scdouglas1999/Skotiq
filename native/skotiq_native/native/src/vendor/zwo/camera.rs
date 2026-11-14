@@ -419,7 +419,8 @@ impl ZwoCamera {
             // SAFETY: `caps` is a valid stack pointer; `i` is bounded by
             // num_controls; camera_id is valid.
             let result = unsafe { (sdk.get_control_caps)(self.camera_id, i, &mut caps) };
-            if result == 0 && caps.control_type == target_control as c_int {
+            check_open_camera_error(result)?;
+            if caps.control_type == target_control as c_int {
                 // c_long is i32 on Windows and i64 on Linux; widening to i64 is
                 // lossless on both.
                 return Ok((
@@ -668,14 +669,25 @@ impl ZwoCamera {
     pub(crate) fn delivered_bayer_pattern(&self, sdk: &AsiSdk) -> Option<BayerPattern> {
         let info = self.camera_info.as_ref().filter(|i| i.is_color_cam != 0)?;
         let sensor = bayer_from_asi_index(info.bayer_pattern);
-        let mono_binned = self.core.bin_x > 1
-            && self
-                .get_control(sdk, ASIControlType::ASI_MONO_BIN)
-                .is_ok_and(|on| on != 0);
-        if mono_binned {
+        let read = |control| {
+            let value = match self.get_control(sdk, control) {
+                Ok(value) => Ok(value),
+                Err(error) => match self.control_caps(sdk, control) {
+                    Err(DriverError::NotSupported) => Ok(0),
+                    _ => Err(error),
+                },
+            };
+            value.map_err(|error| {
+                tracing::warn!(
+                    "ZWO camera '{}' could not read {:?} ({error}); keeping raw pixels without an assumed color pattern",
+                    self.camera_name(), control
+                );
+            }).ok()
+        };
+        if self.core.bin_x > 1 && read(ASIControlType::ASI_MONO_BIN)? != 0 {
             return None;
         }
-        let flip = self.get_control(sdk, ASIControlType::ASI_FLIP).unwrap_or(0);
+        let flip = read(ASIControlType::ASI_FLIP)?;
         Some(mirrored(sensor, flip & 1 != 0, flip & 2 != 0))
     }
 }

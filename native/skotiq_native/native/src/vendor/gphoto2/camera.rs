@@ -89,6 +89,9 @@ pub struct GPhoto2Camera {
     pub(crate) raw_format: Option<(String, String)>,
 
     pub(crate) exposure: ExposureState,
+    /// Failed RAM downloads remain on the camera. Do not let event cleanup or
+    /// another capture delete/overwrite them before the owner retrieves them.
+    pub(crate) protected_files: Vec<CameraFilePath>,
     pub(crate) last_probe: std::sync::Mutex<Option<Instant>>,
 }
 
@@ -329,6 +332,7 @@ impl GPhoto2Camera {
             bulb_widget: None,
             raw_format: None,
             exposure: ExposureState::Idle,
+            protected_files: Vec::new(),
             last_probe: std::sync::Mutex::new(None),
         }
     }
@@ -929,6 +933,13 @@ impl GPhoto2Camera {
     }
 
     fn discard_stray_file(&self, sdk: &GPhoto2Sdk, path: &CameraFilePath) {
+        if self.protected_files.contains(path) {
+            tracing::warn!(
+                "gPhoto2: retaining {} on the camera after a failed download",
+                Self::file_location(path)
+            );
+            return;
+        }
         if self.facts.captures_to_ram() {
             self.delete_file(sdk, path);
         }
@@ -957,6 +968,49 @@ impl GPhoto2Camera {
             self.discard_stray_file(&sdk, &path);
         }
         Ok(())
+    }
+
+    pub(crate) fn file_location(path: &CameraFilePath) -> String {
+        format!(
+            "{}/{}",
+            cstr_from_array(&path.folder).trim_end_matches('/'),
+            cstr_from_array(&path.name)
+        )
+    }
+
+    pub(crate) fn protect_failed_capture(
+        &mut self,
+        files: &[CameraFilePath],
+        error: DriverError,
+    ) -> DriverError {
+        let locations = files
+            .iter()
+            .map(Self::file_location)
+            .collect::<Vec<_>>()
+            .join(", ");
+        if self.facts.captures_to_ram() {
+            self.protected_files.extend_from_slice(files);
+        }
+        DriverError::SdkError(format!(
+            "{error}. The original capture remains on camera '{}' at {locations}. Retrieve it before disconnecting or reconnecting the camera.",
+            self.core.name
+        ))
+    }
+
+    pub(crate) fn require_recovered_capture(&self) -> Result<(), DriverError> {
+        if self.protected_files.is_empty() {
+            return Ok(());
+        }
+        let locations = self
+            .protected_files
+            .iter()
+            .map(Self::file_location)
+            .collect::<Vec<_>>()
+            .join(", ");
+        Err(DriverError::SdkError(format!(
+            "gPhoto2: retrieve the failed capture from camera '{}' at {locations}, then disconnect and reconnect the camera. Another exposure could overwrite its only camera-memory copy.",
+            self.core.name
+        )))
     }
 
     /// Read one file of a capture. Runs under the SDK lock the caller holds.
@@ -1014,6 +1068,13 @@ impl GPhoto2Camera {
 
     /// Delete one file from the camera. Runs under the SDK lock the caller holds.
     pub(crate) fn delete_file(&self, sdk: &GPhoto2Sdk, path: &CameraFilePath) {
+        if self.protected_files.contains(path) {
+            tracing::warn!(
+                "gPhoto2: keeping failed download {} on the camera",
+                Self::file_location(path)
+            );
+            return;
+        }
         let folder = cstr_from_array(&path.folder);
         let name = cstr_from_array(&path.name);
         let (Ok(c_folder), Ok(c_name)) =
@@ -1043,13 +1104,17 @@ impl GPhoto2Camera {
 
     /// Delete every file of a capture that is given up.
     pub(crate) fn discard_files(&self, sdk: &GPhoto2Sdk, files: &[CameraFilePath]) {
-        for file in files {
+        let unprotected: Vec<_> = files
+            .iter()
+            .filter(|file| !self.protected_files.contains(file))
+            .collect();
+        for file in &unprotected {
             self.delete_file(sdk, file);
         }
-        if !files.is_empty() {
+        if !unprotected.is_empty() {
             tracing::info!(
                 "gPhoto2: exposure ended early; discarded {} file(s)",
-                files.len()
+                unprotected.len()
             );
         }
     }

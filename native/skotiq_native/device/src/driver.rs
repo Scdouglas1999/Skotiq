@@ -84,7 +84,8 @@ pub trait CameraDriver: DeviceDriver {
     /// Whether automatic recovery may release or replace this driver.
     /// A camera holding the only copy of a failed download can require the
     /// owner to retrieve it first. Check before teardown, even after a lost
-    /// connection; an explicit operator reconnect is a separate decision.
+    /// connection. An explicit disconnect after retrieval clears the old
+    /// driver so a subsequent connect can open a fresh one.
     fn check_automatic_reconnect(&self) -> Result<(), DriverError> {
         Ok(())
     }

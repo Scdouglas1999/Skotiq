@@ -270,14 +270,11 @@ impl IndiFocuser {
     pub async fn is_temp_comp_enabled(&self) -> Option<bool> {
         let client = self.client.read().await;
         for property in [FOCUS_TEMPERATURE_COMP, FOCUS_TEMP_COMP] {
-            if client
+            if let Some(enabled) = client
                 .get_switch(&self.device_name, property, INDI_ENABLED)
                 .await
-                .is_some()
             {
-                return client
-                    .get_switch(&self.device_name, property, INDI_ENABLED)
-                    .await;
+                return Some(enabled);
             }
         }
         None

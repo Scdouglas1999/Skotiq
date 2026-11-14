@@ -89,6 +89,10 @@ impl DeviceDriver for GPhoto2Camera {
 
 #[async_trait]
 impl CameraDriver for GPhoto2Camera {
+    fn check_automatic_reconnect(&self) -> Result<(), DriverError> {
+        self.require_recovered_capture()
+    }
+
     fn capabilities(&self) -> CameraCapabilities {
         self.core.capabilities.clone()
     }
@@ -131,6 +135,7 @@ impl CameraDriver for GPhoto2Camera {
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         self.core.require_connected()?;
+        self.require_recovered_capture()?;
         if !matches!(self.exposure, ExposureState::Idle) {
             return Err(DriverError::SdkError(format!(
                 "gPhoto2: {} is still taking the last exposure",
@@ -251,29 +256,44 @@ impl CameraDriver for GPhoto2Camera {
         // memory goes before the next exposure. Files on the memory card are
         // the owner's copy and stay there, as the INDI driver leaves them
         // (gphoto_driver.cpp:1008-1022).
-        let bytes = self.download_file(&sdk, &files[read])?;
-        if self.facts.captures_to_ram() {
-            for file in &files {
-                self.delete_file(&sdk, file);
-            }
-        }
-        if matches!(made, MadeExposure::Timed(_)) && self.facts.needs_session_reset_after_capture()
-        {
-            // SAFETY: the SDK lock is held and the camera is open; libgphoto2
-            // opens the session again on the next call.
-            unsafe {
-                (sdk.camera_exit)(self.gp_camera, self.gp_context);
-            }
-        }
+        let bytes = match self.download_file(&sdk, &files[read]) {
+            Ok(bytes) => bytes,
+            Err(error) => return Err(self.protect_failed_capture(&files, error)),
+        };
         drop(sdk);
-
-        self.decode_raw_to_image_data(
+        let image = match self.decode_raw_to_image_data(
             skotiq_device::CameraFile {
                 file_name: names[read].clone(),
                 bytes: std::sync::Arc::new(bytes),
             },
             made,
-        )
+        ) {
+            Ok(image) => image,
+            Err(error) => return Err(self.protect_failed_capture(&files, error)),
+        };
+        // Only a decoded frame owns the original bytes independently of the
+        // camera. Failed downloads keep their camera files and block a retry
+        // that could reuse the body's RAM filename.
+        let reset_session = matches!(made, MadeExposure::Timed(_))
+            && self.facts.needs_session_reset_after_capture();
+        if self.facts.captures_to_ram() || reset_session {
+            let sdk = GPhoto2Sdk::lock()
+                .await
+                .map_err(|error| self.protect_failed_capture(&files, error))?;
+            if self.facts.captures_to_ram() {
+                for file in &files {
+                    self.delete_file(&sdk, file);
+                }
+            }
+            if reset_session {
+                // SAFETY: the SDK lock is held and the camera is open;
+                // libgphoto2 opens the session again on the next call.
+                unsafe {
+                    (sdk.camera_exit)(self.gp_camera, self.gp_context);
+                }
+            }
+        }
+        Ok(image)
     }
 
     async fn set_cooler(

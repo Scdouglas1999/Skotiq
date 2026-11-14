@@ -29,9 +29,10 @@
 //!    body shows the setting.
 //! 5. **Files**: of the files a capture writes (two for RAW+JPEG) the raw one
 //!    is read and decoded to the 16-bit sensor mosaic. Files in the camera's
-//!    memory are deleted once read, and before the next exposure when an
-//!    earlier capture left any; files on the memory card stay there unless
-//!    the exposure was aborted.
+//!    memory are deleted only after decoding succeeds. Failed downloads stay
+//!    on the camera and block a capture that could overwrite them until the
+//!    owner retrieves them, then disconnects and reconnects. Other stray RAM files are removed
+//!    before capture; memory-card files stay unless the exposure was aborted.
 //! 6. **Live view**: Some cameras support live view preview via `gp_camera_capture_preview`.
 //!
 //! ## Library Requirements

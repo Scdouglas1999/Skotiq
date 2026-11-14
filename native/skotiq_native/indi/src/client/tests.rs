@@ -1458,3 +1458,40 @@ async fn an_aborted_reader_recovery_does_not_wedge_the_client() {
         guard.reader_status().await
     );
 }
+
+#[tokio::test]
+async fn a_focuser_compensation_property_without_a_value_stays_unknown() {
+    use skotiq_device::FocuserDriver;
+    let client = Arc::new(RwLock::new(IndiClient::new("localhost", Some(7624))));
+    let focuser = crate::IndiFocuser::new(client.clone(), "Focuser");
+    assert_eq!(focuser.temp_comp().await, None);
+    client.read().await.properties.write().await.insert(
+        ("Focuser".into(), FOCUS_TEMPERATURE_COMP.into()),
+        IndiProperty {
+            device: "Focuser".into(),
+            name: FOCUS_TEMPERATURE_COMP.into(),
+            label: String::new(),
+            group: String::new(),
+            property_type: IndiPropertyType::Switch,
+            state: IndiPropertyState::Ok,
+            perm: IndiPermission::ReadWrite,
+            elements: vec![INDI_ENABLED.into()],
+            element_labels: vec![INDI_ENABLED.into()],
+            switch_rule: None,
+        },
+    );
+    assert_eq!(focuser.temp_comp().await, None);
+    for (value, expected) in [("On", true), ("Off", false)] {
+        client.read().await.property_values.write().await.insert(
+            (
+                "Focuser".into(),
+                FOCUS_TEMPERATURE_COMP.into(),
+                INDI_ENABLED.into(),
+            ),
+            value.into(),
+        );
+        assert_eq!(focuser.temp_comp().await, Some(expected));
+    }
+    client.read().await.property_values.write().await.clear();
+    assert_eq!(focuser.temp_comp().await, None);
+}
