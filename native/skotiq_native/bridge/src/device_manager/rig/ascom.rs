@@ -353,20 +353,20 @@ impl<M: FocuserMembers> super::focuser::Focuser for AscomFocuser<M> {
         Ok((self.max_step, self.step_size.unwrap_or(0.0)))
     }
 
-    /// A live property the driver does not answer is reported absent, or as
-    /// the focuser at rest. `Halt` is a required method, so halt is offered.
+    /// Unsupported optional members are absent; failed live reads stay errors.
+    /// `Halt` is a required method, so halt is offered.
     async fn capabilities(&self, _device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
         let members = &self.members;
-        let temp_comp_available = members.temp_comp_available().await.unwrap_or(false);
+        let temp_comp_available = optional(members.temp_comp_available().await)?.unwrap_or(false);
         Ok(FocuserCapabilities {
             max_position: self.max_step,
             max_increment: self.max_increment,
             step_size: self.step_size,
             absolute: self.absolute,
             temp_comp_available,
-            temp_comp: temp_comp_available && members.temp_comp().await.unwrap_or(false),
+            temp_comp: temp_comp_available && members.temp_comp().await?,
             temperature: members.temperature().await.ok(),
-            is_moving: members.is_moving().await.unwrap_or(false),
+            is_moving: members.is_moving().await?,
             position: super::focuser::Focuser::position(self).await.ok(),
             can_halt: true,
             ..Default::default()
@@ -684,6 +684,7 @@ mod tests {
         moves: Mutex<Vec<i32>>,
         has_sensor: bool,
         sensor_fails: bool,
+        fail_on: Option<&'static str>,
     }
 
     #[async_trait]
@@ -712,7 +713,11 @@ mod tests {
             }
         }
         async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-            Ok(false)
+            if self.fail_on == Some("IsMoving") {
+                Err(DeviceOpError::hardware(None, "IsMoving read failed"))
+            } else {
+                Ok(false)
+            }
         }
         async fn max_step(&self) -> Result<i32, DeviceOpError> {
             Ok(self.max_step)
@@ -724,10 +729,21 @@ mod tests {
             Err(DeviceOpError::unsupported("StepSize is not implemented"))
         }
         async fn temp_comp_available(&self) -> Result<bool, DeviceOpError> {
-            Ok(false)
+            if self.fail_on == Some("TempCompAvailable") {
+                Err(DeviceOpError::hardware(
+                    None,
+                    "TempCompAvailable read failed",
+                ))
+            } else {
+                Ok(self.fail_on == Some("TempComp"))
+            }
         }
         async fn temp_comp(&self) -> Result<bool, DeviceOpError> {
-            Ok(false)
+            if self.fail_on == Some("TempComp") {
+                Err(DeviceOpError::hardware(None, "TempComp read failed"))
+            } else {
+                Ok(false)
+            }
         }
         async fn temperature(&self) -> Result<f64, DeviceOpError> {
             match (self.has_sensor, self.sensor_fails) {
@@ -828,6 +844,23 @@ mod tests {
         .await
         .unwrap();
         assert!(failing.temperature().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn unreadable_focuser_motion_and_temperature_compensation_are_errors() {
+        for member in ["IsMoving", "TempCompAvailable", "TempComp"] {
+            let focuser = AscomFocuser::open(
+                "bench",
+                BenchFocuser {
+                    fail_on: Some(member),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            let error = focuser.capabilities("bench").await.unwrap_err();
+            assert!(error.to_string().contains(member), "{member}: {error}");
+        }
     }
 
     /// A wheel that reads -1 for `turns` reads after a move, then the slot.
