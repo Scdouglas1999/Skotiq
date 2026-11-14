@@ -12,132 +12,72 @@ apps/desktop/lib/headless_api_server/event_forwarding.dart	_HeadlessApiServerEve
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_deliverRemotePush	highrisk	1	baseline	} on UnimplementedError catch (e) {
 apps/mobile/lib/services/battery_service.dart	_saverOn	highrisk	1	baseline	} on UnimplementedError {
 apps/mobile/lib/services/voice_control_service.dart	-	highrisk	1	baseline	/// failure rather than a silent no-op.
+native/skotiq_native/alpaca/src/camera_driver.rs	describe	highrisk	1	baseline	let readout_modes = self.get_readout_modes().await.unwrap_or_default();
+native/skotiq_native/alpaca/src/camera_driver.rs	download_image	highrisk	1	baseline	let temperature = camera.ccd_temperature().await.ok();
 native/skotiq_native/alpaca/src/client/config.rs	rand_simple	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/alpaca/src/safetymonitor.rs	get_info	highrisk	1	baseline	driver_info: driver_info.unwrap_or_default(),
+native/skotiq_native/alpaca/src/client/tests.rs	alpaca_errors_reach_drivers_as_the_failure_they_name	highrisk	1	baseline	message: "PulseGuide is not implemented".to_string(),
+native/skotiq_native/alpaca/src/mount.rs	tracking_rates	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/alpaca/src/switch.rs	get_switch_uses_single_query_separator	highrisk	1	baseline	let request_line = request.lines().next().unwrap_or_default().to_string();
-native/skotiq_native/alpaca/src/telescope.rs	capability_or_unsupported	highrisk	1	baseline	.contains("not implemented") =>
+native/skotiq_native/alpaca/src/telescope.rs	capability_or_unsupported	highrisk	1	baseline	if message.to_ascii_lowercase().contains("not implemented") =>
 native/skotiq_native/alpaca/src/telescope.rs	serve_alpaca_response	highrisk	1	baseline	let request_line = request.lines().next().unwrap_or_default().to_string();
 native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_without_masking_other_errors	highrisk	1	baseline	"HTTP error 400: Method not implemented: canfindhome"
 native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_without_masking_other_errors	highrisk	1	baseline	message: "Method not implemented: canfindhome".to_string(),
-native/skotiq_native/ascom/src/switch.rs	get_all_switch_states	highrisk	1	baseline	let max_switch = self.max_switch().ok();
+native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_without_masking_other_errors	highrisk	1	baseline	message: "not implemented while disconnected".to_string(),
+native/skotiq_native/ascom/src/error.rs	-	highrisk	1	baseline	/// COM's own "not implemented" (`E_NOTIMPL`), which some drivers raise in place
 native/skotiq_native/ascom/src/windows/connection.rs	property_reads_surface_it_too	highrisk	1	baseline	description: "Property Gain is not implemented by this camera",
 native/skotiq_native/ascom/src/windows/connection.rs	property_reads_surface_it_too	highrisk	1	baseline	err.contains("Property Gain is not implemented by this camera"),
 native/skotiq_native/ascom/src/windows/connection.rs	scan_registry_path	highrisk	1	baseline	let registry_description = get_driver_description(&key, &prog_id).unwrap_or_default();
-native/skotiq_native/bridge/src/api/darkroom/composite_tests.rs	drafted_background	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/bridge/src/api/darkroom/real_master_harness_tests.rs	darkroom_real_composite	highrisk	1	baseline	let steps = recipe["steps"].as_array().cloned().unwrap_or_default();
-native/skotiq_native/bridge/src/api/finishing_analyze.rs	image_to_f64	highrisk	2	baseline	.unwrap_or_default(),
 native/skotiq_native/bridge/src/api/imaging.rs	api_detect_stars_in_file	highrisk	1	baseline	let config = config.unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-native/skotiq_native/bridge/src/api/mod.rs	-	highrisk	1	baseline	/// silent no-op — and silent no-ops mask real bugs. If a
-native/skotiq_native/bridge/src/api/mod.rs	create_unique_temp_fits_path	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/bridge/src/api/phd2.rs	spawn_recording_phd2	highrisk	1	baseline	let method = request["method"].as_str().unwrap_or_default().to_string();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	a_banded_raw_flat_is_left_out_of_the_master	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	a_filter_with_no_usable_sub_reports_a_typed_outcome	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	a_master_flat_combines_auto_exposed_flats	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	a_satellite_in_the_first_sub_is_rejected	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	an_add_survives_a_crash_through_its_journal	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	cross_filter_registration_with_shuffled_ranks	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	delivery_writes_linear_masters_and_composites	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	full_size_add_per_call_timing	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	full_size_build_timing	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	low_background_build	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	image_to_f64	highrisk	2	baseline	.unwrap_or_default(),
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	load_optional_flat	highrisk	1	baseline	let header = read_frame_header(Path::new(p)).ok();
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	to_u16_for_preview	highrisk	1	baseline	let data = master.as_f32().unwrap_or_default();
-native/skotiq_native/bridge/src/api/post_session/master_cards.rs	attach_wcs	highrisk	1	baseline	result.error.unwrap_or_default()
-native/skotiq_native/bridge/src/api/post_session/masters.rs	flat_pedestal_state	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/bridge/src/api/post_session/masters.rs	validate_flat_pedestal	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/bridge/src/api/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/bridge/src/api/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	calibration.flat.as_deref().unwrap_or_default()
-native/skotiq_native/bridge/src/api/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	first_refusal.clone().unwrap_or_default()
-native/skotiq_native/bridge/src/api/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	reason: first_refusal.clone().unwrap_or_default(),
-native/skotiq_native/bridge/src/api/post_session/pass_view_capture_tests.rs	clipped_u16	highrisk	1	baseline	let data = image.as_f32().unwrap_or_default();
-native/skotiq_native/bridge/src/api/post_session/pass_view_capture_tests.rs	passviz_capture_real_pass	highrisk	1	baseline	let from = std::env::var("PASSVIZ_FROM").unwrap_or_default();
-native/skotiq_native/bridge/src/api/post_session/real_frame_harness_tests.rs	ngc891_cross_filter_registration_across_the_flip	highrisk	1	baseline	std::fs::remove_dir_all(&out).ok();
-native/skotiq_native/bridge/src/api/post_session/registration_preview.rs	the_pre_pass_names_the_shifted_frame_and_the_unregistrable_one	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/post_session/uniform_delivery.rs	deliver	highrisk	1	baseline	let reference = header.get_string("GRIDREF").unwrap_or_default().to_string();
-native/skotiq_native/bridge/src/api/post_session/uniform_delivery.rs	deliver	highrisk	1	baseline	|| coverage_header.get_string("GRIDREF").unwrap_or_default() != reference
 native/skotiq_native/bridge/src/api/sequencer/event_bridge.rs	run_sequencer_event_loop	highrisk	1	baseline	node_id: node_id.clone().unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	api_sequencer_start	highrisk	1	baseline	let sequence_name = executor.sequence_name().unwrap_or_default().to_string();
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	starting_a_run_announces_the_plan_by_name	highrisk	1	baseline	get_sequence_executor().write().await.stop().await.ok();
 native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	highrisk	1	baseline	auth_token: s.config.auth_token.clone().unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	highrisk	1	baseline	watermark_template: s.config.watermark_text.clone().unwrap_or_default(),
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	add_frame_wrapper_matches_fold	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	export_delta_allows_all_post_anchor_dated_folds	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	export_delta_blocks_mixed_pre_and_post_anchor_own_folds	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	export_delta_only_post_anchor_local	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	fold_requires_invertible_wcs	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	fold_then_coverage_then_finalize	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	merge_delta_federates_two_contributors	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	query_cutout_recovers_signal_and_coverage	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
-native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	region_info_and_growth_track_folds	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	capabilities	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	get_sensor_info	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	highrisk	1	baseline	let readout_modes = cam.readout_modes().unwrap_or_default();
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	test_cooler_power_supported_caches_not_implemented	highrisk	1	baseline	"CoolerPower is not implemented (reported by ASCOM.Simulator.Camera, 0x80040400)";
-native/skotiq_native/bridge/src/capture_file_format.rs	current	highrisk	1	baseline	.map(|guard| guard.clone().unwrap_or_default())
-native/skotiq_native/bridge/src/capture_file_format.rs	current	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/depthlock_service/store.rs	open	highrisk	1	baseline	.unwrap_or_default() // Why: a non-UTF-8 file stem yields "", which valid_goal_id below rejects
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	camera.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	cc.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	dome.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	focuser.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	fw.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	let description = switch.get_switch_description(i).await.unwrap_or_default(); // Why: ISwitchV2.GetSwitchDescription(i) — empty string OK; UI hides empty descriptions
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	rotator.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	safety.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	switch.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	telescope.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	weather.disconnect().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/ascom.rs	get_ascom_capabilities	highrisk	1	baseline	let description = switch.get_switch_description(i).unwrap_or_default(); // Why: ISwitchV2.GetSwitchDescription(i) — empty OK; UI hides empty descriptions
-native/skotiq_native/bridge/src/device_capabilities/ascom.rs	get_ascom_capabilities	highrisk	1	baseline	let position = fw.position().ok();
-native/skotiq_native/bridge/src/device_capabilities/ascom.rs	get_ascom_capabilities	highrisk	1	baseline	let position = wrapper.get_position().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/indi.rs	get_indi_capabilities	highrisk	1	baseline	let filter_names = filter_wheel.get_names().await.unwrap_or_default();
-native/skotiq_native/bridge/src/device_capabilities/native.rs	get_native_capabilities	highrisk	1	baseline	let gain_range = camera.get_gain_range().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/native.rs	get_native_capabilities	highrisk	1	baseline	let names = fw.get_filter_names().await.unwrap_or_default();
-native/skotiq_native/bridge/src/device_capabilities/native.rs	get_native_capabilities	highrisk	1	baseline	let offset_range = camera.get_offset_range().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/native.rs	get_native_capabilities	highrisk	1	baseline	let position = focuser.get_position().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/native.rs	get_native_capabilities	highrisk	1	baseline	let readout_modes = camera.get_readout_modes().await.unwrap_or_default();
-native/skotiq_native/bridge/src/device_capabilities/native.rs	get_native_capabilities	highrisk	1	baseline	let status = camera.get_status().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/native.rs	get_native_capabilities	highrisk	1	baseline	let tracking = mount.get_tracking().await.ok();
-native/skotiq_native/bridge/src/device_capabilities/types.rs	unreadable_properties_degrade_without_inventing_values	highrisk	1	baseline	// signal for a driver whose MaxStep is not implemented.
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = device_id_str.parse::<i32>().ok();
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = idx_str.parse::<i32>().ok();
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = payload.parse::<i32>().ok();
+native/skotiq_native/bridge/src/device_manager/accessory.rs	switch_capabilities	highrisk	1	baseline	description: switch.switch_description(index).await.unwrap_or_default(),
 native/skotiq_native/bridge/src/device_manager/motion_guard/tests.rs	the_simulated_runaway_is_caught_and_recovered_end_to_end	highrisk	2	baseline	mgr.mount_get_status(device_id).await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/backstop.rs	publish_backstop	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/backstop_tests.rs	a_wheel_moved_outside_skotiq_publishes_filter_changed_with_its_name	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	camera_download_image	highrisk	1	baseline	let temp = camera.ccd_temperature().await.ok();
-native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	camera_download_image	highrisk	1	baseline	let temp = camera.get_temperature().await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	partially_readable_offsets_leave_the_pattern_unknown	highrisk	1	baseline	offset_y: Err("BayerOffsetY not implemented".to_string()),
 native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	unreadable	highrisk	1	baseline	offset_x: Err("BayerOffsetX not implemented".to_string()),
 native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	unreadable	highrisk	1	baseline	offset_y: Err("BayerOffsetY not implemented".to_string()),
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_frame_carries_the_catalogue_field	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_simulator_frame_solves_at_the_mounts_pointing	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_status_dispatch	highrisk	1	baseline	let ascom_caps = camera_guard.get_capabilities().await.ok();
-native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_status_dispatch	highrisk	1	baseline	let gain = camera.gain().await.ok();
-native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_status_dispatch	highrisk	1	baseline	let offset = camera.offset().await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	capabilities	highrisk	1	baseline	let position = self.members.position().await.ok();
+native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	focus_offsets	highrisk	1	baseline	"FocusOffsets is not implemented",
+native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	position	highrisk	1	baseline	Err(DeviceOpError::unsupported("Position is not implemented"))
+native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	step_size	highrisk	1	baseline	Err(DeviceOpError::unsupported("StepSize is not implemented"))
+native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	temperature	highrisk	1	baseline	(false, _) => Err(DeviceOpError::unsupported("Temperature is not implemented")),
+native/skotiq_native/bridge/src/device_manager/rig/camera/driver.rs	capabilities	highrisk	1	baseline	let status = camera.get_status().await.ok();
+native/skotiq_native/bridge/src/device_manager/rig/filter_wheel.rs	capabilities	highrisk	1	baseline	filter_names: wheel.get_filter_names().await.unwrap_or_default(),
+native/skotiq_native/bridge/src/device_manager/rig/mount/driver.rs	capabilities	highrisk	1	baseline	let tracking = mount.get_tracking().await.ok();
 native/skotiq_native/bridge/src/frame_header/golden_tests.rs	card_value_text	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/bridge/src/guider/phd2.rs	spawn_recording_phd2	highrisk	1	baseline	let method = request["method"].as_str().unwrap_or_default().to_string();
 native/skotiq_native/bridge/src/hotplug.rs	current_time_ms	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/hotplug.rs	start_platform_hotplug_listener	highrisk	1	baseline	tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_DIR.set(log_path.clone()).ok();
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_GUARD.set(guard).ok();
-native/skotiq_native/bridge/src/sim_sky.rs	astap_dir	highrisk	1	baseline	let home = std::env::var("HOME").unwrap_or_default();
+native/skotiq_native/bridge/src/simulator/camera.rs	sim_imaging_camera_traits	highrisk	1	baseline	SimCameraTraits::parse(&std::env::var(SIM_CAMERA_TRAITS_ENV).unwrap_or_default())
+native/skotiq_native/bridge/src/simulator/sky.rs	astap_dir	highrisk	1	baseline	let home = std::env::var("HOME").unwrap_or_default();
 native/skotiq_native/bridge/src/util/supervisor.rs	install_global_subscriber	highrisk	1	baseline	GLOBAL_WRITER.set(writer.clone()).ok();
-native/skotiq_native/imaging/src/platesolve.rs	explicit_astrometry_choice_does_not_run_available_astap	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/imaging/src/platesolve.rs	explicit_astrometry_choice_does_not_run_available_astap	highrisk	1	baseline	let combined = auto_result.error.unwrap_or_default();
-native/skotiq_native/imaging/src/platesolve.rs	in_place_fallback_reclaims_only_this_solve_s_artifacts	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/imaging/src/platesolve.rs	reclaim_only_touches_known_solver_extensions	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/imaging/src/platesolve.rs	reclaim_spares_files_that_merely_share_the_stem_as_a_prefix	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/imaging/src/platesolve.rs	run_solver_command	highrisk	1	baseline	stderr: stderr_reader.join().unwrap_or_default(),
-native/skotiq_native/imaging/src/platesolve.rs	run_solver_command	highrisk	1	baseline	stdout: stdout_reader.join().unwrap_or_default(),
-native/skotiq_native/imaging/src/platesolve.rs	solve	highrisk	1	baseline	let stderr_bytes = stderr_reader.join().unwrap_or_default();
-native/skotiq_native/imaging/src/platesolve.rs	solve	highrisk	1	baseline	let stdout_bytes = stdout_reader.join().unwrap_or_default();
-native/skotiq_native/imaging/src/platesolve.rs	timed_out_astap_is_terminated_before_it_can_write_late_output	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/bridge/src/util/temp_fits.rs	create_unique_temp_fits_path	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/device/src/ascom/dome.rs	-	highrisk	1	baseline	//! is not implemented reads as absent and any other failure fails the read.
+native/skotiq_native/device/src/driver.rs	describe	highrisk	1	baseline	iso_speeds: self.get_iso_speeds().await.unwrap_or_default(),
+native/skotiq_native/device/src/driver.rs	describe	highrisk	1	baseline	readout_modes: self.get_readout_modes().await.unwrap_or_default(),
 native/skotiq_native/imaging/src/raw.rs	read_raw_header	highrisk	1	baseline	let cfa = color_filter_from(&info).ok();
+native/skotiq_native/imaging/src/raw_exif.rs	camera_record	highrisk	1	baseline	record_in_tiff(r).unwrap_or_default()
+native/skotiq_native/imaging/src/raw_exif.rs	record_in_tiff	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/imaging/src/raw_exif.rs	record_in_tiff	highrisk	1	baseline	let model = tiff.text(r, &ifd0, MODEL).unwrap_or_default();
 native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs	apply_measured	highrisk	1	baseline	|role: FilterRole| -> Vec<Vec<f32>> { by_role.get(&role).cloned().unwrap_or_default() };
 native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs	read_settings	highrisk	1	baseline	for (role, sigma) in raw.star_sigma.unwrap_or_default() {
 native/skotiq_native/imaging/src/xisf/color.rs	parse	highrisk	1	baseline	let text = node.attr(attr).unwrap_or_default();
@@ -147,26 +87,83 @@ native/skotiq_native/imaging/src/xisf/header.rs	image	highrisk	1	baseline	name: 
 native/skotiq_native/imaging/src/xisf/header.rs	image	highrisk	1	baseline	value: target.attr("value").unwrap_or_default().trim().to_string(),
 native/skotiq_native/imaging/src/xisf/header.rs	parse_display_function	highrisk	1	baseline	node.attr(attr).unwrap_or_default(),
 native/skotiq_native/imaging/src/xisf/property.rs	display_text	highrisk	1	baseline	other => other.scalar_text().unwrap_or_default(),
-native/skotiq_native/imaging/src/xisf/write.rs	emit_property	highrisk	1	baseline	scalar.scalar_text().unwrap_or_default().as_str(),
+native/skotiq_native/imaging/src/xisf/write.rs	emit_property	highrisk	1	baseline	e.push_attribute(("value", scalar.scalar_text().unwrap_or_default().as_str()));
+native/skotiq_native/indi/src/camera_driver.rs	describe	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/indi/src/client/properties.rs	set_switch_exclusive	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/indi/src/client/reader.rs	reader_task_with_timeout	highrisk	1	baseline	group: get_attribute(e, "group").unwrap_or_default(),
 native/skotiq_native/indi/src/client/reader.rs	reader_task_with_timeout	highrisk	1	baseline	let text = e.unescape().unwrap_or_default().to_string();
 native/skotiq_native/indi/src/error.rs	fmt	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/native/src/catalog.rs	-	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/native/src/catalog.rs	-	highrisk	1	baseline	segments.next().unwrap_or_default(),
+native/skotiq_native/indi/src/rig_drivers.rs	get_filter_count	highrisk	1	baseline	let names = self.get_names().await.unwrap_or_default();
 native/skotiq_native/native/src/catalog.rs	port_and_baud	highrisk	1	baseline	let port = port_from_address(segments.next().unwrap_or_default());
-native/skotiq_native/native/src/vendor/gphoto2/camera_ops.rs	download_image	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/native/src/vendor/gphoto2/camera.rs	from_address	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/native/src/vendor/gphoto2/camera.rs	from_address	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/native/src/vendor/gphoto2/camera.rs	populate_camera_info	highrisk	1	baseline	self.shutter = shutter_speeds(&tree).unwrap_or_default();
+native/skotiq_native/native/src/vendor/gphoto2/models.rs	model_key	highrisk	1	baseline	let without_mode = lower.split('(').next().unwrap_or_default();
+native/skotiq_native/native/src/vendor/gphoto2/settings.rs	needs_session_reset_after_capture	highrisk	1	baseline	let model = self.model.as_deref().unwrap_or_default();
+native/skotiq_native/native/src/vendor/ioptron.rs	firmware	highrisk	1	baseline	let fw1 = self.query(commands::GET_MAIN_AND_HC_FIRMWARE).ok();
+native/skotiq_native/native/src/vendor/ioptron.rs	firmware	highrisk	1	baseline	let fw2 = self.query(commands::GET_MOTOR_BOARD_FIRMWARE).ok();
+native/skotiq_native/native/src/vendor/moravian/sdk.rs	raw_last_error	highrisk	2	baseline	.unwrap_or_default()
+native/skotiq_native/native/src/vendor/player_one/camera.rs	roi_for	highrisk	1	baseline	let to_int = |v: u32| c_int::try_from(v).ok();
 native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	download_image	highrisk	1	baseline	.ok();
 native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	download_image	highrisk	1	baseline	let heater_power = self.get_control_int(&sdk, POAConfig::POA_HEATER_POWER).ok();
 native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	get_status	highrisk	1	baseline	.ok();
 native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	get_status	highrisk	1	baseline	let live_enabled = self.get_control_bool(&sdk, POAConfig::POA_COOLER).ok();
-native/skotiq_native/native/src/vendor/qhy/camera_ops.rs	download_image	highrisk	1	baseline	let temperature = self.get_control(&sdk, QhyControl::CONTROL_CURTEMP).ok();
-native/skotiq_native/native/src/vendor/qhy/camera_ops.rs	get_status	highrisk	1	baseline	.ok();
-native/skotiq_native/native/src/vendor/skywatcher.rs	tests	highrisk	1	baseline	/// The UDP transport is declared but not implemented: connecting says so
-native/skotiq_native/native/src/vendor/touptek/camera.rs	-	highrisk	1	baseline	// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `TOUPTEK_SDK_LOCK.lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
+native/skotiq_native/native/src/vendor/serial_wire_tests/fakes.rs	synscan_parse_u24	highrisk	1	baseline	let byte = |i: usize| u32::from_str_radix(&data[i..i + 2], 16).ok();
+native/skotiq_native/native/src/vendor/serial_wire_tests/ioptron_documented.rs	spawn	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/native/src/vendor/serial_wire_tests/skywatcher_independent.rs	parse_u24	highrisk	1	baseline	let byte = |i: usize| u32::from_str_radix(&data[i..i + 2], 16).ok();
+native/skotiq_native/native/src/vendor/skywatcher/mod.rs	identify_mount	highrisk	1	baseline	let line = response.split('\r').next().unwrap_or_default();
+native/skotiq_native/native/src/vendor/skywatcher/tests.rs	-	highrisk	1	baseline	/// The UDP transport is declared but not implemented: connecting says so
+native/skotiq_native/native/src/vendor/svbony/camera_ops.rs	get_status	highrisk	1	baseline	.ok();
+native/skotiq_native/native/src/vendor/touptek/camera_ops.rs	get_vendor_features	highrisk	1	baseline	let read = |option: c_uint| read_option(sdk, handle_val, option).ok();
+native/skotiq_native/native/src/vendor/zwo/camera.rs	supported_bins	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	download_image	highrisk	1	baseline	.ok();
 native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	get_status	highrisk	1	baseline	let temp = self.read_temperature_celsius_sync(&sdk).ok();
-native/skotiq_native/sequencer/src/device_ops/frame_store.rs	free_names	highrisk	1	baseline	let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+native/skotiq_native/platesolve/src/lib.rs	explicit_astrometry_choice_does_not_run_available_astap	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/platesolve/src/lib.rs	explicit_astrometry_choice_does_not_run_available_astap	highrisk	1	baseline	let combined = auto_result.error.unwrap_or_default();
+native/skotiq_native/platesolve/src/lib.rs	in_place_fallback_reclaims_only_this_solve_s_artifacts	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/platesolve/src/lib.rs	reclaim_only_touches_known_solver_extensions	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/platesolve/src/lib.rs	reclaim_spares_files_that_merely_share_the_stem_as_a_prefix	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/platesolve/src/lib.rs	run_solver_command	highrisk	1	baseline	stderr: stderr_reader.join().unwrap_or_default(),
+native/skotiq_native/platesolve/src/lib.rs	run_solver_command	highrisk	1	baseline	stdout: stdout_reader.join().unwrap_or_default(),
+native/skotiq_native/platesolve/src/lib.rs	solve	highrisk	1	baseline	let stderr_bytes = stderr_reader.join().unwrap_or_default();
+native/skotiq_native/platesolve/src/lib.rs	solve	highrisk	1	baseline	let stdout_bytes = stdout_reader.join().unwrap_or_default();
+native/skotiq_native/platesolve/src/lib.rs	timed_out_astap_is_terminated_before_it_can_write_late_output	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/processing/src/darkroom/composite_tests.rs	drafted_background	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/processing/src/darkroom/real_master_harness_tests.rs	darkroom_real_composite	highrisk	1	baseline	let steps = recipe["steps"].as_array().cloned().unwrap_or_default();
+native/skotiq_native/processing/src/output.rs	to_u16_for_preview	highrisk	1	baseline	let data = master.as_f32().unwrap_or_default();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_banded_raw_flat_is_left_out_of_the_master	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_filter_with_no_usable_sub_reports_a_typed_outcome	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_master_flat_combines_auto_exposed_flats	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_satellite_in_the_first_sub_is_rejected	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	an_add_survives_a_crash_through_its_journal	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	cross_filter_registration_with_shuffled_ranks	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	delivery_writes_linear_masters_and_composites	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	full_size_add_per_call_timing	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	full_size_build_timing	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	low_background_build	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/processing/src/post_session/master_cards.rs	attach_wcs	highrisk	1	baseline	result.error.unwrap_or_default()
+native/skotiq_native/processing/src/post_session/masters.rs	flat_pedestal_state	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/processing/src/post_session/masters.rs	validate_flat_pedestal	highrisk	1	baseline	.unwrap_or_default()
+native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	calibration.flat.as_deref().unwrap_or_default()
+native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	first_refusal.clone().unwrap_or_default()
+native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	reason: first_refusal.clone().unwrap_or_default(),
+native/skotiq_native/processing/src/post_session/pass_view_capture_tests.rs	clipped_u16	highrisk	1	baseline	let data = image.as_f32().unwrap_or_default();
+native/skotiq_native/processing/src/post_session/pass_view_capture_tests.rs	passviz_capture_real_pass	highrisk	1	baseline	let from = std::env::var("PASSVIZ_FROM").unwrap_or_default();
+native/skotiq_native/processing/src/post_session/real_frame_harness_tests.rs	ngc891_cross_filter_registration_across_the_flip	highrisk	1	baseline	std::fs::remove_dir_all(&out).ok();
+native/skotiq_native/processing/src/post_session/registration_preview.rs	the_pre_pass_names_the_shifted_frame_and_the_unregistrable_one	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/post_session/uniform_delivery.rs	deliver	highrisk	1	baseline	let reference = header.get_string("GRIDREF").unwrap_or_default().to_string();
+native/skotiq_native/processing/src/post_session/uniform_delivery.rs	deliver	highrisk	1	baseline	|| coverage_header.get_string("GRIDREF").unwrap_or_default() != reference
+native/skotiq_native/processing/src/sky_atlas/tests.rs	add_frame_wrapper_matches_fold	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/sky_atlas/tests.rs	export_delta_allows_all_post_anchor_dated_folds	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/sky_atlas/tests.rs	export_delta_blocks_mixed_pre_and_post_anchor_own_folds	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/sky_atlas/tests.rs	export_delta_only_post_anchor_local	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/sky_atlas/tests.rs	fold_requires_invertible_wcs	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/sky_atlas/tests.rs	fold_then_coverage_then_finalize	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/sky_atlas/tests.rs	merge_delta_federates_two_contributors	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/sky_atlas/tests.rs	query_cutout_recovers_signal_and_coverage	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/processing/src/sky_atlas/tests.rs	region_info_and_growth_track_folds	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/sequencer/src/device_ops/frame_store.rs	free_names	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/device_ops/safe_state.rs	try_park_with_retry	highrisk	1	baseline	let start = device_ops.mount_get_coordinates(mount_id).await.ok();
 native/skotiq_native/sequencer/src/executor/monitoring.rs	quality_trigger_notice	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/executor/start.rs	start	highrisk	1	baseline	.unwrap_or_default();
@@ -183,15 +180,16 @@ native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs	probe	highrisk	1	baseline	slew.message.unwrap_or_default()
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs	report	highrisk	1	baseline	.unwrap_or_default(),
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs	with_measurer	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/sequencer/src/frame_naming.rs	free_suffixed_name	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/sequencer/src/frame_naming.rs	split_rendered_save_path	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_admitted_with_pause	highrisk	1	baseline	let focuser_id = ctx.run.rig.focuser_id.clone().unwrap_or_default();
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	run_autofocus_admitted	highrisk	1	baseline	config.filter.as_deref().unwrap_or_default().trim()
-native/skotiq_native/sequencer/src/instructions/device_retry.rs	-	highrisk	1	baseline	"not implemented",
+native/skotiq_native/sequencer/src/instructions/cooling.rs	execute_warm_camera	highrisk	1	baseline	.ok();
 native/skotiq_native/sequencer/src/instructions/grading.rs	emit_grade_progress	highrisk	1	baseline	.unwrap_or_default(),
 native/skotiq_native/sequencer/src/instructions/park.rs	park_mount	highrisk	1	baseline	.ok();
 native/skotiq_native/sequencer/src/meridian_flip_executor.rs	resolve_post_flip_autofocus	highrisk	1	baseline	ctx.autofocus_config.clone().unwrap_or_default()
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	exposure_with_an_absolute_save_to_runs_without_a_base_path	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	notify_exposure_trigger	highrisk	1	baseline	measured.map(|m| format!(": {m}")).unwrap_or_default(),
-native/skotiq_native/sequencer/src/node/instructions/expose.rs	split_rendered_save_path	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/node/instructions/science_photometry.rs	load_or_init_state	highrisk	1	baseline	states.get(node_id).cloned().unwrap_or_default()
 native/skotiq_native/sequencer/src/node/instructions/smart_exposure.rs	load_or_init_checkpoint	highrisk	1	baseline	states.get(node_id).cloned().unwrap_or_default()
 native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs	evaluate_adaptive_swap	highrisk	1	baseline	.unwrap_or_default(),
@@ -219,9 +217,6 @@ packages/skotiq_app/lib/screens/settings/widgets/solver_detection_card.dart	_ope
 packages/skotiq_app/lib/screens/tonight/one_tap_tonight_controller.dart	-	highrisk	1	baseline	/// loud failure rather than a silent no-op so the screen can explain *why*
 packages/skotiq_app/lib/services/file_download_service.dart	downloadFileToDevice	highrisk	1	baseline	// throws UnimplementedError on Android/iOS, so this branch must never be
 packages/skotiq_app/lib/services/sequence_action_service.dart	SequenceActionService	highrisk	1	baseline	/// this async callback) we return a silent no-op instead of issuing a
-packages/skotiq_bridge/lib/src/api.dart	-	highrisk	1	baseline	/// silent no-op — and silent no-ops mask real bugs. If a
-packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart	cameraGetRecommendedSettings	highrisk	1	baseline	'cameraGetRecommendedSettings not implemented on remote '
-packages/skotiq_core/lib/src/models/sequence/instruction_progress_detail.dart	-	highrisk	1	baseline	/// newer native emitters do not become silent no-ops on older Dart clients.
 packages/skotiq_core/lib/src/services/device_service/connections/device_connections.dart	_disconnect	highrisk	1	baseline	// "Nothing connected" is a typed precondition, not a silent no-op, so a
 packages/skotiq_core/lib/src/services/notification/transports/email_transport.dart	_runSmtpSession	highrisk	1	baseline	return NotificationResult.ok();
 packages/skotiq_core/lib/src/services/notification/transports/in_app_transport.dart	send	highrisk	1	baseline	return NotificationResult.ok();
@@ -232,3 +227,10 @@ packages/skotiq_core/lib/src/services/notification/transports/system_push_transp
 packages/skotiq_core/lib/src/services/snippet_file_service.dart	SnippetFileService	highrisk	1	baseline	/// threw UnimplementedError and snippet export was dead on a phone. There the
 packages/skotiq_core/lib/src/utils/export_target.dart	-	highrisk	1	baseline	/// emulator: "Failed to export: UnimplementedError: getSavePath() has not been
 packages/skotiq_core/lib/src/utils/export_target.dart	-	highrisk	1	baseline	/// throws `UnimplementedError: getSavePath() has not been implemented.` Every
+tools/skotiq_relay/lib/src/relay_server.dart	_handleRequest	highrisk	1	baseline	} catch (_) {}
+tools/skotiq_relay/lib/src/relay_server.dart	close	highrisk	2	baseline	} catch (_) {}
+tools/skotiq_relay/lib/src/relay_tunnel_client.dart	close	highrisk	1	baseline	} catch (_) {}
+tools/skotiq_relay/lib/src/relay_tunnel_client.dart	connect	highrisk	1	baseline	} catch (_) {}
+tools/skotiq_relay/lib/src/relay_uplink.dart	_connectOnce	highrisk	1	baseline	} catch (_) {}
+tools/skotiq_relay/lib/src/relay_uplink.dart	stop	highrisk	1	baseline	} catch (_) {}
+tools/skotiq_relay/lib/src/socket_bridge.dart	bridgeSocketToMuxStream	highrisk	1	baseline	} catch (_) {}
