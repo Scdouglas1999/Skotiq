@@ -34,97 +34,60 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
     try {
       final response = await remote.getSafetyStatus();
       if (!mounted) return;
-      final rawStatus = response['safetyStatus'];
-      final status = WeatherSafetyStatus.values.firstWhere(
-        (candidate) => candidate.name == rawStatus,
-        orElse: () => WeatherSafetyStatus.unsafe,
+      final status = WeatherSafetyStatus.values.byName(
+        response['safetyStatus'] as String,
       );
-      final rawSource = response['dataSource'];
-      final dataSource = SafetyDataSource.values.firstWhere(
-        (candidate) => candidate.name == rawSource,
-        orElse: () => SafetyDataSource.unavailable,
+      final dataSource = SafetyDataSource.values.byName(
+        response['dataSource'] as String,
       );
-      final isSafe = status == WeatherSafetyStatus.safe;
-      final failModeWarning = response['failModeWarning'] is String
-          ? response['failModeWarning'] as String
-          : null;
-      final rawActions = response['actions'];
-      bool actionFlag(String key, bool fallback) {
-        if (rawActions is! Map) return fallback;
-        final value = rawActions[key];
-        return value is bool ? value : fallback;
-      }
-
-      String? actionText(String key) {
-        if (rawActions is! Map) return null;
-        final value = rawActions[key];
-        return value is String ? value : null;
-      }
-
+      final failModeWarning = response['failModeWarning'] as String?;
+      final rawActions = response['actions'] as Map;
+      bool actionFlag(String key) => rawActions[key] as bool;
+      String? actionText(String key) => rawActions[key] as String?;
       DateTime? wireDate(Object? value) =>
           value is String ? tryParseWireTime(value) : null;
-
-      final rawAlertLevel = response['currentAlertLevel'];
-      final alertLevel = AlertLevel.values.firstWhere(
-        (candidate) => candidate.name == rawAlertLevel,
-        // A host whose aggregate response carries no severity projects
-        // conservatively: unsafe maps to warning, never an unknown value to
-        // clear.
-        orElse: () => isSafe ? AlertLevel.clear : AlertLevel.warning,
+      final alertLevel = AlertLevel.values.byName(
+        response['currentAlertLevel'] as String,
       );
       final lastEvaluationRaw = response['lastEvaluation'];
       final snoozeUntilRaw = response['snoozeUntil'];
-      final hardwareWeatherSafe =
-          response['hardwareWeatherSafe'] as bool? ?? isSafe;
-      final safetyMonitorSafe =
-          response['safetyMonitorSafe'] as bool? ?? isSafe;
+      final hardwareWeatherSafe = response['hardwareWeatherSafe'] as bool;
+      final safetyMonitorSafe = response['safetyMonitorSafe'] as bool;
       state = WeatherSafetyState(
         status: status,
         actions: WeatherSafetyActions(
-          shouldPause: actionFlag(
-            'shouldPause',
-            status == WeatherSafetyStatus.unsafe,
-          ),
-          shouldPark: actionFlag('shouldPark', false),
-          shouldCloseDome: actionFlag('shouldCloseDome', false),
-          reason:
-              actionText('reason') ??
-              (status == WeatherSafetyStatus.unsafe ? failModeWarning : null),
+          shouldPause: actionFlag('shouldPause'),
+          shouldPark: actionFlag('shouldPark'),
+          shouldCloseDome: actionFlag('shouldCloseDome'),
+          reason: actionText('reason'),
           resumeCheckTime: wireDate(actionText('resumeCheckTime')),
-          advisoryOnly: actionFlag('advisoryOnly', false),
+          advisoryOnly: actionFlag('advisoryOnly'),
         ),
         snoozeUntil: wireDate(snoozeUntilRaw),
         currentAlertLevel: alertLevel,
         dataSource: dataSource,
         hardwareWeatherSafe: hardwareWeatherSafe,
         safetyMonitorSafe: safetyMonitorSafe,
-        apiWeatherSafe: response['apiWeatherSafe'] as bool? ?? isSafe,
+        apiWeatherSafe: response['apiWeatherSafe'] as bool,
         hardwareWeatherReading: _readingFromWire(
           response['hardwareWeatherReading'],
-          hardwareWeatherSafe,
         ),
         safetyMonitorReading: _readingFromWire(
           response['safetyMonitorReading'],
-          safetyMonitorSafe,
         ),
         failModeWarning: failModeWarning,
         lastEvaluation: wireDate(lastEvaluationRaw),
-        // Pre-parity hosts do not report whether monitoring is on or whether
-        // the park/resume policies are armed. Assume the host IS monitoring
-        // (claiming "not monitoring" about a host that is would be its own
-        // lie) but never claim protection we have not been told about.
-        monitoringEnabled: response['monitoringEnabled'] as bool? ?? true,
-        autoParkArmed: response['autoParkArmed'] as bool? ?? false,
-        autoResumeArmed: response['autoResumeArmed'] as bool? ?? false,
-        decisionSource: WeatherDecisionSource.values.firstWhere(
-          (candidate) => candidate.name == response['decisionSource'],
-          orElse: () => WeatherDecisionSource.none,
+        monitoringEnabled: response['monitoringEnabled'] as bool,
+        autoParkArmed: response['autoParkArmed'] as bool,
+        autoResumeArmed: response['autoResumeArmed'] as bool,
+        decisionSource: WeatherDecisionSource.values.byName(
+          response['decisionSource'] as String,
         ),
-        forecastUnsafe: response['forecastUnsafe'] as bool? ?? false,
-        forecastHoldsRun: response['forecastHoldsRun'] as bool? ?? false,
+        forecastUnsafe: response['forecastUnsafe'] as bool,
+        forecastHoldsRun: response['forecastHoldsRun'] as bool,
         starEvidence: _starEvidenceFromWire(response['starEvidence']),
         starEvidenceOverridesForecast:
-            response['starEvidenceOverridesForecast'] as bool? ?? false,
+            response['starEvidenceOverridesForecast'] as bool,
         snoozeReason: response['snoozeReason'] as String?,
       );
     } catch (error) {
@@ -164,13 +127,5 @@ SkyStarEvidence? _starEvidenceFromWire(Object? raw) {
   );
 }
 
-/// Pre-parity hosts do not send the per-source reading, so fall back to the
-/// boolean they do send.
-SafetySourceReading _readingFromWire(Object? raw, bool sourceSafe) {
-  if (raw is String) {
-    for (final candidate in SafetySourceReading.values) {
-      if (candidate.name == raw) return candidate;
-    }
-  }
-  return sourceSafe ? SafetySourceReading.safe : SafetySourceReading.unsafe;
-}
+SafetySourceReading _readingFromWire(Object? raw) =>
+    SafetySourceReading.values.byName(raw as String);

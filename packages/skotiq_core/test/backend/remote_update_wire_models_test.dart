@@ -28,15 +28,21 @@ void main() {
       );
     });
 
-    test('legacy status without signing capability fails closed', () {
+    test('missing signing capability refuses the status', () {
+      expect(
+        () => RemoteUpdateStatus.fromJson({
+          'state': 'available',
+          'availableVersion': '6.1.0',
+        }),
+        throwsFormatException,
+      );
       final status = RemoteUpdateStatus.fromJson({
         'state': 'available',
         'availableVersion': '6.1.0',
+        'canAuthenticateUpdates': false,
       });
-
       expect(status.hasAvailableUpdate, isTrue);
       expect(status.canAuthenticateUpdates, isFalse);
-      expect(status.rollbackAvailable, isFalse);
     });
 
     test('invalid progress is not rendered as a plausible status', () {
@@ -79,7 +85,7 @@ void main() {
       },
     );
 
-    test('update source is read, and inferred for hosts that predate it', () {
+    test('update source comes from the host source field', () {
       Map<String, Object?> version(Map<String, Object?> extra) => {
         'currentVersion': '7.2.0',
         'buildNumber': 42,
@@ -96,11 +102,10 @@ void main() {
       expect(github.updateServerUrl, isNull);
       expect(github.updateSource, 'github-releases');
 
-      // An older host only ever had a server URL.
-      final legacy = RemoteVersionInfo.fromJson(
+      final noSource = RemoteVersionInfo.fromJson(
         version({'updateServerUrl': 'https://updates.example.com'}),
       );
-      expect(legacy.updateSource, 'https://updates.example.com');
+      expect(noSource.updateSource, isNull);
 
       expect(RemoteVersionInfo.fromJson(version({})).updateSource, isNull);
     });

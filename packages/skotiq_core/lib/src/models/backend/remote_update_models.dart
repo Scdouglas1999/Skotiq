@@ -88,9 +88,7 @@ class RemoteVersionInfo {
       updateServerUrl: safeUpdateServerUrl.isEmpty ? null : safeUpdateServerUrl,
       updateSource: switch (json['updateSource']) {
         final String s when s.trim().isNotEmpty => s.trim(),
-        // An older host predates this field. It only ever had a server URL,
-        // so its presence is the honest answer for those builds.
-        _ => safeUpdateServerUrl.isEmpty ? null : safeUpdateServerUrl,
+        _ => null,
       },
       lastUpdateCheck: parse(json['lastUpdateCheck']),
       lastUpdateApplied: parse(json['lastUpdateApplied']),
@@ -98,10 +96,8 @@ class RemoteVersionInfo {
   }
 }
 
-/// Client-side mirror of `GET /api/system/update/status`. State is
-/// kept loose (string, not enum) so a server that adds a new
-/// lifecycle phase does not crash older clients — the caller
-/// branches on the wire name.
+/// Client-side mirror of `GET /api/system/update/status`.
+/// The caller branches on the lifecycle state's wire name.
 class RemoteUpdateStatus {
   final String state;
   final String? availableVersion;
@@ -170,6 +166,13 @@ class RemoteUpdateStatus {
       );
     }
 
+    final canAuthenticateUpdates = json['canAuthenticateUpdates'];
+    if (canAuthenticateUpdates is! bool) {
+      throw const FormatException(
+        'Update status response is missing `canAuthenticateUpdates`.',
+      );
+    }
+
     return RemoteUpdateStatus(
       state: state,
       availableVersion: json['availableVersion'] is String
@@ -193,12 +196,7 @@ class RemoteUpdateStatus {
       rollbackAvailable: json['rollbackAvailable'] is bool
           ? json['rollbackAvailable'] as bool
           : false,
-      // Older hosts never advertised whether a trusted vendor key was
-      // provisioned. Unknown must be fail-closed: let the user check for an
-      // update, but never enable a package download on an assumption.
-      canAuthenticateUpdates: json['canAuthenticateUpdates'] is bool
-          ? json['canAuthenticateUpdates'] as bool
-          : false,
+      canAuthenticateUpdates: canAuthenticateUpdates,
     );
   }
 }

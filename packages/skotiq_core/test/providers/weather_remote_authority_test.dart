@@ -37,6 +37,25 @@ Future<void> _pumpUntil(bool Function() condition) async {
   }
 }
 
+Map<String, dynamic> _hostSafetyPayload() => {
+  'currentAlertLevel': 'clear',
+  'hardwareWeatherReading': 'safe',
+  'safetyMonitorReading': 'safe',
+  'monitoringEnabled': true,
+  'autoParkArmed': false,
+  'autoResumeArmed': false,
+  'decisionSource': 'none',
+  'forecastUnsafe': false,
+  'forecastHoldsRun': false,
+  'starEvidenceOverridesForecast': false,
+  'actions': {
+    'shouldPause': false,
+    'shouldPark': false,
+    'shouldCloseDome': false,
+    'advisoryOnly': false,
+  },
+};
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -102,6 +121,7 @@ void main() {
       final backend = _liveCredentialsBackend();
       when(() => backend.getSafetyStatus()).thenAnswer(
         (_) async => {
+          ..._hostSafetyPayload(),
           'isSafe': true,
           'safetyStatus': 'safe',
           'dataSource': 'combined',
@@ -144,6 +164,7 @@ void main() {
       when(() => backend.isAuthTokenRejected).thenAnswer((_) => rejected);
       when(() => backend.getSafetyStatus()).thenAnswer(
         (_) async => {
+          ..._hostSafetyPayload(),
           'isSafe': true,
           'safetyStatus': 'safe',
           'dataSource': 'combined',
@@ -188,6 +209,7 @@ void main() {
       final backend = _liveCredentialsBackend();
       when(() => backend.getSafetyStatus()).thenAnswer(
         (_) async => {
+          ..._hostSafetyPayload(),
           'isSafe': false,
           'safetyStatus': 'unsafe',
           'currentAlertLevel': 'critical',
@@ -196,6 +218,7 @@ void main() {
           'safetyMonitorSafe': true,
           'apiWeatherSafe': false,
           'actions': {
+            'advisoryOnly': false,
             'shouldPause': true,
             'shouldPark': true,
             'shouldCloseDome': true,
@@ -247,6 +270,7 @@ void main() {
       final backend = _liveCredentialsBackend();
       when(() => backend.getSafetyStatus()).thenAnswer(
         (_) async => {
+          ..._hostSafetyPayload(),
           'isSafe': false,
           'safetyStatus': 'snoozed',
           'currentAlertLevel': 'warning',
@@ -255,6 +279,7 @@ void main() {
           'safetyMonitorSafe': true,
           'apiWeatherSafe': false,
           'actions': {
+            'advisoryOnly': false,
             'shouldPause': false,
             'shouldPark': false,
             'shouldCloseDome': false,
@@ -295,6 +320,45 @@ void main() {
       hostCancel.complete();
     },
   );
+
+  for (final field in [
+    'monitoringEnabled',
+    'autoParkArmed',
+    'autoResumeArmed',
+    'hardwareWeatherReading',
+    'safetyMonitorReading',
+  ]) {
+    test('missing host $field leaves the safety verdict unavailable', () async {
+      final backend = _liveCredentialsBackend();
+      final response = {
+        ..._hostSafetyPayload(),
+        'isSafe': true,
+        'safetyStatus': 'safe',
+        'dataSource': 'combined',
+        'hardwareWeatherSafe': true,
+        'safetyMonitorSafe': true,
+        'apiWeatherSafe': true,
+      }..remove(field);
+      when(() => backend.getSafetyStatus()).thenAnswer((_) async => response);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(weatherSafetyProvider);
+      await _pumpUntil(
+        () => container.read(weatherSafetyProvider).hostVerdictUnavailable,
+      );
+      final state = container.read(weatherSafetyProvider);
+      expect(state.hostVerdictUnavailable, isTrue);
+      expect(state.isSafe, isFalse);
+      verifyNever(() => backend.sequencerStop());
+    });
+  }
 
   test('remote safety status failure remains fail closed', () async {
     final backend = _liveCredentialsBackend();

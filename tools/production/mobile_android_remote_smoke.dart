@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show skotiqRelease;
+
 const _defaultExePath =
     'apps/desktop/build/windows/x64/runner/Release/skotiq.exe';
 const _defaultApkPath =
@@ -13,7 +16,7 @@ const _adminToken = 'skotiq-mobile-smoke-admin-token';
 const _viewToken = 'skotiq-mobile-smoke-view-token';
 const _controlToken = 'skotiq-mobile-smoke-control-token';
 const _evidenceDir = 'docs/production-readiness';
-const _expectedAppVersion = '2.6.0';
+const _expectedAppVersion = skotiqRelease;
 
 void main(List<String> args) async {
   if (!Platform.isWindows) {
