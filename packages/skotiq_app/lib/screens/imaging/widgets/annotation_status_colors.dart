@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/services.dart' show AnnotationStatus;
-import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
+import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors, ImageOverlayColors;
 
 /// Colors of the annotation pipeline status indicator, derived from the
 /// theme's semantic status tokens.
@@ -26,7 +26,7 @@ abstract final class AnnotationStatusColors {
 
   static Color text(AnnotationStatus status, SkotiqColors colors) {
     final semantic = _semantic(status, colors);
-    if (semantic == null) return Colors.white70;
+    if (semantic == null) return ImageOverlayColors.secondary;
     return Color.lerp(semantic, colors.textPrimary, 0.35)!;
   }
 

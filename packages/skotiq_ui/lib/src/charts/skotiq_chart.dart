@@ -457,7 +457,7 @@ class _SkotiqChartState extends State<SkotiqChart> {
                                   s.tone,
                                   s.color,
                                 ),
-                                borderRadius: BorderRadius.circular(3),
+                                borderRadius: SkotiqTokens.borderRadiusXs,
                               ),
                             ),
                             const SizedBox(width: 4),

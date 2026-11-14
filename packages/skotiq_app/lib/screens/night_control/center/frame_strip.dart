@@ -124,7 +124,10 @@ class _FrameStripState extends ConsumerState<FrameStrip> {
             : ShaderMask(
                 blendMode: BlendMode.dstIn,
                 shaderCallback: (bounds) => LinearGradient(
-                  colors: const <Color>[Color(0x00FFFFFF), Color(0xFFFFFFFF)],
+                  colors: const <Color>[
+                    Colors.transparent,
+                    ImageOverlayColors.foreground
+                  ],
                   stops: <double>[
                     0,
                     (_fadeWidth / bounds.width).clamp(0.0, 1.0)

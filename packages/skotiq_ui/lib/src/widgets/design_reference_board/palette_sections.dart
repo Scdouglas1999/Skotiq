@@ -154,20 +154,20 @@ class _DomainPaletteSection extends StatelessWidget {
   // Sample domain hues. The app owns the real mappings (it knows the object
   // and driver types); the board only shows how such hues sit on the palette.
   static const _objectTypeSamples = <(String, Color)>[
-    ('Galaxy', Color(0xFFBD8EC4)),
-    ('Nebula', Color(0xFF6B95B8)),
-    ('Star Cluster', Color(0xFFC4A055)),
-    ('Planetary Nebula', Color(0xFF4A9A72)),
-    ('Star', Color(0xFFE8E4DC)),
-    ('Double Star', Color(0xFFCF8FAD)),
-    ('Asterism', Color(0xFF8A82B0)),
+    ('Galaxy', CatalogAnnotationColors.galaxy),
+    ('Nebula', CatalogAnnotationColors.nebula),
+    ('Star Cluster', CatalogAnnotationColors.starCluster),
+    ('Planetary Nebula', CatalogAnnotationColors.planetaryNebula),
+    ('Star', CatalogAnnotationColors.star),
+    ('Double Star', CatalogAnnotationColors.doubleStar),
+    ('Asterism', CatalogAnnotationColors.asterism),
   ];
 
   static List<(String, Color)> _backendSamples(SkotiqColors colors) => [
     ('Native SDK', colors.success),
     ('ASCOM', colors.info),
     ('Alpaca', colors.warning),
-    ('INDI', const Color(0xFF8575A3)),
+    ('INDI', DriverBackendColors.indi),
     ('Simulator', colors.textMuted),
   ];
 }

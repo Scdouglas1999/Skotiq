@@ -3,4 +3,6 @@ export 'package:skotiq_design/skotiq_design.dart'
         ImageOverlayColors,
         SciencePlotColors,
         FieldOfViewColors,
-        EquipmentProfileColors;
+        EquipmentProfileColors,
+        CatalogAnnotationColors,
+        DriverBackendColors;

@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/models.dart' show ObjectType;
-import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
+import 'package:skotiq_ui/skotiq_ui.dart'
+    show SkotiqColors, CatalogAnnotationColors;
 
 /// Hues for catalog object types in annotation UI.
 abstract final class AnnotationTypeColors {
   AnnotationTypeColors._();
 
-  static const Color galaxy = Color(0xFFBD8EC4);
-  static const Color nebula = Color(0xFF6B95B8);
-  static const Color starCluster = Color(0xFFC4A055);
-  static const Color planetaryNebula = Color(0xFF4A9A72);
-  static const Color star = Color(0xFFE8E4DC);
-  static const Color doubleStar = Color(0xFFCF8FAD);
-  static const Color asterism = Color(0xFF8A82B0);
+  static const Color galaxy = CatalogAnnotationColors.galaxy;
+  static const Color nebula = CatalogAnnotationColors.nebula;
+  static const Color starCluster = CatalogAnnotationColors.starCluster;
+  static const Color planetaryNebula = CatalogAnnotationColors.planetaryNebula;
+  static const Color star = CatalogAnnotationColors.star;
+  static const Color doubleStar = CatalogAnnotationColors.doubleStar;
+  static const Color asterism = CatalogAnnotationColors.asterism;
 
   static Color forType(ObjectType type, SkotiqColors colors) {
     return switch (type) {

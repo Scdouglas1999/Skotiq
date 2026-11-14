@@ -168,7 +168,9 @@ class _TourCard extends StatelessWidget {
                   step.title,
                   style: TextStyle(
                     color: colors.textPrimary,
-                    fontSize: phone ? 14 : 16,
+                    fontSize: phone
+                        ? SkotiqTypography.fontSize14
+                        : SkotiqTypography.fontSize16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -182,7 +184,9 @@ class _TourCard extends StatelessWidget {
                     step.description,
                     style: TextStyle(
                       color: colors.textSecondary,
-                      fontSize: phone ? 12 : 13,
+                      fontSize: phone
+                          ? SkotiqTypography.fontSize12
+                          : SkotiqTypography.fontSize13,
                       height: 1.4,
                     ),
                   ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:skotiq_design/skotiq_design.dart'
+    show CatalogAnnotationColors, DriverBackendColors;
 
 import '_design_showcase_primitives.dart';
 import 'package:lucide_icons/lucide_icons.dart';
