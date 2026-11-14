@@ -3,6 +3,9 @@ use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 
+#[cfg(target_os = "windows")]
+mod build_support;
+
 fn main() {
     let libraw_headers = libraw_header_dir();
     cc::Build::new()
@@ -17,6 +20,7 @@ fn main() {
         libraw_headers.join("libraw_types.h").display()
     );
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build_support.rs");
 
     // Get the workspace root (where libraw.dll/.lib lives)
     // CARGO_MANIFEST_DIR is native/skotiq_native/imaging
@@ -98,8 +102,10 @@ fn main() {
             );
         }
 
-        let target_profile_dir = resolve_target_profile_dir()
-            .expect("build.rs: unable to locate cargo target/<profile> directory from OUT_DIR");
+        let out_dir = env::var_os("OUT_DIR").expect("OUT_DIR not set");
+        let target_profile_dir =
+            build_support::target_profile_dir(Path::new(&out_dir), env!("CARGO_PKG_NAME"))
+                .expect("build.rs: unable to locate cargo target/<profile> directory from OUT_DIR");
 
         for dest_dir in [
             target_profile_dir.clone(),
@@ -202,31 +208,6 @@ fn libraw_header_dir() -> PathBuf {
                  (libraw-dev, libraw, or brew install libraw) or set LIBRAW_INCLUDE_DIR."
             )
         })
-}
-
-/// Resolve the cargo `target/<profile>` directory from `OUT_DIR`.
-///
-/// `OUT_DIR` is of the form
-/// `<target_dir>/<profile>/build/<crate>-<hash>/out`
-/// (and gets an extra `<triple>` segment when `--target` is used).
-/// We walk up from `out` until we find an ancestor whose own parent is a
-/// directory named `build`; that ancestor's grandparent is the
-/// `<profile>` directory we want.
-///
-/// Why: hard-coding `target/debug` fails for release builds, `--target`
-/// triple builds, and workspaces that override `target-dir`. Walking up
-/// from `OUT_DIR` is the canonical way to find the profile dir.
-#[cfg(target_os = "windows")]
-fn resolve_target_profile_dir() -> Option<PathBuf> {
-    let out_dir = env::var_os("OUT_DIR")?;
-    let out_dir = PathBuf::from(out_dir);
-    // out_dir = .../target/<profile>/build/<crate>-<hash>/out
-    //                  ^^^^^^^^^^^^^^^^^ what we want is two parents above `build`
-    let build_dir = out_dir.parent()?.parent()?; // .../target/<profile>/build
-    if build_dir.file_name().and_then(|s| s.to_str()) != Some("build") {
-        return None;
-    }
-    Some(build_dir.parent()?.to_path_buf())
 }
 
 #[cfg(target_os = "windows")]
