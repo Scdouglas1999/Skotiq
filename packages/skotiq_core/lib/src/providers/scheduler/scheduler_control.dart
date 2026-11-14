@@ -77,8 +77,8 @@ final class _LocalSchedulerControl implements SchedulerControl {
   @override
   Future<SchedulerConfig> save(SchedulerConfig config) async {
     await _ref.read(schedulerConfigStoreProvider).save(config);
-    // The stored row is what siteMinimumAltitudeDegProvider serves to the
-    // sequence builder and the altitude charts. The engine takes it through
+    // The stored row's minimum altitude is half of altitudeFloorProvider,
+    // which the sequence builders and the altitude charts read. The engine takes it through
     // ref.listen and skips it while schedulerConfigUserDirtyProvider is set,
     // so its live config is not overwritten.
     _ref.invalidate(schedulerPersistedConfigProvider);

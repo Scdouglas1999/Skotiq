@@ -46,7 +46,9 @@ class _SiteSettingsNotifier extends AppSettingsNotifier {
   Future<AppSettingsState> build() async => AppSettingsState(
         latitude: 45,
         longitude: 0,
-        effectiveHorizonDeg: horizonFloorDeg,
+        horizonProfileJson: '{"N":$horizonFloorDeg,"NE":$horizonFloorDeg,'
+            '"E":$horizonFloorDeg,"SE":$horizonFloorDeg,"S":$horizonFloorDeg,'
+            '"SW":$horizonFloorDeg,"W":$horizonFloorDeg,"NW":$horizonFloorDeg}',
       );
 }
 
@@ -587,7 +589,8 @@ void main() {
       ],
     );
 
-    await tester.tap(find.widgetWithText(SkotiqButton, 'Slew, Center & Rotate'));
+    await tester
+        .tap(find.widgetWithText(SkotiqButton, 'Slew, Center & Rotate'));
     await tester.pump();
     mount.result.complete(CommandActionResult.ok);
     await tester.pumpAndSettle();

@@ -1,55 +1,5 @@
 part of '../imaging_models.dart';
 
-class NamingPattern extends Equatable {
-  final String pattern;
-  final String baseDir;
-  final ImageFileFormat format;
-  final bool createSubdirs;
-
-  const NamingPattern({
-    this.pattern = r'$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$FRAMENUM',
-    this.baseDir = '.',
-    this.format = ImageFileFormat.fits,
-    this.createSubdirs = true,
-  });
-
-  NamingPattern copyWith({
-    String? pattern,
-    String? baseDir,
-    ImageFileFormat? format,
-    bool? createSubdirs,
-  }) {
-    return NamingPattern(
-      pattern: pattern ?? this.pattern,
-      baseDir: baseDir ?? this.baseDir,
-      format: format ?? this.format,
-      createSubdirs: createSubdirs ?? this.createSubdirs,
-    );
-  }
-
-  @override
-  List<Object?> get props => [pattern, baseDir, format, createSubdirs];
-
-  static const List<String> availableVariables = [
-    r'$TARGET',
-    r'$FILTER',
-    r'$EXPTIME',
-    r'$DATE',
-    r'$TIME',
-    r'$DATETIME',
-    r'$FRAMETYPE',
-    r'$FRAMENUM',
-    r'$GAIN',
-    r'$OFFSET',
-    r'$TEMP',
-    r'$BINNING',
-    r'$CAMERA',
-    r'$TELESCOPE',
-    r'$SEQUENCE',
-    r'$SESSION',
-  ];
-}
-
 class StarDetectionConfig extends Equatable {
   final double detectionSigma;
   final int minArea;

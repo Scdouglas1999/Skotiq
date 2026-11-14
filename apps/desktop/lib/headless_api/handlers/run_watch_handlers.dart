@@ -527,15 +527,14 @@ class RunWatchHandlers implements RouteSource {
           timeToTransitSecs = transit.difference(now).inSeconds;
         }
 
-        final hDeg = container.read(effectiveHorizonDegProvider);
-        horizonDeg = hDeg;
-        final timeToSet = AstronomyCalculations.timeUntilBelow(
+        final floor = container.read(altitudeFloorProvider);
+        horizonDeg = floor.atAzimuth(az);
+        final timeToSet = floor.timeUntilBelow(
           raDeg: target.raHours * 15.0,
           decDeg: target.decDegrees,
           now: now,
           latitudeDeg: location.latitude,
           longitudeDeg: location.longitude,
-          horizonDeg: hDeg,
         );
         if (timeToSet != null) {
           timeToSetSecs = timeToSet.inSeconds;

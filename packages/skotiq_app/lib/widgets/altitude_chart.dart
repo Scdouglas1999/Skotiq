@@ -343,17 +343,13 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
           ],
         ),
         const SizedBox(height: 8),
-
         _buildCurrentValues(colors),
         const SizedBox(height: 8),
-
         if (_altitudeData.isEmpty)
           _buildNoLocationWarning(colors)
         else
           _buildChart(colors),
-
         const SizedBox(height: 8),
-
         if (_visibility != null) _buildVisibilityInfo(colors),
       ],
     );
@@ -454,15 +450,21 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
         items: [
           MetricGridItem(
             label: 'Rise',
-            value: v.riseTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.riseTime!.toUtc())),
+            value: v.riseTime == null
+                ? null
+                : ClockFormat.hm(_clock.fromUtc(v.riseTime!.toUtc())),
           ),
           MetricGridItem(
             label: 'Transit',
-            value: v.transitTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.transitTime!.toUtc())),
+            value: v.transitTime == null
+                ? null
+                : ClockFormat.hm(_clock.fromUtc(v.transitTime!.toUtc())),
           ),
           MetricGridItem(
             label: 'Set',
-            value: v.setTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.setTime!.toUtc())),
+            value: v.setTime == null
+                ? null
+                : ClockFormat.hm(_clock.fromUtc(v.setTime!.toUtc())),
           ),
           MetricGridItem(
             label: 'Transit alt',
@@ -589,7 +591,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
   }
 
   Widget _buildChart(SkotiqColors colors, {double preferredHeight = 140}) {
-    final siteMinimumAltitude = ref.watch(siteMinimumAltitudeDegProvider);
+    final siteMinimumAltitude = ref.watch(altitudeFloorProvider).lowestDeg;
     final now = widget.nowValue();
     final nowX = now.difference(_startTime).inMinutes.toDouble();
     final totalMinutes = _endTime.difference(_startTime).inMinutes.toDouble();
@@ -780,11 +782,8 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                 color: colors.error.withValues(alpha: 0.5),
                 strokeWidth: 1,
               ),
-            // The SITE's minimum imaging altitude, not a hard-coded 30°.
-            // This chart drew 30 while the scheduler was gating on its own
-            // configured value, so the dashed line the operator reads as
-            // "below this I cannot image" disagreed with the engine that
-            // decides it.
+            // The site's altitude floor (its lowest, where a horizon is set),
+            // the line the operator reads as "below this I cannot image".
             if (!_showAirmass)
               HorizontalLine(
                 y: siteMinimumAltitude,

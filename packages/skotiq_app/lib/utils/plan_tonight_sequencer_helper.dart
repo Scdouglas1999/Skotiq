@@ -172,12 +172,12 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
     useExposurePresets: options != null && !options.useCalculator,
     defaultFrameDurationSecs: options?.exposures ??
         const SmartNightSettings().defaultFrameDurationSecs,
-    // The site minimum altitude belongs to the site, not to this builder.
+    // The site's altitude floor belongs to the site, not to this builder.
     // Leaving it at the SmartNightSettings default meant this path refused
     // targets at 27 deg ("no usable imaging window ... at min altitude 30")
     // that the scheduler on the very same screen was scoring as eligible
     // against its own 25 deg.
-    minAltitudeDeg: ref.read(siteMinimumAltitudeDegProvider),
+    minAltitudeDeg: ref.read(altitudeFloorProvider).lowestDeg,
     defaultIntegrationBudgetHours: integrationBudgetHours ??
         const SmartNightSettings().defaultIntegrationBudgetHours,
     targetSnr: settings.smartNightTargetSnr,
@@ -266,7 +266,7 @@ Future<TargetSuggestion> catalogTargetSuggestion({
         date: AstronomyCalculations.nightDateOf(window.start),
         latitudeDeg: settings.latitude,
         longitudeDeg: settings.longitude,
-        minAltitude: ref.read(siteMinimumAltitudeDegProvider),
+        minAltitude: ref.read(altitudeFloorProvider).lowestDeg,
       );
 
   final altAz = AstronomyCalculations.objectAltAz(
@@ -442,7 +442,7 @@ String framingMosaicNameFor(FramingTarget target) {
 ///
 /// The targets are [MosaicService]'s panel headers for the drawn panels, in
 /// the canvas's capture order, so this and Add to sequence give the same
-/// targets. Each panel waits for the site's minimum altitude, so a panel
+/// targets. Each panel waits for the site's altitude floor, so a panel
 /// never starts imaging below it.
 Future<bool> _addFramedMosaicToSequencer({
   required BuildContext context,
@@ -461,7 +461,7 @@ Future<bool> _addFramedMosaicToSequencer({
     rotation: rotationDegrees ?? framingState.rotation,
     exposure: smartNightMosaicExposureSettings(exposureContext),
     options: MosaicSequenceOptions(
-      minAltitude: ref.read(siteMinimumAltitudeDegProvider),
+      minAltitude: ref.read(altitudeFloorProvider).lowestDeg,
     ),
   );
 

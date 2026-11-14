@@ -280,7 +280,7 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
     final colors = widget.colors;
     final queue = ref.watch(targetQueueProvider);
     final observer = ref.watch(observerLocationProvider);
-    final horizonDeg = ref.watch(planetariumEffectiveHorizonDegProvider);
+    final horizonDeg = ref.watch(altitudeFloorProvider).lowestDeg;
     // Live 30s tick — altitude / time-to-set need to refresh as the
     // sky moves. Cadence intentionally matches the dashboard's altitude
     // card (see clock_provider.dart).

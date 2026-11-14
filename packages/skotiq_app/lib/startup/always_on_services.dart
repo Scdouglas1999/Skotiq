@@ -359,6 +359,12 @@ final List<AlwaysOnService> alwaysOnServices = [
     "the planetarium and the host's native site following the site in "
         'Settings',
   ),
+  AlwaysOnService(
+    'planetarium altitude floor',
+    planetariumAltitudeFloorSyncProvider,
+    _everyRole,
+    "the planetarium's rise and set times using the site's altitude floor",
+  ),
 ];
 
 /// The always-on services running in one container.

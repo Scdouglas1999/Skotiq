@@ -5,11 +5,12 @@ import 'package:path/path.dart' as p;
 
 import '../database/daos/integrated_masters_dao.dart';
 import '../database/database.dart';
+import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_settings.dart';
 import '../providers/dark_library_provider.dart';
-import 'calibration/dark_selection.dart';
+import 'calibration/calibration_selection.dart';
 import 'dark_library_service.dart';
 import 'flat_library_service.dart';
 import 'logging_service.dart';
@@ -499,11 +500,6 @@ class MasterAccumulationService {
     required bool cosmeticCorrection,
   }) async {
     final anchor = subs.first;
-    final gain = anchor.gain ?? 0;
-    final offset = anchor.offset ?? 0;
-    final binX = anchor.binX;
-    final binY = anchor.binY;
-    final temperature = anchor.sensorTemp;
     final matchFilter = (filter != null && filter.trim().isNotEmpty)
         ? filter.trim()
         : anchor.filter;
@@ -512,18 +508,21 @@ class MasterAccumulationService {
       exposureTime: anchor.exposureDuration,
       gain: anchor.gain,
       offset: anchor.offset,
-      binX: binX,
-      binY: binY,
-      temperature: temperature,
+      binX: anchor.binX,
+      binY: anchor.binY,
+      temperature: anchor.sensorTemp,
       tolerances: _darkTolerances,
     );
     final flat = await _flatLibrary.findBestMatch(
-      filter: matchFilter,
-      gain: gain,
-      offset: offset,
-      binX: binX,
-      binY: binY,
-      temperature: temperature,
+      LightFrameContext(
+        gain: anchor.gain,
+        offset: anchor.offset,
+        exposureSeconds: anchor.exposureDuration,
+        temperature: anchor.sensorTemp,
+        filter: matchFilter,
+        binX: anchor.binX,
+        binY: anchor.binY,
+      ),
     );
 
     final darkPath = dark?.calibrationPath;

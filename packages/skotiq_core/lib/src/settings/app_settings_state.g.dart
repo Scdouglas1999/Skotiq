@@ -313,11 +313,10 @@ class AppSettingsState {
   final bool ditherRaOnly;
   final int bortleClass;
   final String horizonProfileJson;
-  /// Effective horizon in degrees used by the Run Dashboard, scheduler and
-  /// planetarium when computing "time-to-set". 0° = mathematical horizon;
-  /// a value like 20° models trees / structures the user can't see
-  /// through. The same value is consumed by every "set" display in the
-  /// app so the dashboard and the planetarium agree to the second.
+  /// A flat horizon in degrees from before the site's altitude floor had one
+  /// rule. Kept stored so no value is lost; nothing reads it: every "how high
+  /// must a target be" asks `altitudeFloorProvider` (the horizon mask when
+  /// set, otherwise the scheduler's minimum altitude).
   final double effectiveHorizonDeg;
   /// When true, critical-severity executor events trigger a system bell on
   /// top of the in-app banner / notification. Useful for unattended

@@ -6,7 +6,7 @@
 // min altitude 30°" and the altitude charts drew their threshold at 30. A
 // target at 27° was therefore eligible for the autopilot and un-sequenceable at
 // the same time. The scheduler's configured minimum is now the authority
-// (siteMinimumAltitudeDegProvider) and the builder reads it instead of the
+// (altitudeFloorProvider) and the builder reads it instead of the
 // SmartNightSettings default.
 
 import 'package:flutter/material.dart';
@@ -18,8 +18,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show TargetVisibilityInfo;
+import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _ConfiguredSettingsNotifier extends AppSettingsNotifier {

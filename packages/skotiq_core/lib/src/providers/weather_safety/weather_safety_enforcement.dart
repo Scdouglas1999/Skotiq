@@ -45,12 +45,7 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
     // shutdown steps and the night-end automation. A pause here would hold
     // the run where neither can happen. Dawn only puts away an idle rig.
     if (state.decisionSource == WeatherDecisionSource.dawn &&
-        switch (_ref.read(sequenceExecutionStateProvider)) {
-          SequenceExecutionState.running ||
-          SequenceExecutionState.paused ||
-          SequenceExecutionState.recovering => true,
-          _ => false,
-        }) {
+        _ref.read(sequenceExecutionStateProvider).isLive) {
       return true;
     }
     _enforceInFlight = true;

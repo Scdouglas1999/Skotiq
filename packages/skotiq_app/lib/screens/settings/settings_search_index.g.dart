@@ -360,6 +360,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Camera raw files',
     'File format',
     'File naming pattern',
+    'Folders and file name, separated by /.',
     'For DSLR and mirrorless cameras. The raw file is',
     'Imaging',
     'Smaller files at no cost to the pixels. Byte shuffling helps',
@@ -961,6 +962,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Reject folder path',
   },
   'imaging': {
+    'Folders and file name, separated by /.': 'File naming pattern',
     'For DSLR and mirrorless cameras. The raw file is': 'Camera raw files',
     'Smaller files at no cost to the pixels. Byte shuffling helps':
         'XISF compression',

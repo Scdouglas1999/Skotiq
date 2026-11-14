@@ -1,19 +1,14 @@
 import 'package:drift/drift.dart';
 
 import '../../models/imaging/integrated_master.dart';
-import '../camera_setting_match.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
 part 'flat_library_dao.g.dart';
 
 /// Reads and writes for `flat_library`: the master-flat artifact library, the
-/// counterpart to `dark_library`.
-///
-/// Its match API ([findBestMatch]) deliberately mirrors
-/// `DarkLibraryDao.findBestMatch`: exact gain/offset/binning + filter,
-/// temperature within tolerance, preferring the closest temperature then the
-/// newest.
+/// counterpart to `dark_library`. Which flat calibrates a light is
+/// `selectFlat`'s rule, not a query here.
 @DriftAccessor(include: {'../schema/post_session.drift'})
 class FlatLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     with _$FlatLibraryDaoMixin {
@@ -85,80 +80,6 @@ class FlatLibraryDao extends DatabaseAccessor<SkotiqDatabase>
       flatLibrary,
     )..where((f) => f.id.equals(id))).getSingleOrNull();
     return row == null ? null : _mapRow(row);
-  }
-
-  /// Find the best master flat for a light frame's parameters.
-  ///
-  /// Matching rules (mirrors [DarkLibraryDao.findBestMatch]):
-  /// - `filter` must match exactly (a flat is filter-specific) when provided.
-  /// - `gain`, `offset`, and binning must match exactly; a null gain or
-  ///   offset matches only a flat that has none.
-  /// - Optical-train tag must match exactly when both sides provide one.
-  /// - Temperature must be within [temperatureToleranceC] when both are known.
-  /// - Among matches, the closest-temperature entry wins; ties break newest.
-  ///
-  /// Returns null when nothing qualifies.
-  Future<FlatLibraryEntry?> findBestMatch({
-    String? filter,
-    int? gain,
-    int? offset,
-    int binX = 1,
-    int binY = 1,
-    String? opticalTrainId,
-    double? temperature,
-    double temperatureToleranceC = 5.0,
-  }) async {
-    final train = opticalTrainId?.trim();
-    final rows =
-        await (select(flatLibrary)..where((f) {
-              var matches =
-                  f.gain.isSetting(gain) &
-                  f.offset.isSetting(offset) &
-                  f.binX.equals(binX) &
-                  f.binY.equals(binY);
-              if (filter != null && filter.trim().isNotEmpty) {
-                matches = matches & f.filter.equals(filter.trim());
-              }
-              if (train != null && train.isNotEmpty) {
-                // Accept rows with a matching tag OR no tag at all (a generic
-                // flat).
-                matches =
-                    matches &
-                    (f.opticalTrainId.equals(train) |
-                        f.opticalTrainId.isNull());
-              }
-              return matches;
-            }))
-            .get();
-    if (rows.isEmpty) return null;
-
-    var candidates = rows.map(_mapRow).toList();
-
-    // Temperature gate (only when both sides know the temperature).
-    if (temperature != null) {
-      candidates = candidates.where((c) {
-        if (c.temperature == null) return true; // accept temp-less flats
-        return (c.temperature! - temperature).abs() <= temperatureToleranceC;
-      }).toList();
-    }
-    if (candidates.isEmpty) return null;
-
-    if (temperature == null) {
-      candidates.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return candidates.first;
-    }
-    candidates.sort((a, b) {
-      final aD = a.temperature != null
-          ? (a.temperature! - temperature).abs()
-          : double.maxFinite;
-      final bD = b.temperature != null
-          ? (b.temperature! - temperature).abs()
-          : double.maxFinite;
-      final byTemp = aD.compareTo(bD);
-      if (byTemp != 0) return byTemp;
-      return b.createdAt.compareTo(a.createdAt);
-    });
-    return candidates.first;
   }
 
   Future<int> deleteEntry(int id) =>
