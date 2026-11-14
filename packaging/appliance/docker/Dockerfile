@@ -3,14 +3,14 @@
 # This image does NOT compile anything. It consumes the release tarball that
 # scripts/docker_build_linux.sh produces (that script runs the full
 # rust + melos + `flutter build linux --release` pipeline inside the
-# ghcr.io/cirruslabs/flutter image and emits
+# Debian Bookworm image (with the pinned Flutter SDK) and emits
 # skotiq-linux-<arch>-<ver>.tar.gz). Two-step flow, from the repo root:
 #
 #   1. Build the release tarball (writes to ./dist-linux):
 #        docker run --rm \
 #          -v "$PWD":/host:ro \
 #          -v "$PWD/dist-linux":/out \
-#          ghcr.io/cirruslabs/flutter:stable \
+#          debian:bookworm-slim \
 #          bash /host/scripts/docker_build_linux.sh
 #
 #   2. Build this runtime image (BUNDLE_TARBALL is relative to the build
