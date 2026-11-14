@@ -447,7 +447,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
           right: SkotiqTokens.space2xl,
           bottom: SkotiqTokens.spaceLg,
           child: Glass(
-            blurBackground: false,
             padding: const EdgeInsets.all(SkotiqTokens.spaceXs),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -488,7 +487,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
             left: SkotiqTokens.space2xl,
             top: SkotiqTokens.spaceLg,
             child: Glass(
-              blurBackground: false,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
