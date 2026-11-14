@@ -326,7 +326,10 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
         (oldBackend.remoteHost?.link.connectionState ??
                 BackendConnectionState.connected) ==
             BackendConnectionState.connected;
-    if (outgoingHostIsControllable && executionState.isBusy) {
+    final leavingRemoteHost = oldBackend.linksToHost && newBackend.hasNoHost;
+    if (outgoingHostIsControllable &&
+        executionState.isBusy &&
+        !leavingRemoteHost) {
       throw StateError(
         'Cannot change imaging host while the sequencer is '
         '${executionState.name}. Stop the active sequence first so control '
