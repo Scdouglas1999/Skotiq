@@ -137,6 +137,29 @@ These follow-ups produced a new host-built desktop bundle only. The portable
 Linux archive and Android APK listed below were not rebuilt with these changes.
 Windows runtime and physical-rig verification remain outstanding.
 
+## Linux desktop performance follow-up — 2026-11-14 UTC
+
+The actual Wayland/NVIDIA desktop was measured at 1600 × 900 and 5120 × 1440
+with normal networking, simulator equipment and verified 26 MP FITS captures.
+Final host source `a6ca40442` retains the exact asynchronous histogram fix and
+instantaneous weather tiles. Preview downscaling and blur removal were rejected
+after actual GUI checks exposed latency and readability regressions.
+
+The final app suite passed 5,482 tests with one skipped. The unchanged tested
+core/desktop sources passed 8,141/1,458 tests; final architecture, bridge-boundary
+and production-analysis checks passed. The host Linux release build passed.
+The normal release is left running with seven simulator devices, networking,
+the original editor plan, and profiling/replay disabled.
+
+**The 240 Hz performance target is not met.** Stock Linux Flutter schedules at
+approximately 60 Hz. The repeated 41–44 ms histogram builds are eliminated, but
+maximized weather and occasional cold-frame work still exceed frame budgets.
+A separate 413 ms pipeline delay occurred during an explicit large-image save;
+low build/raster percentiles do not conceal it. See the
+[performance assessment](performance-v9.0.0-linux.md) for source revisions,
+method, raw evidence, worst cases, rejected experiments and remaining scope.
+This follow-up does not rebuild the older portable Linux or Android artifacts.
+
 ## Audit and artifact gates
 
 The remaining behavioral markers were reviewed individually, and concrete
