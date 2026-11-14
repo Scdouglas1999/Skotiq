@@ -103,13 +103,14 @@ test('equipment property events do not refetch the full inventory', () => {
     'utf8',
   );
 
+  const deviceListEvents = /const DEVICE_LIST_EVENTS = new Set\(\[([\s\S]*?)\]\);/
+    .exec(source);
+  assert.ok(deviceListEvents, 'the inventory follows a named set of events');
+  assert.match(deviceListEvents[1], /WIRE_EVENTS\.equipment\.connected/);
+  assert.doesNotMatch(deviceListEvents[1], /propertyChanged|heartbeat/);
   assert.match(
     source,
-    /eventType === 'Connecting'[\s\S]*?heartbeatDisconnected\) \{\s*fetchDevices\(\)/,
-  );
-  assert.doesNotMatch(
-    source,
-    /category === 'equipment'\) \{\s*fetchDevices\(\)/,
+    /case 'equipment':\s*[^]*?if \(DEVICE_LIST_EVENTS\.has\(type\)[^]*?fetchDevices\(\);/,
   );
 });
 

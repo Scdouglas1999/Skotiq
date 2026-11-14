@@ -95,7 +95,7 @@ void main() {
     test('a valid legacy ?token= still upgrades the WebSocket', () async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=admin-token&apiVersion=2.5.0',
+        '?token=admin-token',
       );
       try {
         expect(socket.readyState, WebSocket.open);

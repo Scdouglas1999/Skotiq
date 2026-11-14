@@ -2,7 +2,9 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/bridge_events.dart' show SequencerErrorKind;
+import '../../backend/bridge_events.dart';
+import '../../backend/sequencer_error_kind.dart';
+import '../../backend/sequencer_run_events.dart';
 import '../../models/backend/event_types.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
@@ -10,7 +12,6 @@ import '../equipment/camera_state_provider.dart';
 import 'node_exposure_tally.dart';
 import 'run_record.dart';
 import '../../models/sequence/run_stop_classification.dart';
-import 'sequencer_run_event.dart';
 
 /// Where the run stands.
 final sequenceExecutionStateProvider = runRecordProvider.select(
@@ -101,19 +102,17 @@ final sequenceStopEvidenceProvider = runRecordProvider.select(
 
 /// The stop authorship a sequencer event carries, or null when the event names
 /// nobody.
-SequenceStopDecision? sequenceStopEvidenceOf(SkotiqEvent event) {
-  final typed = SequencerRunEvent.fromSkotiqEvent(event);
-  return typed == null ? null : runEventStopEvidence(typed);
-}
-
-/// [sequenceStopEvidenceOf] for an already-decoded event.
 ///
 /// Both producers of the terminal message (the DeviceService pump and
 /// [SequenceExecutor]) read this one vocabulary, the same one
 /// `sequenceStopDecision` gives the bridge-typed surfaces.
-SequenceStopDecision? runEventStopEvidence(SequencerRunEvent event) {
+SequenceStopDecision? runEventStopEvidence(SequencerEvent event) {
   switch (event) {
-    case TriggerFired(:final triggerId, :final triggerName, :final action):
+    case SequencerEvent_TriggerFired(
+      :final triggerId,
+      :final triggerName,
+      :final action,
+    ):
       return sequenceStopTriggerDecision(
         triggerId: triggerId,
         triggerName: triggerName,
@@ -121,7 +120,7 @@ SequenceStopDecision? runEventStopEvidence(SequencerRunEvent event) {
       );
     // A decision row missing its category or summary names nobody, rather
     // than falling through as a blank category.
-    case DecisionLogged(:final stop):
+    case SequencerEvent_DecisionLogged(:final stop):
       return sequenceStopDecisionOf(stop);
     default:
       return null;
@@ -140,7 +139,7 @@ void applySequencerEventToSequenceProviders(
   SequenceProviderReader read,
   SkotiqEvent raw,
 ) {
-  final event = SequencerRunEvent.fromSkotiqEvent(raw);
+  final event = sequencerEventOf(raw);
   if (event == null) return;
   final run = read(runRecordProvider.notifier);
   // On a linked client the mirror folds the host's events.
@@ -153,12 +152,11 @@ void applySequencerEventToSequenceProviders(
   // (`hostExposureFollowProvider`). A run that ends, or stops on an error,
   // leaves no exposure standing; a problem it carries on through does not
   // end the one in flight.
-  switch (event) {
-    case RunTerminalEvent() || SequencerError(isAdvisory: false):
-      read(cameraStateProvider.notifier).setExposing(false);
-    default:
-      break;
-  }
+  final endsExposure = switch (event) {
+    SequencerEvent_Error(:final kind) => !kind.runContinues,
+    _ => event.endsRun,
+  };
+  if (endsExposure) read(cameraStateProvider.notifier).setExposing(false);
 }
 
 /// Fold one sequencer event onto the run record: progress, per-step status and
@@ -176,7 +174,7 @@ void applySequencerEventToSequenceProviders(
 /// verdict. The lifecycle is not written from here for such a run.
 void foldRunEvent(
   RunRecordNotifier run,
-  SequencerRunEvent event, {
+  SequencerEvent event, {
   bool executorDecidesLifecycle = false,
 }) {
   final executorOwnsRun = executorDecidesLifecycle || run.record.runId != null;
@@ -189,8 +187,7 @@ void foldRunEvent(
   if (stopEvidence != null) run.setStopEvidence(stopEvidence);
 
   switch (event) {
-    case RunStarted():
-      final sequenceName = event.sequenceName ?? 'Unknown';
+    case SequencerEvent_Started(:final sequenceName):
       // A new run answers for itself: the previous run's stop cause must not
       // be read as this one's.
       run.setStopEvidence(null);
@@ -202,54 +199,49 @@ void foldRunEvent(
       }
       run.updateProgress(message: 'Started sequence: $sequenceName');
 
-    case RunPaused():
+    case SequencerEvent_Paused():
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.paused);
 
-    case RunResumed():
+    case SequencerEvent_Resumed():
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.running);
 
-    case RunStopped():
+    case SequencerEvent_Stopped():
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.idle);
 
-    case RunCompleted():
+    case SequencerEvent_Completed():
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.completed);
 
-    case RunFailed():
-      final error = event.error ?? 'Unknown error';
+    case SequencerEvent_Failed(:final error):
       run.updateProgress(message: 'Sequence failed: $error');
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.failed);
 
-    case NodeStarted():
-      final nodeId = event.nodeId ?? '';
+    case SequencerEvent_NodeStarted(:final nodeId, :final nodeType):
       run.updateProgress(
         currentNodeId: nodeId,
-        currentNodeName: event.nodeType ?? '',
+        currentNodeName: nodeType,
         currentNodeStatus: NodeStatus.running,
       );
       run.updateNodeStatus(nodeId, NodeStatus.running);
 
-    case NodeCompleted(:final nodeId?, :final nodeStatus?)
-        when nodeId.isNotEmpty:
-      // A missing status leaves the node alone: claiming a step failed because
-      // its verdict could not be read would be confidently wrong.
-      run.updateNodeStatus(nodeId, nodeStatus);
+    case SequencerEvent_NodeCompleted(:final nodeId) when nodeId.isNotEmpty:
+      run.updateNodeStatus(nodeId, event.nodeStatus);
 
-    case ExposureCountProgress():
-      run.updateProgress(completedExposures: event.current ?? 0);
-      run.setTotals(event.total ?? 0);
+    case SequencerEvent_Progress(:final current, :final total):
+      run.updateProgress(completedExposures: current);
+      run.setTotals(total);
 
-    case TargetChanged():
-      run.updateProgress(currentTarget: event.targetName ?? '');
+    case SequencerEvent_TargetChanged(:final targetName):
+      run.updateProgress(currentTarget: targetName);
 
-    case TargetCompleted():
-      run.updateProgress(
-        message: 'Completed target: ${event.targetName ?? ''}',
-      );
+    case SequencerEvent_TargetCompleted(:final targetName):
+      run.updateProgress(message: 'Completed target: $targetName');
 
-    case ExposureStarted(:final filter):
-      final frame = event.frame ?? 0;
-      final total = event.total ?? 0;
-      final durationSecs = event.durationSecs ?? 0.0;
+    case SequencerEvent_ExposureStarted(
+      :final frame,
+      :final total,
+      :final filter,
+      :final durationSecs,
+    ):
       run.updateProgress(
         currentFilter: filter,
         message:
@@ -257,18 +249,14 @@ void foldRunEvent(
             '${filter != null ? " ($filter)" : ""}',
       );
 
-    case ExposureCompleted():
-      run.updateProgress(
-        completedExposures:
-            event.frame ?? run.record.progress.completedExposures + 1,
-      );
-      run.addCompletedIntegration(event.durationSecs ?? 0.0);
+    case SequencerEvent_ExposureCompleted(:final frame, :final durationSecs):
+      run.updateProgress(completedExposures: frame);
+      run.addCompletedIntegration(durationSecs);
 
-    case SequencerError():
-      final message = event.message ?? 'Unknown error';
+    case SequencerEvent_Error(:final message, :final kind):
       // A cancellation is a stop whose cause comes from the authorship rows,
       // never an error.
-      if (event.kind == SequencerErrorKind.cancelled) {
+      if (kind == SequencerErrorKind.cancelled) {
         final stopped = sequenceStoppedMessage(run.record.stopEvidence);
         developer.log(
           '[$kStopClassificationLogTag] run event fold: cancellation notice '
@@ -279,7 +267,7 @@ void foldRunEvent(
         break;
       }
       run.updateProgress(
-        message: event.isAdvisory ? message : 'Error: $message',
+        message: kind.runContinues ? message : 'Error: $message',
       );
 
     default:

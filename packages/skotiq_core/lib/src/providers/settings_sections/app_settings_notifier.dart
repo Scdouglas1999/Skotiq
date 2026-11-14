@@ -256,7 +256,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   ) async {
     final store = ref.read(hostSettingsStoreProvider);
     if (store == null) {
-      throw HostSettingUnavailableError(rows.keys.toList());
+      throw StateError('No imaging host is linked to store these settings.');
     }
     await store.write(rows);
     if (generation != _backendGeneration ||

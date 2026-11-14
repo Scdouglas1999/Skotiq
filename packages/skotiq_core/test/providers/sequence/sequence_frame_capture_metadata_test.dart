@@ -17,9 +17,6 @@
 // payload; these assert the `captured_images` row equals the event payload.
 // Chained, the row equals the header.
 //
-// Deliberately NOT tested against `resolveFrameAttribution`: that is a second
-// source of truth, consulted only as a fallback for a host too old to send the
-// payload, which the last test covers.
 
 import 'dart:async';
 
@@ -34,7 +31,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -42,27 +40,26 @@ class _TestBackendNotifier extends BackendNotifier {
   }
 }
 
-/// The capture payload the Rust side ships on every frame event, spelled with
-/// the shared [FrameCaptureKeys] so a renamed key breaks this test rather than
-/// silently dropping a column.
+/// The capture payload the Rust side ships on every frame event, under its
+/// wire keys.
 Map<String, dynamic> _captureData() => <String, dynamic>{
-  FrameCaptureKeys.gain: 139,
-  FrameCaptureKeys.offset: 21,
-  FrameCaptureKeys.sensorTempC: -9.5,
-  FrameCaptureKeys.coolerPowerPercent: 63.5,
-  FrameCaptureKeys.mountRaHours: 5.5,
-  FrameCaptureKeys.mountDecDegrees: -5.25,
-  FrameCaptureKeys.mountAltitudeDeg: 48.5,
-  FrameCaptureKeys.mountAzimuthDeg: 171.25,
-  FrameCaptureKeys.pierSide: 'West',
-  FrameCaptureKeys.focuserPosition: 31705,
-  FrameCaptureKeys.focuserTemperatureC: 4.25,
-  FrameCaptureKeys.rotatorAngleDeg: 212.5,
-  FrameCaptureKeys.exposureSecs: 120.0,
-  FrameCaptureKeys.binX: 2,
-  FrameCaptureKeys.binY: 2,
-  FrameCaptureKeys.frameType: 'Dark',
-  FrameCaptureKeys.targetId: 'target-header-node-9',
+  'gain': 139,
+  'offset': 21,
+  'sensor_temp_c': -9.5,
+  'cooler_power_percent': 63.5,
+  'mount_ra_hours': 5.5,
+  'mount_dec_degrees': -5.25,
+  'mount_altitude_deg': 48.5,
+  'mount_azimuth_deg': 171.25,
+  'pier_side': 'West',
+  'focuser_position': 31705,
+  'focuser_temperature_c': 4.25,
+  'rotator_angle_deg': 212.5,
+  'exposure_secs': 120.0,
+  'bin_x': 2,
+  'bin_y': 2,
+  'frame_type': 'Dark',
+  'target_id': 'target-header-node-9',
 };
 
 /// A one-node sequence whose ExposureNode config DISAGREES with
@@ -167,6 +164,9 @@ void main() {
           data: {
             'node_id': 'snapshot-node',
             'frame': 1,
+            'total': 1,
+            'accepted_total': 1,
+            'rejected_total': 0,
             'save_path': '/captures/dark.fits',
             ..._captureData(),
           },
@@ -276,6 +276,7 @@ void main() {
           'reason': 'HFR 6.2 above limit',
           'accepted_total': 7,
           'rejected_total': 1,
+          'consecutive_rejects': 1,
           'reject_path': '/captures/m42/Reject/D_0008.fits',
           ..._captureData(),
         },
@@ -296,58 +297,39 @@ void main() {
     expect(row.rotatorAngle, closeTo(212.5, 1e-9));
   });
 
-  /// A paired phone talking to a not-yet-updated appliance receives a frame
-  /// event with none of these keys. The columns must stay NULL rather than
-  /// pick up a zero that reads as a real measurement.
-  test(
-    'frame event without a capture payload leaves the columns null',
-    () async {
-      final container = buildContainer();
-      final executor = container.read(sequenceExecutorProvider);
+  /// A frame event without its capture record is not a frame this build
+  /// reads: no row is written from a guess.
+  test('a frame event without its capture record writes no row', () async {
+    final container = buildContainer();
+    final executor = container.read(sequenceExecutorProvider);
 
-      executor.handleSequencerEventForTest(
-        bridge_event.SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: bridge_event.EventSeverity.info,
-          category: bridge_event.EventCategory.sequencer,
-          eventType: 'FrameAccepted',
-          data: const {
-            'node_id': 'exposure-node-legacy-capture',
-            'frame': 1,
-            'total': 1,
-            'accepted_total': 1,
-            'rejected_total': 0,
-            'save_path': '/captures/m42/L_0001.fits',
-          },
-        ),
-      );
+    executor.handleSequencerEventForTest(
+      bridge_event.SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: bridge_event.EventSeverity.info,
+        category: bridge_event.EventCategory.sequencer,
+        eventType: 'FrameAccepted',
+        data: const {
+          'node_id': 'exposure-node-no-capture',
+          'frame': 1,
+          'total': 1,
+          'accepted_total': 1,
+          'rejected_total': 0,
+          'save_path': '/captures/m42/L_0001.fits',
+        },
+      ),
+    );
 
-      final row = await awaitRow('exposure-node-legacy-capture');
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final rows = await ImagesDao(
+      db,
+    ).getImagesByProducingNode(producingNodeId: 'exposure-node-no-capture');
+    expect(rows, isEmpty);
+  });
 
-      expect(row.sensorTemp, isNull);
-      expect(row.coolerPower, isNull);
-      expect(row.mountRa, isNull);
-      expect(row.mountDec, isNull);
-      expect(row.mountAltitude, isNull);
-      expect(row.mountAzimuth, isNull);
-      expect(row.pierSide, isNull);
-      expect(row.focuserPosition, isNull);
-      expect(row.focuserTemp, isNull);
-      expect(row.rotatorAngle, isNull);
-    },
-  );
-
-  // The residual second source: `capture.X ?? attribution.X`.
-  //
-  // `resolveFrameAttribution` walks the loaded sequence tree and can still
-  // supply gain, offset, binning, frame type and exposure length. These two
-  // tests pin exactly when it may and may not do so, because a fallback nobody
-  // has bounded is just the two-sources-of-truth defect wearing a `??`.
-
-  /// With a capture payload present (every FFI frame, and any host new enough
-  /// to send one), the tree must not contribute a single column — not even when
-  /// it is loaded and says something different. The tree is what the sequence
-  /// ASKED for; the payload is what the camera DID.
+  /// The loaded sequence tree must not contribute a single column, not even
+  /// when it says something different. The tree is what the sequence ASKED
+  /// for; the payload is what the camera DID.
   test('capture payload beats a loaded sequence that disagrees', () async {
     const nodeId = 'exposure-node-disagree';
     final container = buildContainer(
@@ -402,94 +384,4 @@ void main() {
       reason: 'the node config says light; the frame was captured as a dark',
     );
   });
-
-  /// The ONLY case the fallback serves: a paired client whose appliance predates
-  /// the capture payload. Its frame event carries none of the keys, so the tree
-  /// walk is all there is — and a NULL gain/offset or a 1x1 binning stamped onto
-  /// a 4x4 frame breaks master-dark matching for that whole session.
-  ///
-  /// Delete the `?? attribution.X` fallbacks and this is what stops working; it
-  /// cannot be reproduced on the FFI path, which is why the fallbacks stay.
-  test('legacy host with no capture payload falls back to the tree', () async {
-    const nodeId = 'exposure-node-legacy-attribution';
-    final container = buildContainer(
-      loadedSequence: _disagreeingSequence(nodeId),
-    );
-    final executor = container.read(sequenceExecutorProvider);
-
-    executor.handleSequencerEventForTest(
-      bridge_event.SkotiqEvent(
-        timestamp: DateTime.now().millisecondsSinceEpoch,
-        severity: bridge_event.EventSeverity.info,
-        category: bridge_event.EventCategory.sequencer,
-        eventType: 'FrameAccepted',
-        data: const {
-          'node_id': nodeId,
-          'frame': 1,
-          'total': 10,
-          'accepted_total': 1,
-          'rejected_total': 0,
-          'save_path': '/captures/m42/L_0001.fits',
-        },
-      ),
-    );
-
-    final row = await awaitRow(nodeId);
-
-    expect(row.gain, 0);
-    expect(row.offset, 0);
-    expect(row.binX, 4);
-    expect(row.binY, 4);
-    expect(row.exposureDuration, closeTo(300.0, 1e-9));
-    expect(row.frameType, 'light');
-  });
-
-  test(
-    'a captured dark lands in the dark library; a light frame does not',
-    () async {
-      final container = buildContainer();
-      final executor = container.read(sequenceExecutorProvider);
-      void send(String nodeId, String frameType, String path) {
-        executor.handleSequencerEventForTest(
-          bridge_event.SkotiqEvent(
-            timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: bridge_event.EventSeverity.info,
-            category: bridge_event.EventCategory.sequencer,
-            eventType: 'FrameAccepted',
-            data: {
-              'node_id': nodeId,
-              'frame': 1,
-              'total': 1,
-              'accepted_total': 1,
-              'rejected_total': 0,
-              'save_path': path,
-              ..._captureData(),
-              FrameCaptureKeys.frameType: frameType,
-            },
-          ),
-        );
-      }
-
-      send('dark-node', 'Dark', '/captures/Dark/Dark_DARK_0001.fits');
-      send('light-node', 'Light', '/captures/M42/M42_L_0001.fits');
-      await awaitRow('dark-node');
-      await awaitRow('light-node');
-      List<DarkLibraryEntry> entries = const [];
-      for (var i = 0; i < 40 && entries.isEmpty; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-        entries = await db.darkLibraryDao.getAllEntries();
-      }
-
-      expect(entries, hasLength(1));
-      final dark = entries.single;
-      expect(dark.filePath, '/captures/Dark/Dark_DARK_0001.fits');
-      expect(dark.frameType, 'dark');
-      expect(dark.exposureTime, closeTo(120.0, 1e-9));
-      expect(dark.gain, 139);
-      expect(dark.offset, 21);
-      expect(dark.binX, 2);
-      expect(dark.temperature, closeTo(-9.5, 1e-9));
-      expect(dark.masterDarkPath, isNull);
-    },
-  );
 }

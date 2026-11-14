@@ -20,8 +20,10 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 
+import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -81,23 +83,14 @@ void main() {
       // because the FrameAccepted path is entirely Dart-side once the
       // event lands in `_handleSequencerEvent`.
       executor.handleSequencerEventForTest(
-        bridge_event.SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: bridge_event.EventSeverity.info,
-          category: bridge_event.EventCategory.sequencer,
-          eventType: 'FrameAccepted',
-          data: const {
-            'node_id': 'exposure-node-1',
-            'frame': 1,
-            'total': 10,
-            'hfr': 2.35,
-            'eccentricity': 0.25,
-            'star_count': 145,
-            'accepted_total': 1,
-            'rejected_total': 0,
-            // The save_path field carried on accepted frames.
-            'save_path': savePath,
-          },
+        frameVerdictEvent(
+          accepted: true,
+          nodeId: 'exposure-node-1',
+          frame: 1,
+          total: 10,
+          hfr: 2.35,
+          starCount: 145,
+          path: savePath,
         ),
       );
 
@@ -143,21 +136,14 @@ void main() {
     expect(container.read(sessionImagesProvider), isEmpty);
 
     executor.handleSequencerEventForTest(
-      bridge_event.SkotiqEvent(
-        timestamp: DateTime.now().millisecondsSinceEpoch,
-        severity: bridge_event.EventSeverity.info,
-        category: bridge_event.EventCategory.sequencer,
-        eventType: 'FrameAccepted',
-        data: const {
-          'node_id': 'exposure-node-live',
-          'frame': 1,
-          'total': 3,
-          'hfr': 3.1,
-          'star_count': 88,
-          'accepted_total': 1,
-          'rejected_total': 0,
-          'save_path': '/captures/m42/L_0007.fits',
-        },
+      frameVerdictEvent(
+        accepted: true,
+        nodeId: 'exposure-node-live',
+        frame: 1,
+        total: 3,
+        hfr: 3.1,
+        starCount: 88,
+        path: '/captures/m42/L_0007.fits',
       ),
     );
 
@@ -183,20 +169,13 @@ void main() {
       final executor = container.read(sequenceExecutorProvider);
 
       executor.handleSequencerEventForTest(
-        bridge_event.SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: bridge_event.EventSeverity.warning,
-          category: bridge_event.EventCategory.sequencer,
-          eventType: 'FrameRejected',
-          data: const {
-            'node_id': 'exposure-node-reject',
-            'frame': 2,
-            'total': 3,
-            'reason': 'HFR 6.2 above limit',
-            'accepted_total': 1,
-            'rejected_total': 1,
-            'reject_path': '/captures/m42/Reject/L_0008.fits',
-          },
+        frameVerdictEvent(
+          accepted: false,
+          nodeId: 'exposure-node-reject',
+          frame: 2,
+          total: 3,
+          path: '/captures/m42/Reject/L_0008.fits',
+          reason: 'HFR 6.2 above limit',
         ),
       );
 
@@ -219,25 +198,17 @@ void main() {
   );
 
   test(
-    'FrameAccepted without save_path falls back to empty file_path (legacy)',
+    'a FrameAccepted with no saved file still gets a row, with an empty path',
     () async {
       final container = buildContainer();
       final executor = container.read(sequenceExecutorProvider);
 
       executor.handleSequencerEventForTest(
-        bridge_event.SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: bridge_event.EventSeverity.info,
-          category: bridge_event.EventCategory.sequencer,
-          eventType: 'FrameAccepted',
-          data: const {
-            'node_id': 'exposure-node-legacy',
-            'frame': 1,
-            'total': 1,
-            'accepted_total': 1,
-            'rejected_total': 0,
-            // No save_path: simulates a back-compat emit site.
-          },
+        frameVerdictEvent(
+          accepted: true,
+          nodeId: 'exposure-node-legacy',
+          frame: 1,
+          total: 1,
         ),
       );
 
@@ -252,7 +223,7 @@ void main() {
             row.filePath,
             isEmpty,
             reason:
-                'legacy emit without save_path must still insert the row '
+                'a frame without a save_path must still insert the row '
                 '(with an empty file_path) so the strip can show its '
                 'color-bordered placeholder tile rather than skipping',
           );
@@ -260,7 +231,7 @@ void main() {
           return;
         }
       }
-      fail('captured_images row for legacy accepted frame was never written');
+      fail('captured_images row for the unsaved frame was never written');
     },
   );
 }

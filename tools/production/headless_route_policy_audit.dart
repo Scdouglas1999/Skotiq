@@ -142,12 +142,10 @@ Map<String, bool> _readServerMiddlewareTests() {
         text.contains('Rate limit exceeded') &&
         text.contains("blocked.body['requestId']") &&
         text.contains("blocked.headers['x-request-id']"),
-    'websocket_api_version_before_auth':
-        text.contains(
-          'rejects incompatible WebSocket API versions before auth',
-        ) &&
-        text.contains('GET /events?apiVersion=1.9.9 HTTP/1.1') &&
+    'websocket_release_before_auth':
+        text.contains('refuses a WebSocket of another release before auth') &&
+        text.contains('GET /events?version=2.6.0 HTTP/1.1') &&
         text.contains('HttpStatus.upgradeRequired') &&
-        text.contains('server_too_old'),
+        text.contains('LinkVersion.mismatchCode'),
   };
 }

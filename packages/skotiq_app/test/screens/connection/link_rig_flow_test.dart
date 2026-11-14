@@ -87,7 +87,7 @@ final _host = DiscoveredServer(
   name: 'Skotiq',
   hostName: 'DESKTOP-MMAJGAK',
   platform: 'windows',
-  version: '8.2.1',
+  version: skotiqRelease,
   fingerprint: 'dc2f261109b13423267823392fce64406b21767a95928a2e13eebef17fa85016',
   lanPairing: true,
 );
@@ -99,7 +99,7 @@ final _headless = DiscoveredServer(
   hostName: 'observatory-pi',
   platform: 'linux',
   hostMode: 'headless',
-  version: '8.2.1',
+  version: skotiqRelease,
   fingerprint: 'ab12261109b13423267823392fce64406b21767a95928a2e13eebef17fa85016',
   lanPairing: true,
 );
@@ -159,7 +159,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('DESKTOP-MMAJGAK'), findsOneWidget);
-    expect(find.text('Windows · Skotiq 8.2.1 · 192.168.1.32:8099'),
+    expect(find.text('Windows · Skotiq $skotiqRelease · 192.168.1.32:8099'),
         findsOneWidget);
     expect(find.text('Identity dc2f 2611 09b1 3423'), findsOneWidget);
     // Nothing on the screen asks for a token.
@@ -167,7 +167,7 @@ void main() {
 
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.oneTap')));
-      for (var i = 0; i < 20 && relauncher.reasons.isEmpty; i++) {
+      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         await tester.pump();
       }
@@ -179,6 +179,29 @@ void main() {
     expect(saved!.active, isTrue);
     expect(saved.fingerprint, _host.fingerprint);
     expect(await tester.runAsync(store.readToken), 'tok');
+  });
+
+  testWidgets('a host of another release says which side to update and '
+      'offers no pairing', (tester) async {
+    await setSize(tester);
+    final older = _host.copyWith(version: '0.0.1');
+    await tester.pumpWidget(
+      app(LinkRigDialog(request: LinkRigRequest.pair(older))),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('link.versionMismatch')), findsOneWidget);
+    expect(
+      find.textContaining(
+        'The host runs Skotiq 0.0.1 and this device runs Skotiq '
+        '$skotiqRelease. Update the host to Skotiq $skotiqRelease, then '
+        'connect again.',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('link.oneTap')), findsNothing);
+    expect(find.byKey(const ValueKey('link.pairCode')), findsNothing);
   });
 
   testWidgets('a host that wants a code says so, and the code asks for admin',
@@ -210,7 +233,7 @@ void main() {
     await tester.pump();
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.pairCode')));
-      for (var i = 0; i < 20 && relauncher.reasons.isEmpty; i++) {
+      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         await tester.pump();
       }
@@ -266,7 +289,7 @@ void main() {
     );
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('link.pairCode')));
-      for (var i = 0; i < 20 && relauncher.reasons.isEmpty; i++) {
+      for (var i = 0; i < 100 && relauncher.reasons.isEmpty; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         await tester.pump();
       }

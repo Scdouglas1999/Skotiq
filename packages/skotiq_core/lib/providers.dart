@@ -31,10 +31,7 @@ export 'src/providers/sequence/run_config_sync.dart'
     show runConfigSyncProvider, RunConfigSync;
 export 'src/providers/sequence_stats_provider.dart';
 // The one wording for a target dropped by its own end_when.
-export 'src/providers/sequence/run_dither_event.dart';
 // Sequencer events, typed once at the Dart boundary.
-export 'src/providers/sequence/sequencer_run_event.dart';
-export 'src/providers/sequence/structured_progress_json.dart';
 export 'src/providers/sequence/plan_run_end.dart';
 export 'src/providers/sequence/plan_timer_provider.dart';
 // The one vocabulary for an exposure node's per-frame progress line.

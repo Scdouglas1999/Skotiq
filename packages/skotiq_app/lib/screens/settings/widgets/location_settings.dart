@@ -124,11 +124,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       data: (settings) {
         final authority = ref.watch(backendProvider);
         final isRemoteMode = ref.watch(isRemoteModeProvider);
-        // A host that serves its key/value settings takes horizon mask edits;
-        // an older one does not store them, so the mask stays read-only there.
-        final horizonEditable = !isRemoteMode ||
-            ref.watch(hostSettingsStoreSupportProvider).valueOrNull ==
-                HostSettingsStoreSupport.full;
         final storedGoogleKey = ref.watch(googleGeolocationKeyProvider).value;
         if (storedGoogleKey != null) _seedGoogleKey(storedGoogleKey);
         final horizonProfile =
@@ -484,88 +479,70 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     ),
                   ),
                 ),
-                // An imaging host too old to serve its key/value settings cannot
-                // store a horizon mask edit, so show a host-only notice instead
-                // of editors that cannot persist.
-                if (!horizonEditable)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-                    child: Text(
-                      'The local horizon mask can only be edited on the imaging '
-                      'host.',
-                      style: SkotiqTypography.caption.copyWith(
-                        color: SkotiqColors.of(context).textSecondary,
-                      ),
+                ...List.generate(horizonDirections.length, (i) {
+                  final dir = horizonDirections[i];
+                  final azimuth = horizonDirectionAzimuths[i];
+                  return SettingRow(
+                    icon: _compassIcon(dir),
+                    title: '$dir (${azimuth.toStringAsFixed(0)}\u00B0)',
+                    subtitle: 'Horizon altitude at $dir',
+                    trailing: SettingsNumberInput(
+                      controller: _horizonControllers[dir]!,
+                      authoritativeValue: horizonProfile.altitudeAt(dir),
+                      authorityKey: authority,
+                      suffix: '\u00B0',
+                      min: 0,
+                      max: 89,
+                      decimals: 0,
+                      onChanged: (_) => _updateHorizonProfile(),
                     ),
-                  )
-                else ...[
-                  ...List.generate(horizonDirections.length, (i) {
-                    final dir = horizonDirections[i];
-                    final azimuth = horizonDirectionAzimuths[i];
-                    return SettingRow(
-                      icon: _compassIcon(dir),
-                      title: '$dir (${azimuth.toStringAsFixed(0)}\u00B0)',
-                      subtitle: 'Horizon altitude at $dir',
-                      trailing: SettingsNumberInput(
-                        controller: _horizonControllers[dir]!,
-                        authoritativeValue: horizonProfile.altitudeAt(dir),
-                        authorityKey: authority,
-                        suffix: '\u00B0',
-                        min: 0,
-                        max: 89,
-                        decimals: 0,
-                        onChanged: (_) => _updateHorizonProfile(),
-                      ),
-                      isLast: i == horizonDirections.length - 1,
-                    );
-                  }),
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        TextButton.icon(
-                          icon: _isImportingHorizon
-                              ? SizedBox.square(
-                                  dimension: 14,
-                                  child: SkotiqSpinner(
-                                      size: 14,
-                                      color: SkotiqColors.of(context).primary),
-                                )
-                              : Icon(
-                                  LucideIcons.upload,
-                                  size: 14,
-                                  color: SkotiqColors.of(context).primary,
-                                ),
-                          label: Text(
-                              _isImportingHorizon
-                                  ? 'Importing horizon...'
-                                  : 'Import .hor / CSV',
-                              style: SkotiqTypography.caption.copyWith(
-                                color: _isImportingHorizon
-                                    ? SkotiqColors.of(context).textMuted
-                                    : SkotiqColors.of(context).primary,
-                              )),
-                          onPressed:
-                              _isImportingHorizon ? null : _importHorizonFile,
-                        ),
-                        TextButton.icon(
-                          icon: Icon(LucideIcons.rotateCcw,
-                              size: 14,
-                              color: SkotiqColors.of(context).primary),
-                          label: Text('Reset All to 0\u00B0',
-                              style: SkotiqTypography.caption.copyWith(
+                    isLast: i == horizonDirections.length - 1,
+                  );
+                }),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      TextButton.icon(
+                        icon: _isImportingHorizon
+                            ? SizedBox.square(
+                                dimension: 14,
+                                child: SkotiqSpinner(
+                                    size: 14,
+                                    color: SkotiqColors.of(context).primary),
+                              )
+                            : Icon(
+                                LucideIcons.upload,
+                                size: 14,
                                 color: SkotiqColors.of(context).primary,
-                              )),
-                          onPressed: () => _resetHorizon(horizonProfile),
-                        ),
-                      ],
-                    ),
+                              ),
+                        label: Text(
+                            _isImportingHorizon
+                                ? 'Importing horizon...'
+                                : 'Import .hor / CSV',
+                            style: SkotiqTypography.caption.copyWith(
+                              color: _isImportingHorizon
+                                  ? SkotiqColors.of(context).textMuted
+                                  : SkotiqColors.of(context).primary,
+                            )),
+                        onPressed:
+                            _isImportingHorizon ? null : _importHorizonFile,
+                      ),
+                      TextButton.icon(
+                        icon: Icon(LucideIcons.rotateCcw,
+                            size: 14, color: SkotiqColors.of(context).primary),
+                        label: Text('Reset All to 0\u00B0',
+                            style: SkotiqTypography.caption.copyWith(
+                              color: SkotiqColors.of(context).primary,
+                            )),
+                        onPressed: () => _resetHorizon(horizonProfile),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ],
             ),
             const LearnedObstructionsSection(),

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show skotiqRelease;
 import 'package:skotiq_core/src/backend/network_backend.dart';
 
 /// A host that answers `/api/info` with [info] and accepts the event socket.
@@ -51,19 +53,19 @@ void main() {
   test('a host that requires pairing is known as one after connecting',
       () async {
     expect(
-      await _whatTheHostSaid({'version': '2.5.0', 'authRequired': true}),
+      await _whatTheHostSaid({'version': skotiqRelease, 'authRequired': true}),
       isTrue,
     );
   });
 
   test('an open host is known as open', () async {
     expect(
-      await _whatTheHostSaid({'version': '2.5.0', 'authRequired': false}),
+      await _whatTheHostSaid({'version': skotiqRelease, 'authRequired': false}),
       isFalse,
     );
   });
 
   test('a host that does not say stays unknown', () async {
-    expect(await _whatTheHostSaid({'version': '2.5.0'}), isNull);
+    expect(await _whatTheHostSaid({'version': skotiqRelease}), isNull);
   });
 }

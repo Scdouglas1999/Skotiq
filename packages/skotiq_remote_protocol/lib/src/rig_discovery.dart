@@ -9,7 +9,7 @@ import 'package:multicast_dns/multicast_dns.dart';
 import 'discovery.dart';
 import 'enhanced_discovery.dart';
 import 'network_uri.dart';
-import 'server_compatibility.dart';
+import 'link_version.dart';
 import 'wire/routes/system_api.dart';
 
 /// The DNS-SD service type every Skotiq host registers (GUI and headless).
@@ -101,10 +101,7 @@ class RigDiscovery {
               port: seed.webPort,
               pathAndQuery: SystemApi.info.route.path,
             ),
-            headers: {
-              SkotiqServerCompatibility.apiVersionHeader:
-                  SkotiqServerCompatibility.clientApiVersion.format(),
-            },
+            headers: {LinkVersion.header: skotiqRelease},
           )
           .timeout(timeout);
       if (response.statusCode != 200) return null;
@@ -292,7 +289,7 @@ class RigDiscovery {
               host: address.address,
               webPort: srv.port,
               name: txt['name'] ?? instance.split('.').first,
-              version: txt['version'] ?? 'unknown',
+              version: txt['version'],
               scheme: scheme == 'https' ? 'https' : 'http',
               fingerprint: _nonEmpty(txt['fingerprint']),
               pairingSupported: txt['pairingSupported'] == 'true',

@@ -6,28 +6,17 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     String host = 'localhost',
     int port = 4400,
   }) async {
-    // The PHD2 event-server socket lives on the host's loopback, which a
-    // remote client cannot reach directly. Instead, ask the master to run
-    // the probe on our behalf via GET /api/phd2/running. Older masters that
-    // predate this endpoint return 404 — degrade to "not detected" so the
-    // onboarding test-connection button shows a clean result instead of a
-    // red exception.
-    try {
-      final response = await _get(
-        GuidingApi.phd2IsRunning,
-        query: {'host': host, 'port': port},
+    final response = await _get(
+      GuidingApi.phd2IsRunning,
+      query: {'host': host, 'port': port},
+    );
+    final running = response['running'];
+    if (running is! bool) {
+      throw const FormatException(
+        'GET /api/phd2/running returned no boolean `running` field',
       );
-      final running = response['running'];
-      if (running is! bool) {
-        throw const FormatException(
-          'GET /api/phd2/running returned no boolean `running` field',
-        );
-      }
-      return running;
-    } on ServerError catch (e) {
-      if (e.httpStatus == 404) return false;
-      rethrow;
     }
+    return running;
   }
 
   @override
@@ -35,27 +24,11 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     String host = 'localhost',
     int port = 4400,
   }) async {
-    try {
-      final response = await _get(
-        GuidingApi.phd2Probe,
-        query: {'host': host, 'port': port},
-      );
-      return Phd2ProbeResult.fromJson(response);
-    } on ServerError catch (e) {
-      if (e.httpStatus != 404) rethrow;
-      // A master that predates GET /api/phd2/probe can still answer the port
-      // question. Report that as "reachable, version unknown" rather than
-      // inventing an identification that endpoint never makes.
-      final running = await isPhd2Running(host: host, port: port);
-      return Phd2ProbeResult(
-        outcome: running
-            ? Phd2ProbeOutcome.reachableUnverified
-            : Phd2ProbeOutcome.unreachable,
-        error: running
-            ? null
-            : 'The imaging host reported nothing listening on $host:$port.',
-      );
-    }
+    final response = await _get(
+      GuidingApi.phd2Probe,
+      query: {'host': host, 'port': port},
+    );
+    return Phd2ProbeResult.fromJson(response);
   }
 
   @override

@@ -71,17 +71,9 @@ extension _ProfileServiceBackends on ProfileService {
         }
       }
       final chosen = defaultProfile ?? activeProfile;
-      if (chosen != null) {
-        return EquipmentProfileModel.fromRemoteProfile(chosen);
-      }
-      // Older hosts may omit isActive from list rows while still exposing the
-      // authoritative active row on the dedicated endpoint. Never fall back
-      // to a cached profile from the previous host.
-      final active = await host.getActiveProfile();
-      _requireAuthority(operation);
-      return active == null
+      return chosen == null
           ? null
-          : EquipmentProfileModel.fromRemoteProfile(active);
+          : EquipmentProfileModel.fromRemoteProfile(chosen);
     }
 
     final dao = _ref.read(equipmentProfilesDaoProvider);

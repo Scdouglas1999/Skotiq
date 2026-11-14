@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'server_compatibility.dart';
+import 'link_version.dart';
 import 'network_uri.dart';
 import 'wire/routes/pairing_api.dart';
 import 'wire/routes/system_api.dart';
@@ -173,9 +173,7 @@ class RemotePairingClient {
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    SkotiqServerCompatibility.apiVersionHeader: SkotiqServerCompatibility
-        .clientApiVersion
-        .format(),
+    LinkVersion.header: skotiqRelease,
   };
 
   /// Asks the host to make a pairing code. The code stays on the host (its

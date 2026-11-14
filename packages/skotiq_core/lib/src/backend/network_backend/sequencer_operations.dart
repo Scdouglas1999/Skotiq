@@ -42,7 +42,7 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     return EonStatus.fromHostJson(response['status']);
   }
 
-  Future<Map<String, dynamic>> awaitJobResultOrLegacy(
+  Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
     required Duration timeout,
@@ -402,27 +402,18 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<String?> sequencerGetCloudMotionJson() async {
-    // Fetched lazily by the dashboard tick. The remote
-    // endpoint mirrors the local FRB call.
-    try {
-      final response = await _get(SequencerApi.getCloudMotion);
-      if (!response.containsKey('cloud_motion')) {
-        throw const FormatException(
-          'GET /api/sequencer/cloud-motion returned no `cloud_motion` field',
-        );
-      }
-      final value = response['cloud_motion'];
-      if (value == null || value is String) return value as String?;
-      throw FormatException(
-        'GET /api/sequencer/cloud-motion returned a non-string '
-        '`cloud_motion` field (${value.runtimeType})',
+    final response = await _get(SequencerApi.getCloudMotion);
+    if (!response.containsKey('cloud_motion')) {
+      throw const FormatException(
+        'GET /api/sequencer/cloud-motion returned no `cloud_motion` field',
       );
-    } on ServerError catch (error) {
-      // Compatibility with masters that predate this optional dashboard
-      // endpoint. Every other host/transport failure remains visible.
-      if (error.httpStatus == 404) return null;
-      rethrow;
     }
+    final value = response['cloud_motion'];
+    if (value == null || value is String) return value as String?;
+    throw FormatException(
+      'GET /api/sequencer/cloud-motion returned a non-string '
+      '`cloud_motion` field (${value.runtimeType})',
+    );
   }
 
   /// Remote-only: put this client's open plan into the host's sequence
@@ -561,7 +552,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
             )
           : null,
       guidingStopReason: response['guidingStopReason'] as String?,
-      reportsGuidingStopReason: response.containsKey('guidingStopReason'),
     );
   }
 

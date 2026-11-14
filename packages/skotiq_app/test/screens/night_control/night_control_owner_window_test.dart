@@ -117,7 +117,8 @@ void main() {
     }
   }
 
-  testWidgets('with Tonight open a critical event is on the banner and pages '
+  testWidgets(
+      'with Tonight open a critical event is on the banner and pages '
       'the phone once', (tester) async {
     await pumpNightShell(
       tester,

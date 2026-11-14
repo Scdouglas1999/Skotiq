@@ -32,12 +32,6 @@ abstract interface class AppSettingsRows {
 /// * A key owned by the app-settings notifier goes through it, and so through
 ///   the host's typed settings endpoint.
 /// * Every other key is the host's row in [HostSettingsStore].
-///
-/// When the host is too old to serve a key at all, the read falls back to this
-/// computer's row and the key is recorded in
-/// [HostSettingsStore.unsharedKeys], so the Settings
-/// screen can say which values are this computer's own copy rather than present
-/// them as the host's.
 class RemoteSettingsDao extends SettingsDao {
   RemoteSettingsDao(
     super.db, {
@@ -51,20 +45,17 @@ class RemoteSettingsDao extends SettingsDao {
 
   bool _isAppSettingsKey(String key) => _appSettings.keys.contains(key);
 
-  Future<bool> _isHostStoreKey(String key) async {
-    if (isDeviceLocalSettingKey(key) || _isAppSettingsKey(key)) return false;
-    await _store.ensureLoaded();
-    if (_store.covers(key)) return true;
-    _store.noteUnsharedKey(key);
-    return false;
-  }
+  /// Every row that is neither this device's own nor part of the host's
+  /// typed settings is a row of the host's key/value store.
+  bool _isHostStoreKey(String key) =>
+      !isDeviceLocalSettingKey(key) && !_isAppSettingsKey(key);
 
   @override
   Future<String?> getSetting(String key) async {
     if (isDeviceLocalSettingKey(key)) return super.getSetting(key);
     if (_isAppSettingsKey(key)) return (await _appSettings.read())[key];
-    if (await _isHostStoreKey(key)) return _store.values[key];
-    return super.getSetting(key);
+    await _store.ensureLoaded();
+    return _store.values[key];
   }
 
   @override
@@ -73,12 +64,7 @@ class RemoteSettingsDao extends SettingsDao {
     await _store.ensureLoaded();
     final merged = <String, String>{};
     local.forEach((key, value) {
-      if (isDeviceLocalSettingKey(key)) {
-        merged[key] = value;
-      } else if (!_isAppSettingsKey(key) && !_store.covers(key)) {
-        _store.noteUnsharedKey(key);
-        merged[key] = value;
-      }
+      if (isDeviceLocalSettingKey(key)) merged[key] = value;
     });
     _store.values.forEach((key, value) {
       if (!isDeviceLocalSettingKey(key) && !_isAppSettingsKey(key)) {
@@ -105,10 +91,8 @@ class RemoteSettingsDao extends SettingsDao {
         local[entry.key] = entry.value;
       } else if (_isAppSettingsKey(entry.key)) {
         app[entry.key] = entry.value;
-      } else if (await _isHostStoreKey(entry.key)) {
-        host[entry.key] = entry.value;
       } else {
-        local[entry.key] = entry.value;
+        host[entry.key] = entry.value;
       }
     }
     if (host.isNotEmpty) await _store.write(host);
@@ -122,7 +106,7 @@ class RemoteSettingsDao extends SettingsDao {
     Map<String, Object?> fields, {
     Map<String, Object?> base = const {},
   }) async {
-    if (await _isHostStoreKey(key)) {
+    if (_isHostStoreKey(key)) {
       return _store.mergeJsonObject(key, fields, base: base);
     }
     if (_isAppSettingsKey(key)) {
@@ -139,15 +123,11 @@ class RemoteSettingsDao extends SettingsDao {
 
   @override
   Future<int> deleteSetting(String key) async {
-    if (isDeviceLocalSettingKey(key) || _isAppSettingsKey(key)) {
-      return super.deleteSetting(key);
-    }
-    if (await _isHostStoreKey(key)) {
-      final existed = _store.values.containsKey(key);
-      await _store.write(const {}, remove: [key]);
-      return existed ? 1 : 0;
-    }
-    return super.deleteSetting(key);
+    if (!_isHostStoreKey(key)) return super.deleteSetting(key);
+    await _store.ensureLoaded();
+    final existed = _store.values.containsKey(key);
+    await _store.write(const {}, remove: [key]);
+    return existed ? 1 : 0;
   }
 
   @override

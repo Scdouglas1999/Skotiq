@@ -701,7 +701,7 @@ void main() {
     test('UpdateAvailable controller event reaches WS broadcast', () async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=admin-token&apiVersion=2.6.0',
+        '?token=admin-token',
       );
       final received = <Map<String, dynamic>>[];
       final completer = Completer<Map<String, dynamic>>();

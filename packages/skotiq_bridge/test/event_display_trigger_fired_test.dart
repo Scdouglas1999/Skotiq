@@ -58,15 +58,4 @@ void main() {
     );
     expect(parked['action'], 'ParkAndAbort');
   });
-
-  // An older host sent the action's Rust debug form.
-  test('an action an older host spelled another way reads as a notice', () {
-    expect(
-      _decodedAction(
-        'MeridianFlip(MeridianFlipConfig { trigger_method: '
-        'MinutesPastMeridian, minutes_past_meridian: 20.0 })',
-      ),
-      SequencerTriggerAction.notify,
-    );
-  });
 }

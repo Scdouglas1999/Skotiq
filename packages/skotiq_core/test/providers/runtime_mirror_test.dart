@@ -739,7 +739,7 @@ void main() {
           data: {
             'trigger_id': 't1',
             'trigger_name': 'Meridian Flip',
-            'action': 'flip',
+            'action': 'MeridianFlip',
           },
         ),
       ],

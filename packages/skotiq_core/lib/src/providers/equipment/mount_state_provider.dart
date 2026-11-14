@@ -1,5 +1,3 @@
-import '../runtime_mirror/channels/device_slot_channel.dart';
-import '../runtime_mirror/client_runtime_mirror.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/equipment/equipment_models.dart';
@@ -30,8 +28,6 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
 
   /// Fast polling interval (while slewing)
   static const _slewingPollInterval = Duration(milliseconds: 500);
-  static const _companionPollInterval = Duration(seconds: 5);
-  static const _companionSlewingPollInterval = Duration(seconds: 1);
 
   MountStateNotifier(Ref ref)
     : super(ref, DeviceType.mount, const MountState());
@@ -129,13 +125,10 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
 
   void _startPositionPolling() {
     _stopPositionPolling();
-    final companion = ref.read(isRemoteModeProvider);
     if (_hostSendsReadings) return;
-    // A host from before the device channels is polled, at a slower pace
-    // than the host polls itself: every read is a driver round trip there.
     final interval = state.isSlewing
-        ? (companion ? _companionSlewingPollInterval : _slewingPollInterval)
-        : (companion ? _companionPollInterval : _normalPollInterval);
+        ? _slewingPollInterval
+        : _normalPollInterval;
     Log.info(
       '[Mount] Starting position polling (interval: ${interval.inMilliseconds}ms)',
       source: 'MountStateNotifier',
@@ -146,15 +139,7 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
   /// A linked host sends every reading of its mount and how its reads go
   /// (the mount's device channel), so a client reads the mount itself only
   /// right after a command ([refreshNow]).
-  bool get _hostSendsReadings =>
-      ref.read(isRemoteModeProvider) &&
-      ref
-          .read(clientRuntimeMirrorStateProvider)
-          .hostPublishes(_mountChannel.key);
-
-  static final _mountChannel = deviceSlotChannels.firstWhere(
-    (channel) => channel.slot.type == DeviceType.mount,
-  );
+  bool get _hostSendsReadings => ref.read(isRemoteModeProvider);
 
   void _stopPositionPolling() {
     if (_positionPollTimer != null) {
@@ -177,7 +162,7 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
   /// Called when the host reports a mount command (a sync, an abort, an
   /// alt/az slew) that has no event carrying the new state, whoever sent
   /// it, so every UI shows the result within one status read rather than
-  /// after the 2 s (host) or 5 s (linked client) poll.
+  /// after the next 2 s poll (host) or channel update (linked client).
   Future<void> refreshNow() async {
     if (_isPolling) {
       _pollAgain = true;

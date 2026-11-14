@@ -12,11 +12,7 @@ import 'publishing_settings_dao.dart';
 import 'remote_settings_dao.dart';
 import '../../settings/app_settings_state.g.dart';
 
-export 'host_settings_store.dart'
-    show
-        HostSettingsStore,
-        HostSettingsStoreSupport,
-        HostSettingUnavailableError;
+export 'host_settings_store.dart' show HostSettingsStore;
 export 'remote_settings_dao.dart' show RemoteSettingsDao, AppSettingsRows;
 export 'credential_settings.dart';
 export 'settings_key_scope.dart';
@@ -72,19 +68,9 @@ final hostSettingsStoreProvider = Provider<HostSettingsStore?>((ref) {
   return store;
 });
 
-/// How much of the host's key/value settings this client reaches, or null
-/// when this app owns the hardware itself.
-final hostSettingsStoreSupportProvider =
-    FutureProvider<HostSettingsStoreSupport?>((ref) async {
-      final store = ref.watch(hostSettingsStoreProvider);
-      if (store == null) return null;
-      await store.ensureLoaded();
-      return store.support;
-    });
-
 /// On a linked client, whether its credential has admin access to the host,
 /// which the admin-only settings need ([adminOnlyRow]). Null when this
-/// app owns the hardware itself or the host does not say.
+/// app owns the hardware itself.
 final hostAdminAccessProvider = FutureProvider<bool?>((ref) async {
   final store = ref.watch(hostSettingsStoreProvider);
   if (store == null) return null;

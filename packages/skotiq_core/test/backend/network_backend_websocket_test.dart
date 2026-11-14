@@ -3,10 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show skotiqRelease;
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
 import 'package:skotiq_core/src/models/errors/server_error.dart';
+import 'package:skotiq_core/src/models/errors/skotiq_error.dart';
 import 'package:skotiq_core/src/models/backend/backend_connection_state.dart';
 
 void main() {
@@ -181,35 +184,31 @@ void main() {
       }
     });
 
-    test('prefers compatible apiVersion over a newer app version', () async {
-      var websocketOpened = false;
-      final server = await _startServer((socket) {
-        websocketOpened = true;
-        socket.listen((message) {
-          final data = jsonDecode(message as String) as Map<String, dynamic>;
-          if (data['type'] == 'ping') {
-            socket.add(jsonEncode({'type': 'pong'}));
-          }
-        });
-      }, infoBody: const {'version': '3.0.0', 'apiVersion': '2.6.0'});
-
+    test('a host of another release is refused for good, saying which side '
+        'to update', () async {
+      final server = await _startServer(
+        (socket) => socket.listen((_) {}),
+        infoBody: const {'version': '0.0.1'},
+      );
       final backend = NetworkBackend(
         serverHost: InternetAddress.loopbackIPv4.address,
         serverPort: server.port,
         webSocketPort: server.port,
-        webSocketHeartbeatInterval: const Duration(milliseconds: 50),
-        webSocketHeartbeatTimeout: const Duration(milliseconds: 250),
+        autoConnectWebSocket: false,
       );
 
       try {
-        await backend.connectionStateStream
-            .firstWhere((state) => state == BackendConnectionState.connected)
-            .timeout(const Duration(seconds: 2));
-        await _waitUntil(
-          () => websocketOpened,
-          timeout: const Duration(seconds: 2),
+        await backend.connect();
+
+        expect(backend.connectionState, BackendConnectionState.error);
+        final refusal = backend.connectRefusal;
+        expect(refusal, isA<HostVersionMismatchError>());
+        expect(
+          refusal!.userMessage,
+          'The host runs Skotiq 0.0.1 and this device runs Skotiq '
+          '$skotiqRelease. Update the host to Skotiq $skotiqRelease, then '
+          'connect again.',
         );
-        expect(websocketOpened, isTrue);
       } finally {
         backend.dispose();
         await server.close(force: true);
@@ -658,7 +657,7 @@ void main() {
             request.response
               ..statusCode = HttpStatus.ok
               ..headers.contentType = ContentType.json
-              ..write(jsonEncode(const {'version': '2.5.0'}));
+              ..write(jsonEncode(const {'version': skotiqRelease}));
             await request.response.close();
             return;
           }
@@ -728,73 +727,42 @@ void main() {
       },
     );
 
-    test(
-      'falls back to ?token= when the server has no ticket endpoint',
-      () async {
-        // Backward compatibility: against an older appliance that returns 404 for
-        // /api/ws/ticket, the client must still connect via the legacy ?token=.
-        Uri? wsUpgradeUri;
-        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        server.listen((request) async {
-          final path = request.uri.path;
-          if (path == '/api/info') {
-            request.response
-              ..statusCode = HttpStatus.ok
-              ..headers.contentType = ContentType.json
-              ..write(jsonEncode(const {'version': '2.5.0'}));
-            await request.response.close();
-            return;
-          }
-          if (path == '/api/ws/ticket') {
-            request.response.statusCode = HttpStatus.notFound;
-            await request.response.close();
-            return;
-          }
-          if (path == '/events') {
-            wsUpgradeUri = request.uri;
-            final socket = await WebSocketTransformer.upgrade(request);
-            socket.listen((message) {
-              final data =
-                  jsonDecode(message as String) as Map<String, dynamic>;
-              if (data['type'] == 'ping') {
-                socket.add(jsonEncode({'type': 'pong'}));
-              }
-            });
-            return;
-          }
+    test('a host that issues no ticket is never sent the bearer in the URL',
+        () async {
+      var upgrades = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        final path = request.uri.path;
+        if (path == '/api/info') {
+          request.response
+            ..statusCode = HttpStatus.ok
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode(const {'version': skotiqRelease}));
+        } else if (path == '/events') {
+          upgrades++;
+          request.response.statusCode = HttpStatus.forbidden;
+        } else {
           request.response.statusCode = HttpStatus.notFound;
-          await request.response.close();
-        });
-
-        final backend = NetworkBackend(
-          serverHost: InternetAddress.loopbackIPv4.address,
-          serverPort: server.port,
-          webSocketPort: server.port,
-          authToken: 'bearer-secret-xyz',
-          webSocketHeartbeatInterval: const Duration(milliseconds: 50),
-          webSocketHeartbeatTimeout: const Duration(milliseconds: 250),
-        );
-
-        try {
-          await backend.connectionStateStream
-              .firstWhere((s) => s == BackendConnectionState.connected)
-              .timeout(const Duration(seconds: 3));
-          await _waitUntil(
-            () => wsUpgradeUri != null,
-            timeout: const Duration(seconds: 2),
-          );
-          expect(wsUpgradeUri!.queryParameters['token'], 'bearer-secret-xyz');
-          expect(
-            wsUpgradeUri!.queryParameters.containsKey('ticket'),
-            isFalse,
-            reason: 'no ticket endpoint -> must use legacy ?token=',
-          );
-        } finally {
-          backend.dispose();
-          await server.close(force: true);
         }
-      },
-    );
+        await request.response.close();
+      });
+      final backend = NetworkBackend(
+        serverHost: InternetAddress.loopbackIPv4.address,
+        serverPort: server.port,
+        webSocketPort: server.port,
+        authToken: 'bearer-secret-xyz',
+        autoConnectWebSocket: false,
+      );
+
+      try {
+        await backend.connect();
+        expect(upgrades, 0);
+        expect(backend.connectionState, isNot(BackendConnectionState.connected));
+      } finally {
+        backend.dispose();
+        await server.close(force: true);
+      }
+    });
   });
 
   group('upgrade timeout', () {
@@ -811,7 +779,7 @@ void main() {
           request.response
             ..statusCode = HttpStatus.ok
             ..headers.contentType = ContentType.json
-            ..write(jsonEncode(const {'version': '2.5.0'}));
+            ..write(jsonEncode(const {'version': skotiqRelease}));
           await request.response.close();
           return;
         }
@@ -892,7 +860,7 @@ void main() {
           request.response
             ..statusCode = HttpStatus.ok
             ..headers.contentType = ContentType.json
-            ..write(jsonEncode(const {'version': '2.5.0'}));
+            ..write(jsonEncode(const {'version': skotiqRelease}));
           await request.response.close();
           return;
         }
@@ -970,37 +938,37 @@ void main() {
       }
     });
 
-    test(
-      'a refused WS upgrade (legacy ?token= path) latches rejection',
-      () async {
-        final fake = await startAuthFake(
-          statusByPath: {
-            // No ticket endpoint -> the client falls back to ?token= on
-            // the upgrade, which the auth gate then refuses with 403.
-            '/api/ws/ticket': HttpStatus.notFound,
-            '/events': HttpStatus.forbidden,
+    test('a dead token is refused at the ticket mint and latched, with no '
+        'upgrade attempted', () async {
+      final fake = await startAuthFake(
+        statusByPath: {'/api/ws/ticket': HttpStatus.forbidden},
+        bodyByPath: {
+          '/api/ws/ticket': {
+            'error': 'invalid_token',
+            'code': 'invalid_token',
+            'message': 'Invalid authentication token',
           },
-        );
-        final backend = NetworkBackend(
-          serverHost: InternetAddress.loopbackIPv4.address,
-          serverPort: fake.server.port,
-          webSocketPort: fake.server.port,
-          authToken: 'dead-token',
-          autoConnectWebSocket: false,
-        );
+        },
+      );
+      final backend = NetworkBackend(
+        serverHost: InternetAddress.loopbackIPv4.address,
+        serverPort: fake.server.port,
+        webSocketPort: fake.server.port,
+        authToken: 'dead-token',
+        autoConnectWebSocket: false,
+      );
 
-        try {
-          await backend.connect();
+      try {
+        await backend.connect();
 
-          expect(backend.connectionState, BackendConnectionState.error);
-          expect(backend.isAuthTokenRejected, isTrue);
-          expect(fake.hits['/events'], 1);
-        } finally {
-          backend.dispose();
-          await fake.server.close(force: true);
-        }
-      },
-    );
+        expect(backend.connectionState, BackendConnectionState.error);
+        expect(backend.isAuthTokenRejected, isTrue);
+        expect(fake.hits['/events'] ?? 0, 0);
+      } finally {
+        backend.dispose();
+        await fake.server.close(force: true);
+      }
+    });
 
     test('a refused ticket upgrade does not latch the bearer that minted it '
         '(expired ticket, host restarted between mint and upgrade)', () async {
@@ -1117,7 +1085,7 @@ void main() {
 
 Future<HttpServer> _startServer(
   void Function(WebSocket socket) onSocket, {
-  Map<String, dynamic> infoBody = const {'version': '2.5.0'},
+  Map<String, dynamic> infoBody = const {'version': skotiqRelease},
   Map<String, dynamic> devicesBody = const {'devices': []},
   List<Map<String, dynamic>>? devicesBodies,
 }) async {

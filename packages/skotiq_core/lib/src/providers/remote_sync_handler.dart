@@ -29,9 +29,6 @@ import 'imaging_provider.dart' show exposureSettingsProvider;
 import 'observing_list_provider.dart'
     show listedCatalogIdsProvider, observingListsProvider;
 import 'profiles_provider.dart';
-import 'runtime_mirror/channels/device_slot_channel.dart'
-    show mirrorDevicesOfOlderHost;
-import 'runtime_mirror/channels/exposure_channel.dart';
 import 'runtime_mirror/client_runtime_mirror.dart';
 import 'planning_provider.dart' show projectListProvider;
 import 'scheduler_provider.dart'
@@ -39,12 +36,10 @@ import 'scheduler_provider.dart'
         integrationGoalsStreamProvider,
         schedulerPreviewDecisionProvider,
         targetConstraintsStreamProvider;
-import 'sequence/sequencer_run_event.dart' show NodeStarted, SequencerRunEvent;
+import '../backend/sequencer_run_events.dart' show sequencerEventOf;
 import 'sequence_provider.dart';
 import 'sequence_stats_provider.dart' show sequenceRunsProvider;
 import 'session_provider.dart';
-import 'plate_solver_provider.dart'
-    show plateSolverDetectionProvider, plateSolverPreferenceProvider;
 import 'settings_provider.dart' show appSettingsProvider;
 import 'target_progress_provider.dart'
     show allTargetProgressProvider, targetProgressProvider;
@@ -135,7 +130,6 @@ void applyHostEventOnClient(
           event.eventType == 'ImageCaptured') {
         unawaited(_publishRemoteCurrentFrame(container, backend));
       }
-      _followExposureOfOlderHost(container, event);
     case EventCategory.equipment:
     case EventCategory.guiding:
     case EventCategory.safety:

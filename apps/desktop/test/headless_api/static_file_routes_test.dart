@@ -30,13 +30,35 @@ void main() {
       currentLogFileProvider: () => null,
     );
     await logger.ensureInitialized();
-    router = RouteTable.only(StaticFileHandlers(logger: logger)).handler;
+    router = RouteTable.only(
+      StaticFileHandlers(logger: logger, release: () => '8.2.1'),
+    ).handler;
   });
 
   tearDown(() async {
     await logger.dispose();
     await tempDir.delete(recursive: true);
   });
+
+  test(
+    'the dashboard page reads the release of the host that serves it',
+    () async {
+      final response = await router(
+        Request('GET', Uri.parse('http://localhost/dashboard/js/release.js')),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(
+        response.headers['content-type'],
+        startsWith('application/javascript'),
+      );
+      expect(response.headers['cache-control'], 'no-cache');
+      expect(
+        await response.readAsString(),
+        "const SKOTIQ_RELEASE = \"8.2.1\";\n",
+      );
+    },
+  );
 
   test('GET /run-watch redirects permanently to the canonical URL', () async {
     final response = await router(

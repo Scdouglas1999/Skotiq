@@ -17,6 +17,7 @@ function createClient(overrides) {
     console,
     setInterval,
     setTimeout,
+    SKOTIQ_RELEASE: '8.2.1',
     ...(overrides || {}),
   };
   vm.createContext(sandbox);
@@ -141,6 +142,24 @@ test('remembered cookie sessions mint a WebSocket ticket', async () => {
   assert.equal(socketUrl.searchParams.get('deviceId'), 'browser-1');
 });
 
+test('a failed ticket mint never puts the bearer in the URL; it retries', async () => {
+  const openedUrls = [];
+  class FakeWebSocket {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    constructor(url) { openedUrls.push(url); }
+  }
+  const client = createClient({ WebSocket: FakeWebSocket });
+  client.configure('http://skotiq.local:8080', 'secret-token', 'browser-1');
+  client.issueWebSocketTicket = async () => { throw new Error('mint failed'); };
+
+  await assert.rejects(client.connectWebSocket(), /mint failed/);
+
+  assert.deepEqual(openedUrls, []);
+  assert.ok(client._wsReconnectTimer, 'a reconnect is scheduled');
+  client.disconnectWebSocket();
+});
+
 test('raw image data decodes the little-endian u16 wire contract', async () => {
   const bytes = Uint8Array.from([
     0x00, 0x00,
@@ -224,6 +243,7 @@ test('WebSocket heartbeat frames emit activity without becoming app events', asy
 
   const client = createClient({ WebSocket: FakeWebSocket });
   client.configure('http://skotiq.local:8080', 'secret-token', 'browser-1');
+  client.issueWebSocketTicket = async () => ({ ticket: 't1', expiresInSeconds: 60 });
   const activity = [];
   const events = [];
   client.on('ws:activity', (data) => activity.push(data));

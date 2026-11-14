@@ -633,10 +633,8 @@ class _ConnectionDetailsSheetState
               label: 'Port',
               value: rig.webPort.toString(),
             ),
-            _DetailRow(
-              label: 'Version',
-              value: rig.version,
-            ),
+            if (rig.version case final version?)
+              _DetailRow(label: 'Version', value: version),
           ],
 
           // Network Details

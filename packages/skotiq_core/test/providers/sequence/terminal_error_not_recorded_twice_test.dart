@@ -10,7 +10,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../mocks/mock_backend.dart';
-import 'package:skotiq_core/src/models/backend/backend_types.dart' as backend_events;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -71,7 +72,7 @@ void main() {
         severity: backend_events.EventSeverity.error,
         category: backend_events.EventCategory.sequencer,
         eventType: 'Error',
-        data: {'message': message},
+        data: {'message': message, 'kind': 'step_failed'},
       );
 
   backend_events.SkotiqEvent terminalFailure(String error) =>

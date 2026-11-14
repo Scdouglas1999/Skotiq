@@ -289,14 +289,12 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       if (savedServerId != null && fetched != null) {
         enrichedServer = enrichedServer.copyWith(name: server.name);
       }
-      final compatibility = SkotiqServerCompatibility.check(
-        enrichedServer.apiVersion ?? enrichedServer.version,
-      );
-      if (!compatibility.isCompatible) {
+      final mismatch = enrichedServer.linkMismatch;
+      if (mismatch != null) {
         setState(() {
           _isDiscovering = false;
           _statusMessage = '';
-          _error = compatibility.message;
+          _error = mismatch.message;
         });
         return false;
       }
@@ -538,6 +536,16 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       });
     }
     return false;
+  }
+
+  /// Back to the connection screen from a session with no rig: Settings >
+  /// Connection's Connect.
+  void _showConnectionScreen() {
+    if (!mounted || !_skippedConnection) return;
+    setState(() {
+      _skippedConnection = false;
+      _error = null;
+    });
   }
 
   Future<void> _skipConnection() async {

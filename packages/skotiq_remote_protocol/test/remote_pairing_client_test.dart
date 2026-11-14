@@ -34,8 +34,7 @@ class _FakePairingServer {
           request.response.write(
             jsonEncode({
               'name': 'Fake',
-              'version': '2.6.0',
-              'apiVersion': '2.6.0',
+              'version': skotiqRelease,
               'authRequired': true,
               'pairingSupported': true,
               if (fingerprint != null) 'fingerprint': fingerprint,

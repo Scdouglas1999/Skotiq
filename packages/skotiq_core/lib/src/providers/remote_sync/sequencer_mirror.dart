@@ -14,7 +14,7 @@ bool _applySequenceLibraryNotice(ProviderContainer container, SkotiqEvent event)
 /// Follow one of the host's run events. The run's progress arrives on the
 /// `sequenceRun` and `runRecord` channels, not from these.
 void _followHostRunEvent(ProviderContainer container, SkotiqEvent event) {
-  if (SequencerRunEvent.fromSkotiqEvent(event) is NodeStarted) {
+  if (sequencerEventOf(event) is bridge.SequencerEvent_NodeStarted) {
     // A new node or target usually changes what the host's autopilot would
     // pick next, which the banner here shows.
     container.invalidate(schedulerPreviewDecisionProvider);
@@ -45,8 +45,6 @@ void _applySequencerStatus(ProviderContainer container, SequencerStatus status) 
   // Why the host's guiding is stopped. Live StopReason events carry it too,
   // but only to a client that was listening when it was set: one that joined
   // during a tracking-limit hold read "Guider needs a look" with no reason.
-  if (status.reportsGuidingStopReason) {
-    container.read(guidingStopReasonProvider.notifier).state =
-        status.guidingStopReason;
-  }
+  container.read(guidingStopReasonProvider.notifier).state =
+      status.guidingStopReason;
 }

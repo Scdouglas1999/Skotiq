@@ -99,7 +99,7 @@ Map<String, dynamic> buildOpenApiSpec({
     'openapi': '3.0.3',
     'info': {
       'title': 'Skotiq Headless API',
-      'version': SkotiqServerCompatibility.serverApiVersion.format(),
+      'version': skotiqRelease,
       'description':
           'Event envelope now carries `seq`, `serverInstanceId`, and '
           '`correlatingCommandId`. Action POSTs return a `commandId`. '

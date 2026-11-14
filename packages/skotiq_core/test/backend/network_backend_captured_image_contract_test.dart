@@ -60,7 +60,7 @@ void main() {
       expect(images.single.format, ImageFileFormat.fits);
     });
 
-    test('keeps explicit legacy snake_case compatibility', () async {
+    test('refuses an image row in the old snake_case shape', () async {
       final fake = FakeNetworkClient()
         ..setResponse(
           '/api/sessions/4/images',
@@ -70,15 +70,10 @@ void main() {
                 'image_id': 8,
                 'file_path': '/legacy/frame.fit',
                 'file_format': 'fit',
-                'frame_type': 'dark_flat',
+                'frame_type': 'darkflat',
                 'exposure_duration': 2,
-                'gain': null,
-                'offset': null,
                 'bin_x': 1,
                 'bin_y': 1,
-                'filter': null,
-                'hfr': null,
-                'star_count': 0,
                 'captured_at': 1700000000,
               },
             ],
@@ -87,40 +82,27 @@ void main() {
       final backend = _backend(fake);
       addTearDown(backend.dispose);
 
-      final image = (await backend.getSessionImages(4)).single;
-
-      expect(image.id, '8');
-      expect(image.capturedAt.millisecondsSinceEpoch, 1700000000000);
-      expect(image.settings.gain, 0);
-      expect(image.settings.offset, 0);
-      expect(image.settings.frameType, FrameType.darkFlat);
-      expect(image.format, ImageFileFormat.fits);
-      expect(image.stats?.starCount, 0);
+      await expectLater(backend.getSessionImages(4), throwsFormatException);
     });
 
-    test(
-      'rejects hybrid, duplicate, and unknown-enum rows atomically',
-      () async {
-        final hybrid = _currentRow()..['image_id'] = 7;
-        final cases = <List<Map<String, Object?>>>[
-          [hybrid],
-          [_currentRow(), _currentRow()],
-          [_currentRow(frameType: 'science')],
-          [_currentRow(fileFormat: 'bmp')],
-        ];
+    test('rejects duplicate and unknown-enum rows atomically', () async {
+      final cases = <List<Map<String, Object?>>>[
+        [_currentRow(), _currentRow()],
+        [_currentRow(frameType: 'science')],
+        [_currentRow(fileFormat: 'bmp')],
+      ];
 
-        for (final rows in cases) {
-          final fake = FakeNetworkClient()
-            ..setResponse(
-              '/api/sessions/4/images',
-              body: jsonEncode({'images': rows}),
-            );
-          final backend = _backend(fake);
-          addTearDown(backend.dispose);
-          await expectLater(backend.getSessionImages(4), throwsFormatException);
-        }
-      },
-    );
+      for (final rows in cases) {
+        final fake = FakeNetworkClient()
+          ..setResponse(
+            '/api/sessions/4/images',
+            body: jsonEncode({'images': rows}),
+          );
+        final backend = _backend(fake);
+        addTearDown(backend.dispose);
+        await expectLater(backend.getSessionImages(4), throwsFormatException);
+      }
+    });
 
     test(
       'rejects fractional identifiers and invalid numeric domains',

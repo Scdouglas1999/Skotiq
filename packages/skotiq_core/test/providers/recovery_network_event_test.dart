@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show skotiqRelease;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -117,7 +119,7 @@ void main() {
 
 Future<HttpServer> _startServer(
   void Function(WebSocket socket) onConnect, {
-  Map<String, dynamic> infoBody = const {'version': '2.5.0'},
+  Map<String, dynamic> infoBody = const {'version': skotiqRelease},
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
 

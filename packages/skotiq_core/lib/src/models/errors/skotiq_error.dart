@@ -4,6 +4,8 @@
 /// providing structured error information across FFI and network boundaries.
 library;
 
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show LinkVersion, LinkVersionMismatch;
 import '../../errors/error_text_kind.dart';
 
 /// Backend error category classifications.
@@ -337,4 +339,20 @@ class ServerIdentityMismatchError extends SkotiqError {
          isRecoverable: false,
          shouldReconnect: false,
        );
+}
+
+/// The host runs another Skotiq release than this client, so the client does
+/// not link ([LinkVersion]). Terminal until one side is updated: reconnecting
+/// cannot help.
+class HostVersionMismatchError extends SkotiqError {
+  HostVersionMismatchError(this.mismatch)
+    : super(
+        category: BackendErrorCategory.connection,
+        message: 'Host version mismatch: ${mismatch.message}',
+        userMessage: mismatch.message,
+        isRecoverable: false,
+        shouldReconnect: false,
+      );
+
+  final LinkVersionMismatch mismatch;
 }

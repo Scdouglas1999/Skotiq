@@ -36,6 +36,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 
+import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart'
     as bridge_event;
@@ -572,7 +573,7 @@ void main() {
 
       // Duplicate + aliased terminal events must not end the session again.
       eventController.add(_sequencerEvent('Completed'));
-      eventController.add(_sequencerEvent('SequenceCompleted'));
+      eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();
       await executor.terminalCleanupSettledForTest;
       expect(session.endedStatuses, ['completed']);
@@ -615,6 +616,7 @@ void main() {
           data: const {
             'category': 'manual_intervention',
             'summary': 'Operator: stop requested',
+            'stop': {'by': 'operator'},
           },
         ),
       );
@@ -629,7 +631,7 @@ void main() {
         SequenceExecutionState.idle,
       );
 
-      eventController.add(_sequencerEvent('SequenceStopped'));
+      eventController.add(_sequencerEvent('Stopped'));
       await pumpEvents();
       await executor.terminalCleanupSettledForTest;
       expect(session.endedStatuses, ['stopped']);
@@ -1827,7 +1829,14 @@ void main() {
       // A real stat-producing event (TriggerFired) submits an incremental
       // updateStats through the executor's own path — held in flight by the gate.
       eventController.add(
-        _sequencerEvent('TriggerFired', data: {'trigger_name': 'dusk'}),
+        _sequencerEvent(
+          'TriggerFired',
+          data: {
+            'trigger_id': 'dusk',
+            'trigger_name': 'dusk',
+            'action': 'Notify',
+          },
+        ),
       );
       await pumpEvents();
       expect(ops, contains('updateStats-start'));
@@ -2007,14 +2016,11 @@ void main() {
 
     void emitAcceptedFrame(String nodeId) {
       eventController.add(
-        _sequencerEvent(
-          'FrameAccepted',
-          data: {
-            'node_id': nodeId,
-            'frame': 1,
-            'total': 4,
-            'save_path': '/captures/New Target_R_0001.fits',
-          },
+        frameVerdictEvent(
+          accepted: true,
+          nodeId: nodeId,
+          total: 4,
+          path: '/captures/New Target_R_0001.fits',
         ),
       );
     }

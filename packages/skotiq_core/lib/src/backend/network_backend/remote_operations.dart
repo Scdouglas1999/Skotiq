@@ -102,11 +102,9 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     return completer.future;
   }
 
-  /// Resolve an endpoint that may be either a legacy synchronous response or
-  /// the current `{jobId, status: queued}` envelope. This keeps clients
-  /// compatible with older hosts while ensuring new hosts return the actual
-  /// operation result rather than a queued acknowledgement.
-  Future<Map<String, dynamic>> awaitJobResultOrLegacy(
+  /// Read the result of either a blocking request or the host's queued job.
+  /// Hosts support both modes; a queued acknowledgement is not the result.
+  Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
     required Duration timeout,
@@ -172,7 +170,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     if (response.statusCode == 409) {
       return false; // Slot taken — caller may decide to take-over.
     }
-    throw _parseErrorResponse(response.statusCode, response.body, 'POST', path);
+    throw _errorFromResponse(response.statusCode, response.body, 'POST', path);
   }
 
   /// POST /api/session/take-over — always succeeds (any control-scope

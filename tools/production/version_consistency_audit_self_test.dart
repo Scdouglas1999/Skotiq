@@ -153,6 +153,32 @@ Future<void> main() async {
       'installer drift report should name the installer version',
     );
 
+    // --- The release a linked client compares still names the previous one.
+    await _writeFixture(
+      temp,
+      versionYamlVersion: '5.0.0',
+      versionYamlBuild: 23,
+      desktopVersion: '5.0.0+23',
+      mobileVersion: '5.0.0+23',
+      linkRelease: '4.3.0',
+      otaReadsVersionYaml: true,
+    );
+    final linkDrift = await _runAudit(
+      temp,
+      jsonOut: 'report.json',
+      allowFailure: true,
+    );
+    _expect(
+      linkDrift.exitCode == 1,
+      'link release drift should fail (exit 1), got ${linkDrift.exitCode}',
+    );
+    _expect(
+      (_readJson(temp, 'report.json')['issues'] as List)
+          .join('\n')
+          .contains('link_version.dart=4.3.0'),
+      'link release drift report should name the link release',
+    );
+
     stdout.writeln('Version consistency audit self-test passed.');
   } finally {
     await temp.delete(recursive: true);
@@ -167,6 +193,7 @@ Future<void> _writeFixture(
   required String mobileVersion,
   required bool otaReadsVersionYaml,
   String? installerVersion,
+  String? linkRelease,
 }) async {
   await _writeFile(root, 'version.yaml', '''
 version: "$versionYamlVersion"
@@ -177,6 +204,11 @@ channel: "stable"
 #define MyAppName "Skotiq"
 #define MyAppVersion "${installerVersion ?? versionYamlVersion}"
 ''');
+  await _writeFile(
+    root,
+    'packages/skotiq_remote_protocol/lib/src/link_version.dart',
+    "const String skotiqRelease = '${linkRelease ?? versionYamlVersion}';\n",
+  );
   await _writeFile(root, 'apps/desktop/pubspec.yaml', '''
 name: skotiq_desktop
 publish_to: 'none'

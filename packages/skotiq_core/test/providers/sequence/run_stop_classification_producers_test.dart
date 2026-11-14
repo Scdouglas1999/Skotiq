@@ -50,12 +50,6 @@ SkotiqEvent _cancellation() => _sequencerEvent('Error', {
   'kind': 'cancelled',
 }, severity: EventSeverity.error);
 
-/// The same, from a host before the `cancelled` kind: a failing step with the
-/// fixed notice.
-SkotiqEvent _olderHostCancellation() => _sequencerEvent('Error', {
-  'message': kSequenceCancelledNotice,
-}, severity: EventSeverity.error);
-
 /// The row the trigger monitor writes when a trigger ends the run, exactly as
 /// it reached the release bundle's own DB on a dawn abort:
 /// `trigger_fired | Trigger Dawn Approaching fired → ParkAndAbort`.
@@ -73,15 +67,6 @@ SkotiqEvent _operatorStopDecision() => _sequencerEvent('DecisionLogged', {
   'stop': {'by': 'operator'},
 });
 
-/// The operator's stop row from a host before the typed `stop`: only its
-/// words say whose stop it was.
-SkotiqEvent _olderHostOperatorStopDecision() =>
-    _sequencerEvent('DecisionLogged', {
-      'category': 'manual_intervention',
-      'summary': 'Operator: stop requested',
-      'details_json': '{}',
-    });
-
 void main() {
   group('the DeviceService-driven pump (producer 2b)', () {
     late ProviderContainer container;
@@ -94,10 +79,7 @@ void main() {
         container.read,
         _operatorStopDecision(),
       );
-      applySequencerEventToSequenceProviders(
-        container.read,
-        _cancellation(),
-      );
+      applySequencerEventToSequenceProviders(container.read, _cancellation());
 
       final message = container.read(sequenceProgressProvider).message;
       expect(message, kSequenceStoppedByRequestMessage);
@@ -112,10 +94,7 @@ void main() {
         container.read,
         _triggerFired('Dawn Approaching', 'ParkAndAbort'),
       );
-      applySequencerEventToSequenceProviders(
-        container.read,
-        _cancellation(),
-      );
+      applySequencerEventToSequenceProviders(container.read, _cancellation());
 
       final message = container.read(sequenceProgressProvider).message;
       expect(message, 'Parked by the Dawn Approaching trigger');
@@ -138,10 +117,7 @@ void main() {
           'stop': {'by': 'cancelled'},
         }),
       );
-      applySequencerEventToSequenceProviders(
-        container.read,
-        _cancellation(),
-      );
+      applySequencerEventToSequenceProviders(container.read, _cancellation());
 
       expect(
         container.read(sequenceProgressProvider).message,
@@ -150,10 +126,7 @@ void main() {
     });
 
     test('a cancel nothing on the wire explains claims no cause', () {
-      applySequencerEventToSequenceProviders(
-        container.read,
-        _cancellation(),
-      );
+      applySequencerEventToSequenceProviders(container.read, _cancellation());
 
       final message = container.read(sequenceProgressProvider).message;
       expect(message, kSequenceStoppedMessage);
@@ -171,30 +144,11 @@ void main() {
         container.read,
         _sequencerEvent('Started', {'sequence_name': 'Night two'}),
       );
-      applySequencerEventToSequenceProviders(
-        container.read,
-        _cancellation(),
-      );
+      applySequencerEventToSequenceProviders(container.read, _cancellation());
 
       expect(
         container.read(sequenceProgressProvider).message,
         kSequenceStoppedMessage,
-      );
-    });
-
-    test('a stop from an older host reads the same', () {
-      applySequencerEventToSequenceProviders(
-        container.read,
-        _olderHostOperatorStopDecision(),
-      );
-      applySequencerEventToSequenceProviders(
-        container.read,
-        _olderHostCancellation(),
-      );
-
-      expect(
-        container.read(sequenceProgressProvider).message,
-        kSequenceStoppedByRequestMessage,
       );
     });
 
@@ -240,7 +194,7 @@ void main() {
       final source = File(path).readAsStringSync();
       expect(
         source,
-        contains('case SequencerError('),
+        contains('case SequencerEvent_Error('),
         reason:
             '$path no longer handles the sequencer Error event — if the '
             'handler moved, move this pin with it.',

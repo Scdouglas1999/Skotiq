@@ -89,7 +89,10 @@ void main() {
     NightCameraExposureNotifier.endGrace = Duration.zero;
     addTearDown(() => NightCameraExposureNotifier.endGrace = grace);
     final (h, _) = await harness();
-    await deliver(h, _imaging('ExposureStarted', {'duration_secs': 0.05}));
+    await deliver(
+        h,
+        _imaging(
+            'ExposureStarted', {'duration_secs': 0.05, 'frame_type': 'light'}));
     expect(h.read(nightStageExposureProvider), isNotNull);
 
     await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -99,7 +102,10 @@ void main() {
 
   test('the camera progress report re-anchors the countdown', () async {
     final (h, clock) = await harness();
-    await deliver(h, _imaging('ExposureStarted', {'duration_secs': 90.0}));
+    await deliver(
+        h,
+        _imaging(
+            'ExposureStarted', {'duration_secs': 90.0, 'frame_type': 'light'}));
     // The camera started later than this app heard: 30 s left at 58 s.
     clock.instant = start.add(const Duration(seconds: 58));
     await deliver(
@@ -117,7 +123,10 @@ void main() {
       'ExposureCancelled',
       'ExposureFailed',
     ]) {
-      await deliver(h, _imaging('ExposureStarted', {'duration_secs': 90.0}));
+      await deliver(
+          h,
+          _imaging('ExposureStarted',
+              {'duration_secs': 90.0, 'frame_type': 'light'}));
       expect(h.read(nightCameraExposureProvider), isNotNull);
       await deliver(h, _imaging(end));
       expect(h.read(nightCameraExposureProvider), isNull, reason: end);
@@ -127,7 +136,10 @@ void main() {
 
   test('ownership stays busy through download', () async {
     final (h, _) = await harness();
-    await deliver(h, _imaging('ExposureStarted', {'duration_secs': 90.0}));
+    await deliver(
+        h,
+        _imaging(
+            'ExposureStarted', {'duration_secs': 90.0, 'frame_type': 'light'}));
     await deliver(h, _imaging('DownloadStarted'));
     expect(h.read(nightCameraExposureProvider), isNotNull);
     await deliver(h, _imaging('ExposureComplete'));

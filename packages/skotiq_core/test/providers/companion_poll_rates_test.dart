@@ -1,8 +1,7 @@
 // An idle companion polls the imaging host only as often as its screens need:
 // guiding events cost it no status read (the host reads its guider once per
-// burst and sends the result), the mount position and
-// device health are probed at a companion's slower pace, and the narrator feed
-// ignores per-tick telemetry.
+// burst and sends the result), the mount's readings arrive on its device
+// channel, and the narrator feed ignores per-tick telemetry.
 
 import 'dart:async';
 
@@ -135,14 +134,15 @@ void main() {
     });
   });
 
-  test('a companion polls the host mount every 5 seconds when idle', () {
+  test('a companion never polls the host mount: the host sends its readings',
+      () {
     fakeAsync((async) {
       final container = containerFor();
       container.read(mountStateProvider.notifier)
         ..setConnecting('sim_mount_1', 'Mount')
         ..setConnected();
       async.elapse(const Duration(minutes: 1));
-      expect(mountReads, inInclusiveRange(11, 13));
+      expect(mountReads, 0);
       container.read(mountStateProvider.notifier).setDisconnected();
       container.dispose();
     });

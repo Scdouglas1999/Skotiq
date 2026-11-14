@@ -225,208 +225,47 @@ void main() {
     }
   });
 
-  group('a host from before a field existed', () {
-    SequencerEvent sequencer(
-      String type,
-      Map<String, Object?> data, {
-      EventSeverity severity = EventSeverity.info,
-    }) =>
-        (_decode(EventCategory.sequencer, type, data, severity: severity)!
-                as EventPayload_Sequencer)
-            .field0;
-
-    test('sends an error without a kind: a warning is a note', () {
+  group('an event in an old shape is not read', () {
+    test('an error without its kind', () {
       expect(
-        sequencer('Error', {
-          'message': 'Dew heater draws 0 W',
-        }, severity: EventSeverity.warning),
-        const SequencerEvent.error(
-          message: 'Dew heater draws 0 W',
-          kind: SequencerErrorKind.advisory,
-        ),
-      );
-      expect(
-        sequencer('Error', {
-          'error': 'Slew failed',
-        }, severity: EventSeverity.error),
-        const SequencerEvent.error(
-          message: 'Slew failed',
-          kind: SequencerErrorKind.stepFailed,
-        ),
+        () => _decode(EventCategory.sequencer, 'Error', {'message': 'x'}),
+        throwsFormatException,
       );
     });
 
-    test('marks a continued happening only by its words', () {
-      final row =
-          sequencer('DecisionLogged', {
-                'timestamp_iso': '2026-11-12T03:00:00Z',
-                'category': 'system_event',
-                'summary': 'Frames rejected in a row — the run continues',
-                'details_json':
-                    '{"consecutive_rejects":4,"reason":"star count 3 below '
-                    'minimum 20"}',
-              })
-              as SequencerEvent_DecisionLogged;
+    test('a frame without its capture record', () {
       expect(
-        row.notice,
-        const SequencerNotice.rejectStreak(
-          consecutiveRejects: 4,
-          reason: 'star count 3 below minimum 20',
-        ),
-      );
-
-      final warning =
-          sequencer('Error', {
-                'message':
-                    'Autofocus did not converge. The focuser was returned to '
-                    'position 2500 and imaging continues on the last-good '
-                    'focus.',
-              }, severity: EventSeverity.warning)
-              as SequencerEvent_Error;
-      expect(warning.notice, const SequencerNotice.autofocusContinued());
-    });
-
-    test('sends a cancellation as a failing step with a fixed notice', () {
-      for (final data in [
-        {'message': 'Sequence cancelled'},
-        {'message': 'Sequence cancelled', 'kind': 'step_failed'},
-      ]) {
-        expect(
-          (sequencer('Error', data, severity: EventSeverity.error)
-                  as SequencerEvent_Error)
-              .kind,
-          SequencerErrorKind.cancelled,
-        );
-      }
-      // A fault that only contains the word stays a fault.
-      expect(
-        (sequencer('Error', {
-                  'message': 'Sequence cancelled by the dome roof interlock',
-                }, severity: EventSeverity.error)
-                as SequencerEvent_Error)
-            .kind,
-        SequencerErrorKind.stepFailed,
+        () => _decode(EventCategory.sequencer, 'FrameAccepted', {
+          'node_id': 'n',
+          'frame': 1,
+          'total': 2,
+          'accepted_total': 1,
+          'rejected_total': 0,
+        }),
+        throwsFormatException,
       );
     });
 
-    test('says who stopped a run only in its stop rows\' words', () {
-      SequencerStop? stopOf(Map<String, Object?> row) =>
-          (sequencer('DecisionLogged', {'details_json': '{}', ...row})
-                  as SequencerEvent_DecisionLogged)
-              .stop;
-
-      expect(
-        stopOf({
-          'category': 'manual_intervention',
-          'summary': 'Operator: stop requested',
-        }),
-        const SequencerStop.operator_(),
-      );
-      expect(
-        stopOf({'category': 'system_event', 'summary': 'Autopilot: stop'}),
-        const SequencerStop.autopilot(),
-      );
-      expect(
-        stopOf({
-          'category': 'system_event',
-          'summary': 'System: stop',
-          'details_json': '{"origin":"rollback","action":"stop"}',
-        }),
-        const SequencerStop.system(origin: 'rollback'),
-      );
-      expect(
-        stopOf({
-          'category': 'trigger_fired',
-          'summary': 'Dawn Approaching fired: park and end the run',
-          'details_json':
-              '{"trigger_id":"dawn_approaching","trigger_name":"Dawn '
-              'Approaching","action":"ParkAndAbort"}',
-        }),
-        const SequencerStop.trigger(
-          triggerId: 'dawn_approaching',
-          triggerName: 'Dawn Approaching',
-        ),
-      );
-      expect(
-        stopOf({
-          'category': 'system_event',
-          'summary': 'Sequence cancelled',
-          'details_json': '{"phase":"cancelled"}',
-        }),
-        const SequencerStop.cancelled(),
-      );
-      // A pause, a dither trigger, an end without parking: no stop.
-      expect(
-        stopOf({
-          'category': 'manual_intervention',
-          'summary': 'Operator: pause',
-        }),
-        isNull,
-      );
-      expect(
-        stopOf({
-          'category': 'trigger_fired',
-          'summary': 'Dither fired: dither',
-          'details_json':
-              '{"trigger_id":"d","trigger_name":"D","action":"Dither"}',
-        }),
-        isNull,
-      );
-      expect(
-        stopOf({
-          'category': 'trigger_fired',
-          'summary': 'Dawn fired: end the run',
-          'details_json':
-              '{"trigger_id":"d","trigger_name":"D","action":"Abort"}',
-        }),
-        isNull,
-      );
+    test('a run state under its old name', () {
+      expect(_decode(EventCategory.sequencer, 'SequencePaused', {}), isNull);
+      expect(_decode(EventCategory.sequencer, 'SequenceCompleted', {}), isNull);
     });
 
-    test('names a notice without its fields: the row holds them', () {
-      final row =
-          sequencer('DecisionLogged', {
-                'category': 'system_event',
-                'summary': 'Reworded',
-                'details_json': '{"source":"Center","problem":"no solve"}',
-                'notice': 'problem_noticed',
-              })
-              as SequencerEvent_DecisionLogged;
+    test('a trigger action in another spelling', () {
       expect(
-        row.notice,
-        const SequencerNotice.problemNoticed(
-          source: 'Center',
-          problem: 'no solve',
-        ),
-      );
-    });
-
-    test('sends a frame without its capture record', () {
-      final frame =
-          sequencer('FrameAccepted', {
-                'node_id': 'n',
-                'frame': 1,
-                'total': 2,
-                'accepted_total': 1,
-                'rejected_total': 0,
-              })
-              as SequencerEvent_FrameAccepted;
-      expect(frame.capture.binX, 1);
-      expect(frame.capture.frameType, 'light');
-      expect(frame.capture.gain, isNull);
-    });
-
-    test('names the run states with their older names', () {
-      expect(sequencer('SequencePaused', {}), const SequencerEvent.paused());
-      expect(
-        sequencer('SequenceCompleted', {}),
-        const SequencerEvent.completed(),
+        () => _decode(EventCategory.sequencer, 'TriggerFired', {
+          'trigger_id': 'meridian_flip',
+          'trigger_name': 'Meridian Flip',
+          'action': 'MeridianFlip(MeridianFlipConfig { ... })',
+        }),
+        throwsFormatException,
       );
     });
   });
 
   group('the web pages', () {
     final webJs = Directory('../../apps/desktop/web_run_watch/js');
+    final dashboardJs = Directory('../../apps/desktop/web_dashboard/js');
     // `<category>: Object.freeze({` then `<name>: '<Type>',` per type.
     Map<String, Set<String>> table() {
       final byCategory = <String, Set<String>>{};
@@ -458,11 +297,34 @@ void main() {
       }
     });
 
+    test('both pages serve the same table', () {
+      expect(
+        File('${dashboardJs.path}/wire-events.js').readAsStringSync(),
+        File('${webJs.path}/wire-events.js').readAsStringSync(),
+      );
+    });
+
+    Set<String> tableNames() => {
+      for (final entries in table().entries)
+        for (final e in entries.value) '${entries.key}.${e.split('=').first}',
+    };
+
+    test('the dashboard names every event it follows from that table', () {
+      final source = File('${dashboardJs.path}/app.js').readAsStringSync();
+      final references = RegExp(
+        r'WIRE_EVENTS\.(\w+)\.(\w+)',
+      ).allMatches(source).map((m) => '${m[1]}.${m[2]}');
+      expect(references, isNotEmpty);
+      expect(tableNames(), containsAll(references));
+      // An event type named by a string literal bypasses the table.
+      expect(
+        RegExp(r"(type|eventType) [!=]== '[A-Z]").hasMatch(source),
+        isFalse,
+      );
+    });
+
     test('run-watch names every event it listens for from that table', () {
-      final names = {
-        for (final entries in table().entries)
-          for (final e in entries.value) '${entries.key}.${e.split('=').first}',
-      };
+      final names = tableNames();
       final source = File('${webJs.path}/run-watch.js').readAsStringSync();
       final references = RegExp(
         r'WIRE_EVENTS\.(\w+)\.(\w+)',
@@ -472,10 +334,7 @@ void main() {
         expect(names, contains(reference));
       }
       // A listener named by a string literal bypasses the table.
-      expect(
-        RegExp(r"sse\.addEventListener\(\s*'").hasMatch(source),
-        isFalse,
-      );
+      expect(RegExp(r"sse\.addEventListener\(\s*'").hasMatch(source), isFalse);
     });
   });
 }

@@ -35,13 +35,11 @@ class _Host {
   _Host({
     required this.settings,
     Map<String, String>? store,
-    this.servesStore = true,
     this.adminAccess,
   }) : store = store ?? {};
 
   models.AppSettings settings;
   final Map<String, String> store;
-  final bool servesStore;
   final bool? adminAccess;
   final Map<String, String> science = {};
   final Map<String, String> smartNight = {};
@@ -58,9 +56,7 @@ class _Host {
     when(() => backend.getSettings()).thenAnswer((_) async => settings);
     when(() => backend.getSettingsStore()).thenAnswer((_) async {
       storeFetches++;
-      return servesStore
-          ? HostSettingsRows(Map.of(store), adminAccess: adminAccess)
-          : null;
+      return HostSettingsRows(Map.of(store), adminAccess: adminAccess);
     });
     when(
       () => backend.updateSettingsStore(any(), remove: any(named: 'remove')),
@@ -239,13 +235,6 @@ void main() {
     },
   );
 
-  test('a host too old to serve its rows does not say', () async {
-    await connect(
-      _Host(settings: const models.AppSettings(), servesStore: false),
-    );
-    expect(await container.read(hostAdminAccessProvider.future), isNull);
-  });
-
   test('presentation preferences stay on this computer', () async {
     await connect(
       _Host(
@@ -352,50 +341,6 @@ void main() {
       );
     },
   );
-
-  group('a host too old to serve its key/value store', () {
-    test('science and Smart Night rows still mirror', () async {
-      final h = _Host(settings: const models.AppSettings(), servesStore: false)
-        ..science['science.overlay.opacity'] = '0.8';
-      await connect(h, localRowsBefore: {'science.overlay.opacity': '0.35'});
-
-      final dao = container.read(settingsDaoProvider);
-      expect(await dao.getSetting('science.overlay.opacity'), '0.8');
-      await dao.setSetting('science.overlay.opacity', '0.5');
-      expect(host.science['science.overlay.opacity'], '0.5');
-      expect(
-        await container.read(hostSettingsStoreSupportProvider.future),
-        HostSettingsStoreSupport.legacy,
-      );
-    });
-
-    test('other rows fall back to this computer and are reported', () async {
-      await connect(
-        _Host(settings: const models.AppSettings(), servesStore: false),
-        localRowsBefore: {'sequencer_dither_pixels': '1.0'},
-      );
-
-      final dao = container.read(settingsDaoProvider);
-      expect(await dao.getSetting('sequencer_dither_pixels'), '1.0');
-      expect(
-        container.read(hostSettingsStoreProvider)!.unsharedKeys,
-        contains('sequencer_dither_pixels'),
-      );
-    });
-
-    test('a row with no typed-model field refuses the edit', () async {
-      await connect(
-        _Host(settings: const models.AppSettings(), servesStore: false),
-      );
-
-      await expectLater(
-        container
-            .read(appSettingsProvider.notifier)
-            .setMountSiteSyncMode('never'),
-        throwsA(isA<HostSettingUnavailableError>()),
-      );
-    });
-  });
 
   test('refreshes coalesce to one request per interval', () async {
     await connect(_Host(settings: const models.AppSettings()));

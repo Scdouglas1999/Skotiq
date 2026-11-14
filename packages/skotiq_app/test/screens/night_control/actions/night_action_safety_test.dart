@@ -40,7 +40,9 @@ class _RecordingExecutor extends SequenceExecutor {
   @override
   Future<void> pause() async {
     calls.add('pause');
-    _ref.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.paused);
+    _ref
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.paused);
   }
 
   @override
@@ -48,7 +50,9 @@ class _RecordingExecutor extends SequenceExecutor {
     calls.add('resume');
     final error = resumeError;
     if (error != null) throw error;
-    _ref.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+    _ref
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
   }
 
   @override
@@ -187,7 +191,9 @@ void main() {
       addTearDown(real.dispose);
       real.read(sequenceExecutorProvider);
       real.listen(nightActionControllerProvider, (_, __) {});
-      real.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
+      real
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
     });
 
     test('a failed autofocus pauses, then resumes the run', () async {

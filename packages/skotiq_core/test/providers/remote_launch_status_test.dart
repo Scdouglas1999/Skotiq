@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show LinkVersionMismatch;
 
 import '../harness/in_memory_database.dart';
 
@@ -102,6 +104,34 @@ void main() {
       expect(
         remoteLaunchFailureMessage(_target, status.failure!),
         'The imaging host at 192.168.1.100:8099 rejected the access token.',
+      );
+      async.elapse(const Duration(minutes: 5));
+      expect(notifier.connects, 1);
+      container.dispose();
+    });
+  });
+
+  test('a host of another release says which side to update and is not '
+      'retried', () {
+    fakeAsync((async) {
+      final container = containerFor(
+        HostVersionMismatchError(
+          const LinkVersionMismatch(host: '8.2.0', client: '8.2.1'),
+        ),
+      );
+      container.read(remoteLaunchStatusProvider.notifier).connect();
+      async.flushMicrotasks();
+
+      final status = container.read(remoteLaunchStatusProvider);
+      expect(status.failure, RemoteLaunchFailure.versionMismatch);
+      expect(
+        remoteLaunchFailureMessage(_target, status.failure!),
+        'The imaging host at 192.168.1.100:8099 runs another Skotiq release.',
+      );
+      expect(
+        status.detail,
+        'The host runs Skotiq 8.2.0 and this device runs Skotiq 8.2.1. '
+        'Update the host to Skotiq 8.2.1, then connect again.',
       );
       async.elapse(const Duration(minutes: 5));
       expect(notifier.connects, 1);

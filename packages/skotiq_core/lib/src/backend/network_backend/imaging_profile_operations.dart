@@ -113,9 +113,8 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   /// The host's `app_settings` key/value rows that are not part of the
-  /// [models.AppSettings] wire model, or null when the host predates
-  /// `GET /api/settings/store` and answers 404.
-  Future<HostSettingsRows?> getSettingsStore() {
+  /// [models.AppSettings] wire model.
+  Future<HostSettingsRows> getSettingsStore() {
     return _retryableRequest(() async {
       final endpoint = _endpointPath(
         ProfileApi.getSettingsStore,
@@ -125,9 +124,8 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         endpoint: endpoint,
         send: (headers) => _http.get(_apiUri(endpoint), headers: headers),
       );
-      if (response.statusCode == HttpStatus.notFound) return null;
       if (response.statusCode != 200) {
-        throw _parseErrorResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'GET',
@@ -657,7 +655,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     final response = await _openRawGetWithAuthRefresh(endpoint);
     if (response.statusCode != HttpStatus.ok) {
       final body = await response.transform(utf8.decoder).join();
-      throw _parseErrorResponse(response.statusCode, body, 'GET', endpoint);
+      throw _errorFromResponse(response.statusCode, body, 'GET', endpoint);
     }
     final bytes = await consolidateHttpClientResponseBytes(response);
     if (bytes.isEmpty) {
@@ -757,7 +755,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     if (statusCode != HttpStatus.ok &&
         statusCode != HttpStatus.partialContent) {
       final body = await response.transform(utf8.decoder).join();
-      throw _parseErrorResponse(statusCode, body, 'GET', endpoint);
+      throw _errorFromResponse(statusCode, body, 'GET', endpoint);
     }
 
     final contentRange = response.headers.value(HttpHeaders.contentRangeHeader);
@@ -944,65 +942,29 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   CapturedImage _capturedImageFromRow(Map<String, dynamic> row, int index) {
-    const currentKeys = {
-      'id',
-      'filePath',
-      'capturedAt',
-      'exposureDuration',
-      'binX',
-      'binY',
-      'frameType',
-      'fileFormat',
-      'starCount',
-    };
-    const legacyKeys = {
-      'image_id',
-      'file_path',
-      'captured_at',
-      'exposure_duration',
-      'bin_x',
-      'bin_y',
-      'frame_type',
-      'file_format',
-      'star_count',
-    };
-    final hasCurrent = currentKeys.any(row.containsKey);
-    final hasLegacy = legacyKeys.any(row.containsKey);
     final context = 'sessions image row $index';
-    if (hasCurrent == hasLegacy) {
-      throw FormatException(
-        '$context must use exactly one supported image metadata schema',
-      );
-    }
-
-    final idKey = hasCurrent ? 'id' : 'image_id';
-    final pathKey = hasCurrent ? 'filePath' : 'file_path';
-    final capturedAtKey = hasCurrent ? 'capturedAt' : 'captured_at';
-    final exposureKey = hasCurrent ? 'exposureDuration' : 'exposure_duration';
-    final binXKey = hasCurrent ? 'binX' : 'bin_x';
-    final binYKey = hasCurrent ? 'binY' : 'bin_y';
-    final frameTypeKey = hasCurrent ? 'frameType' : 'frame_type';
-    final formatKey = hasCurrent ? 'fileFormat' : 'file_format';
-    final starCountKey = hasCurrent ? 'starCount' : 'star_count';
-
-    final id = _requiredImageInt(row, idKey, context, min: 1);
-    final path = _requiredImageString(row, pathKey, context);
-    final timestamp = _requiredImageInt(row, capturedAtKey, context, min: 1);
-    final exposure = _requiredImageDouble(row, exposureKey, context, min: 0);
+    final id = _requiredImageInt(row, 'id', context, min: 1);
+    final path = _requiredImageString(row, 'filePath', context);
+    final timestamp = _requiredImageInt(row, 'capturedAt', context, min: 1);
+    final exposure = _requiredImageDouble(
+      row,
+      'exposureDuration',
+      context,
+      min: 0,
+    );
     final gain = _optionalImageInt(row, 'gain', context, min: 0) ?? 0;
     final offset = _optionalImageInt(row, 'offset', context, min: 0) ?? 0;
-    final binX = _requiredImageInt(row, binXKey, context, min: 1);
-    final binY = _requiredImageInt(row, binYKey, context, min: 1);
+    final binX = _requiredImageInt(row, 'binX', context, min: 1);
+    final binY = _requiredImageInt(row, 'binY', context, min: 1);
     final filter = _optionalImageString(row, 'filter', context);
     final hfr = _optionalImageDouble(row, 'hfr', context, min: 0);
-    final starCount = _optionalImageInt(row, starCountKey, context, min: 0);
+    final starCount = _optionalImageInt(row, 'starCount', context, min: 0);
 
-    final milliseconds = hasCurrent ? timestamp : timestamp * 1000;
     final DateTime capturedAt;
     try {
-      capturedAt = DateTime.fromMillisecondsSinceEpoch(milliseconds);
+      capturedAt = DateTime.fromMillisecondsSinceEpoch(timestamp);
     } on Object catch (error) {
-      throw FormatException('$context.$capturedAtKey is out of range', error);
+      throw FormatException('$context.capturedAt is out of range', error);
     }
 
     return CapturedImage(
@@ -1017,13 +979,15 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         binningY: binY,
         filter: filter,
         frameType: _recordedFrameType(
-          _requiredImageString(row, frameTypeKey, context),
+          _requiredImageString(row, 'frameType', context),
         ),
       ),
       stats: hfr != null || starCount != null
           ? ImageStats(hfr: hfr, starCount: starCount)
           : null,
-      format: _parseImageFormat(_requiredImageString(row, formatKey, context)),
+      format: _parseImageFormat(
+        _requiredImageString(row, 'fileFormat', context),
+      ),
     );
   }
 

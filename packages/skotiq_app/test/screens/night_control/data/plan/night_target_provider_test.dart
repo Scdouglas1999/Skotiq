@@ -117,7 +117,8 @@ void main() {
   // after it alike; Coming up said "Meridian flip now" for the rest of the
   // target after the flip had run.
   test('a flip done this run is not still coming', () {
-    final lst = AstronomyCalculations.localSiderealTime(lateEvening, boston.longitude);
+    final lst =
+        AstronomyCalculations.localSiderealTime(lateEvening, boston.longitude);
     final container = planContainer(
       now: lateEvening,
       sequence: TwoTargetPlan().sequence,
@@ -171,7 +172,8 @@ void main() {
   // recovery; the host said the mount must not flip again, and Coming up and
   // the altitude chart still read "Meridian flip 22:51".
   test('a flip that moved the mount across the pier is not still coming', () {
-    final lst = AstronomyCalculations.localSiderealTime(lateEvening, boston.longitude);
+    final lst =
+        AstronomyCalculations.localSiderealTime(lateEvening, boston.longitude);
     final container = planContainer(
       now: lateEvening,
       sequence: TwoTargetPlan().sequence,

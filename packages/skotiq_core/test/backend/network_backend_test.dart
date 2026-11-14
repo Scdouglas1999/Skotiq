@@ -17,6 +17,8 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show LinkVersion;
 import 'package:image/image.dart' as img;
 import 'package:skotiq_core/src/backend/disconnected_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_exception.dart';
@@ -279,11 +281,11 @@ void main() {
           'Bearer secret-token-abc',
           reason: 'Authorization header must carry the bearer token when set',
         );
-        // The compat-version and trace-id headers are always added by
+        // The release and trace-id headers are always added by
         // `_addAuthHeaders`; lock that in so future refactors don't drop
         // them silently.
         final keys = captured.headers.keys.map((k) => k.toLowerCase()).toList();
-        expect(keys, contains('x-skotiq-api-version'));
+        expect(keys, contains(LinkVersion.header));
         expect(keys, contains('x-request-id'));
       },
     );

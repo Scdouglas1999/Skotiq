@@ -35,14 +35,16 @@ class _FixedBackendNotifier extends BackendNotifier {
   void swapTo(SkotiqBackend backend) => state = backend;
 }
 
-/// The exact event the native executor's cancelled arm produces.
-SkotiqEvent _sequencerError(String message) => SkotiqEvent(
-  timestamp: DateTime.now().millisecondsSinceEpoch,
-  severity: EventSeverity.error,
-  category: EventCategory.sequencer,
-  eventType: 'Error',
-  data: {'message': message},
-);
+/// A sequencer `Error` of [kind]; by default the event the native executor's
+/// cancelled arm produces.
+SkotiqEvent _sequencerError(String message, {String kind = 'cancelled'}) =>
+    SkotiqEvent(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: EventSeverity.error,
+      category: EventCategory.sequencer,
+      eventType: 'Error',
+      data: {'message': message, 'kind': kind},
+    );
 
 Future<(ProviderContainer, StreamController<SkotiqEvent>)> _bridge() async {
   final backend = _MockFfiBackend();
@@ -79,17 +81,6 @@ void main() {
     );
   });
 
-  test('the American spelling is the same notice', () async {
-    final (container, controller) = await _bridge();
-    addTearDown(container.dispose);
-    addTearDown(controller.close);
-
-    controller.add(_sequencerError('Sequence canceled'));
-    await pumpEventQueue();
-
-    expect(container.read(uiNotificationProvider), isEmpty);
-  });
-
   // A sequencer fault is the notification router's to tell, once per run and
   // with the reason (run_failure_told_once_test.dart). This bridge used to add
   // a "Sequence Error" card of its own for every one of them, so a single
@@ -101,7 +92,12 @@ void main() {
     addTearDown(container.dispose);
     addTearDown(controller.close);
 
-    controller.add(_sequencerError('Temperature compensation cancelled'));
+    controller.add(
+      _sequencerError(
+        'Temperature compensation cancelled',
+        kind: 'step_failed',
+      ),
+    );
     controller.add(
       SkotiqEvent(
         timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -125,7 +121,10 @@ void main() {
     severity: kind.runContinues ? EventSeverity.warning : EventSeverity.error,
     category: EventCategory.sequencer,
     eventType: 'Error',
-    data: {'message': message, kSequencerErrorKindKey: encodeSequencerErrorKind(kind)},
+    data: {
+      'message': message,
+      kSequencerErrorKindKey: encodeSequencerErrorKind(kind),
+    },
   );
 
   test('only a pause reason and a hand-started operation toast here', () async {
@@ -181,7 +180,10 @@ void main() {
         severity: EventSeverity.warning,
         category: EventCategory.sequencer,
         eventType: 'Error',
-        data: {'message': 'No plate solver: the flip will not re-center'},
+        data: {
+          'message': 'No plate solver: the flip will not re-center',
+          'kind': 'advisory',
+        },
       ),
     );
     await pumpEventQueue();

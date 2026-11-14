@@ -35,13 +35,11 @@ const _warnings = <String>[
 
 SequencerStatus _pausedStatus({
   String? guidingStopReason = 'tracking_limit_hold',
-  bool reportsGuidingStopReason = true,
 }) => SequencerStatus(
   state: 'paused',
   progress: 0.275,
   message: 'Meridian flip failed.',
   guidingStopReason: guidingStopReason,
-  reportsGuidingStopReason: reportsGuidingStopReason,
   runVitals: SequencerRunVitals(
     startTime: DateTime(2026, 11, 3, 20, 21),
     framesCaptured: 11,
@@ -141,23 +139,9 @@ void main() {
     },
   );
 
-  test('a host that does not report the reason leaves it alone', () async {
-    final container = await _hydrate(
-      _pausedStatus(guidingStopReason: null, reportsGuidingStopReason: false),
-    );
-    container.read(guidingStopReasonProvider.notifier).state = 'autofocus';
-
-    await hydrateRemoteSessionState(
-      container,
-      container.read(backendProvider) as NetworkBackend,
-    );
-
-    expect(container.read(guidingStopReasonProvider), 'autofocus');
-  });
-
   test("the guider's own status gives the reason too", () async {
     final container = await _hydrate(
-      _pausedStatus(guidingStopReason: null, reportsGuidingStopReason: false),
+      _pausedStatus(guidingStopReason: null),
       guiderStopReason: 'meridian_flip',
     );
 
@@ -173,14 +157,13 @@ void main() {
     );
   });
 
-  test('the wire reading of the status keeps the reason and its presence', () {
+  test('the wire reading of the status keeps the reason', () {
     final withReason = SequencerStatus.fromJson(<String, dynamic>{
       'state': 'paused',
       'progress': 0.2,
       'guidingStopReason': 'tracking_limit_hold',
     });
     expect(withReason.guidingStopReason, 'tracking_limit_hold');
-    expect(withReason.reportsGuidingStopReason, isTrue);
 
     final guiding = SequencerStatus.fromJson(<String, dynamic>{
       'state': 'running',
@@ -188,12 +171,5 @@ void main() {
       'guidingStopReason': null,
     });
     expect(guiding.guidingStopReason, isNull);
-    expect(guiding.reportsGuidingStopReason, isTrue);
-
-    final older = SequencerStatus.fromJson(<String, dynamic>{
-      'state': 'running',
-      'progress': 0.2,
-    });
-    expect(older.reportsGuidingStopReason, isFalse);
   });
 }

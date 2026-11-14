@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../services/logging_service.dart';
 import '../../../services/science/science_processing_service.dart';
-import '../sequencer_run_event.dart';
+import '../../../models/sequence/run_frame_assessment.dart';
 
 /// Sends each light frame a run records through the per-frame science
 /// pipeline, the same processing a manual capture gets.
@@ -31,8 +31,8 @@ class RunFrameScience {
   final Duration Function(double? exposureSecs) _assessmentWait;
 
   /// Assessments still expected, by the path the frame was saved at.
-  final Map<String, Completer<FrameAssessed?>> _awaiting =
-      <String, Completer<FrameAssessed?>>{};
+  final Map<String, Completer<FrameAssessment?>> _awaiting =
+      <String, Completer<FrameAssessment?>>{};
 
   /// The frame watch solves a frame while the next one exposes, so its
   /// assessment can trail the frame by up to about two exposures.
@@ -50,8 +50,8 @@ class RunFrameScience {
   /// Start waiting for the frame watch's assessment of the frame at [path].
   /// Call when the frame is registered, before its row insert, so an
   /// assessment that arrives while the insert is in flight is not missed.
-  Future<FrameAssessed?> expectAssessment(String path, double? exposureSecs) {
-    final completer = Completer<FrameAssessed?>();
+  Future<FrameAssessment?> expectAssessment(String path, double? exposureSecs) {
+    final completer = Completer<FrameAssessment?>();
     _awaiting[path]?.complete(null);
     _awaiting[path] = completer;
     final wait = _assessmentWait(exposureSecs);
@@ -66,7 +66,7 @@ class RunFrameScience {
 
   /// The frame watch finished with the frame at [path] (its solve, if any,
   /// is already on the row).
-  void assessed(String path, FrameAssessed event) {
+  void assessed(String path, FrameAssessment event) {
     final completer = _awaiting.remove(path);
     if (completer != null && !completer.isCompleted) {
       completer.complete(event);
@@ -77,7 +77,7 @@ class RunFrameScience {
   /// future of the whole wait-and-process, which never throws.
   Future<void> queue({
     required ScienceProcessingService science,
-    required Future<FrameAssessed?> assessment,
+    required Future<FrameAssessment?> assessment,
     required String filePath,
     required int capturedImageId,
     required int? sessionId,

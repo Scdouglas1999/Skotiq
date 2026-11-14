@@ -508,6 +508,9 @@
 
   function describeConnectFailure(e) {
     const status = e && e.status;
+    if (e && e.kind === 'version_mismatch') {
+      return { kind: 'version_mismatch', message: e.message };
+    }
     // A scope refusal and a rejected credential are different events with
     // different fixes, and collapsing them into one "rejected" sentence sent
     // an operator holding a perfectly valid read-only token to the Remote
@@ -735,6 +738,7 @@
         // remaining attempts, and each retry re-prints the same refusal into
         // the operator's log. Stop and report it.
         if (e && (e.status === 401 || e.status === 403)) break;
+        if (e && e.kind === 'version_mismatch') break;
       }
     }
 
@@ -2067,146 +2071,136 @@
   // Server events (WebSocket)
   // =========================================================================
 
-  function handleServerEvent(data) {
-    const category = data.category || data.event_category || 'system';
-    const message = data.message || data.description || messageFromPayload(data);
+  // The event types each panel follows, named from the generated table of
+  // what a host sends (js/wire-events.js).
+  const CAMERA_STATUS_EVENTS = new Set([
+    WIRE_EVENTS.imaging.exposureStarted,
+    WIRE_EVENTS.imaging.exposureProgress,
+    WIRE_EVENTS.imaging.temperatureChanged,
+  ]);
+  const EXPOSURE_DONE_EVENTS = new Set([
+    WIRE_EVENTS.imaging.exposureCompleted,
+    WIRE_EVENTS.imaging.exposureComplete,
+    WIRE_EVENTS.imaging.imageReady,
+  ]);
+  const DEVICE_LIST_EVENTS = new Set([
+    WIRE_EVENTS.equipment.connecting,
+    WIRE_EVENTS.equipment.connected,
+    WIRE_EVENTS.equipment.disconnected,
+    WIRE_EVENTS.equipment.deviceDiscovered,
+    WIRE_EVENTS.equipment.deviceLost,
+  ]);
+  const CAMERA_DEVICE_EVENTS = new Set([
+    WIRE_EVENTS.equipment.cameraCoolingStarted,
+    WIRE_EVENTS.equipment.cameraCoolingReached,
+    WIRE_EVENTS.equipment.cameraWarmingStarted,
+    WIRE_EVENTS.equipment.cameraWarmingCompleted,
+    WIRE_EVENTS.equipment.cameraTemperatureChanged,
+    WIRE_EVENTS.equipment.cameraSettingsChanged,
+  ]);
+  const MOUNT_EVENTS = new Set([
+    WIRE_EVENTS.equipment.mountSlewStarted,
+    WIRE_EVENTS.equipment.mountSlewCompleted,
+    WIRE_EVENTS.equipment.mountTrackingStarted,
+    WIRE_EVENTS.equipment.mountTrackingStopped,
+    WIRE_EVENTS.equipment.mountParkStarted,
+    WIRE_EVENTS.equipment.mountParkCompleted,
+    WIRE_EVENTS.equipment.mountUnparked,
+  ]);
+  const FOCUSER_EVENTS = new Set([
+    WIRE_EVENTS.equipment.focuserMoveStarted,
+    WIRE_EVENTS.equipment.focuserMoveCompleted,
+    WIRE_EVENTS.equipment.autofocusProgress,
+  ]);
+  const FILTER_WHEEL_EVENTS = new Set([
+    WIRE_EVENTS.equipment.filterChanging,
+    WIRE_EVENTS.equipment.filterChanged,
+  ]);
+  const ROTATOR_EVENTS = new Set([
+    WIRE_EVENTS.equipment.rotatorMoveStarted,
+    WIRE_EVENTS.equipment.rotatorMoveCompleted,
+  ]);
+  // A guide step carries no rolling RMS or app state; these change them.
+  const GUIDING_STATUS_EVENTS = new Set([
+    WIRE_EVENTS.guiding.guidingStarted,
+    WIRE_EVENTS.guiding.guidingStopped,
+    WIRE_EVENTS.guiding.settleDone,
+    WIRE_EVENTS.guiding.settling,
+    WIRE_EVENTS.guiding.appState,
+    WIRE_EVENTS.guiding.connected,
+    WIRE_EVENTS.guiding.disconnected,
+  ]);
 
-    addLogEntry(category, message);
+  function handleServerEvent(data) {
+    const category = data.category;
+    const type = data.eventType;
+    const payload = data.data || {};
+
+    addLogEntry(category, messageFromPayload(data));
 
     // Drive panel state from WS events first; only fall back to REST when an
     // event is too coarse to update the panel.
-    if (category === 'camera' || category === 'imaging') {
-      const eventType = data.eventType || data.event || '';
-      // For temperature/cooling updates we still need a REST round-trip
-      // because the WS event only carries the delta, not the full snapshot.
-      if (eventType === 'TemperatureChanged' || eventType === 'ExposureProgress'
-          || eventType === 'ExposureStarted' || eventType === 'ExposureStartedWithFrame') {
-        fetchCameraStatusIfConnected();
+    switch (category) {
+      case 'imaging':
+        // The event carries a delta, not the camera's full status.
+        if (CAMERA_STATUS_EVENTS.has(type)) fetchCameraStatusIfConnected();
+        // Image fetch is *only* driven by completion events; a duration-based
+        // timer would fire against exposures that never completed.
+        if (EXPOSURE_DONE_EVENTS.has(type)) {
+          cancelPendingImageFetch();
+          fetchLastImage();
+        }
+        markPanelFresh('camera');
+        break;
+      case 'equipment':
+        // PropertyChanged and healthy heartbeats can arrive several times a
+        // second; only these change what a panel shows.
+        if (DEVICE_LIST_EVENTS.has(type) || (
+          type === WIRE_EVENTS.equipment.heartbeatStatusChanged
+            && payload.status === 'disconnected')) {
+          fetchDevices();
+        }
+        if (CAMERA_DEVICE_EVENTS.has(type)) fetchCameraStatusIfConnected();
+        if (MOUNT_EVENTS.has(type)) fetchMountStatusIfConnected();
+        if (FOCUSER_EVENTS.has(type)) fetchFocuserStatusIfConnected();
+        if (FILTER_WHEEL_EVENTS.has(type)) fetchFilterWheelStatusIfConnected();
+        if (ROTATOR_EVENTS.has(type)) fetchRotatorStatusIfConnected();
+        break;
+      case 'sequencer':
+        // Checkpoint state and analytics change in lock step with the
+        // sequencer, so all three refresh together — but COALESCED, never
+        // once per event. See scheduleSequencerRefresh().
+        scheduleSequencerRefresh();
+        break;
+      case 'safety':
+        fetchOpsWeatherAndSafety();
+        break;
+      case 'guiding': {
+        const guide = extractGuideStep(type, payload);
+        if (guide) addGuideDataPoint(guide.raPx, guide.decPx);
+        if (GUIDING_STATUS_EVENTS.has(type)) fetchGuidingStatus();
+        markPanelFresh('guiding');
+        break;
       }
-      // Image fetch is *only* driven by completion events; a duration-based
-      // timer would fire against exposures that never completed.
-      if (isExposureCompleteEvent(eventType)) {
-        cancelPendingImageFetch();
-        fetchLastImage();
-      }
-      // Capture plate-solve PA from imaging events so the rotator panel can
-      // sync to the image. Many plate-solve events publish 'positionAngle'
-      // (or 'pa') in their payload; we accept both.
-      const imgPayload = data.data || data;
-      const pa = imgPayload && (imgPayload.positionAngle ?? imgPayload.pa
-        ?? imgPayload.position_angle);
-      if (typeof pa === 'number' && isFinite(pa)) {
-        state.lastImagePositionAngle = Number(pa);
-        renderRotatorPanel();
-      }
-      markPanelFresh('camera');
-    } else if (category === 'mount') {
-      fetchMountStatusIfConnected();
-    } else if (category === 'focuser') {
-      const eventType = data.eventType || data.event || '';
-      fetchFocuserStatusIfConnected();
-      if (eventType === 'AutofocusComplete' || eventType === 'autofocus_complete') {
-        // Capture the result payload so the panel can show "last autofocus"
-        // even after the device returns to idle.
-        state.lastAutofocusResult = data.data || data.result || data;
-        renderFocuserPanel();
-      }
-    } else if (category === 'filterWheel' || category === 'filter_wheel') {
-      fetchFilterWheelStatusIfConnected();
-    } else if (category === 'rotator') {
-      fetchRotatorStatusIfConnected();
-    } else if (category === 'sequencer') {
-      // Checkpoint state and analytics change in lock step with the sequencer,
-      // so all three refresh together — but COALESCED, never once per event.
-      // See scheduleSequencerRefresh().
-      scheduleSequencerRefresh();
-    } else if (category === 'dome') {
-      fetchOpsDomeStatusIfConnected();
-    } else if (category === 'safety' || category === 'safetyMonitor'
-        || category === 'weather') {
-      fetchOpsWeatherAndSafety();
-    } else if (category === 'profile' || category === 'profiles') {
-      fetchOpsProfiles();
-    } else if (category === 'guiding' || category === 'phd2') {
-      const eventType = data.eventType || data.event || '';
-      // The canonical field names for guide-step coordinates are raPx /
-      // decPx. The server emitter publishes these alongside legacy names;
-      // accept either so the dashboard works across server versions.
-      const payload = data.data || data;
-      const guide = extractGuideStep(payload);
-      if (guide) {
-        addGuideDataPoint(guide.raPx, guide.decPx);
-      }
-      // Full status snapshots need a REST round-trip because the WS event
-      // doesn't carry the rolling RMS or app state.
-      if (eventType === 'GuidingStarted' || eventType === 'GuidingStopped'
-          || eventType === 'Settled' || eventType === 'Settling'
-          || eventType === 'AppState' || eventType === 'Connected'
-          || eventType === 'Disconnected') {
-        fetchGuidingStatus();
-      }
-      markPanelFresh('guiding');
-    } else if (category === 'equipment') {
-      // Only lifecycle events change inventory. PropertyChanged and healthy
-      // heartbeat events can arrive several times per second; refetching the
-      // complete inventory on each one also reloaded filter-wheel metadata,
-      // producing request storms when a stale wheel was failing.
-      const eventType = data.eventType || data.event || '';
-      const payload = data.data || data;
-      const heartbeatDisconnected = eventType === 'HeartbeatStatusChanged'
-        && String(payload.status || '').toLowerCase() === 'disconnected';
-      if (eventType === 'Connecting' || eventType === 'Connected'
-          || eventType === 'Disconnected' || eventType === 'DeviceDiscovered'
-          || eventType === 'DeviceLost' || heartbeatDisconnected) {
-        fetchDevices();
-      }
-    } else if (category === 'polarAlignment' || category === 'polar_alignment') {
-      // Polar alignment progress feed. Three event types come through the
-      // polarAlignment category:
-      //   PolarAlignment          — drift/error update (azArcmin, altArcmin, totalArcmin)
-      //   PolarAlignmentStatus    — phase + statusMessage
-      //   PolarAlignmentImage     — solver image preview (ignored here; the
-      //                             dashboard renders the regular last image)
-      handlePolarAlignmentEvent(data);
+      case 'polarAlignment':
+        handlePolarAlignmentEvent(type, payload);
+        break;
     }
   }
 
-  function isExposureCompleteEvent(eventType) {
-    if (!eventType) return false;
-    return eventType === 'exposure_complete' || eventType === 'ExposureComplete'
-        || eventType === 'image_ready' || eventType === 'ImageReady'
-        || eventType === 'ExposureCompleted' || eventType === 'ExposureCompletedWithFrame';
-  }
-
-  function extractGuideStep(payload) {
-    if (!payload || typeof payload !== 'object') return null;
-    // Canonical: raPx, decPx.
-    if (payload.raPx !== undefined && payload.decPx !== undefined) {
-      return { raPx: Number(payload.raPx), decPx: Number(payload.decPx) };
+  /// A guide step's correction in guide-camera pixels, or null.
+  function extractGuideStep(type, payload) {
+    if (type !== WIRE_EVENTS.guiding.guideStep) return null;
+    if (typeof payload.RADistanceRaw !== 'number'
+        || typeof payload.DECDistanceRaw !== 'number') {
+      return null;
     }
-    // Backend currently emits RADistanceRaw/DECDistanceRaw inside the event
-    // `data` payload. Accept both so we work whether the backend has been
-    // updated yet or not.
-    if (payload.RADistanceRaw !== undefined && payload.DECDistanceRaw !== undefined) {
-      return {
-        raPx: Number(payload.RADistanceRaw),
-        decPx: Number(payload.DECDistanceRaw),
-      };
-    }
-    // Legacy camelCase names. Keep accepting for backward compatibility.
-    if (payload.raDistance !== undefined && payload.decDistance !== undefined) {
-      return {
-        raPx: Number(payload.raDistance),
-        decPx: Number(payload.decDistance),
-      };
-    }
-    return null;
+    return { raPx: payload.RADistanceRaw, decPx: payload.DECDistanceRaw };
   }
 
   function messageFromPayload(data) {
-    const t = data.eventType || data.event || data.type;
-    if (t) return String(t);
-    return JSON.stringify(data);
+    const message = data.data && data.data.message;
+    return typeof message === 'string' && message ? message : data.eventType;
   }
 
   // =========================================================================
@@ -6263,20 +6257,14 @@
     }
   }
 
-  function handlePolarAlignmentEvent(data) {
-    const eventType = data.eventType || data.event || '';
-    const payload = data.data || data;
-    if (eventType === 'PolarAlignmentStatus') {
-      state.polarAlignment.phase = String(payload.phase || payload.status || 'unknown');
-      state.polarAlignment.statusMessage = String(payload.statusMessage || payload.status || '');
-    } else if (eventType === 'PolarAlignment') {
-      // The error event carries azArcmin/altArcmin and (optionally) total.
-      const az = Number(payload.azArcmin != null ? payload.azArcmin : (payload.az_arcmin || 0));
-      const alt = Number(payload.altArcmin != null ? payload.altArcmin : (payload.alt_arcmin || 0));
-      const total = payload.totalArcmin != null
-        ? Number(payload.totalArcmin)
-        : Math.sqrt(az * az + alt * alt);
-      state.polarAlignment.totalErrorArcmin = total;
+  function handlePolarAlignmentEvent(type, payload) {
+    if (type === WIRE_EVENTS.polarAlignment.polarAlignmentStatus) {
+      state.polarAlignment.phase = String(payload.phase || 'unknown');
+      state.polarAlignment.statusMessage = String(payload.status || '');
+    } else if (type === WIRE_EVENTS.polarAlignment.polarAlignment) {
+      // The host sends the error in arcseconds.
+      const arcsec = wireNumber(payload.total_error);
+      state.polarAlignment.totalErrorArcmin = arcsec == null ? null : arcsec / 60;
     }
     renderPolarAlignmentPanel();
   }
@@ -6582,6 +6570,10 @@
       rotation: rotation || 0,
       panelsHorizontal: cols,
       panelsVertical: rows,
+      // Panels run from the top-left corner and reverse direction every row,
+      // so each slew to the next row is one panel long.
+      startCorner: 'topLeft',
+      serpentine: true,
     };
   }
 
@@ -6676,7 +6668,6 @@
         config,
         exposure,
         options: {
-          serpentineOrdering: true,
           centerAfterSlew: true,
         },
       });

@@ -298,6 +298,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       if (!mounted) return;
       ref.read(relayReconnectProvider.notifier).state = _reconnectSavedRelay;
       ref.read(rigConnectProvider.notifier).state = connectToRig;
+      ref.read(openRigConnectProvider.notifier).state = (_) =>
+          _showConnectionScreen();
     });
     _autoConnect();
 

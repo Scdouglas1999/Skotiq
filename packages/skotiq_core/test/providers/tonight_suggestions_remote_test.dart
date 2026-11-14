@@ -139,40 +139,20 @@ void main() {
     });
   });
 
-  test('an older host without the endpoint is ranked on the client', () async {
+  test('a host that cannot rank says so; the client does not rank its own '
+      'catalog instead', () async {
     fake.setResponse(
       '/api/suggestions/ranked',
       status: 404,
       body: '{"error":"Not found"}',
     );
-    final now = DateTime.now();
-    final container = containerFor(
-      localTargets: [
-        DbTarget(
-          id: 1,
-          name: 'Polaris field',
-          catalogId: 'POLARIS',
-          ra: 2.53,
-          dec: 89.26,
-          minAltitude: 0,
-          priority: 5,
-          totalPlannedSubs: 0,
-          capturedSubs: 0,
-          totalIntegrationSecs: 0,
-          goalIntegrationSecs: 0,
-          createdAt: now,
-          updatedAt: now,
-          isFavorite: false,
-        ),
-      ],
-    );
-    container.read(targetSuggestionConfigProvider.notifier).state =
-        const TargetSuggestionConfig(minAltitude: 0, minScore: 0);
+    final container = containerFor(localTargets: const []);
     await container.read(appSettingsProvider.future);
 
-    final suggestions = await container.read(tonightSuggestionsProvider.future);
-
-    expect(suggestions.map((s) => s.targetName), ['Polaris field']);
+    await expectLater(
+      container.read(tonightSuggestionsProvider.future),
+      throwsA(isA<ServerError>()),
+    );
   });
 
   test('any other host failure is shown, not replaced by a local list', () {

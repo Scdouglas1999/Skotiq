@@ -33,11 +33,6 @@ class SequencerStatus {
   /// (`tracking_limit_hold`, `meridian_flip`, ...); null while guiding runs.
   final String? guidingStopReason;
 
-  /// Whether the host sent [guidingStopReason] at all. A host that predates
-  /// the field says nothing about guiding, which is not the same as saying
-  /// guiding runs.
-  final bool reportsGuidingStopReason;
-
   const SequencerStatus({
     required this.state,
     this.currentNodeId,
@@ -46,7 +41,6 @@ class SequencerStatus {
     this.message,
     this.runVitals,
     this.guidingStopReason,
-    this.reportsGuidingStopReason = false,
   });
 
   factory SequencerStatus.fromJson(Map<String, dynamic> json) {
@@ -62,7 +56,6 @@ class SequencerStatus {
             )
           : null,
       guidingStopReason: json['guidingStopReason'] as String?,
-      reportsGuidingStopReason: json.containsKey('guidingStopReason'),
     );
   }
 
@@ -73,7 +66,7 @@ class SequencerStatus {
     'progress': progress,
     'message': message,
     if (runVitals != null) 'runVitals': runVitals!.toJson(),
-    if (reportsGuidingStopReason) 'guidingStopReason': guidingStopReason,
+    'guidingStopReason': guidingStopReason,
   };
 
   bool get isRunning => state == 'running';

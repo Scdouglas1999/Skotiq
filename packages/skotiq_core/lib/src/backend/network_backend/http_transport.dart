@@ -17,9 +17,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     Map<String, String> headers, {
     required String endpoint,
   }) {
-    headers[RemoteApiCompatibility.apiVersionHeader] = RemoteApiCompatibility
-        .clientApiVersion
-        .format();
+    headers[LinkVersion.header] = skotiqRelease;
     headers[_NetworkBackendTransport._requestIdHeader] = _nextRequestId(
       endpoint,
     );
@@ -166,21 +164,29 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     return statusCode == 408 || statusCode == 429 || statusCode >= 500;
   }
 
-  /// The failure a non-success response stands for: the host's error body
-  /// when it sent one, otherwise the status alone.
+  /// The failure a non-success response stands for: the host's refusal of
+  /// another Skotiq release, its error body when it sent one, otherwise the
+  /// status alone.
   ///
   /// A 403 for a token the host does not know also latches the rejection, so
   /// [_retryableRequest] fails fast and [_connect] stops retrying instead of
   /// running the host's per-address auth-failure limiter into a lockout. A
   /// scope or session-ownership 403 does not: that token is still good for
   /// what it covers.
-  ServerError _parseErrorResponse(
+  Exception _errorFromResponse(
     int statusCode,
     String responseBody,
     String method,
     String endpoint,
   ) {
-    final body = _errorBody(statusCode, responseBody);
+    final json = _errorJson(responseBody);
+    final mismatch = json == null
+        ? null
+        : LinkVersionMismatch.fromErrorJson(json);
+    if (mismatch != null) return dart_error.HostVersionMismatchError(mismatch);
+    final body = json == null
+        ? null
+        : ApiErrorBody.tryParse(json, httpStatus: statusCode);
     if (statusCode == HttpStatus.forbidden &&
         body?.code == ApiErrorBody.invalidToken) {
       _latchAuthRejection('$method $endpoint');
@@ -195,16 +201,14 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
 
   /// Null for a body that is not the host's: a proxy's HTML page, plain
   /// text, nothing at all.
-  ApiErrorBody? _errorBody(int statusCode, String responseBody) {
+  Map<String, dynamic>? _errorJson(String responseBody) {
     final Object? json;
     try {
       json = jsonDecode(responseBody);
     } on FormatException {
       return null;
     }
-    return json is Map<String, dynamic>
-        ? ApiErrorBody.tryParse(json, httpStatus: statusCode)
-        : null;
+    return json is Map<String, dynamic> ? json : null;
   }
 
   /// Longest a mutating request may keep retrying after its first attempt.
@@ -350,7 +354,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       );
 
       if (response.statusCode != 200) {
-        throw _parseErrorResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'GET',
@@ -391,7 +395,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
 
         // A create answers 201 Created, so any 2xx is success.
         if (response.statusCode < 200 || response.statusCode >= 300) {
-          throw _parseErrorResponse(
+          throw _errorFromResponse(
             response.statusCode,
             response.body,
             'POST',
@@ -422,19 +426,10 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     if (authToken == null || authToken!.isEmpty) {
       return null;
     }
-    try {
-      final res = await _post(AuthApi.wsTicketIssue);
-      final ticket = res['ticket'];
-      if (ticket is String && ticket.isNotEmpty) {
-        return ticket;
-      }
-    } catch (e) {
-      Log.debug(
-        'WS ticket unavailable; falling back to legacy ?token=: $e',
-        source: 'NetworkBackend',
-      );
-    }
-    return null;
+    final res = await _post(AuthApi.wsTicketIssue);
+    final ticket = res['ticket'];
+    if (ticket is String && ticket.isNotEmpty) return ticket;
+    throw const FormatException('The host issued no WebSocket ticket');
   }
 
   Future<void> _delete(
@@ -452,7 +447,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       );
 
       if (response.statusCode != 200) {
-        throw _parseErrorResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'DELETE',
@@ -482,7 +477,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       );
 
       if (response.statusCode != 200) {
-        throw _parseErrorResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'PUT',
@@ -521,7 +516,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
         send: (headers) => _http.get(uri, headers: headers),
       );
       if (response.statusCode != 200) {
-        throw _parseErrorResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'GET',
@@ -554,7 +549,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     final response = await _openRawGetWithAuthRefresh(target);
     if (response.statusCode != HttpStatus.ok) {
       final body = await response.transform(utf8.decoder).join();
-      throw _parseErrorResponse(response.statusCode, body, 'GET', target);
+      throw _errorFromResponse(response.statusCode, body, 'GET', target);
     }
     final totalLength = response.contentLength;
     final sink = file.openWrite();
@@ -596,7 +591,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       );
 
       if (response.statusCode != 200) {
-        throw _parseErrorResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'POST',
@@ -624,7 +619,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
             _http.post(uri, headers: headers, body: jsonEncode(body)),
       );
       if (response.statusCode != 200) {
-        throw _parseErrorResponse(
+        throw _errorFromResponse(
           response.statusCode,
           response.body,
           'POST',

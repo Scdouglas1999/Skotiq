@@ -34,7 +34,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a camera without a cooler or gain shows neither', (tester) async {
+  testWidgets('a camera without a cooler or gain shows neither',
+      (tester) async {
     final ops = FakePanelOps();
     await pumpPanel(
       tester,
@@ -311,7 +312,8 @@ void main() {
       );
       expect(
         nightCoolerState(
-          const CameraStateSnapshot(connectionState: connected, coolerOn: false),
+          const CameraStateSnapshot(
+              connectionState: connected, coolerOn: false),
         ),
         NightCoolerState.off,
       );
@@ -338,8 +340,7 @@ void main() {
       // Cooling with no temperature reading is not "at setpoint".
       expect(
         nightCoolerState(
-          const CameraStateSnapshot(
-              connectionState: connected, coolerOn: true),
+          const CameraStateSnapshot(connectionState: connected, coolerOn: true),
         ),
         NightCoolerState.cooling,
       );

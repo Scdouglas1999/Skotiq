@@ -260,15 +260,16 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
         authToken: token,
         scheme: scheme,
       );
-      if (outcome != ServerProbeOutcome.reachable) {
+      // A host of another release goes on to the connect flow, which says
+      // which side to update.
+      if (outcome != ServerProbeOutcome.reachable &&
+          outcome != ServerProbeOutcome.incompatible) {
         if (!mounted) return;
         final authExpired = outcome == ServerProbeOutcome.authRejected;
         _showSnack(
           context.l10n.text(
             authExpired
                 ? 'savedServersPairingExpired'
-                : outcome == ServerProbeOutcome.incompatible
-                ? 'savedServersIncompatible'
                 : 'savedServersUnreachable',
             params: {'name': server.displayName, 'host': host},
           ),

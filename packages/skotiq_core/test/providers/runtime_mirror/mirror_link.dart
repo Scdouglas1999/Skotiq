@@ -57,7 +57,7 @@ MirrorHost mirrorHost() {
 typedef MirrorClient = ({ProviderContainer container, MockLinkBackend backend});
 
 /// A client linked to [host]: its runtime state read returns what [host]
-/// holds now. [snapshot] replaces that, for a host of another version.
+/// holds now. [snapshot] replaces that, for a host holding something else.
 MirrorClient mirrorClient(
   ProviderContainer? host, {
   List<HostRuntimeUpdate> Function()? snapshot,

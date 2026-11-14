@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
@@ -18,38 +20,49 @@ typedef PlateSolverSetup = ({
 
 /// The host's solvers as a linked client was last told them by the host
 /// (the plate-solver channel, or the host's answer to this client's own
-/// rescan or save); null on the host itself and with a host from before the
-/// channel, whose solvers are read on request.
+/// rescan or save); null on the host itself and on a client the host has
+/// not told yet.
 final hostPlateSolverSetupProvider = StateProvider<PlateSolverSetup?>((ref) {
   ref.watch(backendProvider);
   return null;
 });
 
+/// [value] as the host told it; loading until the host has.
+Future<T> _toldByHost<T>(T? value) => value != null
+    ? Future.value(value)
+    : Completer<T>().future;
+
 /// Detection snapshot for the Plate Solving settings page. Re-runs the
 /// filesystem probe + ASTAP catalog scan via `PlateSolveService.detect()`
 /// whenever invalidated (after the user picks a new path or hits "Re-scan").
+/// A linked client shows what the host told it.
 final plateSolverDetectionProvider =
-    FutureProvider.autoDispose<PlateSolverDetection>((ref) async {
+    FutureProvider.autoDispose<PlateSolverDetection>((ref) {
       ref.watch(backendProvider);
-      final told = ref.watch(
-        hostPlateSolverSetupProvider.select((setup) => setup?.detection),
-      );
-      if (told != null) return told;
-      final service = ref.watch(plateSolveServiceProvider);
-      return service.detect();
+      if (ref.watch(isRemoteModeProvider)) {
+        return _toldByHost(
+          ref.watch(
+            hostPlateSolverSetupProvider.select((setup) => setup?.detection),
+          ),
+        );
+      }
+      return ref.watch(plateSolveServiceProvider).detect();
     });
 
 /// Persisted plate-solver UX configuration. Backed by Rust storage
-/// (`platesolver.json`), exposed through `apiPlatesolveGetConfig`.
+/// (`platesolver.json`), exposed through `apiPlatesolveGetConfig`. A linked
+/// client shows what the host told it.
 final plateSolverPreferenceProvider =
-    FutureProvider.autoDispose<PlateSolverPreference>((ref) async {
+    FutureProvider.autoDispose<PlateSolverPreference>((ref) {
       ref.watch(backendProvider);
-      final told = ref.watch(
-        hostPlateSolverSetupProvider.select((setup) => setup?.preference),
-      );
-      if (told != null) return told;
-      final service = ref.watch(plateSolveServiceProvider);
-      return service.getConfig();
+      if (ref.watch(isRemoteModeProvider)) {
+        return _toldByHost(
+          ref.watch(
+            hostPlateSolverSetupProvider.select((setup) => setup?.preference),
+          ),
+        );
+      }
+      return ref.watch(plateSolveServiceProvider).getConfig();
     });
 
 /// The solvers as this process has them, which the host shares with its
@@ -166,15 +179,15 @@ class PlateSolverSettingsNotifier
     final generation = _authorityGeneration;
     state = state.copyWith(rescanning: true);
     try {
-      final told = ref.read(hostPlateSolverSetupProvider);
-      if (told != null) {
+      if (ref.read(isRemoteModeProvider)) {
         // The host detects again and tells every linked client; this one
         // shows the host's answer at once.
         final detection = await _service.detect();
         if (!_isCurrent(generation)) return false;
-        ref.read(hostPlateSolverSetupProvider.notifier).state = (
+        final told = ref.read(hostPlateSolverSetupProvider.notifier);
+        told.state = (
           detection: detection,
-          preference: told.preference,
+          preference: told.state?.preference,
         );
       } else {
         ref.invalidate(plateSolverDetectionProvider);
@@ -234,12 +247,9 @@ class PlateSolverSettingsNotifier
       if (!_isCurrent(generation)) return false;
       // A linked host tells its clients the saved preference and what it
       // finds with it; until then this client shows what it saved.
-      final told = ref.read(hostPlateSolverSetupProvider);
-      if (told != null) {
-        ref.read(hostPlateSolverSetupProvider.notifier).state = (
-          detection: told.detection,
-          preference: next,
-        );
+      if (ref.read(isRemoteModeProvider)) {
+        final told = ref.read(hostPlateSolverSetupProvider.notifier);
+        told.state = (detection: told.state?.detection, preference: next);
       }
       ref.invalidate(plateSolverPreferenceProvider);
       ref.invalidate(plateSolverDetectionProvider);

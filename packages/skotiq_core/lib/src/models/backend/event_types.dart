@@ -147,73 +147,36 @@ class SkotiqEvent {
     return SkotiqEvent.fromWireJson(json);
   }
 
-  /// Parse headless `/events` payloads (`type: event` wrapper + canonical fields).
+  /// Parse a host's `/events` frame (the `type: event` wrapper around
+  /// [toJson]). Throws [FormatException] for a frame that is not one.
   factory SkotiqEvent.fromWireJson(Map<String, dynamic> json) {
-    final payload = Map<String, dynamic>.from(json);
-    payload.remove('type');
-
-    final rawTimestamp = payload['timestamp'];
-    final timestamp = switch (rawTimestamp) {
-      final int value => value,
-      final num value => value.toInt(),
-      final String value => int.tryParse(value) ?? 0,
-      _ => 0,
-    };
-
-    final rawSeverity = payload['severity'];
-    final severityName = rawSeverity is String
-        ? rawSeverity
-        : rawSeverity?.toString() ?? 'info';
-    final severity = EventSeverity.values.firstWhere(
-      (e) => e.name.toLowerCase() == severityName.toLowerCase(),
-      orElse: () => EventSeverity.info,
-    );
-
-    final rawCategory = payload['category'];
-    final categoryName = rawCategory is String
-        ? rawCategory
-        : rawCategory?.toString() ?? 'system';
-    final category = EventCategory.values.firstWhere(
-      (e) => e.name.toLowerCase() == categoryName.toLowerCase(),
-      orElse: () => EventCategory.system,
-    );
-
-    final eventType =
-        (payload['eventType'] ?? payload['event_type']) as String?;
-    if (eventType == null || eventType.isEmpty) {
-      throw FormatException('SkotiqEvent missing eventType: $payload');
+    final timestamp = json['timestamp'];
+    final severity = _byName(EventSeverity.values, json['severity']);
+    final category = _byName(EventCategory.values, json['category']);
+    final eventType = json['eventType'];
+    final data = json['data'];
+    if (timestamp is! int ||
+        severity == null ||
+        category == null ||
+        eventType is! String ||
+        eventType.isEmpty ||
+        data is! Map) {
+      throw FormatException('Not a SkotiqEvent: $json');
     }
-
-    final rawData = payload['data'];
-    final data = rawData is Map
-        ? Map<String, dynamic>.from(rawData)
-        : <String, dynamic>{};
-
-    // / read optional sequencing + correlation metadata. The
-    // fields are omitted by an earlier build servers and by FFI-originated events,
-    // so accept null without complaint.
-    final rawSeq = payload['seq'];
-    final seq = switch (rawSeq) {
-      final int v => v,
-      final num v => v.toInt(),
-      _ => null,
-    };
-    final serverInstanceId = payload['serverInstanceId'] is String
-        ? payload['serverInstanceId'] as String
-        : null;
-    final correlatingCommandId = payload['correlatingCommandId'] is String
-        ? payload['correlatingCommandId'] as String
-        : null;
-
+    final seq = json['seq'];
+    final serverInstanceId = json['serverInstanceId'];
+    final correlatingCommandId = json['correlatingCommandId'];
     return SkotiqEvent(
       timestamp: timestamp,
       severity: severity,
       category: category,
       eventType: eventType,
-      data: data,
-      seq: seq,
-      serverInstanceId: serverInstanceId,
-      correlatingCommandId: correlatingCommandId,
+      data: Map<String, dynamic>.from(data),
+      seq: seq is int ? seq : null,
+      serverInstanceId: serverInstanceId is String ? serverInstanceId : null,
+      correlatingCommandId: correlatingCommandId is String
+          ? correlatingCommandId
+          : null,
     );
   }
 
@@ -222,4 +185,11 @@ class SkotiqEvent {
       'SkotiqEvent($eventType, $category, $severity, $data'
       '${seq != null ? ', seq=$seq' : ''}'
       '${correlatingCommandId != null ? ', cmd=$correlatingCommandId' : ''})';
+}
+
+T? _byName<T extends Enum>(List<T> values, Object? name) {
+  for (final value in values) {
+    if (value.name == name) return value;
+  }
+  return null;
 }

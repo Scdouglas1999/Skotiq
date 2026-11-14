@@ -5,9 +5,6 @@ import '../../models/backend/sequencer_status.dart' show CheckpointInfo;
 import '../../models/sequence/instruction_progress_detail.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
-import '../runtime_mirror/channels/run_record_channel.dart'
-    show runRecordChannelKey;
-import '../runtime_mirror/client_runtime_mirror.dart';
 import '../sequence_stats_provider.dart'
     show CompletedImagingRun, SequenceRunStats;
 import '../../models/sequence/terminal_run_result.dart'
@@ -206,10 +203,10 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
           ? null
           : state.progress.copyWith(state: next),
     );
-    // A linked client that has the host's record follows it; the host saw
-    // the run start and end, this client may not have.
+    // A linked client follows the host's record (the runRecord channel): the
+    // host saw the run start and end, this client may not have.
     final ref = _ref;
-    if (previous != next && ref != null && !_followsHostRecord(ref)) {
+    if (previous != next && ref != null && !ref.read(isRemoteModeProvider)) {
       if (next.isBusy && previous.canStart) {
         record = record.copyWith(lastEnded: null, startedAt: DateTime.now());
       } else if (previous.isBusy && next.canStart) {
@@ -226,12 +223,6 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
     }
     state = record;
   }
-
-  bool _followsHostRecord(Ref ref) =>
-      ref.read(isRemoteModeProvider) &&
-      ref
-          .read(clientRuntimeMirrorStateProvider)
-          .hasApplied(runRecordChannelKey);
 
   /// Show [phase] on the progress surfaces without moving the lifecycle: a
   /// recovery in flight, whose start and end the executor does not decide.

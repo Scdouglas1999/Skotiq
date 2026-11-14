@@ -640,7 +640,8 @@ void main() {
   // The rig, Nov 8 2026: the mount's reads all failed and the row kept
   // saying "tracking · pier E · alt 2.5°" as if current.
   group('stale and failed devices', () {
-    test('a connected mount whose reads fail leads with how old its values '
+    test(
+        'a connected mount whose reads fail leads with how old its values '
         'are', () async {
       final h = await sessionHarness(overrides: [
         ..._readyRig(),

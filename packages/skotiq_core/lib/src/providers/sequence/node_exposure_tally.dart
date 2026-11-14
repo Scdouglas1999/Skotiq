@@ -29,9 +29,10 @@
 /// reporting against the node cannot erase the frames it took.
 library;
 
-import '../../models/backend/event_types.dart';
+import '../../backend/bridge_events.dart';
+import '../../backend/sequencer_run_events.dart';
+import '../../models/sequence/instruction_progress_detail.dart';
 import 'run_record.dart';
-import 'sequencer_run_event.dart';
 
 /// Frames captured, and frames planned, for one exposure node's current pass.
 class NodeExposureTally {
@@ -59,20 +60,7 @@ class NodeExposureTally {
 /// Per-node captured-frame tally, keyed by node id.
 final nodeExposureTallyProvider = runRecordProvider.select((run) => run.tally);
 
-/// Fold ONE sequencer event into the per-node exposure tally.
-///
-/// The whole write path: the executor, the DeviceService pump and the widget
-/// tests all go through it, so a test cannot pass against an event shape
-/// production does not handle.
-void applySequencerEventToNodeExposureTally(
-  RunRecordNotifier tally,
-  SkotiqEvent event,
-) {
-  final typed = SequencerRunEvent.fromSkotiqEvent(event);
-  if (typed != null) applyRunEventToNodeExposureTally(tally, typed);
-}
-
-/// [applySequencerEventToNodeExposureTally] for an already-decoded event.
+/// Fold one sequencer event into the per-node exposure tally.
 ///
 /// Only a node-addressed `Exposure` structured progress is counted.
 /// `ExposureStarted` / `ExposureCompleted` name no node, and attributing them
@@ -80,34 +68,22 @@ void applySequencerEventToNodeExposureTally(
 /// frame when `NodeStarted` overtakes it.
 void applyRunEventToNodeExposureTally(
   RunRecordNotifier tally,
-  SequencerRunEvent event,
+  SequencerEvent event,
 ) {
   switch (event) {
-    case NodeStarted(:final nodeId?):
+    case SequencerEvent_NodeStarted(:final nodeId):
       tally.startNode(nodeId);
-    case StructuredInstructionProgress(
-          detailKind: 'Exposure',
-          :final nodeId?,
-          :final detailJson,
-        )
+    case SequencerEvent_InstructionProgressStructured(:final nodeId)
         when nodeId.isNotEmpty:
-      if (detailJson is! Map) return;
-      final frame =
-          _asInt(detailJson['frame']) ?? _asInt(detailJson['current_frame']);
-      final total =
-          _asInt(detailJson['total']) ?? _asInt(detailJson['total_frames']);
-      if (frame == null || total == null) return;
       // The native per-frame callback fires after a frame lands, so `frame` is
       // the number of frames CAPTURED, not the one in flight.
-      tally.recordFrames(nodeId, captured: frame, planned: total);
+      if (event.detail case ExposureInstructionProgressDetail(
+        :final frame,
+        :final total,
+      )) {
+        tally.recordFrames(nodeId, captured: frame, planned: total);
+      }
     default:
       return;
   }
-}
-
-int? _asInt(Object? raw) {
-  if (raw is int) return raw;
-  if (raw is num) return raw.toInt();
-  if (raw is String) return int.tryParse(raw);
-  return null;
 }

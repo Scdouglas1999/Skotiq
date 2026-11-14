@@ -104,7 +104,7 @@ void main() {
     expect(find.text('Reconnect now'), findsOneWidget);
   });
 
-  testWidgets('blocked disconnect stays open and explains the active sequence',
+  testWidgets('a viewer can disconnect while the host keeps running',
       (tester) async {
     final backend = _MockNetworkBackend();
     _stubHost(
@@ -121,7 +121,7 @@ void main() {
             (ref) => _SwappableBackendNotifier(ref, backend),
           ),
           runRecordProvider.overrideWith(
-            (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.running)),
+            (ref) => RunRecordNotifier(ref, const RunRecord(lifecycle: SequenceExecutionState.running)),
           ),
         ],
         child: MaterialApp(
@@ -136,11 +136,15 @@ void main() {
     await tester.tap(find.text('Disconnect'));
     await tester.pump();
 
-    expect(find.text('Connection Status'), findsOneWidget);
-    expect(find.textContaining('Disconnect blocked:'), findsOneWidget);
-    expect(
-        find.textContaining('Stop the active sequence first'), findsOneWidget);
-    verifyNever(backend.dispose);
+    await tester.pumpAndSettle();
+    expect(find.text('Connection Status'), findsNothing);
+    expect(find.textContaining('Disconnect blocked:'), findsNothing);
+    expect(_linkLabel('Imaging host link: Not linked to a remote imaging host'), findsOneWidget);
+    verify(backend.dispose).called(1);
+    verifyNever(backend.sequencerStop);
+    verifyNever(backend.sequencerPause);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
   });
 
   // 2026-11-03: a failing Wi-Fi link stalled the host's answers for about two

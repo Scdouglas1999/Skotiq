@@ -41,6 +41,7 @@ export 'screens/connection/connection_stale_banner.dart';
 export 'screens/shell/widgets/ios_background_banner.dart';
 export 'screens/shell/widgets/android_notifications_banner.dart';
 export 'screens/connection/remote_connection_indicator.dart';
+export 'screens/connection/rig_connect_entry.dart';
 export 'screens/imaging/widgets/focus_model_curve_card.dart';
 
 export 'screens/sequencer/widgets/mosaic_wizard_dialog.dart';

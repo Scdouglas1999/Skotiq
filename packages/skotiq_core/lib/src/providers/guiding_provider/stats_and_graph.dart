@@ -1,11 +1,7 @@
 part of '../guiding_provider.dart';
 
 double _guideAxisPixels(Map<String, dynamic> json, {required bool isRa}) {
-  if (isRa) {
-    final raw = json['RADistanceRaw'] ?? json['raPx'];
-    return (raw ?? 0).toDouble();
-  }
-  final raw = json['DECDistanceRaw'] ?? json['decPx'];
+  final raw = json[isRa ? 'RADistanceRaw' : 'DECDistanceRaw'];
   return (raw ?? 0).toDouble();
 }
 

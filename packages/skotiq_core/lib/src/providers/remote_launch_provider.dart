@@ -6,6 +6,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show RemotePairingClient;
 
 import '../models/errors/server_error.dart';
+import '../models/errors/skotiq_error.dart';
 import 'backend_provider.dart';
 import 'profiles_provider.dart' show equipmentProfilesProvider;
 import 'settings_provider.dart' show appSettingsProvider;
@@ -60,8 +61,11 @@ enum RemoteLaunchFailure {
   /// The host answered and refused this companion's access token.
   tokenRejected,
 
-  /// The host answered but the connection could not be completed, for
-  /// example because the two versions are incompatible.
+  /// The host runs another Skotiq release than this computer. The status
+  /// detail says which side to update.
+  versionMismatch,
+
+  /// The host answered but the connection could not be completed.
   refused,
 
   /// Something answered at the remembered address, but not the computer this
@@ -97,6 +101,9 @@ String remoteLaunchFailureMessage(
       return "Can't reach the imaging host at ${target.label}.";
     case RemoteLaunchFailure.tokenRejected:
       return 'The imaging host at ${target.label} rejected the access token.';
+    case RemoteLaunchFailure.versionMismatch:
+      return 'The imaging host at ${target.label} runs another Skotiq '
+          'release.';
     case RemoteLaunchFailure.refused:
       return 'The imaging host at ${target.label} refused the connection.';
     case RemoteLaunchFailure.hostChanged:
@@ -113,6 +120,9 @@ RemoteLaunchFailure classifyRemoteLaunchFailure(
   required bool tokenRejected,
 }) {
   if (tokenRejected) return RemoteLaunchFailure.tokenRejected;
+  if (error is HostVersionMismatchError) {
+    return RemoteLaunchFailure.versionMismatch;
+  }
   if (error is ServerError &&
       (error.isTokenRejected ||
           error.httpStatus == HttpStatus.unauthorized)) {
@@ -212,8 +222,15 @@ class RemoteLaunchStatusNotifier extends StateNotifier<RemoteLaunchStatus> {
         tokenRejected: backends.lastConnectTokenRejected,
       );
       if (!mounted) return false;
-      state = RemoteLaunchStatus.failed(failure, error.toString());
-      if (failure != RemoteLaunchFailure.tokenRejected) {
+      state = RemoteLaunchStatus.failed(
+        failure,
+        error is HostVersionMismatchError
+            ? error.userMessage
+            : error.toString(),
+      );
+      // Retrying cannot change either answer.
+      if (failure != RemoteLaunchFailure.tokenRejected &&
+          failure != RemoteLaunchFailure.versionMismatch) {
         _retryTimer = Timer(autoRetryInterval, () => unawaited(connect()));
       }
       return false;

@@ -18,7 +18,8 @@ Future<void> _pumpBar(WidgetTester tester, String location) async {
     settle: false,
     extraOverrides: [
       runRecordProvider.overrideWith(
-        (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.running)),
+        (ref) => RunRecordNotifier(
+            ref, RunRecord(lifecycle: SequenceExecutionState.running)),
       ),
     ],
   );

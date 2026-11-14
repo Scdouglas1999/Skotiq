@@ -97,17 +97,6 @@ void _showExposure(ProviderContainer container, _ExposureChange change) {
   }
 }
 
-/// A client linked to a host from before the exposure channel
-/// ([ExposureChannel]) follows the host camera's own events instead.
-void _followExposureOfOlderHost(ProviderContainer container, SkotiqEvent event) {
-  final mirrored = container
-      .read(clientRuntimeMirrorStateProvider)
-      .hostPublishes(ExposureChannel.channelKey);
-  if (mirrored) return;
-  final change = _ExposureChange.of(event);
-  if (change != null) _showExposure(container, change);
-}
-
 /// Whether the host is showing an exposure it did not start.
 final _hostFollowsForeignExposureProvider = StateProvider<bool>((ref) => false);
 

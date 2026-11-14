@@ -7,8 +7,9 @@
 // `lib/src/event_wire/event_wire.g.dart` (the codec),
 // `test/event_wire_samples.g.dart` (one full and one sparse value of every
 // variant, for the round-trip test) and the web pages' table of event types,
-// `apps/desktop/web_run_watch/js/wire-events.js`. `--check` writes nothing and
-// exits 1 when any of them is out of date.
+// `apps/desktop/web_run_watch/js/wire-events.js` and
+// `apps/desktop/web_dashboard/js/wire-events.js` (each page serves its own
+// files). `--check` writes nothing and exits 1 when any of them is out of date.
 //
 // A variant is encoded as its name and its fields under snake_case keys.
 // Everything that differs from that rule is listed in `event_wire_spec.dart`.
@@ -228,15 +229,6 @@ class Generator {
   String decodeValue(String owner, Field f, String map) {
     final k = "'${key(owner, f)}'";
     final base = f.base;
-    final fallback = variantSpecs[owner]?.defaults[f.name];
-    if (fallback != null) {
-      final optional = decodeValue(
-        '',
-        Field('$base?', f.name),
-        map,
-      ).replaceFirst("'${snake(f.name)}'", k);
-      return '$optional ?? $fallback';
-    }
     if (variantSpecs[owner]?.required.contains(f.name) ?? false) {
       final optional = decodeValue(
         '',
@@ -463,11 +455,6 @@ const Map<EventCategory, List<String>> eventWireTypes = {''');
         throw StateError('${entry.key} is sent by two variants of $union');
       }
       for (final v in sharing) {
-        for (final alias in variantSpecs[v.className]?.aliases ?? const <String>[]) {
-          out.writeln("case '$alias':");
-        }
-      }
-      for (final v in sharing) {
         final whenKey = variantSpecs[v.className]?.whenKey;
         if (whenKey != null) out.writeln("if (d['$whenKey'] != null) {");
         out.write('return ');
@@ -666,14 +653,15 @@ void main(List<String> args) {
     '${package.path}test/event_wire_samples.g.dart': SampleGenerator(
       model,
     ).generate(),
-    '${package.path}../../apps/desktop/web_run_watch/js/wire-events.js':
-        webEventTable(model),
+    for (final page in ['web_run_watch', 'web_dashboard'])
+      '${package.path}../../apps/desktop/$page/js/wire-events.js':
+          webEventTable(model),
   };
   if (args.contains('--check')) {
     final scratch = Directory.systemTemp.createTempSync('event_wire');
     var stale = false;
-    for (final entry in outputs.entries) {
-      final name = entry.key.split('/').last;
+    for (final (index, entry) in outputs.entries.indexed) {
+      final name = '$index-${entry.key.split('/').last}';
       final fresh = _format('${scratch.path}/$name', entry.value);
       final file = File(entry.key);
       if (!file.existsSync() || file.readAsStringSync() != fresh) {

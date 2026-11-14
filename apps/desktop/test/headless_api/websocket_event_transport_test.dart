@@ -37,7 +37,7 @@ void main() {
     await server.start();
     socket = await WebSocket.connect(
       'ws://127.0.0.1:${server.actualPort}'
-      '/events?token=admin-token&apiVersion=2.6.0',
+      '/events?token=admin-token',
     );
     messages = StreamIterator<dynamic>(socket);
     expect(await messages.moveNext(), isTrue);
@@ -125,7 +125,7 @@ void main() {
     }) async {
       final linked = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}'
-        '/events?token=$token&apiVersion=2.6.0${since ?? ''}',
+        '/events?token=$token${since ?? ''}',
       );
       addTearDown(linked.close);
       final frames = StreamIterator<dynamic>(linked);

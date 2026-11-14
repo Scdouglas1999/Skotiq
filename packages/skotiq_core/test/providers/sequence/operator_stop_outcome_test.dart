@@ -99,7 +99,7 @@ void main() {
       ).thenAnswer((_) async {
         scheduleMicrotask(() {
           executor.handleSequencerEventForTest(
-            event('Error', {'message': _slewCancelled}),
+            event('Error', {'kind': 'step_failed', 'message': _slewCancelled}),
           );
           executor.handleSequencerEventForTest(
             event('SequenceFailed', {'error': _slewCancelled}),
@@ -135,7 +135,7 @@ void main() {
     ) async {
       scheduleMicrotask(() {
         executor.handleSequencerEventForTest(
-          event('SequenceStopped', const {}),
+          event('Stopped', const {}),
         );
       });
     });
@@ -199,7 +199,7 @@ void main() {
     ) async {
       origins.add(invocation.namedArguments[#origin] as String?);
       scheduleMicrotask(() {
-        executor.handleSequencerEventForTest(event('SequenceStopped', {}));
+        executor.handleSequencerEventForTest(event('Stopped', {}));
       });
     });
 
@@ -229,7 +229,7 @@ void main() {
           throw StateError('native stop lost');
         }
         scheduleMicrotask(() {
-          executor.handleSequencerEventForTest(event('SequenceStopped', {}));
+          executor.handleSequencerEventForTest(event('Stopped', {}));
         });
       });
 
@@ -259,7 +259,7 @@ void main() {
         () => backend.sequencerStop(origin: any(named: 'origin')),
       ).thenAnswer((_) async {
         scheduleMicrotask(() {
-          executor.handleSequencerEventForTest(event('SequenceStopped', {}));
+          executor.handleSequencerEventForTest(event('Stopped', {}));
         });
       });
 
@@ -276,7 +276,7 @@ void main() {
     // 'safety' so the autopilot keeps the night alive.
     final (container, executor) = build();
 
-    executor.handleSequencerEventForTest(event('SequenceStopped', {}));
+    executor.handleSequencerEventForTest(event('Stopped', {}));
     await executor.terminalCleanupSettledForTest;
     expect(executor.lastRunEndOrigin, 'safety');
     expect(container, isNotNull);

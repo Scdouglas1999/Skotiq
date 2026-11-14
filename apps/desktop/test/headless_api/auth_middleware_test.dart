@@ -58,43 +58,35 @@ void main() {
       expect(response.body['error'], 'Authentication required');
     });
 
-    test('allows view tokens on read endpoints', () async {
-      final response = await _request(
-        client,
-        baseUri,
-        '/api/openapi.json',
-        token: 'view-token',
-      );
+    test(
+      'unversioned scripts still need auth and may read with view tokens',
+      () async {
+        final response = await _request(
+          client,
+          baseUri,
+          '/api/openapi.json',
+          token: 'view-token',
+        );
 
-      expect(response.statusCode, HttpStatus.ok);
-      expect(response.body['openapi'], '3.0.3');
-    });
+        expect(response.statusCode, HttpStatus.ok);
+        expect(response.body['openapi'], '3.0.3');
+      },
+    );
 
-    test('advertises API compatibility metadata and headers', () async {
+    test('/api/info names the release and answers any client', () async {
       final response = await _request(
         client,
         baseUri,
         '/api/info',
         requestId: 'test-api-info-1',
+        release: '2.4.0',
       );
 
       expect(response.statusCode, HttpStatus.ok);
       expect(response.headers['x-request-id'], 'test-api-info-1');
       expect(response.body['version'], '2.5.0');
-      expect(
-        response.body['apiVersion'],
-        RemoteApiCompatibility.serverApiVersion.format(),
-      );
-      expect(response.body['minimumSupportedApiVersion'], '2.4.0');
-      expect(
-        response.body['apiVersionHeader'],
-        RemoteApiCompatibility.apiVersionHeader,
-      );
-      expect(
-        response.headers[RemoteApiCompatibility.apiVersionHeader],
-        RemoteApiCompatibility.serverApiVersion.format(),
-      );
-      expect(response.headers['x-skotiq-minimum-api-version'], '2.4.0');
+      expect(response.body.containsKey('apiVersion'), isFalse);
+      expect(response.body.containsKey('minimumSupportedApiVersion'), isFalse);
     });
 
     // D4W-4. The auth-exempt surface used to be written out twice — once as
@@ -161,47 +153,65 @@ void main() {
       expect(response.body['error'], 'Authentication required');
     });
 
+    test('refuses a client of another release before auth', () async {
+      final older = await _request(
+        client,
+        baseUri,
+        '/api/status',
+        release: '2.4.0',
+      );
+      final same = await _request(
+        client,
+        baseUri,
+        '/api/status',
+        release: '2.5.0',
+      );
+
+      expect(older.statusCode, HttpStatus.upgradeRequired);
+      expect(older.body['code'], LinkVersion.mismatchCode);
+      expect(older.body['hostVersion'], '2.5.0');
+      expect(older.body['clientVersion'], '2.4.0');
+      expect(
+        older.body['message'],
+        'The host runs Skotiq 2.5.0 and this device runs Skotiq 2.4.0. '
+        'Update Skotiq on this device to 2.5.0, then connect again.',
+      );
+      expect(same.statusCode, HttpStatus.unauthorized);
+    });
+
     test(
-      'rejects explicit incompatible client API versions before auth',
+      'a client using the old API version cannot bypass release checks',
       () async {
-        final tooOld = await _request(
+        final response = await _request(
           client,
           baseUri,
-          '/api/status',
-          apiVersion: '1.9.9',
+          '/api/openapi.json',
+          token: 'view-token',
+          oldApiVersion: '2.6.0',
         );
-        final tooNew = await _request(
-          client,
-          baseUri,
-          '/api/status',
-          apiVersion: '3.0.0',
-        );
-
-        expect(tooOld.statusCode, HttpStatus.upgradeRequired);
-        expect(tooOld.body['error'], 'client_too_old');
-        expect(
-          tooOld.body['serverApiVersion'],
-          RemoteApiCompatibility.serverApiVersion.format(),
-        );
-        expect(tooOld.body['minimumSupportedApiVersion'], '2.4.0');
-
-        expect(tooNew.statusCode, HttpStatus.upgradeRequired);
-        expect(tooNew.body['error'], 'server_too_old');
-        expect(tooNew.body['clientApiVersion'], '3.0.0');
+        expect(response.statusCode, HttpStatus.upgradeRequired);
+        expect(response.body['code'], 'release_required');
+        expect(response.body['message'], contains('Skotiq 2.5.0'));
+        expect(response.body['message'], contains('reload the dashboard'));
       },
     );
 
-    test('rejects incompatible WebSocket API versions before auth', () async {
-      final tooOld = await _rawSocketRequest(baseUri, [
-        'GET /events?apiVersion=1.9.9 HTTP/1.1',
+    test('a stale dashboard WebSocket cannot bypass release checks', () async {
+      final response = await _rawSocketRequest(baseUri, [
+        'GET /events?apiVersion=2.6.0 HTTP/1.1',
         'Host: 127.0.0.1:${server.actualPort}',
         'Connection: Upgrade',
         'Upgrade: websocket',
         'Sec-WebSocket-Version: 13',
         'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
       ]);
-      final tooNew = await _rawSocketRequest(baseUri, [
-        'GET /events?apiVersion=3.0.0 HTTP/1.1',
+      expect(response.statusCode, HttpStatus.upgradeRequired);
+      expect(response.body['code'], 'release_required');
+    });
+
+    test('refuses a WebSocket of another release before auth', () async {
+      final newer = await _rawSocketRequest(baseUri, [
+        'GET /events?version=2.6.0 HTTP/1.1',
         'Host: 127.0.0.1:${server.actualPort}',
         'Connection: Upgrade',
         'Upgrade: websocket',
@@ -209,13 +219,12 @@ void main() {
         'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
       ]);
 
-      expect(tooOld.statusCode, HttpStatus.upgradeRequired);
-      expect(tooOld.body['error'], 'client_too_old');
-      expect(tooOld.body['minimumSupportedApiVersion'], '2.4.0');
-
-      expect(tooNew.statusCode, HttpStatus.upgradeRequired);
-      expect(tooNew.body['error'], 'server_too_old');
-      expect(tooNew.body['clientApiVersion'], '3.0.0');
+      expect(newer.statusCode, HttpStatus.upgradeRequired);
+      expect(newer.body['code'], LinkVersion.mismatchCode);
+      expect(
+        newer.body['message'],
+        contains('Update the host to Skotiq 2.6.0'),
+      );
     });
 
     test('rejects oversized control requests before auth', () async {
@@ -318,7 +327,7 @@ void main() {
         '/api/backup/restore',
         method: 'POST',
         token: 'control-token',
-        body: const {'filePath': 'backup.zip'},
+        body: const {'id': 'backup'},
       );
 
       expect(response.statusCode, HttpStatus.forbidden);
@@ -412,7 +421,7 @@ void main() {
       () async {
         final socket = await WebSocket.connect(
           'ws://127.0.0.1:${server.actualPort}/events'
-          '?token=admin-token&apiVersion=2.5.0',
+          '?token=admin-token&version=2.5.0',
         );
         final receivedServerPing = Completer<void>();
 
@@ -444,7 +453,7 @@ void main() {
     test('WebSocket heartbeat closes stale clients that do not pong', () async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=admin-token&apiVersion=2.5.0',
+        '?token=admin-token&version=2.5.0',
       );
       final disconnected = Completer<void>();
 
@@ -464,7 +473,7 @@ void main() {
         'a spoofed viewerId from the client payload', () async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=admin-token&apiVersion=2.5.0',
+        '?token=admin-token&version=2.5.0',
       );
 
       // Send a join with an obviously-spoofed viewerId. The server must
@@ -546,7 +555,7 @@ void main() {
     ) async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=$token&apiVersion=2.5.0',
+        '?token=$token&version=2.5.0',
       );
       final frames = <Map<String, dynamic>>[];
       final subscription = socket.listen((raw) {
@@ -834,7 +843,8 @@ Future<_TestResponse> _request(
   String path, {
   String method = 'GET',
   String? token,
-  String? apiVersion,
+  String? release,
+  String? oldApiVersion,
   String? requestId,
   Map<String, dynamic>? body,
 }) async {
@@ -843,8 +853,11 @@ Future<_TestResponse> _request(
   if (requestId != null) {
     request.headers.set('x-request-id', requestId);
   }
-  if (apiVersion != null) {
-    request.headers.set(RemoteApiCompatibility.apiVersionHeader, apiVersion);
+  if (release != null) {
+    request.headers.set(LinkVersion.header, release);
+  }
+  if (oldApiVersion != null) {
+    request.headers.set('x-skotiq-api-version', oldApiVersion);
   }
   if (token != null) {
     request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');

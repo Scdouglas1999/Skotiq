@@ -228,12 +228,8 @@ class SystemHandlers implements RouteSource {
       // `gui`: the desktop app with its window serves this API. `headless`:
       // the daemon. Before 8.2.2 both said `headless`.
       'hostMode': view.hostMode.wire,
+      // The release a client must run to link ([LinkVersion]).
       'version': versionInfo.version,
-      'apiVersion': RemoteApiCompatibility.serverApiVersion.format(),
-      'minimumSupportedApiVersion': RemoteApiCompatibility
-          .minimumSupportedVersion
-          .format(),
-      'apiVersionHeader': RemoteApiCompatibility.apiVersionHeader,
       'mode': view.hostMode.wire,
       'platform': platformCapabilities.platform,
       'platformCapabilities': platformCapabilities.toJson(),
@@ -269,7 +265,7 @@ class SystemHandlers implements RouteSource {
       // still require a bearer token.
       'publicEndpoints': publicApiPaths,
       'endpoints': advertisedApiEndpoints,
-    }, headers: _apiCompatibilityHeaders());
+    });
   }
 
   /// `GET /api/status` — sequencer state snapshot. Mobile clients poll
@@ -394,17 +390,6 @@ class SystemHandlers implements RouteSource {
   }
 
   (int, String)? _openApiDocument;
-
-  Map<String, String> _apiCompatibilityHeaders() {
-    return {
-      RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
-          .serverApiVersion
-          .format(),
-      'x-skotiq-minimum-api-version': RemoteApiCompatibility
-          .minimumSupportedVersion
-          .format(),
-    };
-  }
 
   Map<String, dynamic> _runDatabaseSelfTest() {
     try {

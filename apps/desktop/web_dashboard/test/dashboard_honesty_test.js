@@ -614,6 +614,7 @@ function loadApi(fetchStub) {
     isFinite: globalThis.isFinite,
     Number: globalThis.Number,
     JSON: globalThis.JSON,
+    SKOTIQ_RELEASE: '8.2.1',
     console,
   });
   vm.runInContext(API + '\n;globalThis.__api = new SkotiqApi();', context);
@@ -804,6 +805,7 @@ function apiWithEventSource() {
     JSON: globalThis.JSON,
     EventSource: FakeEventSource,
     encodeURIComponent: globalThis.encodeURIComponent,
+    SKOTIQ_RELEASE: '8.2.1',
     console,
   });
   vm.runInContext(API + '\n;globalThis.__api = new SkotiqApi();', context);
@@ -2091,7 +2093,7 @@ test('a scheduled refresh is dropped when polling stops', () => {
 
 test('a sequencer event schedules the refresh, never a per-event fan-out', () => {
   const body = fn('handleServerEvent');
-  const branch = /category === 'sequencer'\) \{([\s\S]*?)\} else if/.exec(body);
+  const branch = /case 'sequencer':([\s\S]*?)break;/.exec(body);
   assert.ok(branch, "handleServerEvent must have a 'sequencer' branch");
   assert.match(branch[1], /scheduleSequencerRefresh\(\)/);
   for (const direct of ['fetchSequencerStatus', 'fetchOpsCheckpoints',
@@ -2857,8 +2859,29 @@ function scopeDeniedBody(resource, requiredLevel, tokenLevel) {
   });
 }
 
+test('a page from another release is told to reload, naming both releases', async () => {
+  const sent = [];
+  const api = loadApi(async (url, init) => {
+    sent.push(init.headers);
+    return new Response(JSON.stringify({
+      error: 'version_mismatch', code: 'version_mismatch',
+      message: 'The host runs Skotiq 8.2.2 and this device runs Skotiq 8.2.1. '
+        + 'Update Skotiq on this device to 8.2.2, then connect again.',
+      hostVersion: '8.2.2', clientVersion: '8.2.1',
+    }), { status: 426, headers: { 'content-type': 'application/json' } });
+  });
+
+  await assert.rejects(api.getStatus(), (e) => {
+    assert.equal(e.kind, 'version_mismatch');
+    assert.equal(e.message, 'This page is from Skotiq 8.2.1 and the host now '
+      + 'runs Skotiq 8.2.2. Reload the page to use the host\u2019s own dashboard.');
+    return true;
+  });
+  assert.equal(sent[0]['X-Skotiq-Version'], '8.2.1');
+});
+
 test('the client tells a scope refusal from a credential the rig will not take', () => {
-  const context = vm.createContext({ JSON: globalThis.JSON, console });
+  const context = vm.createContext({ JSON: globalThis.JSON, SKOTIQ_RELEASE: '8.2.1', console });
   vm.runInContext(API + '\n;globalThis.__cls = SkotiqApi._scopeRefusalFrom;', context);
   const classify = context.__cls;
 
@@ -3202,4 +3225,37 @@ test('a settings read the credential cannot make is named, not painted as unknow
     assert.match(doc.getElementById(id).title, /control access to system/);
   }
   assert.equal(log.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Polar alignment events, read by their wire names and keys
+// ---------------------------------------------------------------------------
+
+function wireEvents() {
+  const source = fs.readFileSync(path.join(ROOT, 'js', 'wire-events.js'), 'utf8');
+  return new Function(source + '\n;return WIRE_EVENTS;')();
+}
+
+test('a polar alignment error from the host shows in arcminutes', () => {
+  const state = { polarAlignment: {} };
+  let painted = 0;
+  const handle = build(
+    ['state', 'WIRE_EVENTS', 'renderPolarAlignmentPanel'],
+    [fn('wireNumber'), fn('handlePolarAlignmentEvent')],
+    'handlePolarAlignmentEvent',
+  )(state, wireEvents(), () => painted++);
+
+  // The host's PolarAlignment event: errors in arcseconds.
+  handle('PolarAlignment', {
+    azimuth_error: 90, altitude_error: 120, total_error: 150,
+    current_ra: 0, current_dec: 89, target_ra: 0, target_dec: 90,
+  });
+  assert.equal(state.polarAlignment.totalErrorArcmin, 2.5);
+
+  handle('PolarAlignmentStatus', {
+    status: 'Adjusting - make corrections', phase: 'adjusting', point: 0,
+  });
+  assert.equal(state.polarAlignment.phase, 'adjusting');
+  assert.equal(state.polarAlignment.statusMessage, 'Adjusting - make corrections');
+  assert.equal(painted, 2);
 });

@@ -21,10 +21,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show computeServerFingerprint;
+    show LinkVersion, computeServerFingerprint, skotiqRelease;
 import 'package:path/path.dart' as p;
 
-import '../../models/backend/remote_api_compatibility.dart';
 import 'delivery_artifact.dart';
 import 'delivery_failure.dart';
 import 'delivery_manifest.dart';
@@ -335,9 +334,7 @@ class PeerPullService {
 
   Map<String, String> _headers() => <String, String>{
     HttpHeaders.authorizationHeader: 'Bearer $token',
-    RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
-        .clientApiVersion
-        .format(),
+    LinkVersion.header: skotiqRelease,
   };
 
   static DeliveryFailureKind _kindForStatus(int status) {

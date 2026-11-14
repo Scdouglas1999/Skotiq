@@ -60,7 +60,7 @@ sk_events.SkotiqEvent _wire(
 sk_events.SkotiqEvent _triggerFired(DateTime at) => _wire(at, 'TriggerFired', {
       'trigger_id': 'meridian_flip',
       'trigger_name': 'Meridian Flip',
-      'action': 'MeridianFlip(MeridianFlipConfig { max_retries: 3 })',
+      'action': 'MeridianFlip',
     });
 
 sk_events.SkotiqEvent _attemptFailed(DateTime at, int n, int delay) =>
@@ -248,8 +248,7 @@ void main() {
   test('a new run starts with no flip behind it', () {
     final rig = _Rig();
     addTearDown(rig.container.dispose);
-    final execution =
-        rig.container.read(runRecordProvider.notifier);
+    final execution = rig.container.read(runRecordProvider.notifier);
     execution.setLifecycle(SequenceExecutionState.running);
     rig.emit(_triggerFired(_t0));
     rig.pier('East');

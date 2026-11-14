@@ -72,7 +72,7 @@ single-use ticket instead:
 | Exchange a code for a token | `RemotePairingClient` |
 | Issue / verify / revoke tokens (desktop) | `TokenManager`, `PairingDatabase` |
 | Confirm host identity | `computeServerFingerprint` |
-| Version negotiation | `SkotiqServerCompatibility` |
+| Same release on host and client | `LinkVersion` |
 | Push alerts to paired phones | `push/lan_push_broadcaster.dart` |
 
 ## Troubleshooting

@@ -1,17 +1,12 @@
 import '../../equipment/device_read_health_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../backend/skotiq_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../device_service_providers.dart';
 import '../../device_heartbeat_health_provider.dart';
 import '../../equipment/device_slots.dart';
-import '../../profiles_provider.dart';
-import '../../ui_notification_provider.dart';
-import '../client_runtime_mirror.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
-import '../../../models/backend/backend_types.dart';
 
 /// One device slot of the host: which device it holds, its connection state
 /// and error, and the readings its card shows.
@@ -169,69 +164,3 @@ class DeviceSlotChannel
 final List<DeviceSlotChannel> deviceSlotChannels = List.unmodifiable([
   for (final slot in deviceSlots) DeviceSlotChannel(slot),
 ]);
-
-/// Show what a host older than the device channels has connected.
-///
-/// Such a host sends no device channel, so its connected-device list fills
-/// the slots: a client can still see which devices the rig holds and start
-/// its run. Readings, the guider's state and the host's open plan need the
-/// host updated; the operator is told once per link.
-Future<void> mirrorDevicesOfOlderHost(
-  ProviderContainer container,
-  SkotiqBackend backend, {
-  required bool Function() isCurrent,
-}) async {
-  final mirror = RuntimeApplyContext(
-    container,
-    networkBackend: backend,
-  ).read(clientRuntimeMirrorStateProvider);
-  if (mirror.hostPublishes(deviceSlotChannels.first.key)) return;
-  final devices = await backend.getConnectedDevices();
-  if (!isCurrent()) return;
-  final context = RuntimeApplyContext(container, networkBackend: backend);
-  // The guide camera has no slot of its own and must not take the imaging
-  // camera's.
-  final guideProfile = context.read(activeEquipmentProfileProvider);
-  for (final channel in deviceSlotChannels) {
-    final type = channel.slot.type;
-    // PHD2 is not always in an older host's device list.
-    if (type == DeviceType.guider) continue;
-    final device = devices
-        .where(
-          (candidate) =>
-              candidate.deviceType == type &&
-              !(type == DeviceType.camera &&
-                  isProfileGuideCamera(guideProfile, candidate.id)),
-        )
-        .firstOrNull;
-    final shown = readDeviceSlot(container, type);
-    if (device == null && shown.deviceId == null) continue;
-    final ownConnect = shown.retryDeviceId ?? device?.id;
-    if (ownConnect != null &&
-        container.read(connectAttemptsProvider).isOwn(ownConnect)) {
-      continue;
-    }
-    if (device != null &&
-        shown.deviceId == device.id &&
-        shown.connectionState == DeviceConnectionState.connected) {
-      continue;
-    }
-    readDeviceConnectionNotifier(container, type).mirrorHost(
-      connectionState: device == null
-          ? DeviceConnectionState.disconnected
-          : DeviceConnectionState.connected,
-      deviceId: device?.id,
-      deviceName: device?.name,
-      lastError: null,
-    );
-  }
-  if (mirror.olderHostNoticed) return;
-  mirror.olderHostNoticed = true;
-  context
-      .read(uiNotificationProvider.notifier)
-      .showWarning(
-        'This host runs an older Skotiq: device readings, guider state and '
-        'its open plan are not shown here. Update the host.',
-        title: 'Host needs an update',
-      );
-}

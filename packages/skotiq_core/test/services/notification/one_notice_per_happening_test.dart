@@ -57,24 +57,36 @@ SkotiqEvent _sequencer(
 );
 
 /// The row and the Warning a host writes for one happening, worded unlike any
-/// build before the notice field, so only the notice can tie them together.
+/// other, so only the notice can tie them together.
 (SkotiqEvent row, SkotiqEvent warning) _happening(
   SequencerNotice notice,
   String detailsJson,
 ) => (
-  _sequencer('DecisionLogged', EventSeverity.info, {
-    'category': 'system_event',
-    'summary': 'Reworded summary for ${notice.wireName}',
-    'details_json': detailsJson,
-    'sequence_run_id': 7,
-    kSequencerNoticeKey: notice.wireName,
-  }),
-  _sequencer('Error', EventSeverity.warning, {
-    'message': 'Reworded warning line for ${notice.wireName}.',
-    'kind': 'advisory',
-    kSequencerNoticeKey: notice.wireName,
-  }),
+  _encoded(
+    EventSeverity.info,
+    SequencerEvent.decisionLogged(
+      timestampIso: '2026-11-13T03:00:00Z',
+      category: 'system_event',
+      summary: 'Reworded summary for ${notice.wireName}',
+      detailsJson: detailsJson,
+      sequenceRunId: 7,
+      notice: notice,
+    ),
+  ),
+  _encoded(
+    EventSeverity.warning,
+    SequencerEvent.error(
+      message: 'Reworded warning line for ${notice.wireName}.',
+      kind: SequencerErrorKind.advisory,
+      notice: notice,
+    ),
+  ),
 );
+
+SkotiqEvent _encoded(EventSeverity severity, SequencerEvent event) {
+  final (type, data) = encodeEventPayload(EventPayload.sequencer(event));
+  return _sequencer(type, severity, Map<String, dynamic>.from(data));
+}
 
 void main() {
   final cases = [

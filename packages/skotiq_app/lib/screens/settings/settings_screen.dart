@@ -12,7 +12,6 @@ import '../../localization/skotiq_localizations.dart';
 import '../../tours/tour_target.dart';
 import 'settings_catalog.dart';
 import 'settings_search_index.g.dart';
-import 'widgets/host_settings_notice.dart';
 import 'widgets/settings_scope_notice.dart';
 import 'widgets/settings_widgets.dart';
 import '../../router/app_routes.dart';
@@ -320,7 +319,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const HostSettingsNotice(),
                 SettingsScopeNotice.forSection(section.id),
                 Expanded(
                   child: SettingsFormScope(
@@ -392,7 +390,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const HostSettingsNotice(),
                     SettingsScopeNotice.forSection(_selected),
                     Expanded(
                       child: SettingsFormScope(
