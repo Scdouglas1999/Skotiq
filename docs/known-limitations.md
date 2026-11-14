@@ -3,7 +3,22 @@
 This page records platform coverage and limitations that affect using Skotiq.
 For installation help, see the [setup guide](getting-started/installation.md).
 
-## 8.0.0
+## 9.0.0
+
+Windows and Linux x64 packages and three Android APKs are distributed. macOS and iOS are not distributed. Host and linked clients must all run 9.0.0. Back up before the schema-70 migration; use that backup to return to an older app.
+
+| Area | Verified scope or remaining limit | What to do |
+| --- | --- | --- |
+| Physical equipment | This refactor has no new on-sky or physical-rig validation. Native Windows CI and Linux desktop checks used simulators; interactive Windows testing was unavailable. | Check the complete workflow on your rig before relying on it for an unattended night. Earlier hardware evidence remains historical. |
+| Android | Startup, pairing, reconnection and update were checked on Android 15 x86_64 in an emulator. ARM APKs were built and signature-checked. | Confirm operation on your phone. Install arm64-v8a on most current phones. |
+| Linux responsiveness | The stock engine schedules near 60 Hz; 240 Hz is not established. Full-resolution image copies, weather rendering and cold navigation retain measured costs. | See the [performance assessment](release/performance-v9.0.0-linux.md). The final 26 MP capture repeat passed its bounded stall check. |
+| Location and weather | Internet location is approximate; NWS and fallback cloud data are forecasts, not local safety observations. | Check the saved site and use a verified local safety/weather sensor when automation depends on conditions. |
+| Distribution | APKs and OTA manifests use production signing. Windows binaries have no Authenticode signature. | Verify package checksums and expect Windows installation warnings. |
+| Device backends | Available backends do not establish support for every device. Vendor SDKs are not redistributed. | Consult the [hardware matrix](supported-hardware-by-platform.md) and install required host drivers/libraries. |
+
+These limits are part of the accepted stable-release scope. The owner authorized publication on November 14, 2026. The [release readiness record](release/refactor-readiness.md) and [validation record](release/validation-v9.0.0.md) retain evidence and remaining checks. No runtime backend availability was changed for publication.
+
+## 8.0.0 (previous release)
 
 - **Real imaging:** two full nights on the owner's Windows rig, with a ZWO ASI1600MM-Cool, Pegasus NYX-101, EAF, EFW and PHD2. These observations establish that rig's workflow; they do not establish coverage for every driver or device.
 - **Platforms:** Windows and Linux desktop packages and Android companion APKs are distributed. macOS and iOS are not distributed in this release.

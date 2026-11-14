@@ -9,6 +9,10 @@ The same backend availability is surfaced in-app under
 Settings > Connection > Platform Capabilities and through
 `/api/info.platformCapabilities` in headless mode.
 
+## 9.0.0 verification
+
+This release ships Windows and Linux x64 packages and Android APKs. Native Windows CI and the packaged Linux desktop passed simulator capture and FITS readback. Android startup, pairing, reconnection and update were checked in an Android 15 x86_64 emulator. Physical equipment, interactive Windows use and Android ARM runtime were unavailable for this release. The historical hardware records below do not certify the refactor on those devices. Backend availability in the tables and the in-app/API capability matrix is unchanged. See [9.0.0 validation](release/validation-v9.0.0.md).
+
 ## Verified Hardware (4.1.0)
 
 This table records devices that have actually been run against Skotiq, and at

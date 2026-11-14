@@ -9,6 +9,20 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [9.0.0] — 2026-11-14
+
+Shared host and companion run state; sequencer, camera, mosaic and image-reading corrections; bounded startup location detection; NWS local cloud forecasts; and reduced histogram and request-log stalls during capture. Windows/Linux x64 and production-signed Android packages are distributed with checksums and signed OTA manifests. Upgrade the host and linked clients together and back up before the schema-70 migration.
+
+See the [full release notes](release/v9.0.0.md) and [validation record](release/validation-v9.0.0.md), including physical-rig and refresh-rate limitations.
+
+## [8.2.1] — 2026-11-04
+
+Rig-night fixes for meridian-flip recovery, run outcomes and linked-client state. See the [release notes](release/v8.2.1.md).
+
+## [8.2.0] — 2026-11-03
+
+Overnight-run, guiding and linked-client improvements, including the unpublished 8.1.4 changes. See the [release notes](release/v8.2.0.md).
+
 ## [8.0.0] — 2026-10-22
 
 The Nightshade-to-Skotiq rename, a rebuilt Tonight screen, a real remote
